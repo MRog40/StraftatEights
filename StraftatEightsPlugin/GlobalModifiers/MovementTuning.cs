@@ -4,14 +4,21 @@ using UnityEngine;
 
 namespace StraftatEightsPlugin;
 
+// Reflection-based helpers for tuning FirstPersonController's private movement fields, used by
+// GlobalModifiersPatches. Kept separate since it deals with raw field access rather than config/sync.
 internal static class MovementTuning
 {
     // Stock Straftat acceleration value, shared by all 7 acceleration fields by default
     private const float BaseAcceleration = 15f;
 
+    // Stock Straftat sprint-in-air speed is already faster than ground sprint (14 vs 12) - this is
+    // the real ratio, used as the Air Move Speed % slider's default so 100% on the slider wouldn't
+    // lie about what stock Straftat actually does
+    internal const float StockAirSpeedRatioPercent = 14f / 12f * 100f;
+
     private const BindingFlags Flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
     private static FieldInfo _globalAcceleration = null!, _globalDeceleration = null!, _walkAcceleration = null!, _sprintAcceleration = null!, _crouchAcceleration = null!, _airAcceleration = null!, _sprintAirAcceleration = null!;
-    private static FieldInfo _walkSpeed = null!, _sprintSpeed = null!;
+    private static FieldInfo _walkSpeed = null!, _sprintSpeed = null!, _airSpeed = null!, _sprintAirSpeed = null!;
     private static FieldInfo _bforcefinal = null!, _bfactor = null!;
     private static bool _cached;
 
@@ -31,6 +38,8 @@ internal static class MovementTuning
         _sprintAirAcceleration = t.GetField("sprintAirAcceleration", Flags);
         _walkSpeed = t.GetField("walkSpeed", Flags);
         _sprintSpeed = t.GetField("sprintSpeed", Flags);
+        _airSpeed = t.GetField("airSpeed", Flags);
+        _sprintAirSpeed = t.GetField("sprintAirSpeed", Flags);
         _bforcefinal = t.GetField("bforcefinal", Flags);
         _bfactor = t.GetField("bfactor", Flags);
         _cached = true;
@@ -38,7 +47,10 @@ internal static class MovementTuning
 
     // Momentum % is inversely proportional to acceleration: higher % = more weight/inertia = slower
     // to speed up, slow down, or redirect. 100% reproduces stock Straftat's snappiness exactly.
-    internal static void ApplyMomentum(FirstPersonController controller, float momentumPercent)
+    // Air speed ratio % is airSpeed/sprintAirSpeed as a percent of walkSpeed/sprintSpeed (ground
+    // speed) - the real stock ratio is ~117%, i.e. already faster in the air than sprinting on the
+    // ground, so the default reflects that instead of a misleading 100%.
+    internal static void ApplyTuning(FirstPersonController controller, float momentumPercent, float airSpeedRatioPercent)
     {
         EnsureCached();
         float accel = momentumPercent <= 0f ? BaseAcceleration : BaseAcceleration * 100f / momentumPercent;
@@ -49,20 +61,26 @@ internal static class MovementTuning
         _crouchAcceleration.SetValue(controller, accel);
         _airAcceleration.SetValue(controller, accel);
         _sprintAirAcceleration.SetValue(controller, accel);
+
+        float airRatio = airSpeedRatioPercent / 100f;
+        float walkSpeed = (float)_walkSpeed.GetValue(controller);
+        float sprintSpeed = (float)_sprintSpeed.GetValue(controller);
+        _airSpeed.SetValue(controller, walkSpeed * airRatio);
+        _sprintAirSpeed.SetValue(controller, sprintSpeed * airRatio);
     }
 
-    // Tracks the momentum version last written to each controller so Update can skip the reflection
+    // Tracks the tuning version last written to each controller so Update can skip the reflection
     // work entirely on the (vast majority of) frames where nothing has changed
     private static readonly ConditionalWeakTable<FirstPersonController, StrongBox<int>> LastAppliedVersion = new();
 
-    internal static void ApplyMomentumIfChanged(FirstPersonController controller, float momentumPercent, int version)
+    internal static void ApplyTuningIfChanged(FirstPersonController controller, float momentumPercent, float airSpeedRatioPercent, int version)
     {
         StrongBox<int> box = LastAppliedVersion.GetOrCreateValue(controller);
         if (box.Value == version)
         {
             return;
         }
-        ApplyMomentum(controller, momentumPercent);
+        ApplyTuning(controller, momentumPercent, airSpeedRatioPercent);
         box.Value = version;
     }
 
