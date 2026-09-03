@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>StraftatEightsPlugin</AssemblyName>
+    <Product>Straftat Eights</Product>
+    <Version>0.0.1</Version>
+    <Name>StraftatEightsPlugin</Name>
+    <Guid>88888888-cf51-4976-ac97-8a909ec0daa3</Guid>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>StraftatEightsPlugin</RootNamespace>
+    <!-- Override with an environment variable if the game is installed elsewhere -->
+    <GameManagedDir Condition="'$(GameManagedDir)' == ''">F:\SteamLibrary\steamapps\common\STRAFTAT\STRAFTAT_Data\Managed</GameManagedDir>
+    <BepInExPluginsDir Condition="'$(BepInExPluginsDir)' == ''">C:\Users\michael\AppData\Roaming\com.kesomannen.gale\straftat\profiles\Default\BepInEx\plugins</BepInExPluginsDir>
+  </PropertyGroup>
+ 
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.Core" Version="5.*" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" IncludeAssets="compile" />
+    <PackageReference Include="HarmonyX" Version="2.*" IncludeAssets="compile" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(GameManagedDir)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.InputSystem">
+      <HintPath>$(GameManagedDir)\Unity.InputSystem.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="com.rlabrecque.steamworks.net">
+      <HintPath>$(GameManagedDir)\com.rlabrecque.steamworks.net.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="FishNet.Runtime">
+      <HintPath>$(GameManagedDir)\FishNet.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="MyceliumNetworkingForStraftat">
+      <HintPath>$(BepInExPluginsDir)\straftatmodding-MyceliumNetworking\MyceliumNetworkingForStraftat.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Drops the built plugin straight into the Gale profile so `dotnet build` is enough to update the in-game mod -->
+  <Target Name="DeployToBepInEx" AfterTargets="Build">
+    <ItemGroup>
+      <DeployFiles Include="$(TargetDir)$(AssemblyName).dll" />
+    </ItemGroup>
+    <MakeDir Directories="$(BepInExPluginsDir)\$(AssemblyName)" Condition="'$(BepInExPluginsDir)' != ''" />
+    <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(BepInExPluginsDir)\$(AssemblyName)" Condition="'$(BepInExPluginsDir)' != ''" />
+  </Target>
+</Project>
