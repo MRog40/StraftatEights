@@ -52,6 +52,10 @@ public partial class Plugin
         gameObject.AddComponent<JuggernautHud>();
 
         MyceliumNetwork.RegisterNetworkObject(this, JuggernautModId);
+        // LobbyCreated fires for the host (Steam LobbyCreated_t); LobbyEntered only fires for
+        // joining clients (Steam LobbyEnter_t) - the host needs both to ever re-apply/reset on its
+        // own session start, since LobbyEntered alone never fires when hosting.
+        MyceliumNetwork.LobbyCreated += JuggernautState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += JuggernautState.OnLobbyEntered;
         MyceliumNetwork.PlayerEntered += JuggernautState.OnPlayerEntered;
     }
@@ -60,6 +64,7 @@ public partial class Plugin
     [CustomRPC]
     public void SyncJuggernautSettings(bool enabled, int pointsPerSecond, int bonusHealthOnCrown, int healthPerKill, int speedPercent, float respawnDelaySeconds, bool showOutline, bool showScoreboard)
     {
+        Logger.LogInfo($"[Juggernaut] Received settings sync: enabled={enabled} speed%={speedPercent}");
         JuggernautState.ApplySettings(enabled, pointsPerSecond, bonusHealthOnCrown, healthPerKill, speedPercent, respawnDelaySeconds, showOutline, showScoreboard);
     }
 

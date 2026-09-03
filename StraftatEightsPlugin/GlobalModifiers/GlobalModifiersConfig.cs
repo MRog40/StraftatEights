@@ -67,6 +67,10 @@ public partial class Plugin
         AirSpeedRatioPercent.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
 
         MyceliumNetwork.RegisterNetworkObject(this, GlobalModifiersModId);
+        // LobbyCreated fires for the host (Steam LobbyCreated_t); LobbyEntered only fires for
+        // joining clients (Steam LobbyEnter_t) - the host needs both to ever re-apply/reset on its
+        // own session start, since LobbyEntered alone never fires when hosting.
+        MyceliumNetwork.LobbyCreated += GlobalModifiersState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += GlobalModifiersState.OnLobbyEntered;
         MyceliumNetwork.PlayerEntered += GlobalModifiersState.OnPlayerEntered;
     }
@@ -75,6 +79,7 @@ public partial class Plugin
     [CustomRPC]
     public void SyncMovementSettings(bool enabled, bool wallJump, bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent, int maxHealthPercent, int gravityPercent, int momentumPercent, int airSpeedRatioPercent)
     {
+        Logger.LogInfo($"[GlobalModifiers] Received sync: enabled={enabled} moveSpeed%={moveSpeedPercent} maxHealth%={maxHealthPercent}");
         GlobalModifiersState.Apply(enabled, wallJump, sliding, slideBoost, wallJumpBoost, moveSpeedPercent, adsSpeedPercent, maxHealthPercent, gravityPercent, momentumPercent, airSpeedRatioPercent);
     }
 }

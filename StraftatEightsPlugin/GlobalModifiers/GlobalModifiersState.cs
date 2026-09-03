@@ -71,11 +71,13 @@ internal static class GlobalModifiersState
             return;
         }
         ApplyFromHostConfig();
+        Plugin.Logger.LogInfo($"[GlobalModifiers] Host broadcasting movement settings to {MyceliumNetwork.PlayerCount} player(s)");
         MyceliumNetwork.RPC(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), ReliableType.Reliable, RpcArgs());
     }
 
     internal static void OnLobbyEntered()
     {
+        Plugin.Logger.LogInfo($"[GlobalModifiers] Lobby session started, IsHost={MyceliumNetwork.IsHost}");
         if (MyceliumNetwork.IsHost)
         {
             ApplyFromHostConfig();
@@ -89,6 +91,7 @@ internal static class GlobalModifiersState
         {
             return;
         }
+        Plugin.Logger.LogInfo($"[GlobalModifiers] Sending catch-up movement settings to newly joined player {player}");
         MyceliumNetwork.RPCTarget(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), player, ReliableType.Reliable, RpcArgs());
     }
 
