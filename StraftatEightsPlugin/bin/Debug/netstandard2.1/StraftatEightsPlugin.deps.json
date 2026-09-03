@@ -10,7 +10,8 @@
       "StraftatEightsPlugin/0.0.1": {
         "dependencies": {
           "BepInEx.Core": "5.4.21",
-          "HarmonyX": "2.16.1"
+          "HarmonyX": "2.16.1",
+          "MonoMod.Backports": "1.1.2"
         },
         "runtime": {
           "StraftatEightsPlugin.dll": {}
