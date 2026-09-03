@@ -1,5 +1,6 @@
 using MyceliumNetworking;
 using Steamworks;
+using UnityEngine;
 
 namespace StraftatEightsPlugin;
 
@@ -43,6 +44,7 @@ internal static class GlobalModifiersState
             MomentumPercent = 100f;
             AirSpeedRatioPercent = MovementTuning.StockAirSpeedRatioPercent;
             TuningVersion++;
+            Plugin.Logger.LogInfo("[GlobalModifiers] Apply: disabled - all values reset to stock");
             return;
         }
 
@@ -57,6 +59,7 @@ internal static class GlobalModifiersState
         MomentumPercent = momentumPercent;
         AirSpeedRatioPercent = airSpeedRatioPercent;
         TuningVersion++;
+        Plugin.Logger.LogInfo($"[GlobalModifiers] Apply: SpeedMultiplier={SpeedMultiplier:0.00} AdsSpeedMultiplier={AdsSpeedMultiplier:0.00} HealthMultiplier={HealthMultiplier:0.00} GravityMultiplier={GravityMultiplier:0.00} MomentumPercent={MomentumPercent} AirSpeedRatioPercent={AirSpeedRatioPercent} TuningVersion={TuningVersion}");
     }
 
     private static void ApplyFromHostConfig()
@@ -68,11 +71,29 @@ internal static class GlobalModifiersState
     {
         if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
         {
+            Plugin.Logger.LogInfo($"[GlobalModifiers] PushIfHost skipped: InLobby={MyceliumNetwork.InLobby} IsHost={MyceliumNetwork.IsHost}");
             return;
         }
         ApplyFromHostConfig();
         Plugin.Logger.LogInfo($"[GlobalModifiers] Host broadcasting movement settings to {MyceliumNetwork.PlayerCount} player(s)");
         MyceliumNetwork.RPC(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), ReliableType.Reliable, RpcArgs());
+    }
+
+    private static float _nextPeriodicPushTime;
+
+    // Mycelium's P2P session in this game intermittently fails to deliver a message with no error on
+    // the sending side (see repo memory - "Session request failed" / "ProblemDetectedLocally" in the
+    // log), so a single one-shot broadcast on config change or player join isn't reliable enough.
+    // Resending periodically regardless of whether anything changed self-heals within a few seconds,
+    // the same way the (working) Juggernaut mod's every-second state rebroadcast does.
+    internal static void PeriodicPushIfHost()
+    {
+        if (Time.unscaledTime < _nextPeriodicPushTime)
+        {
+            return;
+        }
+        _nextPeriodicPushTime = Time.unscaledTime + 3f;
+        PushIfHost();
     }
 
     internal static void OnLobbyEntered()

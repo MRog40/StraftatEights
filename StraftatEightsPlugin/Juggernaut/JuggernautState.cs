@@ -70,6 +70,21 @@ internal static class JuggernautState
         MyceliumNetwork.RPC(Plugin.JuggernautModId, nameof(Plugin.SyncJuggernautSettings), ReliableType.Reliable, SettingsRpcArgs());
     }
 
+    private static float _nextPeriodicSettingsPushTime;
+
+    // Same reasoning as GlobalModifiersState.PeriodicPushIfHost: a single one-shot settings broadcast
+    // can be silently dropped by a flaky Mycelium P2P session, so keep resending periodically while
+    // hosting (the live-state broadcast in ServerTick already does this every second; settings didn't).
+    internal static void PeriodicPushSettingsIfHost()
+    {
+        if (UnityEngine.Time.unscaledTime < _nextPeriodicSettingsPushTime)
+        {
+            return;
+        }
+        _nextPeriodicSettingsPushTime = UnityEngine.Time.unscaledTime + 3f;
+        PushSettingsIfHost();
+    }
+
     internal static void OnLobbyEntered()
     {
         Plugin.Logger.LogInfo($"[Juggernaut] Lobby session started, IsHost={MyceliumNetwork.IsHost}");

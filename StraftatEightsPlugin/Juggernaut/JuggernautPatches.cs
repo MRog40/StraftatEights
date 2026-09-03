@@ -16,6 +16,7 @@ internal static class GameManager_JuggernautTick_Patch
         if (__instance.IsServer)
         {
             JuggernautState.ServerTick(Time.deltaTime);
+            JuggernautState.PeriodicPushSettingsIfHost();
         }
         JuggernautOutline.EnforceOutline();
     }

@@ -5,6 +5,20 @@ namespace StraftatEightsPlugin;
 
 // Harmony patches that enforce GlobalModifiersState on the actual game objects
 
+[HarmonyPatch(typeof(GameManager), "Update")]
+internal static class GameManager_GlobalModifiersTick_Patch
+{
+    // Keeps resending settings while hosting, in case an earlier one-shot broadcast was silently
+    // dropped by a flaky Mycelium P2P session - see GlobalModifiersState.PeriodicPushIfHost
+    private static void Postfix(GameManager __instance)
+    {
+        if (__instance.IsServer)
+        {
+            GlobalModifiersState.PeriodicPushIfHost();
+        }
+    }
+}
+
 [HarmonyPatch(typeof(FirstPersonController), "Slide")]
 internal static class FirstPersonController_Slide_Patch
 {
@@ -84,12 +98,22 @@ internal static class FirstPersonController_WallJumpBoost_Patch
 [HarmonyPatch(typeof(FirstPersonController), "Update")]
 internal static class FirstPersonController_Speed_Patch
 {
+    private static float _nextOwnerLogTime;
+
     // movementFactor is a plain per-client multiplier read every frame for move speed
     private static void Prefix(FirstPersonController __instance)
     {
         float adsFactor = __instance.isAiming ? GlobalModifiersState.AdsSpeedMultiplier : 1f;
         __instance.movementFactor = GlobalModifiersState.SpeedMultiplier * adsFactor;
         __instance.gravityMultiplier = GlobalModifiersState.GravityMultiplier;
+
+        // Throttled proof-of-life log for the local player only: confirms what this specific client
+        // is actually enforcing every frame, regardless of what was sent/received earlier
+        if (__instance.IsOwner && UnityEngine.Time.unscaledTime >= _nextOwnerLogTime)
+        {
+            _nextOwnerLogTime = UnityEngine.Time.unscaledTime + 5f;
+            Plugin.Logger.LogInfo($"[GlobalModifiers] Enforcing on local player: movementFactor={__instance.movementFactor:0.00} (SpeedMultiplier={GlobalModifiersState.SpeedMultiplier:0.00}, Enabled={GlobalModifiersState.Enabled})");
+        }
 
         // Cheap version check skips the reflection work on every frame where nothing changed,
         // while still applying live edits instantly (no need to wait for a respawn)
