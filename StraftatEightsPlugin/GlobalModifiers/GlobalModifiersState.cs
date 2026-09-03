@@ -103,7 +103,7 @@ internal static class GlobalModifiersState
             Plugin.MovementTweaksEnabled.Value,
             Plugin.WallJumpEnabled.Value, Plugin.SlidingEnabled.Value, Plugin.SlideBoostEnabled.Value, Plugin.WallJumpBoostEnabled.Value,
             Plugin.MoveSpeedPercent.Value, Plugin.AdsSpeedPercent.Value, Plugin.MaxHealthPercent.Value, Plugin.GravityPercent.Value,
-            MomentumPercent, Plugin.AirSpeedRatioPercent.Value
+            Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value
         };
     }
 }
