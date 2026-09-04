@@ -28,6 +28,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeGlobalModifiers();
         InitializeHealthSettings();
         InitializeJuggernaut();
+        InitializeFFA();
 
         new Harmony(MyPluginInfo.PLUGIN_GUID).PatchAll();
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
@@ -39,6 +40,7 @@ public partial class Plugin : BaseUnityPlugin
         HealthSettingsState.PeriodicPushIfHost();
         HealthSettingsState.ServerTick();
         JuggernautState.PeriodicPushSettingsIfHost();
+        FFAState.PeriodicPushSettingsIfHost();
     }
 }
 

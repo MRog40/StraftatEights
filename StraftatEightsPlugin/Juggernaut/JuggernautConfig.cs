@@ -33,8 +33,7 @@ public partial class Plugin
             new ConfigDescription("Host-controlled: bonus health granted to the Juggernaut for each kill they get while holding the crown.", new AcceptableValueRange<int>(0, 100)));
         JuggernautSpeedPercent = Config.Bind(section, "Juggernaut Speed %", 125,
             new ConfigDescription("Host-controlled: movement speed of whoever is currently the Juggernaut, as a percent of normal. Independent of Global Modifiers' Move Speed %.", new AcceptableValueRange<int>(100, 200)));
-        JuggernautRespawnDelaySeconds = Config.Bind(section, "Respawn Delay (seconds)", 3f,
-            new ConfigDescription("Host-controlled: how long a killed player waits before automatically respawning, so the hunt never stalls waiting on a manual respawn.", new AcceptableValueRange<float>(0f, 10f)));
+        JuggernautRespawnDelaySeconds = GameModeConfig.BindRespawnDelay(Config, section);
         JuggernautShowOutline = Config.Bind(section, "Show Juggernaut Outline", true,
             "Host-controlled: gives the current Juggernaut a visible colored outline for everyone else, so they're easy to spot.");
         JuggernautShowScoreboard = Config.Bind(section, "Show Scoreboard", true,

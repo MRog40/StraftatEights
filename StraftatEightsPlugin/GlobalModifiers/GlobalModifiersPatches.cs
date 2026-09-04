@@ -43,7 +43,7 @@ internal static class FirstPersonController_SlideBoost_Patch
 
         Vector3 moveHorizontal = new(__instance.moveDirection.x, 0f, __instance.moveDirection.z);
         Vector3 combined = moveHorizontal + __instance.forceAdded;
-        float cap = MovementTuning.GetSprintSpeed(__instance);
+        float cap = MovementTuning.GetEffectiveSprintSpeed(__instance);
         float magnitude = combined.magnitude;
         if (magnitude > cap && magnitude > 0.0001f)
         {
@@ -74,7 +74,7 @@ internal static class FirstPersonController_WallJumpBoost_Patch
         {
             return;
         }
-        MovementTuning.ClampWallJumpBoost(__instance, MovementTuning.GetSprintSpeed(__instance));
+        MovementTuning.ClampWallJumpBoost(__instance, MovementTuning.GetEffectiveSprintSpeed(__instance));
     }
 }
 

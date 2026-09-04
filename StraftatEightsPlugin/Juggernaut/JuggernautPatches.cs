@@ -1,4 +1,3 @@
-using System.Collections;
 using HarmonyLib;
 using UnityEngine;
 
@@ -65,16 +64,7 @@ internal static class PlayerHealth_JuggernautAutoRespawn_Patch
         PlayerManager manager = __instance.GetComponent<PlayerManager>();
         if (manager != null && Plugin.Instance != null)
         {
-            Plugin.Instance.StartCoroutine(AutoRespawnCoroutine(manager, JuggernautState.RespawnDelaySeconds));
-        }
-    }
-
-    private static IEnumerator AutoRespawnCoroutine(PlayerManager manager, float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        if (manager != null)
-        {
-            manager.TryRespawn();
+            GameModeRespawn.Schedule(manager, JuggernautState.RespawnDelaySeconds);
         }
     }
 }

@@ -96,6 +96,11 @@ internal static class MovementTuning
         return (float)_sprintSpeed.GetValue(controller);
     }
 
+    internal static float GetEffectiveSprintSpeed(FirstPersonController controller)
+    {
+        return GetSprintSpeed(controller) * GlobalModifiersState.SpeedMultiplier;
+    }
+
     // WASD-axis smoothing alone doesn't cover camera-driven direction changes (e.g. spinning 180 while
     // still holding forward) since moveDirection is recomputed fresh from facing every frame with no
     // persisted world-space velocity. This blends the resulting horizontal direction/speed across
