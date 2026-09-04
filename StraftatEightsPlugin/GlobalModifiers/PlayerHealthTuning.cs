@@ -38,7 +38,8 @@ internal static class PlayerHealthTuning
             float bonus = scaledFullHealth - previousFullHealth;
             if (!Mathf.Approximately(bonus, 0f))
             {
-                controller.RpcLogic___RemoveHealth_431000436(-bonus);
+                float health = controller.sync___get_value_health();
+                controller.sync___set_value_health(health + bonus, true);
                 Plugin.Logger.LogInfo($"[GlobalModifiers] Health server write: owner={controller.IsOwner} healthAfter={controller.health:0.##} bonus={bonus:0.##}");
             }
         }
