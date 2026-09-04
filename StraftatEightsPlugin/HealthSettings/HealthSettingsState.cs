@@ -14,11 +14,11 @@ internal static class HealthSettingsState
 
     private static float _nextPeriodicPushTime;
 
-    internal static void Apply(int maxHealthPercent, bool regenEnabled, float regenDelaySeconds, int regenRate)
+    internal static void Apply(int maxHealthPercent, bool regenEnabled, int regenDelaySeconds, int regenRate)
     {
         MaxHealthMultiplier = maxHealthPercent / 100f;
         RegenEnabled = regenEnabled;
-        RegenDelaySeconds = Mathf.Max(0.1f, regenDelaySeconds);
+        RegenDelaySeconds = Mathf.Clamp(regenDelaySeconds, 2f, 15f);
         RegenRate = Mathf.Max(25f, regenRate);
         TuningVersion++;
         Plugin.Logger.LogInfo($"[HealthSettings] Apply: maxHealthMultiplier={MaxHealthMultiplier:0.##} enabled={RegenEnabled} delay={RegenDelaySeconds:0.##} rate={RegenRate:0.##} version={TuningVersion}");
