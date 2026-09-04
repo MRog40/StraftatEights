@@ -79,20 +79,19 @@ internal static class GlobalModifiersState
         MyceliumNetwork.RPC(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), ReliableType.Reliable, RpcArgs());
     }
 
-    private static float _nextPeriodicPushTime;
-
     // Mycelium's P2P session in this game intermittently fails to deliver a message with no error on
     // the sending side (see repo memory - "Session request failed" / "ProblemDetectedLocally" in the
     // log), so a single one-shot broadcast on config change or player join isn't reliable enough.
     // Resending periodically regardless of whether anything changed self-heals within a few seconds,
     // the same way the (working) Juggernaut mod's every-second state rebroadcast does.
+    private static float _nextPeriodicPushTime;
+
     internal static void PeriodicPushIfHost()
     {
-        if (Time.unscaledTime < _nextPeriodicPushTime)
+        if (!HostSettingsSync.IsDue(ref _nextPeriodicPushTime))
         {
             return;
         }
-        _nextPeriodicPushTime = Time.unscaledTime + 3f;
         PushIfHost();
     }
 

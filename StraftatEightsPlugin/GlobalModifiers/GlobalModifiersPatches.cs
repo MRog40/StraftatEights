@@ -5,20 +5,6 @@ namespace StraftatEightsPlugin;
 
 // Harmony patches that enforce GlobalModifiersState on the actual game objects
 
-[HarmonyPatch(typeof(GameManager), "Update")]
-internal static class GameManager_GlobalModifiersTick_Patch
-{
-    // Keeps resending settings while hosting, in case an earlier one-shot broadcast was silently
-    // dropped by a flaky Mycelium P2P session - see GlobalModifiersState.PeriodicPushIfHost
-    private static void Postfix(GameManager __instance)
-    {
-        if (__instance.IsServer)
-        {
-            GlobalModifiersState.PeriodicPushIfHost();
-        }
-    }
-}
-
 [HarmonyPatch(typeof(FirstPersonController), "Slide")]
 internal static class FirstPersonController_Slide_Patch
 {

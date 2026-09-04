@@ -77,11 +77,10 @@ internal static class JuggernautState
     // hosting (the live-state broadcast in ServerTick already does this every second; settings didn't).
     internal static void PeriodicPushSettingsIfHost()
     {
-        if (UnityEngine.Time.unscaledTime < _nextPeriodicSettingsPushTime)
+        if (!HostSettingsSync.IsDue(ref _nextPeriodicSettingsPushTime))
         {
             return;
         }
-        _nextPeriodicSettingsPushTime = UnityEngine.Time.unscaledTime + 3f;
         PushSettingsIfHost();
     }
 
