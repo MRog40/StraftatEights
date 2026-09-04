@@ -3,6 +3,9 @@
 Development notes for AI agents / contributors working on this BepInEx mod for STRAFTAT.
 Keep this updated as the mod grows — treat it as persistent project memory.
 
+## Core AI Instrunctions
+- Always respond and use ASD-STE100 Simplified Technical English, a way of writing to simplify
+
 ## What this is
 A BepInEx 5 plugin for STRAFTAT (Unity/Mono, FishNet networking, Steam lobbies). Host-authoritative
 custom game rules/tweaks, synced to all players in a lobby via MyceliumNetworking.
@@ -19,9 +22,29 @@ custom game rules/tweaks, synced to all players in a lobby via MyceliumNetworkin
 - Game install (Managed DLLs for compiling against): `F:\SteamLibrary\steamapps\common\STRAFTAT\STRAFTAT_Data\Managed`
   (path is a csproj property `GameManagedDir`, overridable).
 - BepInEx plugins folder (Gale mod manager profile): `C:\Users\michael\AppData\Roaming\com.kesomannen.gale\straftat\profiles\Default\BepInEx\plugins`
-  (csproj property `BepInExPluginsDir`). The csproj has a post-build `DeployToBepInEx` target that
-  copies the built DLL there automatically — `dotnet build` alone is enough to update the in-game mod.
+  (csproj property `BepInExPluginsDir`, used only to locate the compile-time Mycelium reference).
 - MyceliumNetworking dependency DLL: `...\BepInEx\plugins\straftatmodding-MyceliumNetworking\MyceliumNetworkingForStraftat.dll`.
+
+## BepInEx project and distribution setup
+- `StraftatEightsPlugin.csproj` is a normal class-library build: it produces only the plugin assembly
+  (plus `.pdb` and `.deps.json` build artifacts) and has no post-build deployment target. Copy the DLL
+  into a test profile manually or use the package layout for distribution.
+- BepInEx/Unity package references are compile-time tooling and use `PrivateAssets="all"`; they must
+  not be shipped with the mod. `BepInEx.Core` already supplies the compatible `HarmonyX`
+  2.7.0 dependency; do not add a separate newer `HarmonyX` package reference, because newer versions
+  pull in a `MonoMod.Backports` runtime chain that is not present in the game's BepInEx installation.
+- Game assemblies (`Assembly-CSharp`, Unity, FishNet, Steamworks) and the external
+  `MyceliumNetworkingForStraftat.dll` are direct compile-time references with `Private=false`; they are
+  supplied by the game or their own BepInEx package and must not be copied into this mod's package.
+- `[BepInDependency("RugbugRedfern.MyceliumNetworking")]` in `Plugin.cs` tells BepInEx that Mycelium
+  is a required plugin and establishes load order. It does not download DLLs or replace Thunderstore
+  package metadata.
+- `manifest.json` is the public package metadata. Its Thunderstore dependency
+  `straftatmodding-MyceliumNetworking-1.1.17` tells Gale/Thunderstore to install Mycelium separately;
+  keep this in sync with the supported Mycelium version. Do not confuse Thunderstore package IDs with
+  BepInEx plugin GUIDs.
+- Public packages should contain the manifest, README/icon assets, and `StraftatEightsPlugin.dll`.
+  Do not include `Assembly-CSharp.dll`, Unity/BepInEx DLLs, Mycelium's DLL, or build-only NuGet DLLs.
 
 ## Decompiling the shipped game DLL (when the open-source repo isn't enough)
 Sometimes you need the actual **compiled/FishNet-weaved** runtime names (see gotcha below), which

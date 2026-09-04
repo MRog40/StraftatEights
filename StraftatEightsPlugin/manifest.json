@@ -1,0 +1,10 @@
+{
+  "name": "StraftatEightsPlugin",
+  "version_number": "0.0.1",
+  "website_url": "",
+  "description": "Host-authoritative movement, health, and Juggernaut rules for STRAFTAT.",
+  "dependencies": [
+    "BepInEx-BepInExPack-5.4.2100",
+    "straftatmodding-MyceliumNetworking-1.1.17"
+  ]
+}

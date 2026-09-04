@@ -11,9 +11,6 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <RootNamespace>StraftatEightsPlugin</RootNamespace>
-    <!-- Class library projects don't copy NuGet dependency dlls to bin by default (only exe apps do) -
-         needed so MonoMod.Backports.dll (missing from this BepInEx install, required by Mycelium) actually gets built and deployed. -->
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <!-- Override with an environment variable if the game is installed elsewhere -->
     <GameManagedDir Condition="'$(GameManagedDir)' == ''">F:\SteamLibrary\steamapps\common\STRAFTAT\STRAFTAT_Data\Managed</GameManagedDir>
     <BepInExPluginsDir Condition="'$(BepInExPluginsDir)' == ''">C:\Users\michael\AppData\Roaming\com.kesomannen.gale\straftat\profiles\Default\BepInEx\plugins</BepInExPluginsDir>
@@ -21,11 +18,9 @@
  
   <ItemGroup>
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
-    <PackageReference Include="BepInEx.Core" Version="5.*" />
-    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
-    <PackageReference Include="MonoMod.Backports" Version="1.1.2" />
-    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" IncludeAssets="compile" />
-    <PackageReference Include="HarmonyX" Version="2.*" IncludeAssets="compile" />
+    <PackageReference Include="BepInEx.Core" Version="5.*" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" PrivateAssets="all" />
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" IncludeAssets="compile" />
   </ItemGroup>
 
   <ItemGroup>
@@ -66,16 +61,4 @@
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
   </ItemGroup>
-
-  <!-- Drops the built plugin straight into the Gale profile so `dotnet build` is enough to update the in-game mod.
-       Copies every dll in the output (not just our own) so runtime-only NuGet deps like MonoMod.Backports ship
-       alongside it - BepInEx's assembly resolver scans every plugin subfolder, so this satisfies missing
-       dependencies for our own code (and incidentally for other mods, e.g. Mycelium, that need the same dll). -->
-  <Target Name="DeployToBepInEx" AfterTargets="Build">
-    <ItemGroup>
-      <DeployFiles Include="$(TargetDir)*.dll" />
-    </ItemGroup>
-    <MakeDir Directories="$(BepInExPluginsDir)\$(AssemblyName)" Condition="'$(BepInExPluginsDir)' != ''" />
-    <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(BepInExPluginsDir)\$(AssemblyName)" Condition="'$(BepInExPluginsDir)' != ''" />
-  </Target>
 </Project>
