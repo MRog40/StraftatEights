@@ -11,6 +11,7 @@ internal static class HealthSettingsTuning
         public int LastAppliedVersion = -1;
         public float LastObservedHealth = -1f;
         public float LastDamageTime;
+        public float RegenAccumulator;
     }
 
     private static readonly ConditionalWeakTable<PlayerHealth, Memory> MemoryByInstance = new();
@@ -64,20 +65,24 @@ internal static class HealthSettingsTuning
         if (health < memory.LastObservedHealth - 0.001f)
         {
             memory.LastDamageTime = Time.unscaledTime;
+            memory.RegenAccumulator = 0f;
         }
         memory.LastObservedHealth = health;
 
-        if (Time.unscaledTime - memory.LastDamageTime < HealthSettingsState.RegenDelaySeconds || health >= controller.fullHealth)
+        if (!HealthSettingsState.RegenEnabled || Time.unscaledTime - memory.LastDamageTime < HealthSettingsState.RegenDelaySeconds || health >= controller.fullHealth)
         {
             return;
         }
 
-        float nextHealth = Mathf.Min(controller.fullHealth, health + HealthSettingsState.RegenRate * Time.deltaTime);
-        if (nextHealth <= health)
+        memory.RegenAccumulator += Time.unscaledDeltaTime * HealthSettingsState.RegenRate;
+        int healthToAdd = Mathf.FloorToInt(memory.RegenAccumulator);
+        if (healthToAdd <= 0)
         {
             return;
         }
 
+        memory.RegenAccumulator -= healthToAdd;
+        float nextHealth = Mathf.Min(controller.fullHealth, health + healthToAdd);
         controller.sync___set_value_health(nextHealth, true);
         memory.LastObservedHealth = nextHealth;
     }

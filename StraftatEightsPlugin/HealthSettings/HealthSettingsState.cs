@@ -7,24 +7,26 @@ namespace StraftatEightsPlugin;
 internal static class HealthSettingsState
 {
     internal static float MaxHealthMultiplier = 1f;
+    internal static bool RegenEnabled = true;
     internal static float RegenDelaySeconds = 5f;
     internal static float RegenRate = 10f;
     internal static int TuningVersion;
 
     private static float _nextPeriodicPushTime;
 
-    internal static void Apply(int maxHealthPercent, float regenDelaySeconds, int regenRate)
+    internal static void Apply(int maxHealthPercent, bool regenEnabled, float regenDelaySeconds, int regenRate)
     {
         MaxHealthMultiplier = maxHealthPercent / 100f;
+        RegenEnabled = regenEnabled;
         RegenDelaySeconds = Mathf.Max(0.1f, regenDelaySeconds);
         RegenRate = Mathf.Max(0f, regenRate);
         TuningVersion++;
-        Plugin.Logger.LogInfo($"[HealthSettings] Apply: maxHealthMultiplier={MaxHealthMultiplier:0.##} delay={RegenDelaySeconds:0.##} rate={RegenRate:0.##} version={TuningVersion}");
+        Plugin.Logger.LogInfo($"[HealthSettings] Apply: maxHealthMultiplier={MaxHealthMultiplier:0.##} enabled={RegenEnabled} delay={RegenDelaySeconds:0.##} rate={RegenRate:0.##} version={TuningVersion}");
     }
 
     private static void ApplyFromHostConfig()
     {
-        Apply(Plugin.MaxHealthPercent.Value, Plugin.HealthRegenDelaySeconds.Value, Plugin.HealthRegenRate.Value);
+        Apply(Plugin.MaxHealthPercent.Value, Plugin.HealthRegenEnabled.Value, Plugin.HealthRegenDelaySeconds.Value, Plugin.HealthRegenRate.Value);
     }
 
     internal static void PushIfHost()
@@ -65,6 +67,6 @@ internal static class HealthSettingsState
 
     private static object[] RpcArgs()
     {
-        return new object[] { Plugin.MaxHealthPercent.Value, Plugin.HealthRegenDelaySeconds.Value, Plugin.HealthRegenRate.Value };
+        return new object[] { Plugin.MaxHealthPercent.Value, Plugin.HealthRegenEnabled.Value, Plugin.HealthRegenDelaySeconds.Value, Plugin.HealthRegenRate.Value };
     }
 }
