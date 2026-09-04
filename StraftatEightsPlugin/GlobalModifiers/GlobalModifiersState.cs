@@ -16,7 +16,6 @@ internal static class GlobalModifiersState
     internal static bool WallJumpBoostEnabled = true;
     internal static float SpeedMultiplier = 1f;
     internal static float AdsSpeedMultiplier = 0.8f;
-    internal static float HealthMultiplier = 1f;
     internal static float GravityMultiplier = 1f;
     internal static float MomentumPercent = 100f;
     internal static float AirSpeedRatioPercent = MovementTuning.StockAirSpeedRatioPercent;
@@ -28,7 +27,7 @@ internal static class GlobalModifiersState
     // When disabled, every value is forced back to its true stock/neutral equivalent (not just this
     // mod's own defaults - e.g. ADS slowdown defaults to an intentional 80%, but "disabled" means 100%)
     // so the individual sliders are ignored entirely and movement is pure stock Straftat.
-    internal static void Apply(bool enabled, bool wallJump, bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent, int maxHealthPercent, int gravityPercent, int momentumPercent, int airSpeedRatioPercent)
+    internal static void Apply(bool enabled, bool wallJump, bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent, int gravityPercent, int momentumPercent, int airSpeedRatioPercent)
     {
         Enabled = enabled;
         if (!enabled)
@@ -39,7 +38,6 @@ internal static class GlobalModifiersState
             WallJumpBoostEnabled = true;
             SpeedMultiplier = 1f;
             AdsSpeedMultiplier = 1f;
-            HealthMultiplier = 1f;
             GravityMultiplier = 1f;
             MomentumPercent = 100f;
             AirSpeedRatioPercent = MovementTuning.StockAirSpeedRatioPercent;
@@ -54,17 +52,16 @@ internal static class GlobalModifiersState
         WallJumpBoostEnabled = wallJumpBoost;
         SpeedMultiplier = moveSpeedPercent / 100f;
         AdsSpeedMultiplier = adsSpeedPercent / 100f;
-        HealthMultiplier = maxHealthPercent / 100f;
         GravityMultiplier = gravityPercent / 100f;
         MomentumPercent = momentumPercent;
         AirSpeedRatioPercent = airSpeedRatioPercent;
         TuningVersion++;
-        Plugin.Logger.LogInfo($"[GlobalModifiers] Apply: SpeedMultiplier={SpeedMultiplier:0.00} AdsSpeedMultiplier={AdsSpeedMultiplier:0.00} HealthMultiplier={HealthMultiplier:0.00} GravityMultiplier={GravityMultiplier:0.00} MomentumPercent={MomentumPercent} AirSpeedRatioPercent={AirSpeedRatioPercent} TuningVersion={TuningVersion}");
+        Plugin.Logger.LogInfo($"[MovementSettings] Apply: SpeedMultiplier={SpeedMultiplier:0.00} AdsSpeedMultiplier={AdsSpeedMultiplier:0.00} GravityMultiplier={GravityMultiplier:0.00} MomentumPercent={MomentumPercent} AirSpeedRatioPercent={AirSpeedRatioPercent} TuningVersion={TuningVersion}");
     }
 
     private static void ApplyFromHostConfig()
     {
-        Apply(Plugin.MovementTweaksEnabled.Value, Plugin.WallJumpEnabled.Value, Plugin.SlidingEnabled.Value, Plugin.SlideBoostEnabled.Value, Plugin.WallJumpBoostEnabled.Value, Plugin.MoveSpeedPercent.Value, Plugin.AdsSpeedPercent.Value, Plugin.MaxHealthPercent.Value, Plugin.GravityPercent.Value, Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value);
+        Apply(Plugin.MovementTweaksEnabled.Value, Plugin.WallJumpEnabled.Value, Plugin.SlidingEnabled.Value, Plugin.SlideBoostEnabled.Value, Plugin.WallJumpBoostEnabled.Value, Plugin.MoveSpeedPercent.Value, Plugin.AdsSpeedPercent.Value, Plugin.GravityPercent.Value, Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value);
     }
 
     internal static void PushIfHost()
@@ -75,7 +72,7 @@ internal static class GlobalModifiersState
             return;
         }
         ApplyFromHostConfig();
-        Plugin.Logger.LogInfo($"[GlobalModifiers] Host broadcasting movement settings to {MyceliumNetwork.PlayerCount} player(s)");
+        Plugin.Logger.LogInfo($"[MovementSettings] Host broadcasting movement settings to {MyceliumNetwork.PlayerCount} player(s)");
         MyceliumNetwork.RPC(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), ReliableType.Reliable, RpcArgs());
     }
 
@@ -111,7 +108,7 @@ internal static class GlobalModifiersState
         {
             return;
         }
-        Plugin.Logger.LogInfo($"[GlobalModifiers] Sending catch-up movement settings to newly joined player {player}");
+        Plugin.Logger.LogInfo($"[MovementSettings] Sending catch-up movement settings to newly joined player {player}");
         MyceliumNetwork.RPCTarget(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), player, ReliableType.Reliable, RpcArgs());
     }
 
@@ -122,7 +119,7 @@ internal static class GlobalModifiersState
         {
             Plugin.MovementTweaksEnabled.Value,
             Plugin.WallJumpEnabled.Value, Plugin.SlidingEnabled.Value, Plugin.SlideBoostEnabled.Value, Plugin.WallJumpBoostEnabled.Value,
-            Plugin.MoveSpeedPercent.Value, Plugin.AdsSpeedPercent.Value, Plugin.MaxHealthPercent.Value, Plugin.GravityPercent.Value,
+            Plugin.MoveSpeedPercent.Value, Plugin.AdsSpeedPercent.Value, Plugin.GravityPercent.Value,
             Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value
         };
     }

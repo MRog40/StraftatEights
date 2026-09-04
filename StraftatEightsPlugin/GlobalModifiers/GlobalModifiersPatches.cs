@@ -14,7 +14,6 @@ internal static class FirstPersonController_Slide_Patch
         return GlobalModifiersState.SlidingEnabled;
     }
 }
-
 [HarmonyPatch(typeof(FirstPersonController), "OnControllerColliderHit")]
 internal static class FirstPersonController_WallJump_Patch
 {
@@ -27,7 +26,6 @@ internal static class FirstPersonController_WallJump_Patch
         }
     }
 }
-
 [HarmonyPatch(typeof(FirstPersonController), "HandleAddingForce")]
 internal static class FirstPersonController_SlideBoost_Patch
 {
@@ -53,7 +51,6 @@ internal static class FirstPersonController_SlideBoost_Patch
         }
     }
 }
-
 [HarmonyPatch(typeof(FirstPersonController), "BForce")]
 internal static class FirstPersonController_WallJumpBoostTrack_Patch
 {
@@ -127,15 +124,3 @@ internal static class FirstPersonController_Momentum_Patch
     }
 }
 
-[HarmonyPatch(typeof(PlayerHealth), "Update")]
-internal static class PlayerHealth_MaxHealth_Patch
-{
-    // Awake-only application had the same "needs a respawn" issue as movement tuning did (and
-    // possibly wasn't reliably IsServer yet that early); applying every frame with a version check
-    // fixes both. The baseline is captured once so repeated live edits scale from the original
-    // value, not whatever was last (incorrectly) applied.
-    private static void Postfix(PlayerHealth __instance)
-    {
-        PlayerHealthTuning.ApplyIfChanged(__instance, GlobalModifiersState.HealthMultiplier, GlobalModifiersState.TuningVersion);
-    }
-}

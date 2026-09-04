@@ -26,6 +26,7 @@ public partial class Plugin : BaseUnityPlugin
         Logger = base.Logger;
 
         InitializeGlobalModifiers();
+        InitializeHealthSettings();
         InitializeJuggernaut();
 
         new Harmony(MyPluginInfo.PLUGIN_GUID).PatchAll();
@@ -35,6 +36,7 @@ public partial class Plugin : BaseUnityPlugin
     private void Update()
     {
         GlobalModifiersState.PeriodicPushIfHost();
+        HealthSettingsState.PeriodicPushIfHost();
         JuggernautState.PeriodicPushSettingsIfHost();
     }
 }
