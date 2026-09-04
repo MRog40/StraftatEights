@@ -13,7 +13,7 @@ public partial class Plugin
 
     private void InitializeFFA()
     {
-        const string section = "Game Mode - Free For All";
+        const string section = "Game Mode - Free For All - 1";
         FFAEnabled = Config.Bind(section, "Enabled", false,
             "Host-controlled: enables free for all. Each player fights for their own kill count.");
         FFARespawnDelaySeconds = GameModeConfig.BindRespawnDelay(Config, section);

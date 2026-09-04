@@ -21,7 +21,7 @@ public partial class Plugin
 
     private void InitializeJuggernaut()
     {
-        const string section = "Game Mode - Juggernaut";
+        const string section = "Game Mode - Juggernaut - 2";
 
         JuggernautEnabled = Config.Bind(section, "Enabled", false,
             "Host-controlled: turns on the Juggernaut game mode. First blood becomes the Juggernaut; everyone else hunts them to claim the crown.");

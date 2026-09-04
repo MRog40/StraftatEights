@@ -3,14 +3,15 @@ using Steamworks;
 using BepInEx.Configuration;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace StraftatEightsPlugin;
 
 internal enum GameMode
 {
     None = 0,
-    Juggernaut = 1,
-    FreeForAll = 2
+    FreeForAll = 1,
+    Juggernaut = 2
 }
 
 internal static class GameModeManager
@@ -22,8 +23,8 @@ internal static class GameModeManager
 
     internal static void Initialize()
     {
-        ModeOrder = Plugin.Instance.Config.Bind("Mode Manager Settings", "Mode Order", "FFA, Juggernaut",
-            "Host-controlled: comma-separated game mode order. Supported values are FFA and Juggernaut.");
+        ModeOrder = Plugin.Instance.Config.Bind("Mode Manager Settings", "Mode Order", "1, 2",
+            "Host-controlled: comma-separated game mode IDs. FFA is 1 and Juggernaut is 2.");
         RandomModes = Plugin.Instance.Config.Bind("Mode Manager Settings", "Random Game Modes", false,
             "Host-controlled: choose the next enabled game mode at random instead of following Mode Order.");
         ModeOrder.SettingChanged += (_, _) => OnSettingsChanged();
@@ -106,7 +107,7 @@ internal static class GameModeManager
         List<GameMode> modes = new();
         foreach (string value in ModeOrder.Value.Split(',', ';'))
         {
-            GameMode mode = ParseMode(value.Trim());
+            GameMode mode = ParseMode(value);
             if (mode != GameMode.None && IsEnabled(mode) && !modes.Contains(mode))
             {
                 modes.Add(mode);
@@ -126,10 +127,11 @@ internal static class GameModeManager
 
     private static GameMode ParseMode(string value)
     {
-        return value.Replace(" ", string.Empty).ToLowerInvariant() switch
+        string normalized = string.Concat(value.Where(character => !char.IsWhiteSpace(character))).ToLowerInvariant();
+        return normalized switch
         {
-            "ffa" or "freeforall" => GameMode.FreeForAll,
-            "juggernaut" => GameMode.Juggernaut,
+            "1" or "ffa" or "freeforall" => GameMode.FreeForAll,
+            "2" or "juggernaut" => GameMode.Juggernaut,
             _ => GameMode.None
         };
     }

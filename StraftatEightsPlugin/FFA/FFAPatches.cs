@@ -2,7 +2,7 @@ using HarmonyLib;
 
 namespace StraftatEightsPlugin;
 
-[HarmonyPatch(typeof(GameManager), "PlayerDied")]
+[HarmonyPatch(typeof(GameManager), "RpcLogic___PlayerDied_3316948804")]
 internal static class GameManager_FFAKill_Patch
 {
     private static bool Prefix(GameManager __instance, int playerId)
@@ -12,6 +12,7 @@ internal static class GameManager_FFAKill_Patch
             return true;
         }
         FFAState.OnServerKill(playerId, PlayerLookup.FindKillerId(PlayerLookup.FindPlayerHealthById(playerId)));
+        GameModeRespawn.Schedule(playerId, FFAState.RespawnDelaySeconds);
         return false;
     }
 }
@@ -25,10 +26,6 @@ internal static class PlayerHealth_FFAAutoRespawn_Patch
         {
             return;
         }
-        PlayerManager? manager = GameModeRespawn.FindManager(__instance);
-        if (manager != null)
-        {
-            GameModeRespawn.Schedule(manager, FFAState.RespawnDelaySeconds);
-        }
+        Plugin.Logger.LogInfo("[FFA] Death observed on owner; server kill hook controls respawn scheduling.");
     }
 }
