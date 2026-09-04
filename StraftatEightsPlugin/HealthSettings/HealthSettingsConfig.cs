@@ -21,8 +21,12 @@ public partial class Plugin
             "Host-controlled: enables health regeneration after taking damage.");
         HealthRegenDelaySeconds = Config.Bind(section, "Regen Delay (seconds)", 5f,
             new ConfigDescription("Host-controlled: delay after taking damage before health regeneration starts.", new AcceptableValueRange<float>(0.1f, 10f)));
-        HealthRegenRate = Config.Bind(section, "Regen Rate (health per second)", 10,
-            new ConfigDescription("Host-controlled: health restored per second after the regen delay.", new AcceptableValueRange<int>(10, 100)));
+        HealthRegenRate = Config.Bind(section, "Regen Rate (health per second)", 25,
+            new ConfigDescription("Host-controlled: displayed HUD health restored per second after the regen delay.", new AcceptableValueList<int>(25, 50, 75, 100)));
+        if (HealthRegenRate.Value != 25 && HealthRegenRate.Value != 50 && HealthRegenRate.Value != 75 && HealthRegenRate.Value != 100)
+        {
+            HealthRegenRate.Value = 25;
+        }
 
         MaxHealthPercent.SettingChanged += (_, _) => HealthSettingsState.PushIfHost();
         HealthRegenEnabled.SettingChanged += (_, _) => HealthSettingsState.PushIfHost();

@@ -19,7 +19,7 @@ internal static class HealthSettingsState
         MaxHealthMultiplier = maxHealthPercent / 100f;
         RegenEnabled = regenEnabled;
         RegenDelaySeconds = Mathf.Max(0.1f, regenDelaySeconds);
-        RegenRate = Mathf.Max(0f, regenRate);
+        RegenRate = Mathf.Max(25f, regenRate);
         TuningVersion++;
         Plugin.Logger.LogInfo($"[HealthSettings] Apply: maxHealthMultiplier={MaxHealthMultiplier:0.##} enabled={RegenEnabled} delay={RegenDelaySeconds:0.##} rate={RegenRate:0.##} version={TuningVersion}");
     }
@@ -46,6 +46,21 @@ internal static class HealthSettingsState
             return;
         }
         PushIfHost();
+    }
+
+    internal static void ServerTick()
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        PlayerHealth[] players = UnityEngine.Object.FindObjectsOfType<PlayerHealth>(true);
+        foreach (PlayerHealth player in players)
+        {
+            HealthSettingsTuning.ApplyIfChanged(player, MaxHealthMultiplier, TuningVersion);
+            HealthSettingsTuning.RegenerateIfNeeded(player, HealthSettingsTuning.GetMemory(player));
+        }
     }
 
     internal static void OnLobbyEntered()

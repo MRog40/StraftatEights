@@ -14,6 +14,8 @@ internal static class HealthSettingsTuning
         public float LastObservedHealth = -1f;
         public float LastDamageTime;
         public float RegenAccumulator;
+        public float LastRegenWriteTime;
+        public float LastLoggedHealth = -1f;
     }
 
     private static readonly ConditionalWeakTable<PlayerHealth, Memory> MemoryByInstance = new();
@@ -82,19 +84,39 @@ internal static class HealthSettingsTuning
         }
 
         const float DisplayedHealthPerGameUnit = 25f;
-        float gameHealthPerDisplayedHealth = 1f / DisplayedHealthPerGameUnit;
-        memory.RegenAccumulator += Time.unscaledDeltaTime * HealthSettingsState.RegenRate * gameHealthPerDisplayedHealth;
-        int healthToAdd = Mathf.FloorToInt(memory.RegenAccumulator);
-        if (healthToAdd <= 0)
+        float gameHealthPerSecond = HealthSettingsState.RegenRate / DisplayedHealthPerGameUnit;
+        memory.RegenAccumulator += Time.unscaledDeltaTime * gameHealthPerSecond;
+        if (Time.unscaledTime - memory.LastRegenWriteTime < 0.1f || memory.RegenAccumulator <= 0f)
         {
             return;
         }
 
+        float healthToAdd = Mathf.Min(memory.RegenAccumulator, controller.fullHealth - health);
         memory.RegenAccumulator -= healthToAdd;
+        memory.LastRegenWriteTime = Time.unscaledTime;
         ApplyingPassiveHealth = true;
-        controller.RpcLogic___RemoveHealth_431000436(-healthToAdd);
-        ApplyingPassiveHealth = false;
+        try
+        {
+            controller.RpcLogic___RemoveHealth_431000436(-healthToAdd);
+        }
+        finally
+        {
+            ApplyingPassiveHealth = false;
+        }
         memory.LastObservedHealth = controller.sync___get_value_health();
+    }
+
+    internal static void ObserveHealth(PlayerHealth controller)
+    {
+        Memory memory = MemoryByInstance.GetOrCreateValue(controller);
+        float health = controller.sync___get_value_health();
+        if (Mathf.Approximately(memory.LastLoggedHealth, health))
+        {
+            return;
+        }
+
+        Plugin.Logger.LogInfo($"[HealthSettings] Health observed: owner={controller.IsOwner} server={controller.IsServer} health={health:0.###} fullHealth={controller.fullHealth:0.###}");
+        memory.LastLoggedHealth = health;
     }
 
     internal static Memory GetMemory(PlayerHealth controller)

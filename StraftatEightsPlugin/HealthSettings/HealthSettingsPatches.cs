@@ -7,6 +7,7 @@ internal static class PlayerHealth_HealthSettings_Patch
 {
     private static void Postfix(PlayerHealth __instance)
     {
+        HealthSettingsTuning.ObserveHealth(__instance);
         HealthSettingsTuning.ApplyIfChanged(__instance, HealthSettingsState.MaxHealthMultiplier, HealthSettingsState.TuningVersion);
         HealthSettingsTuning.RegenerateIfNeeded(__instance, HealthSettingsTuning.GetMemory(__instance));
     }

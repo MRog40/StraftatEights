@@ -37,6 +37,7 @@ public partial class Plugin : BaseUnityPlugin
     {
         GlobalModifiersState.PeriodicPushIfHost();
         HealthSettingsState.PeriodicPushIfHost();
+        HealthSettingsState.ServerTick();
         JuggernautState.PeriodicPushSettingsIfHost();
     }
 }
