@@ -5,6 +5,8 @@ namespace StraftatEightsPlugin;
 
 internal static class HealthSettingsTuning
 {
+    internal static bool ApplyingPassiveHealth;
+
     internal sealed class Memory
     {
         public float BaselineFullHealth = -1f;
@@ -40,8 +42,9 @@ internal static class HealthSettingsTuning
             float bonus = scaledFullHealth - previousFullHealth;
             if (!Mathf.Approximately(bonus, 0f))
             {
-                float health = controller.sync___get_value_health();
-                controller.sync___set_value_health(health + bonus, true);
+                ApplyingPassiveHealth = true;
+                controller.RpcLogic___RemoveHealth_431000436(-bonus);
+                ApplyingPassiveHealth = false;
                 Plugin.Logger.LogInfo($"[HealthSettings] Health server write: owner={controller.IsOwner} healthAfter={controller.health:0.##} bonus={bonus:0.##}");
             }
         }
@@ -71,10 +74,16 @@ internal static class HealthSettingsTuning
 
         if (!HealthSettingsState.RegenEnabled || Time.unscaledTime - memory.LastDamageTime < HealthSettingsState.RegenDelaySeconds || health >= controller.fullHealth)
         {
+            if (!HealthSettingsState.RegenEnabled)
+            {
+                memory.RegenAccumulator = 0f;
+            }
             return;
         }
 
-        memory.RegenAccumulator += Time.unscaledDeltaTime * HealthSettingsState.RegenRate;
+        const float DisplayedHealthPerGameUnit = 25f;
+        float gameHealthPerDisplayedHealth = 1f / DisplayedHealthPerGameUnit;
+        memory.RegenAccumulator += Time.unscaledDeltaTime * HealthSettingsState.RegenRate * gameHealthPerDisplayedHealth;
         int healthToAdd = Mathf.FloorToInt(memory.RegenAccumulator);
         if (healthToAdd <= 0)
         {
@@ -82,9 +91,10 @@ internal static class HealthSettingsTuning
         }
 
         memory.RegenAccumulator -= healthToAdd;
-        float nextHealth = Mathf.Min(controller.fullHealth, health + healthToAdd);
-        controller.sync___set_value_health(nextHealth, true);
-        memory.LastObservedHealth = nextHealth;
+        ApplyingPassiveHealth = true;
+        controller.RpcLogic___RemoveHealth_431000436(-healthToAdd);
+        ApplyingPassiveHealth = false;
+        memory.LastObservedHealth = controller.sync___get_value_health();
     }
 
     internal static Memory GetMemory(PlayerHealth controller)
