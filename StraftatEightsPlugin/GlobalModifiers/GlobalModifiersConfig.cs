@@ -79,7 +79,7 @@ public partial class Plugin
     [CustomRPC]
     public void SyncMovementSettings(bool enabled, bool wallJump, bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent, int maxHealthPercent, int gravityPercent, int momentumPercent, int airSpeedRatioPercent)
     {
-        Logger.LogInfo($"[GlobalModifiers] Received sync: enabled={enabled} moveSpeed%={moveSpeedPercent} maxHealth%={maxHealthPercent}");
+        Logger.LogInfo($"[GlobalModifiers] Received sync: enabled={enabled} wallJump={wallJump} sliding={sliding} slideBoost={slideBoost} wallJumpBoost={wallJumpBoost} moveSpeed%={moveSpeedPercent} adsSpeed%={adsSpeedPercent} maxHealth%={maxHealthPercent} gravity%={gravityPercent} momentum%={momentumPercent} airSpeed%={airSpeedRatioPercent}");
         GlobalModifiersState.Apply(enabled, wallJump, sliding, slideBoost, wallJumpBoost, moveSpeedPercent, adsSpeedPercent, maxHealthPercent, gravityPercent, momentumPercent, airSpeedRatioPercent);
     }
 }

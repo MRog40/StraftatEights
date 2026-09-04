@@ -98,7 +98,7 @@ internal static class FirstPersonController_Speed_Patch
         if (__instance.IsOwner && UnityEngine.Time.unscaledTime >= _nextOwnerLogTime)
         {
             _nextOwnerLogTime = UnityEngine.Time.unscaledTime + 5f;
-            Plugin.Logger.LogInfo($"[GlobalModifiers] Enforcing on local player: movementFactor={__instance.movementFactor:0.00} (SpeedMultiplier={GlobalModifiersState.SpeedMultiplier:0.00}, Enabled={GlobalModifiersState.Enabled})");
+            Plugin.Logger.LogInfo($"[GlobalModifiers] Enforcing on local player: movementFactor={__instance.movementFactor:0.00} gravityMultiplier={__instance.gravityMultiplier:0.00} (SpeedMultiplier={GlobalModifiersState.SpeedMultiplier:0.00}, GravityMultiplier={GlobalModifiersState.GravityMultiplier:0.00}, Enabled={GlobalModifiersState.Enabled}, TuningVersion={GlobalModifiersState.TuningVersion})");
         }
 
         // Cheap version check skips the reflection work on every frame where nothing changed,
