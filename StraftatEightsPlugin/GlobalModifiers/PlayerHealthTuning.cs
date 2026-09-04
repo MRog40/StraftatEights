@@ -31,12 +31,15 @@ internal static class PlayerHealthTuning
         float previousFullHealth = controller.fullHealth;
         controller.fullHealth = scaledFullHealth;
 
+        Plugin.Logger.LogInfo($"[GlobalModifiers] Health apply: owner={controller.IsOwner} server={controller.IsServer} baseline={memory.BaselineFullHealth:0.##} fullHealth={previousFullHealth:0.##}->{scaledFullHealth:0.##} healthBefore={controller.health:0.##} multiplier={healthMultiplier:0.##} version={version}");
+
         if (controller.IsServer)
         {
             float bonus = scaledFullHealth - previousFullHealth;
             if (!Mathf.Approximately(bonus, 0f))
             {
                 controller.RpcLogic___RemoveHealth_431000436(-bonus);
+                Plugin.Logger.LogInfo($"[GlobalModifiers] Health server write: owner={controller.IsOwner} healthAfter={controller.health:0.##} bonus={bonus:0.##}");
             }
         }
     }
