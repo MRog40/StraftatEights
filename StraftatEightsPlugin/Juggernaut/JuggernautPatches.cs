@@ -14,7 +14,10 @@ internal static class GameManager_JuggernautTick_Patch
     {
         if (__instance.IsServer)
         {
-            JuggernautState.ServerTick(Time.deltaTime);
+            if (GameModeManager.IsActive(GameMode.Juggernaut))
+            {
+                JuggernautState.ServerTick(Time.deltaTime);
+            }
             JuggernautState.PeriodicPushSettingsIfHost();
         }
         JuggernautOutline.EnforceOutline();
@@ -27,6 +30,7 @@ internal static class GameManager_JuggernautReset_Patch
     private static void Postfix()
     {
         JuggernautState.ResetMatchState();
+        FFAState.ResetMatchState();
         JuggernautOutline.ResetState();
     }
 }
@@ -40,7 +44,7 @@ internal static class GameManager_JuggernautKill_Patch
     // decompile if this stops firing after a game update (see AGENTS.md).
     private static void Postfix(int playerId)
     {
-        if (!JuggernautState.Enabled)
+        if (!GameModeManager.IsActive(GameMode.Juggernaut))
         {
             return;
         }
@@ -57,11 +61,11 @@ internal static class PlayerHealth_JuggernautAutoRespawn_Patch
     // manual respawn UI, so the Juggernaut hunt never stalls waiting for someone to click it.
     private static void Postfix(PlayerHealth __instance)
     {
-        if (!JuggernautState.Enabled || !__instance.IsOwner)
+        if (!GameModeManager.IsActive(GameMode.Juggernaut) || !__instance.IsOwner)
         {
             return;
         }
-        PlayerManager manager = __instance.GetComponent<PlayerManager>();
+        PlayerManager? manager = GameModeRespawn.FindManager(__instance);
         if (manager != null && Plugin.Instance != null)
         {
             GameModeRespawn.Schedule(manager, JuggernautState.RespawnDelaySeconds);
@@ -77,7 +81,7 @@ internal static class FirstPersonController_JuggernautSpeed_Patch
     // next frame, same as every other per-frame tuning value in this project.
     private static void Postfix(FirstPersonController __instance)
     {
-        if (!JuggernautState.Enabled || JuggernautState.CurrentJuggernautPlayerId < 0)
+        if (!GameModeManager.IsActive(GameMode.Juggernaut) || JuggernautState.CurrentJuggernautPlayerId < 0)
         {
             return;
         }

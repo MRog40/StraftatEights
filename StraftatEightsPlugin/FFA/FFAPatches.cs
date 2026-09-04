@@ -7,7 +7,7 @@ internal static class GameManager_FFAKill_Patch
 {
     private static bool Prefix(GameManager __instance, int playerId)
     {
-        if (!FFAState.Enabled || !__instance.IsServer)
+        if (!GameModeManager.IsActive(GameMode.FreeForAll) || !__instance.IsServer)
         {
             return true;
         }
@@ -21,11 +21,11 @@ internal static class PlayerHealth_FFAAutoRespawn_Patch
 {
     private static void Postfix(PlayerHealth __instance)
     {
-        if (!FFAState.Enabled || !__instance.IsOwner)
+        if (!GameModeManager.IsActive(GameMode.FreeForAll) || !__instance.IsOwner)
         {
             return;
         }
-        PlayerManager manager = __instance.GetComponent<PlayerManager>();
+        PlayerManager? manager = GameModeRespawn.FindManager(__instance);
         if (manager != null)
         {
             GameModeRespawn.Schedule(manager, FFAState.RespawnDelaySeconds);

@@ -40,6 +40,10 @@
       <HintPath>$(GameManagedDir)\FishNet.Runtime.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="ComputerysModdingUtilities">
+      <HintPath>$(GameManagedDir)\ComputerysModdingUtilities.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="MyceliumNetworkingForStraftat">
       <HintPath>$(BepInExPluginsDir)\straftatmodding-MyceliumNetworking\MyceliumNetworkingForStraftat.dll</HintPath>
       <Private>false</Private>

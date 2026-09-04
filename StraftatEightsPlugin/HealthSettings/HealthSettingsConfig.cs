@@ -8,6 +8,7 @@ public partial class Plugin
     internal const uint HealthSettingsModId = 1892737466u;
 
     internal static ConfigEntry<int> MaxHealthPercent = null!;
+    internal static ConfigEntry<bool> HealthTweaksEnabled = null!;
     internal static ConfigEntry<bool> HealthRegenEnabled = null!;
     internal static ConfigEntry<int> HealthRegenDelaySeconds = null!;
     internal static ConfigEntry<int> HealthRegenRate = null!;
@@ -15,6 +16,8 @@ public partial class Plugin
     private void InitializeHealthSettings()
     {
         const string section = "Health Settings";
+        HealthTweaksEnabled = Config.Bind(section, "Health Tweaks Enabled", true,
+            "Host-controlled: master switch. Turn off to restore normal health and disable regeneration.");
         MaxHealthPercent = Config.Bind(section, "Max Health %", 100,
             new ConfigDescription("Host-controlled: max health as a percent of normal.", new AcceptableValueRange<int>(10, 400)));
         HealthRegenEnabled = Config.Bind(section, "Enable Health Regen", true,
@@ -28,6 +31,7 @@ public partial class Plugin
             HealthRegenRate.Value = 25;
         }
 
+        HealthTweaksEnabled.SettingChanged += (_, _) => HealthSettingsState.PushIfHost();
         MaxHealthPercent.SettingChanged += (_, _) => HealthSettingsState.PushIfHost();
         HealthRegenEnabled.SettingChanged += (_, _) => HealthSettingsState.PushIfHost();
         HealthRegenDelaySeconds.SettingChanged += (_, _) => HealthSettingsState.PushIfHost();
@@ -40,9 +44,9 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncHealthSettings(int maxHealthPercent, bool regenEnabled, int regenDelaySeconds, int regenRate)
+    public void SyncHealthSettings(bool enabled, int maxHealthPercent, bool regenEnabled, int regenDelaySeconds, int regenRate)
     {
-        Logger.LogInfo($"[HealthSettings] Received sync: maxHealth%={maxHealthPercent} enabled={regenEnabled} delay={regenDelaySeconds:0.##} rate={regenRate}");
-        HealthSettingsState.Apply(maxHealthPercent, regenEnabled, regenDelaySeconds, regenRate);
+        Logger.LogInfo($"[HealthSettings] Received sync: tweaks={enabled} maxHealth%={maxHealthPercent} regen={regenEnabled} delay={regenDelaySeconds:0.##} rate={regenRate}");
+        HealthSettingsState.Apply(enabled, maxHealthPercent, regenEnabled, regenDelaySeconds, regenRate);
     }
 }

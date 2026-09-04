@@ -39,7 +39,7 @@ public partial class Plugin
         JuggernautShowScoreboard = Config.Bind(section, "Show Scoreboard", true,
             "Host-controlled: shows a small on-screen scoreboard with everyone's Juggernaut points.");
 
-        JuggernautEnabled.SettingChanged += (_, _) => JuggernautState.PushSettingsIfHost();
+        JuggernautEnabled.SettingChanged += (_, _) => { JuggernautState.PushSettingsIfHost(); GameModeManager.OnSettingsChanged(); };
         JuggernautPointsPerSecond.SettingChanged += (_, _) => JuggernautState.PushSettingsIfHost();
         JuggernautBonusHealthOnCrown.SettingChanged += (_, _) => JuggernautState.PushSettingsIfHost();
         JuggernautHealthPerKill.SettingChanged += (_, _) => JuggernautState.PushSettingsIfHost();
@@ -47,8 +47,6 @@ public partial class Plugin
         JuggernautRespawnDelaySeconds.SettingChanged += (_, _) => JuggernautState.PushSettingsIfHost();
         JuggernautShowOutline.SettingChanged += (_, _) => JuggernautState.PushSettingsIfHost();
         JuggernautShowScoreboard.SettingChanged += (_, _) => JuggernautState.PushSettingsIfHost();
-
-        gameObject.AddComponent<JuggernautHud>();
 
         MyceliumNetwork.RegisterNetworkObject(this, JuggernautModId);
         // LobbyCreated fires for the host (Steam LobbyCreated_t); LobbyEntered only fires for

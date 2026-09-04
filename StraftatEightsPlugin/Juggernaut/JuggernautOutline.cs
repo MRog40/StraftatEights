@@ -23,7 +23,7 @@ internal static class JuggernautOutline
 
     internal static void EnforceOutline()
     {
-        int targetId = JuggernautState.Enabled && JuggernautState.ShowOutline ? JuggernautState.CurrentJuggernautPlayerId : -1;
+        int targetId = GameModeManager.IsActive(GameMode.Juggernaut) && JuggernautState.ShowOutline ? JuggernautState.CurrentJuggernautPlayerId : -1;
         if (targetId != _outlinedPlayerId)
         {
             ClearOutline();

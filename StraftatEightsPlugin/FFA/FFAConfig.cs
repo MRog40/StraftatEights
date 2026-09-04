@@ -20,7 +20,7 @@ public partial class Plugin
         FFAKillsToWin = Config.Bind(section, "Kills To Win", 10,
             new ConfigDescription("Host-controlled: kills required to win the take.", new AcceptableValueRange<int>(3, 30)));
 
-        FFAEnabled.SettingChanged += (_, _) => FFAState.PushSettingsIfHost();
+        FFAEnabled.SettingChanged += (_, _) => { FFAState.PushSettingsIfHost(); GameModeManager.OnSettingsChanged(); };
         FFARespawnDelaySeconds.SettingChanged += (_, _) => FFAState.PushSettingsIfHost();
         FFAKillsToWin.SettingChanged += (_, _) => FFAState.PushSettingsIfHost();
 

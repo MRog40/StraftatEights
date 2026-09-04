@@ -6,6 +6,7 @@ namespace StraftatEightsPlugin;
 
 internal static class HealthSettingsState
 {
+    internal static bool Enabled = true;
     internal static float MaxHealthMultiplier = 1f;
     internal static bool RegenEnabled = true;
     internal static float RegenDelaySeconds = 5f;
@@ -14,8 +15,19 @@ internal static class HealthSettingsState
 
     private static float _nextPeriodicPushTime;
 
-    internal static void Apply(int maxHealthPercent, bool regenEnabled, int regenDelaySeconds, int regenRate)
+    internal static void Apply(bool enabled, int maxHealthPercent, bool regenEnabled, int regenDelaySeconds, int regenRate)
     {
+        Enabled = enabled;
+        if (!enabled)
+        {
+            MaxHealthMultiplier = 1f;
+            RegenEnabled = false;
+            RegenDelaySeconds = 5f;
+            RegenRate = 25f;
+            TuningVersion++;
+            Plugin.Logger.LogInfo("[HealthSettings] Apply: disabled - all values reset to stock");
+            return;
+        }
         MaxHealthMultiplier = maxHealthPercent / 100f;
         RegenEnabled = regenEnabled;
         RegenDelaySeconds = Mathf.Clamp(regenDelaySeconds, 2f, 15f);
@@ -26,7 +38,7 @@ internal static class HealthSettingsState
 
     private static void ApplyFromHostConfig()
     {
-        Apply(Plugin.MaxHealthPercent.Value, Plugin.HealthRegenEnabled.Value, Plugin.HealthRegenDelaySeconds.Value, Plugin.HealthRegenRate.Value);
+        Apply(Plugin.HealthTweaksEnabled.Value, Plugin.MaxHealthPercent.Value, Plugin.HealthRegenEnabled.Value, Plugin.HealthRegenDelaySeconds.Value, Plugin.HealthRegenRate.Value);
     }
 
     internal static void PushIfHost()
@@ -82,6 +94,6 @@ internal static class HealthSettingsState
 
     private static object[] RpcArgs()
     {
-        return new object[] { Plugin.MaxHealthPercent.Value, Plugin.HealthRegenEnabled.Value, Plugin.HealthRegenDelaySeconds.Value, Plugin.HealthRegenRate.Value };
+        return new object[] { Plugin.HealthTweaksEnabled.Value, Plugin.MaxHealthPercent.Value, Plugin.HealthRegenEnabled.Value, Plugin.HealthRegenDelaySeconds.Value, Plugin.HealthRegenRate.Value };
     }
 }

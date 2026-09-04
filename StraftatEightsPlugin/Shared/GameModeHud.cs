@@ -7,13 +7,9 @@ using UnityEngine.UI;
 
 namespace StraftatEightsPlugin;
 
-// On-screen scoreboard for the Juggernaut mode showing everyone's points (so it's not necessary to
-// spam chat to keep players updated). Added once to the plugin's persistent GameObject in
-// InitializeJuggernaut, so it works the same regardless of who is currently the Juggernaut.
-internal class JuggernautHud : MonoBehaviour
+internal sealed class GameModeHud : MonoBehaviour
 {
     private const float RefreshInterval = 0.25f;
-
     private GameObject _panel = null!;
     private TextMeshProUGUI _text = null!;
     private float _nextRefreshTime;
@@ -27,7 +23,7 @@ internal class JuggernautHud : MonoBehaviour
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
 
-        _panel = new GameObject("JuggernautPanel");
+        _panel = new GameObject("GameModePanel");
         _panel.transform.SetParent(transform, false);
         RectTransform panelRect = _panel.AddComponent<RectTransform>();
         panelRect.anchorMin = new Vector2(1f, 1f);
@@ -48,16 +44,15 @@ internal class JuggernautHud : MonoBehaviour
         fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        GameObject textObj = new("JuggernautText");
-        textObj.transform.SetParent(_panel.transform, false);
-        textObj.AddComponent<RectTransform>();
-        _text = textObj.AddComponent<TextMeshProUGUI>();
+        GameObject textObject = new("GameModeText");
+        textObject.transform.SetParent(_panel.transform, false);
+        textObject.AddComponent<RectTransform>();
+        _text = textObject.AddComponent<TextMeshProUGUI>();
         _text.fontSize = 22f;
         _text.richText = true;
         _text.enableWordWrapping = false;
         _text.alignment = TextAlignmentOptions.TopRight;
         _text.raycastTarget = false;
-
         _panel.SetActive(false);
     }
 
@@ -68,15 +63,10 @@ internal class JuggernautHud : MonoBehaviour
             return;
         }
         _nextRefreshTime = Time.unscaledTime + RefreshInterval;
-
-        bool visible = JuggernautState.Enabled && JuggernautState.ShowScoreboard
-            && PauseManager.Instance != null && !PauseManager.Instance.inMainMenu && !PauseManager.Instance.inVictoryMenu
-            && ClientInstance.playerInstances.Count > 0;
-
-        if (_panel.activeSelf != visible)
-        {
-            _panel.SetActive(visible);
-        }
+        bool visible = GameModeManager.ActiveMode != GameMode.None
+            && PauseManager.Instance != null && !PauseManager.Instance.inMainMenu
+            && !PauseManager.Instance.inVictoryMenu && ClientInstance.playerInstances.Count > 0;
+        _panel.SetActive(visible);
         if (visible)
         {
             _text.text = BuildText();
@@ -85,36 +75,36 @@ internal class JuggernautHud : MonoBehaviour
 
     private static string BuildText()
     {
-        StringBuilder sb = new();
-        sb.Append("<b><color=#FF6A00>JUGGERNAUT</color></b>");
-
-        int jugId = JuggernautState.CurrentJuggernautPlayerId;
-        List<KeyValuePair<int, int>> rows = new();
-        foreach (KeyValuePair<int, ClientInstance> player in ClientInstance.playerInstances)
+        StringBuilder text = new();
+        if (GameModeManager.IsActive(GameMode.FreeForAll))
         {
-            JuggernautState.Points.TryGetValue(player.Key, out int points);
-            rows.Add(new KeyValuePair<int, int>(player.Key, points));
+            text.Append("<b><color=#55CCFF>FFA</color></b>  ").Append(FFAState.KillsToWin).Append(" points to win");
+            AppendRows(text, FFAState.Kills, false);
         }
-
-        foreach (KeyValuePair<int, int> row in rows.OrderByDescending(r => r.Key == jugId).ThenByDescending(r => r.Value))
+        else if (GameModeManager.IsActive(GameMode.Juggernaut))
         {
-            sb.Append('\n');
-            string name = PlayerLookup.GetPlayerNameTag(row.Key);
-            if (row.Key == jugId)
+            text.Append("<b><color=#FF6A00>JUGGERNAUT</color></b>");
+            AppendRows(text, JuggernautState.Points, true);
+        }
+        return ClientInstance.ReplaceAllPlayerNameTags(text.ToString());
+    }
+
+    private static void AppendRows(StringBuilder text, Dictionary<int, int> scores, bool crownFirst)
+    {
+        List<KeyValuePair<int, int>> rows = ClientInstance.playerInstances.Keys
+            .Select(id => new KeyValuePair<int, int>(id, scores.TryGetValue(id, out int score) ? score : 0))
+            .OrderByDescending(row => crownFirst && row.Key == JuggernautState.CurrentJuggernautPlayerId)
+            .ThenByDescending(row => row.Value)
+            .ToList();
+        foreach (KeyValuePair<int, int> row in rows)
+        {
+            text.Append('\n').Append("<color=#DDDDDD>").Append(PlayerLookup.GetPlayerNameTag(row.Key))
+                .Append("  ").Append(row.Value);
+            if (crownFirst && row.Key == JuggernautState.CurrentJuggernautPlayerId)
             {
-                sb.Append("<color=#FF6A00><b>").Append(name).Append("</b>  ").Append(row.Value).Append("  <b>JUG</b></color>");
+                text.Append("  <b>JUG</b>");
             }
-            else
-            {
-                sb.Append("<color=#DDDDDD>").Append(name).Append("  ").Append(row.Value).Append("</color>");
-            }
+            text.Append("</color>");
         }
-
-        if (jugId < 0)
-        {
-            sb.Append("\n<color=#AAAAAA>First blood claims the crown!</color>");
-        }
-
-        return ClientInstance.ReplaceAllPlayerNameTags(sb.ToString());
     }
 }

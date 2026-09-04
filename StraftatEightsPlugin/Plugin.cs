@@ -2,6 +2,8 @@
 using BepInEx.Logging;
 using HarmonyLib;
 
+[assembly: ComputerysModdingUtilities.StraftatMod(isVanillaCompatible: false)]
+
 namespace StraftatEightsPlugin;
 
 [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
@@ -24,6 +26,9 @@ public partial class Plugin : BaseUnityPlugin
     {
         Instance = this;
         Logger = base.Logger;
+
+        GameModeManager.Initialize();
+        gameObject.AddComponent<GameModeHud>();
 
         InitializeGlobalModifiers();
         InitializeHealthSettings();

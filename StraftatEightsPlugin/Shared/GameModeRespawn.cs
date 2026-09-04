@@ -9,7 +9,7 @@ internal static class GameModeRespawn
 {
     private static readonly HashSet<int> PendingManagers = new();
 
-    internal static bool AnyModeEnabled => JuggernautState.Enabled || FFAState.Enabled;
+    internal static bool AnyModeEnabled => GameModeManager.ActiveMode != GameMode.None;
 
     internal static void Schedule(PlayerManager manager, float delay)
     {
@@ -67,6 +67,11 @@ internal static class GameModeRespawn
         }
 
         return best ?? currentResult!;
+    }
+
+    internal static PlayerManager? FindManager(PlayerHealth health)
+    {
+        return health.playerValues?.playerClient?.PlayerSpawner;
     }
 }
 
