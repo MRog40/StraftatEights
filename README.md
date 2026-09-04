@@ -1,9 +1,6 @@
-# StraftatEights
-Repo for creating experiences in Straftat akin to Call of Duty "Eights" and more.
-
 # Goals
 One mod that gives all of this capability:
-- Support for up to 10 players, or maybe even more.
+- Support for 5-12 players.
 - Adding multiple game modes and the ability to rotate through them automatically.
   - CTF
   - Hardpoint
