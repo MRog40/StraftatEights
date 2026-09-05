@@ -64,7 +64,7 @@ internal static class PlayerManager_GlobalWeaponsSpawn_Patch
             string? selectedWeapon = WeaponSettingsState.GetSelectedWeapon(client.PlayerId);
             if (selectedWeapon != null)
             {
-                WeaponService.GiveWeapon(client.PlayerId, selectedWeapon, WeaponSettingsState.SpareMagazines);
+                WeaponSettingsState.RequestLoadout(client.PlayerId, selectedWeapon);
             }
         }
     }

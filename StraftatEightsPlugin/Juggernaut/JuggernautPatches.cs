@@ -31,45 +31,8 @@ internal static class GameManager_JuggernautReset_Patch
     {
         JuggernautState.ResetMatchState();
         FFAState.ResetMatchState();
+        GunGameState.ResetMatchState();
         JuggernautOutline.ResetState();
-    }
-}
-
-[HarmonyPatch(typeof(GameManager), "RpcLogic___PlayerDied_3316948804")]
-internal static class GameManager_JuggernautKill_Patch
-{
-    // Only ever runs on the server (its RpcReader gates on IsServer before calling this), matching
-    // JuggernautState.OnServerKill/ServerTick's own host-only expectations.
-    // NOTE: the numeric suffix is FishNet codegen from PlayerDied's signature - re-verify via
-    // decompile if this stops firing after a game update (see AGENTS.md).
-    private static void Postfix(int playerId)
-    {
-        if (!GameModeManager.IsActive(GameMode.Juggernaut))
-        {
-            return;
-        }
-        PlayerHealth? deadHealth = PlayerLookup.FindPlayerHealthById(playerId);
-        int killerId = PlayerLookup.FindKillerId(deadHealth);
-        JuggernautState.OnServerKill(playerId, killerId);
-    }
-}
-
-[HarmonyPatch(typeof(PlayerHealth), "DespawnObject")]
-internal static class PlayerHealth_JuggernautAutoRespawn_Patch
-{
-    // Forces the local player to respawn automatically after death instead of waiting on the normal
-    // manual respawn UI, so the Juggernaut hunt never stalls waiting for someone to click it.
-    private static void Postfix(PlayerHealth __instance)
-    {
-        if (!GameModeManager.IsActive(GameMode.Juggernaut) || !__instance.IsOwner)
-        {
-            return;
-        }
-        PlayerManager? manager = GameModeRespawn.FindManager(__instance);
-        if (manager != null && Plugin.Instance != null)
-        {
-            GameModeRespawn.Schedule(manager, JuggernautState.RespawnDelaySeconds);
-        }
     }
 }
 

@@ -22,6 +22,7 @@ internal static class WeaponAmmoTuning
     private static readonly ConditionalWeakTable<Weapon, Memory> MemoryByWeapon = new();
     private static bool fallbackReloadClipResolved;
     private static AudioClip? fallbackReloadClip;
+    private static Coroutine? hudRefreshCoroutine;
 
     internal static void Initialize(Weapon weapon, int spareMagazines)
     {
@@ -103,6 +104,59 @@ internal static class WeaponAmmoTuning
     internal static bool IsReloading(Weapon weapon)
     {
         return MemoryByWeapon.TryGetValue(weapon, out Memory memory) && memory.Reloading;
+    }
+
+    internal static void ScheduleLocalAmmoHudRefresh()
+    {
+        if (Plugin.Instance == null || hudRefreshCoroutine != null)
+        {
+            return;
+        }
+
+        hudRefreshCoroutine = Plugin.Instance.StartCoroutine(RefreshLocalAmmoHudAfterReset());
+    }
+
+    private static IEnumerator RefreshLocalAmmoHudAfterReset()
+    {
+        for (int attempt = 0; attempt < 40; attempt++)
+        {
+            yield return new WaitForSeconds(0.1f);
+            RefreshLocalAmmoHud();
+        }
+
+        hudRefreshCoroutine = null;
+    }
+
+    internal static void RefreshLocalAmmoHud()
+    {
+        if (!WeaponSettingsState.Enabled || PauseManager.Instance == null || ClientInstance.Instance == null)
+        {
+            return;
+        }
+
+        FirstPersonController? player = ClientInstance.Instance.PlayerSpawner?.player;
+        PlayerPickup? pickup = player?.playerPickupScript;
+        if (pickup == null)
+        {
+            return;
+        }
+
+        RefreshHeldWeaponHud(pickup.objInHand, true);
+        RefreshHeldWeaponHud(pickup.objInLeftHand, false);
+    }
+
+    private static void RefreshHeldWeaponHud(GameObject? heldObject, bool rightHand)
+    {
+        Weapon? weapon = heldObject?.GetComponent<Weapon>();
+        if (weapon == null || !weapon.needsAmmo || weapon.reloadWeapon || weapon.gameObject.layer != 8)
+        {
+            return;
+        }
+
+        Initialize(weapon, WeaponSettingsState.SpareMagazines);
+        int currentAmmo = Mathf.Max(0, weapon.currentAmmo);
+        PauseManager.Instance.MoveAmmoDisplay(true, rightHand);
+        PauseManager.Instance.ChangeAmmoText(GetSpareRounds(weapon).ToString(), currentAmmo + " / ", rightHand);
     }
 
     internal static void TryStartManualReload(Weapon weapon, bool enabled, int spareMagazines)

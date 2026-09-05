@@ -13,6 +13,10 @@ internal static class PlayerLookup
         }
         if (ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client) && client != null)
         {
+            if (client.PlayerSpawner != null && client.PlayerSpawner.player != null)
+            {
+                return client.PlayerSpawner.player.GetComponent<PlayerHealth>();
+            }
             return client.GetComponent<PlayerHealth>();
         }
         return null;
@@ -27,6 +31,12 @@ internal static class PlayerLookup
         {
             return -1;
         }
+        PlayerHealth killerHealth = deadPlayerHealth.killer.GetComponentInParent<PlayerHealth>();
+        if (killerHealth != null && killerHealth.playerValues != null && killerHealth.playerValues.playerClient != null)
+        {
+            return killerHealth.playerValues.playerClient.PlayerId;
+        }
+
         ClientInstance killerClient = deadPlayerHealth.killer.GetComponentInParent<ClientInstance>();
         return killerClient != null ? killerClient.PlayerId : -1;
     }

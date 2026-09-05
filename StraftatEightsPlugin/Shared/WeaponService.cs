@@ -53,7 +53,7 @@ internal static class WeaponService
 
         PlayerPickup? pickup = null;
         PlayerManager? manager = null;
-        for (int attempt = 0; attempt < 10; attempt++)
+        for (int attempt = 0; attempt < 40; attempt++)
         {
             if (ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client))
             {

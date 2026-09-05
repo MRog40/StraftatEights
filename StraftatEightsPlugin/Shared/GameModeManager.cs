@@ -1,3 +1,4 @@
+using System.Collections;
 using MyceliumNetworking;
 using Steamworks;
 using BepInEx.Configuration;
@@ -43,6 +44,17 @@ internal static class GameModeManager
         {
             EnsureActiveMode();
         }
+    }
+
+    private static float _nextModePushTime;
+
+    internal static void PeriodicPushIfHost()
+    {
+        if (!HostSettingsSync.IsDue(ref _nextModePushTime))
+        {
+            return;
+        }
+        MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable, (int)ActiveMode);
     }
 
     internal static void CycleForNextMap()
@@ -172,6 +184,70 @@ internal static class GameModeManager
         JuggernautState.ResetMatchState();
         FFAState.ResetMatchState();
         GunGameState.ResetMatchState();
+    }
+
+    private static readonly HashSet<int> PendingDeaths = new();
+
+    internal static bool HandleServerDeath(int playerId)
+    {
+        GameMode mode = ActiveMode;
+        if (mode == GameMode.None || Plugin.Instance == null)
+        {
+            return false;
+        }
+
+        if (PendingDeaths.Add(playerId))
+        {
+            Plugin.Instance.StartCoroutine(ProcessServerDeath(playerId, mode));
+        }
+        return true;
+    }
+
+    private static IEnumerator ProcessServerDeath(int playerId, GameMode mode)
+    {
+        // Gun's lethal-hit RPC calls PlayerDied before it writes PlayerHealth.killer.
+        // Let that RPC finish before resolving the attacker.
+        yield return null;
+        PendingDeaths.Remove(playerId);
+
+        if (ActiveMode != mode)
+        {
+            yield break;
+        }
+
+        PlayerHealth? deadHealth = PlayerLookup.FindPlayerHealthById(playerId);
+        int killerId = PlayerLookup.FindKillerId(deadHealth);
+        Plugin.Logger.LogInfo($"[GameMode] Server death: mode={mode} deadPlayer={playerId} killer={killerId}");
+
+        switch (mode)
+        {
+            case GameMode.FreeForAll:
+                FFAState.OnServerKill(playerId, killerId);
+                GameModeRespawn.Schedule(playerId, FFAState.RespawnDelaySeconds);
+                break;
+            case GameMode.Juggernaut:
+                JuggernautState.OnServerKill(playerId, killerId);
+                GameModeRespawn.Schedule(playerId, JuggernautState.RespawnDelaySeconds);
+                break;
+            case GameMode.GunGame:
+                GunGameState.OnServerKill(playerId, killerId);
+                GameModeRespawn.Schedule(playerId, GunGameState.RespawnDelaySeconds);
+                break;
+        }
+    }
+}
+
+[HarmonyLib.HarmonyPatch(typeof(GameManager), "RpcLogic___PlayerDied_3316948804")]
+internal static class GameManager_GameModeDeath_Patch
+{
+    private static bool Prefix(GameManager __instance, int playerId)
+    {
+        if (!__instance.IsServer || GameModeManager.ActiveMode == GameMode.None)
+        {
+            return true;
+        }
+
+        return !GameModeManager.HandleServerDeath(playerId);
     }
 }
 

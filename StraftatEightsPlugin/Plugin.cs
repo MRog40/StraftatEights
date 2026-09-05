@@ -43,10 +43,12 @@ public partial class Plugin : BaseUnityPlugin
 
     private void Update()
     {
+        GameModeManager.PeriodicPushIfHost();
         GlobalModifiersState.PeriodicPushIfHost();
         HealthSettingsState.PeriodicPushIfHost();
         HealthSettingsState.ServerTick();
         WeaponSettingsState.UpdateLocalCycle();
+        WeaponSettingsState.EnsureCycleLoadouts();
         WeaponSettingsState.PeriodicPushIfHost();
         JuggernautState.PeriodicPushSettingsIfHost();
         FFAState.PeriodicPushSettingsIfHost();

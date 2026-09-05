@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>StraftatEightsPlugin</AssemblyName>
     <Product>Straftat Eights</Product>
-    <Version>0.0.3</Version>
+    <Version>0.0.4</Version>
     <Name>StraftatEightsPlugin</Name>
     <Guid>88888888-cf51-4976-ac97-8a909ec0daa3</Guid>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

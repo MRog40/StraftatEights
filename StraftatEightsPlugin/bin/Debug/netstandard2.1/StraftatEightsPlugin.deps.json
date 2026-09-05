@@ -7,7 +7,7 @@
   "targets": {
     ".NETStandard,Version=v2.1": {},
     ".NETStandard,Version=v2.1/": {
-      "StraftatEightsPlugin/0.0.3": {
+      "StraftatEightsPlugin/0.0.4": {
         "dependencies": {
           "BepInEx.Core": "5.4.21"
         },
@@ -187,7 +187,7 @@
     }
   },
   "libraries": {
-    "StraftatEightsPlugin/0.0.3": {
+    "StraftatEightsPlugin/0.0.4": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
