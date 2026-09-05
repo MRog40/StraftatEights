@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>StraftatEightsPlugin</AssemblyName>
     <Product>Straftat Eights</Product>
-    <Version>0.0.4</Version>
+    <Version>0.0.5</Version>
     <Name>StraftatEightsPlugin</Name>
     <Guid>88888888-cf51-4976-ac97-8a909ec0daa3</Guid>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -22,10 +22,10 @@
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" PrivateAssets="all" />
     <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" IncludeAssets="compile" />
   </ItemGroup>
-
+ 
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
-      <HintPath>$(GameManagedDir)\Assembly-CSharp.dll</HintPath>
+      <HintPath>$(GameManagedDir)\Assembly-CSharp.dll</HintPath> 
       <Private>false</Private>
     </Reference>
     <Reference Include="Unity.InputSystem">

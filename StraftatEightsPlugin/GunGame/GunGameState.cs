@@ -57,7 +57,7 @@ internal static class GunGameState
         Progress.TryGetValue(killerId, out int current);
         int next = current + 1;
         Progress[killerId] = next;
-        if (next >= KillsToWin) RoundManager.Instance.CmdEndRound(ScoreManager.Instance.GetTeamId(killerId));
+        if (next >= KillsToWin) GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(killerId));
         else if (WeaponOrder.Count > 0) WeaponService.GiveWeapon(killerId, WeaponOrder[System.Math.Min(next, WeaponOrder.Count - 1)]);
         BroadcastLiveState();
     }

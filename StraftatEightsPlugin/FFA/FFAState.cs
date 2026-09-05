@@ -112,9 +112,8 @@ internal static class FFAState
         if (totalKills >= KillsToWin)
         {
             WinnerId = killerId;
-            Announce(PlayerLookup.GetPlayerNameTag(killerId) + " reached " + KillsToWin + " kills and won the take!");
-            ScoreManager.Instance.AddRoundScore(ScoreManager.Instance.GetTeamId(killerId), ScoreManager.Instance.RoundScoreRequiredToWin);
-            RoundManager.Instance.CmdEndRound(ScoreManager.Instance.GetTeamId(killerId));
+            Announce(PlayerLookup.GetPlayerNameTag(killerId) + " reached " + KillsToWin + " kills and won the round!");
+            GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(killerId));
         }
         BroadcastLiveState();
     }

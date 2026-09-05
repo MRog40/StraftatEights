@@ -5,6 +5,7 @@ using BepInEx.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 namespace StraftatEightsPlugin;
 
@@ -63,6 +64,7 @@ internal static class GameModeManager
         {
             return;
         }
+        _customRoundTransitionPending = false;
         JuggernautState.ResetMatchState();
         FFAState.ResetMatchState();
         GunGameState.ResetMatchState();
@@ -180,13 +182,45 @@ internal static class GameModeManager
 
     internal static void ApplyActiveMode(int mode)
     {
-        ActiveMode = (GameMode)mode;
+        GameMode nextMode = (GameMode)mode;
+        if (ActiveMode == nextMode)
+        {
+            return;
+        }
+
+        ActiveMode = nextMode;
         JuggernautState.ResetMatchState();
         FFAState.ResetMatchState();
         GunGameState.ResetMatchState();
     }
 
     private static readonly HashSet<int> PendingDeaths = new();
+    private static bool _customRoundTransitionPending;
+
+    internal static void CompleteCustomRound(int winningTeamId)
+    {
+        if (!MyceliumNetwork.IsHost || _customRoundTransitionPending || RoundManager.Instance == null
+            || ScoreManager.Instance == null || SceneMotor.Instance == null || Plugin.Instance == null)
+        {
+            return;
+        }
+
+        _customRoundTransitionPending = true;
+
+        ScoreManager.Instance.ResetRound();
+        ScoreManager.Instance.AddPoints(winningTeamId);
+        RoundManager.Instance.CmdEndRound(winningTeamId);
+        Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound());
+    }
+
+    private static IEnumerator AdvanceAfterCustomRound()
+    {
+        yield return new WaitForSeconds(4f);
+        if (SceneMotor.Instance != null)
+        {
+            SceneMotor.Instance.ChangeNetworkScene();
+        }
+    }
 
     internal static bool HandleServerDeath(int playerId)
     {
