@@ -27,7 +27,7 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncGunGameSettings(bool enabled, string weaponOrder)  
+    public void SyncGunGameSettings(bool enabled, string weaponOrder)
     {
         GunGameState.ApplySettings(enabled, weaponOrder);
     }

@@ -490,7 +490,7 @@ internal static class GameModeManager
     internal static bool HandleServerDeath(int playerId)
     {
         GameMode mode = ActiveMode;
-        if (mode == GameMode.None || mode == GameMode.Default || Plugin.Instance == null)
+        if (mode == GameMode.None || Plugin.Instance == null)
         {
             return false;
         }

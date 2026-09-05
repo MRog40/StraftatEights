@@ -63,8 +63,19 @@ internal static class PlayerOutline
     {
         foreach (ClientInstance client in ClientInstance.playerInstances.Values)
         {
-            PlayerHealth? player = client?.PlayerSpawner?.player?.GetComponent<PlayerHealth>();
-            if (player != null)
+            if (client == null || !client)
+            {
+                continue;
+            }
+
+            PlayerManager? playerManager = client.PlayerSpawner;
+            if (playerManager == null || !playerManager || playerManager.player == null || !playerManager.player)
+            {
+                continue;
+            }
+
+            PlayerHealth? player = playerManager.player.GetComponent<PlayerHealth>();
+            if (player != null && player)
             {
                 Clear(player);
             }
