@@ -5,6 +5,7 @@ using BepInEx.Configuration;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace StraftatEightsPlugin;
 
@@ -155,7 +156,7 @@ internal static class GameModeManager
 
     internal static void OnSettingsChanged()
     {
-        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
+        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost && !IsMatchOver)
         {
             EnsureActiveMode();
         }
@@ -201,6 +202,74 @@ internal static class GameModeManager
         ActivateMode(NextEnabledMode(ActiveMode), true);
     }
 
+    internal static void HandleSceneChange()
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        if (IsFinalMatchTransition())
+        {
+            EndMatch();
+            return;
+        }
+
+        CycleForNextMap();
+    }
+
+    internal static void StartMatch()
+    {
+        if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || (ActiveMode != GameMode.None && !IsMatchOver))
+        {
+            return;
+        }
+
+        ActivateMode(NextEnabledMode(GameMode.None), true);
+    }
+
+    private static bool IsFinalMatchTransition()
+    {
+        if (SceneMotor.Instance == null || ScoreManager.Instance == null)
+        {
+            return false;
+        }
+
+        if (!SceneMotor.Instance.firstToXWins)
+        {
+            return SceneMotor.Instance.sceneIndex == 0;
+        }
+
+        if (SceneMotor.Instance.roundAmount <= 0)
+        {
+            return false;
+        }
+
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client != null && ScoreManager.Instance.GetPoints(ScoreManager.Instance.GetTeamId(client.PlayerId))
+                >= SceneMotor.Instance.roundAmount)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void EndMatch()
+    {
+        ResetMatchState();
+        ActiveMode = GameMode.None;
+        Phase = GameModePhase.Inactive;
+        RoundId++;
+        if (MyceliumNetwork.InLobby)
+        {
+            BroadcastActiveMode();
+        }
+    }
+
     internal static bool IsActive(GameMode mode)
     {
         return ActiveMode == mode;
@@ -214,6 +283,9 @@ internal static class GameModeManager
     internal static bool IsCustomMode => HasCapability(GameModeCapabilities.CustomRound);
     internal static bool ShouldHideCustomHud => HasCapability(GameModeCapabilities.HideHud);
     internal static bool ShouldClearPlayerOutlines => HasCapability(GameModeCapabilities.ClearOutlines);
+    internal static bool IsMatchOver => (PauseManager.Instance != null && PauseManager.Instance.inVictoryMenu)
+        || SceneManager.GetActiveScene().name == "VictoryScene"
+        || SceneManager.GetActiveScene().name == "EndGame";
 
     internal static bool ShouldIgnoreGlobalWeaponSettingsFor(Weapon weapon)
     {
@@ -524,6 +596,15 @@ internal static class SceneMotor_GameModeCycle_Patch
 {
     private static void Prefix()
     {
-        GameModeManager.CycleForNextMap();
+        GameModeManager.HandleSceneChange();
+    }
+}
+
+[HarmonyLib.HarmonyPatch(typeof(GameManager), "StartGame")]
+internal static class GameManager_GameModeStart_Patch
+{
+    private static void Postfix()
+    {
+        GameModeManager.StartMatch();
     }
 }

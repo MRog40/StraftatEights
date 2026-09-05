@@ -9,7 +9,7 @@ namespace StraftatEightsPlugin;
 internal sealed class GameModeHud : MonoBehaviour
 {
     private const float RefreshInterval = 0.25f;
-    private const float AnnouncementDuration = 3f;
+    private const float AnnouncementDuration = 2f;
     private const int MaxDisplayedNameLength = 14;
     private static GameModeHud? _instance;
     private GameObject _panel = null!;
@@ -52,11 +52,11 @@ internal sealed class GameModeHud : MonoBehaviour
         _panel = new GameObject("GameModePanel");
         _panel.transform.SetParent(transform, false);
         RectTransform panelRect = _panel.AddComponent<RectTransform>();
-        panelRect.anchorMin = new Vector2(1f, 1f);
-        panelRect.anchorMax = new Vector2(1f, 1f);
-        panelRect.pivot = new Vector2(1f, 1f);
-        panelRect.sizeDelta = new Vector2(340f, 0f);
-        panelRect.anchoredPosition = new Vector2(-18f, -120f);
+        panelRect.anchorMin = new Vector2(0f, 1f);
+        panelRect.anchorMax = new Vector2(0f, 1f);
+        panelRect.pivot = new Vector2(0f, 1f);
+        panelRect.sizeDelta = new Vector2(360f, 0f);
+        panelRect.anchoredPosition = new Vector2(18f, -120f);
         _panel.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.45f);
 
         VerticalLayoutGroup layout = _panel.AddComponent<VerticalLayoutGroup>();
@@ -79,6 +79,9 @@ internal sealed class GameModeHud : MonoBehaviour
         _header.enableWordWrapping = false;
         _header.alignment = TextAlignmentOptions.TopLeft;
         _header.raycastTarget = false;
+        LayoutElement headerLayout = headerObject.AddComponent<LayoutElement>();
+        headerLayout.minHeight = 30f;
+        headerLayout.preferredHeight = 30f;
 
         GameObject rowsObject = new("GameModeRows");
         rowsObject.transform.SetParent(_panel.transform, false);
@@ -88,11 +91,21 @@ internal sealed class GameModeHud : MonoBehaviour
         rowsLayout.childControlHeight = true;
         rowsLayout.childForceExpandWidth = true;
         rowsLayout.childForceExpandHeight = false;
+        ContentSizeFitter rowsFitter = rowsObject.AddComponent<ContentSizeFitter>();
+        rowsFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        rowsFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         _panel.SetActive(false);
     }
 
     private void Update()
     {
+        if (GameModeManager.IsMatchOver)
+        {
+            _announcement.gameObject.SetActive(false);
+            _panel.SetActive(false);
+            return;
+        }
+
         if (_announcement.gameObject.activeSelf && Time.unscaledTime >= _announcementUntil)
         {
             _announcement.gameObject.SetActive(false);
@@ -104,6 +117,7 @@ internal sealed class GameModeHud : MonoBehaviour
         }
         _nextRefreshTime = Time.unscaledTime + RefreshInterval;
         bool visible = GameModeManager.IsCustomMode && !GameModeManager.ShouldHideCustomHud
+            && !GameModeManager.IsMatchOver
             && PauseManager.Instance != null && !PauseManager.Instance.inMainMenu
             && !PauseManager.Instance.inVictoryMenu && ClientInstance.playerInstances.Count > 0;
         _panel.SetActive(visible);
@@ -115,7 +129,7 @@ internal sealed class GameModeHud : MonoBehaviour
 
     internal static void AnnounceActiveMode()
     {
-        if (_instance == null || !GameModeManager.IsCustomMode)
+        if (_instance == null || !GameModeManager.IsCustomMode || GameModeManager.IsMatchOver)
         {
             return;
         }
@@ -127,7 +141,7 @@ internal sealed class GameModeHud : MonoBehaviour
 
     internal static void AnnounceTarget(string text)
     {
-        if (_instance == null)
+        if (_instance == null || GameModeManager.IsMatchOver)
         {
             return;
         }
@@ -187,6 +201,9 @@ internal sealed class GameModeHud : MonoBehaviour
     {
         GameObject rowObject = new("GameModeScoreRow");
         rowObject.transform.SetParent(_rows, false);
+        LayoutElement rowSize = rowObject.AddComponent<LayoutElement>();
+        rowSize.minHeight = 30f;
+        rowSize.preferredHeight = 30f;
         HorizontalLayoutGroup rowLayout = rowObject.AddComponent<HorizontalLayoutGroup>();
         rowLayout.childControlWidth = true;
         rowLayout.childControlHeight = true;

@@ -71,7 +71,8 @@ internal static class Weapon_JuggernautMinigunAmmo_Patch
             return;
         }
 
-        __instance.currentAmmo = int.MaxValue / 2;
+        __instance.currentAmmo = 1;
+        __instance.chargedBullets = Mathf.Max(1, __instance.ammoCharge);
     }
 
     private static void Postfix(Weapon __instance)
@@ -80,6 +81,35 @@ internal static class Weapon_JuggernautMinigunAmmo_Patch
         {
             __instance.playerController.movementFactor = JuggernautState.MovementMultiplier;
         }
+    }
+}
+
+[HarmonyPatch(typeof(Minigun), "Update")]
+internal static class Minigun_JuggernautAmmoDisplay_Patch
+{
+    private static void Postfix(Minigun __instance)
+    {
+        if (!GameModeManager.IsActive(GameMode.Juggernaut)
+            || !JuggernautState.IsCurrentJuggernautWeapon(__instance))
+        {
+            return;
+        }
+
+        __instance.currentAmmo = 0;
+        if (__instance.IsOwner && PauseManager.Instance != null)
+        {
+            PauseManager.Instance.ChangeAmmoText("0", __instance.chargedBullets + " / ", __instance.inRightHand);
+        }
+    }
+}
+
+[HarmonyPatch(typeof(Minigun), "Reload")]
+internal static class Minigun_JuggernautReload_Patch
+{
+    private static bool Prefix(Minigun __instance)
+    {
+        return !GameModeManager.IsActive(GameMode.Juggernaut)
+            || !JuggernautState.IsCurrentJuggernautWeapon(__instance);
     }
 }
 

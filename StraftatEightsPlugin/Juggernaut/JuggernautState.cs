@@ -12,8 +12,8 @@ namespace StraftatEightsPlugin;
 internal static class JuggernautState
 {
     internal const string WeaponName = "Minigun";
-    internal const float BaseHealth = 200f;
-    internal const float HealthPerKill = 50f;
+    internal const float BaseHealth = 200f / 25f;
+    internal const float HealthPerKill = 50f / 25f;
     internal const float MovementMultiplier = 0.5f;
     internal const int PointsToWin = 10;
     internal static bool Enabled;

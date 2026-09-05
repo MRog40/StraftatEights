@@ -50,6 +50,7 @@ public partial class Plugin : BaseUnityPlugin
         GameModeManager.PeriodicPushIfHost();
         GlobalModifiersState.PeriodicPushIfHost();
         HealthSettingsState.PeriodicPushIfHost();
+        HealthSettingsState.ServerTick();
         WeaponSettingsState.UpdateLocalCycle();
         WeaponSettingsState.PeriodicPushIfHost();
         WeaponSettingsState.EnsureCycleLoadouts();
