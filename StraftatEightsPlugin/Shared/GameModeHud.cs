@@ -10,6 +10,7 @@ internal sealed class GameModeHud : MonoBehaviour
 {
     private const float RefreshInterval = 0.25f;
     private const float AnnouncementDuration = 2f;
+    private const float AnnouncementVerticalOffset = 260f;
     private const int MaxDisplayedNameLength = 14;
     private static GameModeHud? _instance;
     private GameObject _panel = null!;
@@ -37,7 +38,7 @@ internal sealed class GameModeHud : MonoBehaviour
         announcementRect.anchorMax = new Vector2(0.5f, 0.5f);
         announcementRect.pivot = new Vector2(0.5f, 0.5f);
         announcementRect.sizeDelta = new Vector2(1000f, 140f);
-        announcementRect.anchoredPosition = new Vector2(0f, 120f);
+        announcementRect.anchoredPosition = new Vector2(0f, AnnouncementVerticalOffset);
         _announcement = announcementObject.AddComponent<TextMeshProUGUI>();
         _announcement.fontSize = 64f;
         _announcement.fontStyle = FontStyles.Bold;
@@ -55,7 +56,7 @@ internal sealed class GameModeHud : MonoBehaviour
         panelRect.anchorMin = new Vector2(0f, 1f);
         panelRect.anchorMax = new Vector2(0f, 1f);
         panelRect.pivot = new Vector2(0f, 1f);
-        panelRect.sizeDelta = new Vector2(360f, 0f);
+        panelRect.sizeDelta = new Vector2(360f, 560f);
         panelRect.anchoredPosition = new Vector2(18f, -120f);
         _panel.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.45f);
 
@@ -66,10 +67,6 @@ internal sealed class GameModeHud : MonoBehaviour
         layout.childControlHeight = true;
         layout.childForceExpandWidth = true;
         layout.childForceExpandHeight = false;
-
-        ContentSizeFitter fitter = _panel.AddComponent<ContentSizeFitter>();
-        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         GameObject headerObject = new("GameModeHeader");
         headerObject.transform.SetParent(_panel.transform, false);
@@ -91,9 +88,8 @@ internal sealed class GameModeHud : MonoBehaviour
         rowsLayout.childControlHeight = true;
         rowsLayout.childForceExpandWidth = true;
         rowsLayout.childForceExpandHeight = false;
-        ContentSizeFitter rowsFitter = rowsObject.AddComponent<ContentSizeFitter>();
-        rowsFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        rowsFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        LayoutElement rowsSize = rowsObject.AddComponent<LayoutElement>();
+        rowsSize.flexibleHeight = 1f;
         _panel.SetActive(false);
     }
 
@@ -199,7 +195,7 @@ internal sealed class GameModeHud : MonoBehaviour
 
     private void AddScoreRow(int playerId, int score, bool isJuggernaut)
     {
-        GameObject rowObject = new("GameModeScoreRow");
+        GameObject rowObject = new("GameModeScoreRow", typeof(RectTransform));
         rowObject.transform.SetParent(_rows, false);
         LayoutElement rowSize = rowObject.AddComponent<LayoutElement>();
         rowSize.minHeight = 30f;
