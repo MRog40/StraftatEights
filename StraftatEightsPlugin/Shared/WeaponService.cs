@@ -17,6 +17,8 @@ internal static class WeaponService
     private static MethodInfo? SetObjectInHandLogic;
     private static MethodInfo? SetObjectInHandObserver;
     private static MethodInfo? SetObjectInHandObserverLogic;
+    private static bool _attachmentMethodsResolved;
+    private static bool _attachmentMethodsAvailable;
 
     internal static bool IsFinalGameScreen
     {
@@ -30,6 +32,11 @@ internal static class WeaponService
             string sceneName = SceneManager.GetActiveScene().name;
             return sceneName == "VictoryScene" || sceneName == "EndGame";
         }
+    }
+
+    internal static void Initialize()
+    {
+        ResolveAttachmentMethods();
     }
 
     internal static void CachePrefabs()
@@ -67,7 +74,8 @@ internal static class WeaponService
     {
         NetworkManager? networkManager = FishNet.InstanceFinder.NetworkManager;
         GameObject? prefab = FindPrefab(weaponName);
-        if (networkManager == null || !networkManager.IsServer || prefab == null) yield break;
+        if (networkManager == null || !networkManager.IsServer || prefab == null
+            || !ResolveAttachmentMethods()) yield break;
 
         PlayerPickup? pickup = null;
         PlayerManager? manager = null;
@@ -107,9 +115,6 @@ internal static class WeaponService
             yield break;
         }
 
-        SetObjectInHandLogic ??= typeof(PlayerPickup).GetMethod("RpcLogic___SetObjectInHandServer_46969756", Flags);
-        SetObjectInHandObserver ??= typeof(PlayerPickup).GetMethod("SetObjectInHandObserver", Flags);
-        SetObjectInHandObserverLogic ??= typeof(PlayerPickup).GetMethod("RpcLogic___SetObjectInHandObserver_46969756", Flags);
         Weapon? weaponComponent = weapon.GetComponent<Weapon>();
         if (item == null || weaponComponent == null)
         {
@@ -126,11 +131,11 @@ internal static class WeaponService
             : pickup.pickupPositionRightHand[item.camChildIndex];
         weapon.transform.SetPositionAndRotation(hand.position, hand.rotation);
         object[] args = { weapon, hand.position, hand.rotation, manager.player.gameObject, true };
-        SetObjectInHandLogic?.Invoke(pickup, args);
+        SetObjectInHandLogic!.Invoke(pickup, args);
         pickup.sync___set_value_hasObjectInHand(true, true);
         pickup.sync___set_value_objInHand(weapon, true);
-        SetObjectInHandObserver?.Invoke(pickup, args);
-        SetObjectInHandObserverLogic?.Invoke(pickup, args);
+        SetObjectInHandObserver!.Invoke(pickup, args);
+        SetObjectInHandObserverLogic!.Invoke(pickup, args);
         pickup.HandsReconstruct();
         pickup.UpdateIKPoistion();
         item.InstantComeBackOnFire();
@@ -166,9 +171,12 @@ internal static class WeaponService
             return;
         }
 
-        SetObjectInHandObserverLogic ??= typeof(PlayerPickup).GetMethod("RpcLogic___SetObjectInHandObserver_46969756", Flags);
+        if (!ResolveAttachmentMethods())
+        {
+            return;
+        }
         object[] args = { weapon, expectedParent.position, expectedParent.rotation, pickup.gameObject, true };
-        SetObjectInHandObserverLogic?.Invoke(pickup, args);
+        SetObjectInHandObserverLogic!.Invoke(pickup, args);
         pickup.HandsReconstruct();
         pickup.SetRightIKTarget(item.gripRight);
         if (weaponComponent.requireBothHands)
@@ -208,6 +216,52 @@ internal static class WeaponService
         {
             UnityEngine.Object.Destroy(heldWeapon);
         }
+    }
+
+    private static bool ResolveAttachmentMethods()
+    {
+        if (_attachmentMethodsResolved)
+        {
+            return _attachmentMethodsAvailable;
+        }
+
+        _attachmentMethodsResolved = true;
+        SetObjectInHandLogic = FindAttachmentMethod("RpcLogic___SetObjectInHandServer_");
+        SetObjectInHandObserver = FindAttachmentMethod("SetObjectInHandObserver");
+        SetObjectInHandObserverLogic = FindAttachmentMethod("RpcLogic___SetObjectInHandObserver_");
+        _attachmentMethodsAvailable = SetObjectInHandLogic != null
+            && SetObjectInHandObserver != null
+            && SetObjectInHandObserverLogic != null;
+        if (!_attachmentMethodsAvailable)
+        {
+            Plugin.Logger.LogError("[WeaponService] Could not resolve FishNet weapon attachment methods. "
+                + "Weapon grants are disabled until the game assembly is updated.");
+        }
+        return _attachmentMethodsAvailable;
+    }
+
+    private static MethodInfo? FindAttachmentMethod(string namePrefix)
+    {
+        MethodInfo[] candidates = typeof(PlayerPickup).GetMethods(Flags)
+            .Where(method => method.Name.StartsWith(namePrefix, StringComparison.Ordinal)
+                && HasAttachmentSignature(method)).ToArray();
+        if (candidates.Length > 1)
+        {
+            Plugin.Logger.LogWarning($"[WeaponService] Multiple attachment methods match '{namePrefix}'. "
+                + $"Using '{candidates[0].Name}'.");
+        }
+        return candidates.FirstOrDefault();
+    }
+
+    private static bool HasAttachmentSignature(MethodInfo method)
+    {
+        ParameterInfo[] parameters = method.GetParameters();
+        return parameters.Length == 5
+            && parameters[0].ParameterType == typeof(GameObject)
+            && parameters[1].ParameterType == typeof(Vector3)
+            && parameters[2].ParameterType == typeof(Quaternion)
+            && parameters[3].ParameterType == typeof(GameObject)
+            && parameters[4].ParameterType == typeof(bool);
     }
 
 }

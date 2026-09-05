@@ -60,21 +60,6 @@ internal static class HealthSettingsState
         PushIfHost();
     }
 
-    internal static void ServerTick()
-    {
-        if (!MyceliumNetwork.IsHost)
-        {
-            return;
-        }
-
-        PlayerHealth[] players = UnityEngine.Object.FindObjectsOfType<PlayerHealth>(true);
-        foreach (PlayerHealth player in players)
-        {
-            HealthSettingsTuning.ApplyIfChanged(player, MaxHealthMultiplier, TuningVersion);
-            HealthSettingsTuning.RegenerateIfNeeded(player, HealthSettingsTuning.GetMemory(player));
-        }
-    }
-
     internal static void OnLobbyEntered()
     {
         if (MyceliumNetwork.IsHost)

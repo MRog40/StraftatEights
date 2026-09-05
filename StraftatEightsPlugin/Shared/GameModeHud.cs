@@ -103,7 +103,7 @@ internal sealed class GameModeHud : MonoBehaviour
             return;
         }
         _nextRefreshTime = Time.unscaledTime + RefreshInterval;
-        bool visible = GameModeManager.IsCustomMode && !GameModeManager.IsActive(GameMode.MichaelMeyers)
+        bool visible = GameModeManager.IsCustomMode && !GameModeManager.ShouldHideCustomHud
             && PauseManager.Instance != null && !PauseManager.Instance.inMainMenu
             && !PauseManager.Instance.inVictoryMenu && ClientInstance.playerInstances.Count > 0;
         _panel.SetActive(visible);

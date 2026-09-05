@@ -12,15 +12,6 @@ internal static class PauseManager_MichaelMeyersRoundStart_Patch
     }
 }
 
-[HarmonyPatch(typeof(GameManager), "ResetGame")]
-internal static class GameManager_MichaelMeyersReset_Patch
-{
-    private static void Postfix()
-    {
-        MichaelMeyersState.ResetMatchState();
-    }
-}
-
 [HarmonyPatch(typeof(ItemSpawner), "Spawn")]
 internal static class ItemSpawner_MichaelMeyers_Patch
 {
@@ -64,9 +55,6 @@ internal static class FirstPersonController_MichaelMeyersMovement_Patch
         __instance.CanWallJump = false;
         __instance.isSliding = false;
         __instance.isCrouching = false;
-        __instance.forceAdded = Vector3.zero;
-        __instance.force = Vector3.zero;
-        __instance.forceFactor = 0f;
     }
 
     private static void Postfix(FirstPersonController __instance)

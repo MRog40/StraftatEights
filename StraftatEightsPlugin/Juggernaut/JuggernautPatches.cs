@@ -24,18 +24,6 @@ internal static class GameManager_JuggernautTick_Patch
     }
 }
 
-[HarmonyPatch(typeof(GameManager), "ResetGame")]
-internal static class GameManager_JuggernautReset_Patch
-{
-    private static void Postfix()
-    {
-        JuggernautState.ResetMatchState();
-        FFAState.ResetMatchState();
-        GunGameState.ResetMatchState();
-        JuggernautOutline.ResetState();
-    }
-}
-
 [HarmonyPatch(typeof(FirstPersonController), "Update")]
 internal static class FirstPersonController_JuggernautSpeed_Patch
 {

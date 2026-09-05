@@ -27,6 +27,7 @@ public partial class Plugin : BaseUnityPlugin
         Instance = this;
         Logger = base.Logger;
 
+        WeaponService.Initialize();
         GameModeManager.Initialize();
         gameObject.AddComponent<GameModeHud>();
 
@@ -49,19 +50,10 @@ public partial class Plugin : BaseUnityPlugin
         GameModeManager.PeriodicPushIfHost();
         GlobalModifiersState.PeriodicPushIfHost();
         HealthSettingsState.PeriodicPushIfHost();
-        HealthSettingsState.ServerTick();
         WeaponSettingsState.UpdateLocalCycle();
-        WeaponSettingsState.EnsureCycleLoadouts();
         WeaponSettingsState.PeriodicPushIfHost();
-        JuggernautState.PeriodicPushSettingsIfHost();
-        JuggernautState.EnsureLoadout();
-        MichaelMeyersState.PeriodicPushSettingsIfHost();
-        MichaelMeyersState.PeriodicPushLiveStateIfHost();
-        MichaelMeyersState.EnsureLoadouts();
-        FFAState.PeriodicPushSettingsIfHost();
-        GunGameState.PeriodicPushSettingsIfHost();
-        SniperBattleState.PeriodicPushSettingsIfHost();
-        SniperBattleState.EnsureLoadouts();
+        WeaponSettingsState.EnsureCycleLoadouts();
+        GameModeManager.EnsureActiveModeLoadouts();
     }
 }
 

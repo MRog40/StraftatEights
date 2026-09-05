@@ -5,7 +5,7 @@ namespace StraftatEightsPlugin;
 
 public partial class Plugin
 {
-    internal const uint MichaelMeyersModId = 3141592653u;
+    internal const uint MichaelMeyersModId = 3141592654u;
     internal static ConfigEntry<bool> MichaelMeyersEnabled = null!;
 
     private void InitializeMichaelMeyers()

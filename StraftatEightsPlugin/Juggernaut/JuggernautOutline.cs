@@ -7,31 +7,57 @@ namespace StraftatEightsPlugin;
 // each body part's SkinnedMeshRenderer material).
 internal static class JuggernautOutline
 {
+    private static PlayerHealth? _outlinedPlayer;
+    private static GameMode _lastMode = GameMode.None;
+
     internal static void ResetState()
     {
         PlayerOutline.ClearApplied();
+        _outlinedPlayer = null;
+        _lastMode = GameMode.None;
     }
 
     internal static void EnforceOutline()
     {
-        if (GameModeManager.IsActive(GameMode.SniperBattle)
-            || GameModeManager.IsActive(GameMode.MichaelMeyers))
+        GameMode activeMode = GameModeManager.ActiveMode;
+        if (_lastMode != activeMode)
         {
             PlayerOutline.ClearAll();
+            _outlinedPlayer = null;
+            _lastMode = activeMode;
+        }
+
+        if (GameModeManager.ShouldClearPlayerOutlines)
+        {
             return;
         }
 
         if (!GameModeManager.IsActive(GameMode.Juggernaut))
         {
-            PlayerOutline.ClearApplied();
+            if (_outlinedPlayer != null)
+            {
+                PlayerOutline.ClearApplied();
+                _outlinedPlayer = null;
+            }
             return;
         }
 
-        PlayerOutline.ClearAll();
         PlayerHealth? health = PlayerLookup.FindPlayerHealthById(JuggernautState.CurrentJuggernautPlayerId);
-        if (health != null && health.gameObject.activeInHierarchy)
+        if (health == null || !health.gameObject.activeInHierarchy)
         {
+            if (_outlinedPlayer != null)
+            {
+                PlayerOutline.ClearApplied();
+                _outlinedPlayer = null;
+            }
+            return;
+        }
+
+        if (_outlinedPlayer != health)
+        {
+            PlayerOutline.ClearApplied();
             PlayerOutline.Apply(health, Color.red);
+            _outlinedPlayer = health;
         }
     }
 }

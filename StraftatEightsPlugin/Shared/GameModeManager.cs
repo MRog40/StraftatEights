@@ -19,20 +19,104 @@ internal enum GameMode
     MichaelMeyers = 6
 }
 
+internal enum GameModePhase
+{
+    Inactive,
+    Lobby,
+    ActiveRound,
+    EndingRound
+}
+
+[Flags]
+internal enum GameModeCapabilities
+{
+    None = 0,
+    CustomRound = 1,
+    IgnoreGlobalWeapons = 2,
+    IgnoreGlobalHealth = 4,
+    HideHud = 8,
+    ClearOutlines = 16
+}
+
 internal static class GameModeManager
 {
     internal const uint ModId = 1618033988u;
-    private static readonly Dictionary<GameMode, (string Label, Color Color)> DisplayInfo = new()
+    private sealed class ModeDescriptor
     {
-        [GameMode.FreeForAll] = ("FFA", new Color32(85, 204, 255, 255)),
-        [GameMode.Juggernaut] = ("JUGGERNAUT", new Color32(255, 106, 0, 255)),
-        [GameMode.GunGame] = ("GUN GAME", new Color32(255, 221, 85, 255)),
-        [GameMode.SniperBattle] = ("SNIPER BATTLE", new Color32(255, 96, 128, 255)),
-        [GameMode.Default] = ("DEFAULT", new Color32(220, 220, 220, 255)),
-        [GameMode.MichaelMeyers] = ("MICHAEL MEYERS", new Color32(204, 34, 34, 255))
+        internal readonly string Label;
+        internal readonly Color Color;
+        internal readonly Func<bool> IsEnabled;
+        internal readonly Action Reset;
+        internal readonly GameModeCapabilities Capabilities;
+        internal readonly Action PeriodicPush;
+        internal readonly Action EnsureLoadouts;
+
+        internal ModeDescriptor(string label, Color color, Func<bool> isEnabled, Action reset,
+            GameModeCapabilities capabilities, Action? periodicPush = null, Action? ensureLoadouts = null)
+        {
+            Label = label;
+            Color = color;
+            IsEnabled = isEnabled;
+            Reset = reset;
+            Capabilities = capabilities;
+            PeriodicPush = periodicPush ?? Noop;
+            EnsureLoadouts = ensureLoadouts ?? Noop;
+        }
+    }
+
+    private static readonly GameMode[] ModeOrder =
+    {
+        GameMode.Default,
+        GameMode.FreeForAll,
+        GameMode.Juggernaut,
+        GameMode.GunGame,
+        GameMode.SniperBattle,
+        GameMode.MichaelMeyers
     };
 
+    private static readonly Dictionary<GameMode, ModeDescriptor> Modes = new()
+    {
+        [GameMode.Default] = new ModeDescriptor("DEFAULT", new Color32(220, 220, 220, 255),
+            () => Plugin.DefaultGameModeEnabled.Value, DefaultReset,
+            GameModeCapabilities.IgnoreGlobalWeapons | GameModeCapabilities.IgnoreGlobalHealth),
+        [GameMode.FreeForAll] = new ModeDescriptor("FFA", new Color32(85, 204, 255, 255),
+            () => Plugin.FFAEnabled.Value, FfaReset, GameModeCapabilities.CustomRound,
+            FFAState.PeriodicPushSettingsIfHost),
+        [GameMode.Juggernaut] = new ModeDescriptor("JUGGERNAUT", new Color32(255, 106, 0, 255),
+            () => Plugin.JuggernautEnabled.Value, JuggernautReset, GameModeCapabilities.CustomRound,
+            JuggernautState.PeriodicPushSettingsIfHost, JuggernautState.EnsureLoadout),
+        [GameMode.GunGame] = new ModeDescriptor("GUN GAME", new Color32(255, 221, 85, 255),
+            () => Plugin.GunGameEnabled.Value, GunGameReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons,
+            GunGameState.PeriodicPushSettingsIfHost),
+        [GameMode.SniperBattle] = new ModeDescriptor("SNIPER BATTLE", new Color32(255, 96, 128, 255),
+            () => Plugin.SniperBattleEnabled.Value, SniperBattleReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.ClearOutlines,
+            SniperBattleState.PeriodicPushSettingsIfHost, SniperBattleState.EnsureLoadouts),
+        [GameMode.MichaelMeyers] = new ModeDescriptor("MICHAEL MEYERS", new Color32(204, 34, 34, 255),
+            () => Plugin.MichaelMeyersEnabled.Value, MichaelMeyersReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.HideHud | GameModeCapabilities.ClearOutlines,
+            MichaelMeyersPeriodicPush, MichaelMeyersState.EnsureLoadouts)
+    };
+
+    private static void DefaultReset() { }
+    private static void Noop() { }
+    private static void MichaelMeyersPeriodicPush()
+    {
+        MichaelMeyersState.PeriodicPushSettingsIfHost();
+        MichaelMeyersState.PeriodicPushLiveStateIfHost();
+    }
+    private static void FfaReset() => FFAState.ResetMatchState();
+    private static void JuggernautReset() => JuggernautState.ResetMatchState();
+    private static void GunGameReset() => GunGameState.ResetMatchState();
+    private static void SniperBattleReset() => SniperBattleState.ResetMatchState();
+    private static void MichaelMeyersReset() => MichaelMeyersState.ResetMatchState();
+
     internal static GameMode ActiveMode { get; private set; }
+    internal static GameModePhase Phase { get; private set; } = GameModePhase.Inactive;
+    internal static int RoundId { get; private set; }
     internal static ConfigEntry<float> RespawnDelaySeconds = null!;
     internal static float EffectiveRespawnDelaySeconds { get; set; } = 3f;
 
@@ -87,7 +171,24 @@ internal static class GameModeManager
         }
         ApplyGlobalSettingsFromHostConfig();
         BroadcastGlobalSettings();
-        MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable, (int)ActiveMode);
+        BroadcastActiveMode();
+        PeriodicActiveModePushIfHost();
+    }
+
+    private static void PeriodicActiveModePushIfHost()
+    {
+        if (Modes.TryGetValue(ActiveMode, out ModeDescriptor? descriptor))
+        {
+            descriptor.PeriodicPush();
+        }
+    }
+
+    internal static void EnsureActiveModeLoadouts()
+    {
+        if (Modes.TryGetValue(ActiveMode, out ModeDescriptor? descriptor))
+        {
+            descriptor.EnsureLoadouts();
+        }
     }
 
     internal static void CycleForNextMap()
@@ -97,12 +198,7 @@ internal static class GameModeManager
             return;
         }
         _customRoundTransitionPending = false;
-        JuggernautState.ResetMatchState();
-        FFAState.ResetMatchState();
-        GunGameState.ResetMatchState();
-        SniperBattleState.ResetMatchState();
-        MichaelMeyersState.ResetMatchState();
-        SetActiveMode(NextEnabledMode(ActiveMode));
+        ActivateMode(NextEnabledMode(ActiveMode), true);
     }
 
     internal static bool IsActive(GameMode mode)
@@ -111,12 +207,13 @@ internal static class GameModeManager
     }
 
     internal static bool ShouldIgnoreGlobalWeaponSettings =>
-        ActiveMode == GameMode.GunGame || ActiveMode == GameMode.SniperBattle || ActiveMode == GameMode.Default
-        || ActiveMode == GameMode.MichaelMeyers;
+        HasCapability(GameModeCapabilities.IgnoreGlobalWeapons);
 
-    internal static bool ShouldIgnoreGlobalHealthSettings => ActiveMode == GameMode.SniperBattle || ActiveMode == GameMode.Default;
+    internal static bool ShouldIgnoreGlobalHealthSettings => HasCapability(GameModeCapabilities.IgnoreGlobalHealth);
 
-    internal static bool IsCustomMode => ActiveMode != GameMode.None && ActiveMode != GameMode.Default;
+    internal static bool IsCustomMode => HasCapability(GameModeCapabilities.CustomRound);
+    internal static bool ShouldHideCustomHud => HasCapability(GameModeCapabilities.HideHud);
+    internal static bool ShouldClearPlayerOutlines => HasCapability(GameModeCapabilities.ClearOutlines);
 
     internal static bool ShouldIgnoreGlobalWeaponSettingsFor(Weapon weapon)
     {
@@ -126,17 +223,17 @@ internal static class GameModeManager
 
     internal static string GetModeLabel(GameMode mode)
     {
-        return DisplayInfo.TryGetValue(mode, out (string Label, Color Color) info) ? info.Label : "UNKNOWN";
+        return Modes.TryGetValue(mode, out ModeDescriptor? descriptor) ? descriptor.Label : "UNKNOWN";
     }
 
     internal static string GetModeLabelMarkup(GameMode mode)
     {
-        if (!DisplayInfo.TryGetValue(mode, out (string Label, Color Color) info))
+        if (!Modes.TryGetValue(mode, out ModeDescriptor? descriptor))
         {
             return "<b>UNKNOWN</b>";
         }
 
-        return $"<b><color=#{ColorUtility.ToHtmlStringRGB(info.Color)}>{info.Label}</color></b>";
+        return $"<b><color=#{ColorUtility.ToHtmlStringRGB(descriptor.Color)}>{descriptor.Label}</color></b>";
     }
 
     internal static void EnsureActiveMode()
@@ -154,7 +251,7 @@ internal static class GameModeManager
         {
             ApplyGlobalSettingsFromHostConfig();
             BroadcastGlobalSettings();
-            SetActiveMode(NextEnabledMode(GameMode.None));
+            ActivateMode(NextEnabledMode(GameMode.None), true);
         }
     }
 
@@ -165,7 +262,7 @@ internal static class GameModeManager
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncGlobalSettings), player,
                 ReliableType.Reliable, EffectiveRespawnDelaySeconds);
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncActiveGameMode), player,
-                ReliableType.Reliable, (int)ActiveMode);
+                ReliableType.Reliable, (int)ActiveMode, RoundId, (int)Phase);
         }
     }
 
@@ -184,8 +281,7 @@ internal static class GameModeManager
     private static List<GameMode> GetConfiguredModes()
     {
         List<GameMode> modes = new();
-        GameMode[] allModes = { GameMode.Default, GameMode.FreeForAll, GameMode.Juggernaut, GameMode.GunGame, GameMode.SniperBattle, GameMode.MichaelMeyers };
-        foreach (GameMode mode in allModes)
+        foreach (GameMode mode in ModeOrder)
         {
             if (IsEnabled(mode) && !modes.Contains(mode))
             {
@@ -197,50 +293,95 @@ internal static class GameModeManager
 
     private static bool IsEnabled(GameMode mode)
     {
-        return mode switch
-        {
-            GameMode.Juggernaut => Plugin.JuggernautEnabled.Value,
-            GameMode.FreeForAll => Plugin.FFAEnabled.Value,
-            GameMode.GunGame => Plugin.GunGameEnabled.Value,
-            GameMode.SniperBattle => Plugin.SniperBattleEnabled.Value,
-            GameMode.Default => Plugin.DefaultGameModeEnabled.Value,
-            GameMode.MichaelMeyers => Plugin.MichaelMeyersEnabled.Value,
-            _ => false
-        };
+        return Modes.TryGetValue(mode, out ModeDescriptor? descriptor) && descriptor.IsEnabled();
     }
 
     private static void SetActiveMode(GameMode mode)
     {
-        if (ActiveMode == mode)
+        ActivateMode(mode, false);
+    }
+
+    private static void ActivateMode(GameMode mode, bool forceReset)
+    {
+        if (!forceReset && ActiveMode == mode)
         {
             return;
         }
+
+        ResetMatchState();
         ActiveMode = mode;
-        JuggernautState.ResetMatchState();
-        FFAState.ResetMatchState();
-        GunGameState.ResetMatchState();
-        SniperBattleState.ResetMatchState();
-        MichaelMeyersState.ResetMatchState();
+        Phase = MyceliumNetwork.InLobby ? GameModePhase.Lobby : GameModePhase.Inactive;
+        RoundId++;
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
-            MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable, (int)mode);
+            BroadcastActiveMode();
         }
     }
 
-    internal static void ApplyActiveMode(int mode)
+    internal static void ApplyActiveMode(int mode, int roundId, int phase)
     {
-        GameMode nextMode = (GameMode)mode;
-        if (ActiveMode == nextMode)
+        if (roundId < RoundId)
         {
             return;
         }
 
-        ActiveMode = nextMode;
-        JuggernautState.ResetMatchState();
-        FFAState.ResetMatchState();
-        GunGameState.ResetMatchState();
-        SniperBattleState.ResetMatchState();
-        MichaelMeyersState.ResetMatchState();
+        GameMode nextMode = (GameMode)mode;
+        if (ActiveMode != nextMode)
+        {
+            ResetMatchState();
+            ActiveMode = nextMode;
+        }
+
+        RoundId = roundId;
+        Phase = Enum.IsDefined(typeof(GameModePhase), phase)
+            ? (GameModePhase)phase
+            : GameModePhase.Inactive;
+    }
+
+    internal static void ResetMatchState()
+    {
+        _customRoundTransitionPending = false;
+        PendingDeaths.Clear();
+        foreach (ModeDescriptor descriptor in Modes.Values)
+        {
+            descriptor.Reset();
+        }
+    }
+
+    internal static void ResetGameState()
+    {
+        ResetMatchState();
+        RoundId++;
+        Phase = ActiveMode == GameMode.None || !MyceliumNetwork.InLobby
+            ? GameModePhase.Inactive
+            : GameModePhase.Lobby;
+    }
+
+    internal static void BeginRound()
+    {
+        if (ActiveMode == GameMode.None)
+        {
+            return;
+        }
+
+        Phase = GameModePhase.ActiveRound;
+        if (MyceliumNetwork.IsHost)
+        {
+            RoundId++;
+            BroadcastActiveMode();
+        }
+    }
+
+    private static bool HasCapability(GameModeCapabilities capability)
+    {
+        return Modes.TryGetValue(ActiveMode, out ModeDescriptor? descriptor)
+            && descriptor.Capabilities.HasFlag(capability);
+    }
+
+    private static void BroadcastActiveMode()
+    {
+        MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable,
+            (int)ActiveMode, RoundId, (int)Phase);
     }
 
     private static readonly HashSet<int> PendingDeaths = new();
@@ -255,17 +396,20 @@ internal static class GameModeManager
         }
 
         _customRoundTransitionPending = true;
+        Phase = GameModePhase.EndingRound;
+        BroadcastActiveMode();
+        int roundId = RoundId;
 
         ScoreManager.Instance.ResetRound();
         ScoreManager.Instance.AddPoints(winningTeamId);
         RoundManager.Instance.CmdEndRound(winningTeamId);
-        Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound());
+        Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
     }
 
-    private static IEnumerator AdvanceAfterCustomRound()
+    private static IEnumerator AdvanceAfterCustomRound(int roundId)
     {
         yield return new WaitForSeconds(4f);
-        if (SceneMotor.Instance != null)
+        if (roundId == RoundId && Phase == GameModePhase.EndingRound && SceneMotor.Instance != null)
         {
             SceneMotor.Instance.ChangeNetworkScene();
         }
@@ -281,19 +425,19 @@ internal static class GameModeManager
 
         if (PendingDeaths.Add(playerId))
         {
-            Plugin.Instance.StartCoroutine(ProcessServerDeath(playerId, mode));
+            Plugin.Instance.StartCoroutine(ProcessServerDeath(playerId, mode, RoundId));
         }
         return true;
     }
 
-    private static IEnumerator ProcessServerDeath(int playerId, GameMode mode)
+    private static IEnumerator ProcessServerDeath(int playerId, GameMode mode, int roundId)
     {
         // Gun's lethal-hit RPC calls PlayerDied before it writes PlayerHealth.killer.
         // Let that RPC finish before resolving the attacker.
         yield return null;
         PendingDeaths.Remove(playerId);
 
-        if (ActiveMode != mode)
+        if (ActiveMode != mode || RoundId != roundId || Phase == GameModePhase.EndingRound)
         {
             yield break;
         }
@@ -350,9 +494,28 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncActiveGameMode(int mode)
+    public void SyncActiveGameMode(int mode, int roundId, int phase)
     {
-        GameModeManager.ApplyActiveMode(mode);
+        GameModeManager.ApplyActiveMode(mode, roundId, phase);
+    }
+}
+
+[HarmonyLib.HarmonyPatch(typeof(GameManager), "ResetGame")]
+internal static class GameManager_GameModeReset_Patch
+{
+    private static void Postfix()
+    {
+        GameModeManager.ResetGameState();
+        JuggernautOutline.ResetState();
+    }
+}
+
+[HarmonyLib.HarmonyPatch(typeof(PauseManager), "InvokeRoundStarted")]
+internal static class PauseManager_GameModeLifecycle_Patch
+{
+    private static void Postfix()
+    {
+        GameModeManager.BeginRound();
     }
 }
 
