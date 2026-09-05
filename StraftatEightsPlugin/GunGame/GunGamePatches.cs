@@ -8,7 +8,7 @@ internal static class PlayerManager_GunGameSpawn_Patch
 {
     private static void Postfix(PlayerManager __instance)
     {
-        if (!GameModeManager.IsActive(GameMode.GunGame) || __instance.player == null) return;
+        if (!GameModeManager.IsActive(GameMode.GunGame) || WeaponService.IsFinalGameScreen || __instance.player == null) return;
         ClientInstance? client = __instance.GetComponent<ClientInstance>();
         if (client != null) GunGameState.GiveStartingWeapon(client.PlayerId);
     }

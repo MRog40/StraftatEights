@@ -9,18 +9,16 @@ namespace StraftatEightsPlugin;
 internal static class FFAState
 {
     internal static bool Enabled;
-    internal static float RespawnDelaySeconds = 3f;
     internal static int KillsToWin = 10;
     internal static int WinnerId = -1;
     internal static readonly Dictionary<int, int> Kills = new();
 
     private static float _nextSettingsPushTime;
 
-    internal static void ApplySettings(bool enabled, float respawnDelaySeconds, int killsToWin)
+    internal static void ApplySettings(bool enabled, int killsToWin)
     {
         bool wasEnabled = Enabled;
         Enabled = enabled;
-        RespawnDelaySeconds = respawnDelaySeconds;
         KillsToWin = killsToWin;
         if (!wasEnabled && enabled)
         {
@@ -34,7 +32,7 @@ internal static class FFAState
 
     private static void ApplySettingsFromHostConfig()
     {
-        ApplySettings(Plugin.FFAEnabled.Value, Plugin.FFARespawnDelaySeconds.Value, Plugin.FFAKillsToWin.Value);
+        ApplySettings(Plugin.FFAEnabled.Value, Plugin.FFAKillsToWin.Value);
     }
 
     internal static void PushSettingsIfHost()
@@ -45,7 +43,7 @@ internal static class FFAState
         }
         ApplySettingsFromHostConfig();
         MyceliumNetwork.RPC(Plugin.FFAModId, nameof(Plugin.SyncFFASettings), ReliableType.Reliable,
-            Plugin.FFAEnabled.Value, Plugin.FFARespawnDelaySeconds.Value, Plugin.FFAKillsToWin.Value);
+            Plugin.FFAEnabled.Value, Plugin.FFAKillsToWin.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -73,7 +71,7 @@ internal static class FFAState
             return;
         }
         MyceliumNetwork.RPCTarget(Plugin.FFAModId, nameof(Plugin.SyncFFASettings), player, ReliableType.Reliable,
-            Plugin.FFAEnabled.Value, Plugin.FFARespawnDelaySeconds.Value, Plugin.FFAKillsToWin.Value);
+            Plugin.FFAEnabled.Value, Plugin.FFAKillsToWin.Value);
         MyceliumNetwork.RPCTarget(Plugin.FFAModId, nameof(Plugin.SyncFFALiveState), player, ReliableType.Reliable,
             SerializeKills(), WinnerId);
     }

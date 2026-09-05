@@ -16,6 +16,7 @@ internal static class HealthSettingsTuning
         public float RegenAccumulator;
         public float LastRegenWriteTime;
         public float LastLoggedHealth = -1f;
+        public bool LastModeSpecificHealth;
     }
 
     private static readonly ConditionalWeakTable<PlayerHealth, Memory> MemoryByInstance = new();
@@ -26,6 +27,32 @@ internal static class HealthSettingsTuning
         if (memory.BaselineFullHealth < 0f)
         {
             memory.BaselineFullHealth = controller.fullHealth;
+        }
+        if (GameModeManager.IsActive(GameMode.Juggernaut) && JuggernautState.IsCurrentJuggernaut(controller))
+        {
+            JuggernautState.ApplyHealth(controller);
+            memory.LastModeSpecificHealth = true;
+            memory.LastAppliedVersion = version;
+            return;
+        }
+        if (GameModeManager.IsActive(GameMode.SniperBattle))
+        {
+            SniperBattleState.ApplyHealth(controller);
+            memory.LastModeSpecificHealth = true;
+            memory.LastAppliedVersion = version;
+            return;
+        }
+        if (GameModeManager.IsActive(GameMode.Default))
+        {
+            controller.fullHealth = memory.BaselineFullHealth;
+            memory.LastModeSpecificHealth = true;
+            memory.LastAppliedVersion = version;
+            return;
+        }
+        if (memory.LastModeSpecificHealth)
+        {
+            memory.LastModeSpecificHealth = false;
+            memory.LastAppliedVersion = -1;
         }
         if (memory.LastAppliedVersion == version)
         {
@@ -54,7 +81,8 @@ internal static class HealthSettingsTuning
 
     internal static void RegenerateIfNeeded(PlayerHealth controller, Memory memory)
     {
-        if (!controller.IsServer || !controller.gameObject.activeInHierarchy || controller.health <= 0f)
+        bool juggernautHealth = GameModeManager.IsActive(GameMode.Juggernaut) && JuggernautState.IsCurrentJuggernaut(controller);
+        if (juggernautHealth || GameModeManager.ShouldIgnoreGlobalHealthSettings || !controller.IsServer || !controller.gameObject.activeInHierarchy || controller.health <= 0f)
         {
             return;
         }

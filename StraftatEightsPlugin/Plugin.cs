@@ -31,11 +31,14 @@ public partial class Plugin : BaseUnityPlugin
         gameObject.AddComponent<GameModeHud>();
 
         InitializeGlobalModifiers();
-        InitializeGlobalWeapons();
         InitializeHealthSettings();
+        InitializeGlobalWeapons();
+        InitializeDefaultGameMode();
+        InitializeMichaelMeyers();
         InitializeFFA();
         InitializeJuggernaut();
         InitializeGunGame();
+        InitializeSniperBattle();
 
         new Harmony(MyPluginInfo.PLUGIN_GUID).PatchAll();
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
@@ -51,8 +54,14 @@ public partial class Plugin : BaseUnityPlugin
         WeaponSettingsState.EnsureCycleLoadouts();
         WeaponSettingsState.PeriodicPushIfHost();
         JuggernautState.PeriodicPushSettingsIfHost();
+        JuggernautState.EnsureLoadout();
+        MichaelMeyersState.PeriodicPushSettingsIfHost();
+        MichaelMeyersState.PeriodicPushLiveStateIfHost();
+        MichaelMeyersState.EnsureLoadouts();
         FFAState.PeriodicPushSettingsIfHost();
         GunGameState.PeriodicPushSettingsIfHost();
+        SniperBattleState.PeriodicPushSettingsIfHost();
+        SniperBattleState.EnsureLoadouts();
     }
 }
 

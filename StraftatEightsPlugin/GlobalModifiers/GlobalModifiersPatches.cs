@@ -9,9 +9,9 @@ namespace StraftatEightsPlugin;
 internal static class FirstPersonController_Slide_Patch
 {
     // Blocks the crouch-slide input handler entirely while sliding is disabled
-    private static bool Prefix()
+    private static bool Prefix(FirstPersonController __instance)
     {
-        return GlobalModifiersState.SlidingEnabled;
+        return !JuggernautState.IsCurrentJuggernaut(__instance) && GlobalModifiersState.SlidingEnabled;
     }
 }
 [HarmonyPatch(typeof(FirstPersonController), "OnControllerColliderHit")]

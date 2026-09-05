@@ -4,7 +4,6 @@ using Steamworks;
 using BepInEx.Configuration;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace StraftatEightsPlugin;
@@ -14,29 +13,60 @@ internal enum GameMode
     None = 0,
     FreeForAll = 1,
     Juggernaut = 2,
-    GunGame = 3
+    GunGame = 3,
+    SniperBattle = 4,
+    Default = 5,
+    MichaelMeyers = 6
 }
 
 internal static class GameModeManager
 {
     internal const uint ModId = 1618033988u;
+    private static readonly Dictionary<GameMode, (string Label, Color Color)> DisplayInfo = new()
+    {
+        [GameMode.FreeForAll] = ("FFA", new Color32(85, 204, 255, 255)),
+        [GameMode.Juggernaut] = ("JUGGERNAUT", new Color32(255, 106, 0, 255)),
+        [GameMode.GunGame] = ("GUN GAME", new Color32(255, 221, 85, 255)),
+        [GameMode.SniperBattle] = ("SNIPER BATTLE", new Color32(255, 96, 128, 255)),
+        [GameMode.Default] = ("DEFAULT", new Color32(220, 220, 220, 255)),
+        [GameMode.MichaelMeyers] = ("MICHAEL MEYERS", new Color32(204, 34, 34, 255))
+    };
+
     internal static GameMode ActiveMode { get; private set; }
-    internal static ConfigEntry<string> ModeOrder = null!;
-    internal static ConfigEntry<bool> RandomModes = null!;
+    internal static ConfigEntry<float> RespawnDelaySeconds = null!;
+    internal static float EffectiveRespawnDelaySeconds { get; set; } = 3f;
 
     internal static void Initialize()
     {
-        ModeOrder = Plugin.Instance.Config.Bind("Mode Manager Settings", "Mode Order", "1, 2, 3",
-            "Host-controlled: comma-separated game mode IDs. FFA is 1, Juggernaut is 2, and Gun Game is 3.");
-        RandomModes = Plugin.Instance.Config.Bind("Mode Manager Settings", "Random Game Modes", false,
-            "Host-controlled: choose the next enabled game mode at random instead of following Mode Order.");
-        ModeOrder.SettingChanged += (_, _) => OnSettingsChanged();
-        RandomModes.SettingChanged += (_, _) => OnSettingsChanged();
+        RespawnDelaySeconds = Plugin.Instance.Config.Bind("Global Settings", "Respawn Delay (seconds)", 3f,
+            new ConfigDescription("Host-controlled: how long a killed player waits before respawning.",
+                new AcceptableValueRange<float>(0f, 10f)));
+        RespawnDelaySeconds.SettingChanged += (_, _) => OnGlobalSettingsChanged();
 
         MyceliumNetwork.RegisterNetworkObject(Plugin.Instance, ModId);
         MyceliumNetwork.LobbyCreated += OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += OnLobbyEntered;
         MyceliumNetwork.PlayerEntered += OnPlayerEntered;
+    }
+
+    private static void OnGlobalSettingsChanged()
+    {
+        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
+        {
+            ApplyGlobalSettingsFromHostConfig();
+            BroadcastGlobalSettings();
+        }
+    }
+
+    private static void ApplyGlobalSettingsFromHostConfig()
+    {
+        EffectiveRespawnDelaySeconds = RespawnDelaySeconds.Value;
+    }
+
+    private static void BroadcastGlobalSettings()
+    {
+        MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncGlobalSettings), ReliableType.Reliable,
+            EffectiveRespawnDelaySeconds);
     }
 
     internal static void OnSettingsChanged()
@@ -55,6 +85,8 @@ internal static class GameModeManager
         {
             return;
         }
+        ApplyGlobalSettingsFromHostConfig();
+        BroadcastGlobalSettings();
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable, (int)ActiveMode);
     }
 
@@ -68,12 +100,43 @@ internal static class GameModeManager
         JuggernautState.ResetMatchState();
         FFAState.ResetMatchState();
         GunGameState.ResetMatchState();
+        SniperBattleState.ResetMatchState();
+        MichaelMeyersState.ResetMatchState();
         SetActiveMode(NextEnabledMode(ActiveMode));
     }
 
     internal static bool IsActive(GameMode mode)
     {
         return ActiveMode == mode;
+    }
+
+    internal static bool ShouldIgnoreGlobalWeaponSettings =>
+        ActiveMode == GameMode.GunGame || ActiveMode == GameMode.SniperBattle || ActiveMode == GameMode.Default
+        || ActiveMode == GameMode.MichaelMeyers;
+
+    internal static bool ShouldIgnoreGlobalHealthSettings => ActiveMode == GameMode.SniperBattle || ActiveMode == GameMode.Default;
+
+    internal static bool IsCustomMode => ActiveMode != GameMode.None && ActiveMode != GameMode.Default;
+
+    internal static bool ShouldIgnoreGlobalWeaponSettingsFor(Weapon weapon)
+    {
+        return ShouldIgnoreGlobalWeaponSettings ||
+            (ActiveMode == GameMode.Juggernaut && JuggernautState.IsCurrentJuggernautWeapon(weapon));
+    }
+
+    internal static string GetModeLabel(GameMode mode)
+    {
+        return DisplayInfo.TryGetValue(mode, out (string Label, Color Color) info) ? info.Label : "UNKNOWN";
+    }
+
+    internal static string GetModeLabelMarkup(GameMode mode)
+    {
+        if (!DisplayInfo.TryGetValue(mode, out (string Label, Color Color) info))
+        {
+            return "<b>UNKNOWN</b>";
+        }
+
+        return $"<b><color=#{ColorUtility.ToHtmlStringRGB(info.Color)}>{info.Label}</color></b>";
     }
 
     internal static void EnsureActiveMode()
@@ -89,6 +152,8 @@ internal static class GameModeManager
     {
         if (MyceliumNetwork.IsHost)
         {
+            ApplyGlobalSettingsFromHostConfig();
+            BroadcastGlobalSettings();
             SetActiveMode(NextEnabledMode(GameMode.None));
         }
     }
@@ -97,6 +162,8 @@ internal static class GameModeManager
     {
         if (MyceliumNetwork.IsHost)
         {
+            MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncGlobalSettings), player,
+                ReliableType.Reliable, EffectiveRespawnDelaySeconds);
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncActiveGameMode), player,
                 ReliableType.Reliable, (int)ActiveMode);
         }
@@ -109,10 +176,6 @@ internal static class GameModeManager
         {
             return GameMode.None;
         }
-        if (RandomModes.Value)
-        {
-            return modes[UnityEngine.Random.Range(0, modes.Count)];
-        }
 
         int start = modes.IndexOf(current);
         return modes[(start + 1 + modes.Count) % modes.Count];
@@ -121,16 +184,7 @@ internal static class GameModeManager
     private static List<GameMode> GetConfiguredModes()
     {
         List<GameMode> modes = new();
-        foreach (string value in ModeOrder.Value.Split(',', ';'))
-        {
-            GameMode mode = ParseMode(value);
-            if (mode != GameMode.None && IsEnabled(mode) && !modes.Contains(mode))
-            {
-                modes.Add(mode);
-            }
-        }
-
-        GameMode[] allModes = { GameMode.FreeForAll, GameMode.Juggernaut, GameMode.GunGame };
+        GameMode[] allModes = { GameMode.Default, GameMode.FreeForAll, GameMode.Juggernaut, GameMode.GunGame, GameMode.SniperBattle, GameMode.MichaelMeyers };
         foreach (GameMode mode in allModes)
         {
             if (IsEnabled(mode) && !modes.Contains(mode))
@@ -141,18 +195,6 @@ internal static class GameModeManager
         return modes;
     }
 
-    private static GameMode ParseMode(string value)
-    {
-        string normalized = string.Concat(value.Where(character => !char.IsWhiteSpace(character))).ToLowerInvariant();
-        return normalized switch
-        {
-            "1" or "ffa" or "freeforall" => GameMode.FreeForAll,
-            "2" or "juggernaut" => GameMode.Juggernaut,
-            "3" or "gungame" => GameMode.GunGame,
-            _ => GameMode.None
-        };
-    }
-
     private static bool IsEnabled(GameMode mode)
     {
         return mode switch
@@ -160,6 +202,9 @@ internal static class GameModeManager
             GameMode.Juggernaut => Plugin.JuggernautEnabled.Value,
             GameMode.FreeForAll => Plugin.FFAEnabled.Value,
             GameMode.GunGame => Plugin.GunGameEnabled.Value,
+            GameMode.SniperBattle => Plugin.SniperBattleEnabled.Value,
+            GameMode.Default => Plugin.DefaultGameModeEnabled.Value,
+            GameMode.MichaelMeyers => Plugin.MichaelMeyersEnabled.Value,
             _ => false
         };
     }
@@ -174,6 +219,8 @@ internal static class GameModeManager
         JuggernautState.ResetMatchState();
         FFAState.ResetMatchState();
         GunGameState.ResetMatchState();
+        SniperBattleState.ResetMatchState();
+        MichaelMeyersState.ResetMatchState();
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
             MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable, (int)mode);
@@ -192,6 +239,8 @@ internal static class GameModeManager
         JuggernautState.ResetMatchState();
         FFAState.ResetMatchState();
         GunGameState.ResetMatchState();
+        SniperBattleState.ResetMatchState();
+        MichaelMeyersState.ResetMatchState();
     }
 
     private static readonly HashSet<int> PendingDeaths = new();
@@ -225,7 +274,7 @@ internal static class GameModeManager
     internal static bool HandleServerDeath(int playerId)
     {
         GameMode mode = ActiveMode;
-        if (mode == GameMode.None || Plugin.Instance == null)
+        if (mode == GameMode.None || mode == GameMode.Default || Plugin.Instance == null)
         {
             return false;
         }
@@ -257,15 +306,22 @@ internal static class GameModeManager
         {
             case GameMode.FreeForAll:
                 FFAState.OnServerKill(playerId, killerId);
-                GameModeRespawn.Schedule(playerId, FFAState.RespawnDelaySeconds);
+                GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
             case GameMode.Juggernaut:
                 JuggernautState.OnServerKill(playerId, killerId);
-                GameModeRespawn.Schedule(playerId, JuggernautState.RespawnDelaySeconds);
+                GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
             case GameMode.GunGame:
                 GunGameState.OnServerKill(playerId, killerId);
-                GameModeRespawn.Schedule(playerId, GunGameState.RespawnDelaySeconds);
+                GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
+                break;
+            case GameMode.SniperBattle:
+                SniperBattleState.OnServerKill(playerId, killerId);
+                GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
+                break;
+            case GameMode.MichaelMeyers:
+                MichaelMeyersState.OnServerKill(playerId, killerId);
                 break;
         }
     }
@@ -276,7 +332,7 @@ internal static class GameManager_GameModeDeath_Patch
 {
     private static bool Prefix(GameManager __instance, int playerId)
     {
-        if (!__instance.IsServer || GameModeManager.ActiveMode == GameMode.None)
+        if (!__instance.IsServer || !GameModeManager.IsCustomMode)
         {
             return true;
         }
@@ -287,6 +343,12 @@ internal static class GameManager_GameModeDeath_Patch
 
 public partial class Plugin
 {
+    [CustomRPC]
+    public void SyncGlobalSettings(float respawnDelaySeconds)
+    {
+        GameModeManager.EffectiveRespawnDelaySeconds = respawnDelaySeconds;
+    }
+
     [CustomRPC]
     public void SyncActiveGameMode(int mode)
     {

@@ -31,7 +31,7 @@ internal static class GameModeRespawn
     private static readonly MethodInfo? CmdRespawnLogic = typeof(PlayerManager).GetMethod(
         "RpcLogic___CmdRespawn_2166136261", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
-    internal static bool AnyModeEnabled => GameModeManager.ActiveMode != GameMode.None;
+    internal static bool AnyModeEnabled => GameModeManager.IsCustomMode;
 
     internal static void Schedule(PlayerManager manager, float delay)
     {

@@ -59,6 +59,55 @@ internal static class FirstPersonController_JuggernautSpeed_Patch
             return;
         }
 
-        __instance.movementFactor *= JuggernautState.SpeedMultiplier;
+        __instance.movementFactor = JuggernautState.MovementMultiplier;
+    }
+}
+
+[HarmonyPatch(typeof(FirstPersonController), "Jump")]
+internal static class FirstPersonController_JuggernautJump_Patch
+{
+    private static bool Prefix(FirstPersonController __instance)
+    {
+        return !JuggernautState.IsCurrentJuggernaut(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(Weapon), "WeaponUpdate")]
+internal static class Weapon_JuggernautMinigunAmmo_Patch
+{
+    private static void Prefix(Weapon __instance)
+    {
+        if (!GameModeManager.IsActive(GameMode.Juggernaut) || !JuggernautState.IsCurrentJuggernautWeapon(__instance)
+            || !__instance.needsAmmo)
+        {
+            return;
+        }
+
+        __instance.currentAmmo = int.MaxValue / 2;
+    }
+
+    private static void Postfix(Weapon __instance)
+    {
+        if (__instance.inRightHand && JuggernautState.IsCurrentJuggernaut(__instance.playerController))
+        {
+            __instance.playerController.movementFactor = JuggernautState.MovementMultiplier;
+        }
+    }
+}
+
+[HarmonyPatch(typeof(PlayerPickup), "SetObjectInHandServer")]
+internal static class PlayerPickup_JuggernautWeapon_Patch
+{
+    private static bool Prefix(PlayerPickup __instance, GameObject obj)
+    {
+        if (!GameModeManager.IsActive(GameMode.Juggernaut) || obj == null)
+        {
+            return true;
+        }
+
+        PlayerHealth? health = __instance.GetComponent<PlayerHealth>();
+        Weapon? weapon = obj.GetComponent<Weapon>();
+        return health == null || !JuggernautState.IsCurrentJuggernaut(health)
+            || weapon == null || weapon.name.StartsWith(JuggernautState.WeaponName, System.StringComparison.Ordinal);
     }
 }

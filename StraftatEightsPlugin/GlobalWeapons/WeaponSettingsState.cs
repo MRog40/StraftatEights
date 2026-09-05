@@ -41,7 +41,7 @@ internal static class WeaponSettingsState
 
     internal static void UpdateLocalCycle()
     {
-        if (!Enabled || !Cycle || !Input.GetKeyDown(KeyCode.F8) || Allowed.Count == 0 || ClientInstance.Instance == null)
+        if (GameModeManager.ShouldIgnoreGlobalWeaponSettings || !Enabled || !Cycle || !Input.GetKeyDown(KeyCode.F8) || Allowed.Count == 0 || ClientInstance.Instance == null || JuggernautState.IsCurrentJuggernaut(ClientInstance.Instance.PlayerSpawner?.player))
         {
             return;
         }
@@ -57,6 +57,10 @@ internal static class WeaponSettingsState
 
     internal static void GiveCycledWeapon(int playerId)
     {
+        if (GameModeManager.IsActive(GameMode.Juggernaut) && playerId == JuggernautState.CurrentJuggernautPlayerId)
+        {
+            return;
+        }
         string? currentWeapon = GetSelectedWeapon(playerId);
         if (currentWeapon == null) return;
 
@@ -68,13 +72,17 @@ internal static class WeaponSettingsState
 
     internal static void RequestLoadout(int playerId, string weaponName)
     {
+        if (WeaponService.IsFinalGameScreen)
+        {
+            return;
+        }
         PendingLoadouts[playerId] = Time.unscaledTime + 5f;
         WeaponService.GiveWeapon(playerId, weaponName, SpareMagazines);
     }
 
     internal static void EnsureCycleLoadouts()
     {
-        if (!Enabled || !Cycle || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost || Time.unscaledTime < _nextLoadoutCheckTime)
+        if (GameModeManager.ShouldIgnoreGlobalWeaponSettings || !Enabled || !Cycle || WeaponService.IsFinalGameScreen || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost || Time.unscaledTime < _nextLoadoutCheckTime)
         {
             return;
         }
@@ -95,6 +103,11 @@ internal static class WeaponSettingsState
 
             string? selectedWeapon = GetSelectedWeapon(client.PlayerId);
             if (selectedWeapon == null)
+            {
+                continue;
+            }
+
+            if (GameModeManager.IsActive(GameMode.Juggernaut) && client.PlayerId == JuggernautState.CurrentJuggernautPlayerId)
             {
                 continue;
             }

@@ -8,20 +8,17 @@ public partial class Plugin
     internal const uint FFAModId = 2718281828u;
 
     internal static ConfigEntry<bool> FFAEnabled = null!;
-    internal static ConfigEntry<float> FFARespawnDelaySeconds = null!;
     internal static ConfigEntry<int> FFAKillsToWin = null!;
 
     private void InitializeFFA()
     {
-        const string section = "Game Mode - Free For All - 1";
-        FFAEnabled = Config.Bind(section, "Enabled", false,
-            "Host-controlled: enables free for all. Each player fights for their own kill count.");
-        FFARespawnDelaySeconds = GameModeConfig.BindRespawnDelay(Config, section);
-        FFAKillsToWin = Config.Bind(section, "Kills To Win", 10,
+        const string section = "Game Mode Settings";
+        FFAEnabled = Config.Bind(section, "Free For All Enabled", false,
+            "Host-controlled: players score kills independently; the first to the limit wins.");
+        FFAKillsToWin = Config.Bind(section, "Free For All Kills To Win", 10,
             new ConfigDescription("Host-controlled: kills required to win the take.", new AcceptableValueRange<int>(3, 30)));
 
         FFAEnabled.SettingChanged += (_, _) => { FFAState.PushSettingsIfHost(); GameModeManager.OnSettingsChanged(); };
-        FFARespawnDelaySeconds.SettingChanged += (_, _) => FFAState.PushSettingsIfHost();
         FFAKillsToWin.SettingChanged += (_, _) => FFAState.PushSettingsIfHost();
 
         MyceliumNetwork.RegisterNetworkObject(this, FFAModId);
@@ -31,9 +28,9 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncFFASettings(bool enabled, float respawnDelaySeconds, int killsToWin)
+    public void SyncFFASettings(bool enabled, int killsToWin)
     {
-        FFAState.ApplySettings(enabled, respawnDelaySeconds, killsToWin);
+        FFAState.ApplySettings(enabled, killsToWin);
     }
 
     [CustomRPC]

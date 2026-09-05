@@ -6,6 +6,7 @@ using System.Reflection;
 using FishNet.Managing;
 using FishNet.Object;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace StraftatEightsPlugin;
 
@@ -16,6 +17,20 @@ internal static class WeaponService
     private static MethodInfo? SetObjectInHandLogic;
     private static MethodInfo? SetObjectInHandObserver;
     private static MethodInfo? SetObjectInHandObserverLogic;
+
+    internal static bool IsFinalGameScreen
+    {
+        get
+        {
+            if (PauseManager.Instance != null && PauseManager.Instance.inVictoryMenu)
+            {
+                return true;
+            }
+
+            string sceneName = SceneManager.GetActiveScene().name;
+            return sceneName == "VictoryScene" || sceneName == "EndGame";
+        }
+    }
 
     internal static void CachePrefabs()
     {
@@ -42,7 +57,10 @@ internal static class WeaponService
 
     internal static void GiveWeapon(int playerId, string weaponName, int? spareMagazines = null)
     {
-        if (Plugin.Instance != null) Plugin.Instance.StartCoroutine(GiveWeaponCoroutine(playerId, weaponName, spareMagazines));
+        if (Plugin.Instance != null && !IsFinalGameScreen)
+        {
+            Plugin.Instance.StartCoroutine(GiveWeaponCoroutine(playerId, weaponName, spareMagazines));
+        }
     }
 
     private static IEnumerator GiveWeaponCoroutine(int playerId, string weaponName, int? spareMagazines)
@@ -55,6 +73,7 @@ internal static class WeaponService
         PlayerManager? manager = null;
         for (int attempt = 0; attempt < 40; attempt++)
         {
+            if (IsFinalGameScreen) yield break;
             if (ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client))
             {
                 manager = client.PlayerSpawner;
@@ -64,6 +83,7 @@ internal static class WeaponService
             yield return new WaitForSeconds(0.25f);
         }
         if (pickup == null || manager?.player == null) yield break;
+        if (IsFinalGameScreen) yield break;
 
         DespawnHeldWeapon(networkManager, pickup.objInHand);
         DespawnHeldWeapon(networkManager, pickup.objInLeftHand);
@@ -72,6 +92,7 @@ internal static class WeaponService
         pickup.sync___set_value_objInHand(null, true);
         pickup.sync___set_value_objInLeftHand(null, true);
         yield return new WaitForSeconds(0.15f);
+        if (IsFinalGameScreen) yield break;
 
         GameObject weapon = UnityEngine.Object.Instantiate(prefab, manager.player.transform.position, manager.player.transform.rotation);
         ItemBehaviour? item = weapon.GetComponent<ItemBehaviour>();
@@ -80,6 +101,11 @@ internal static class WeaponService
         if (body != null) { body.isKinematic = true; body.useGravity = false; }
         networkManager.ServerManager.Spawn(weapon);
         yield return new WaitForSeconds(0.1f);
+        if (IsFinalGameScreen)
+        {
+            DespawnHeldWeapon(networkManager, weapon);
+            yield break;
+        }
 
         SetObjectInHandLogic ??= typeof(PlayerPickup).GetMethod("RpcLogic___SetObjectInHandServer_46969756", Flags);
         SetObjectInHandObserver ??= typeof(PlayerPickup).GetMethod("SetObjectInHandObserver", Flags);
@@ -152,6 +178,22 @@ internal static class WeaponService
         pickup.UpdateIKPoistion();
         item.InstantComeBackOnFire();
         item.dispenserStart = false;
+    }
+
+    internal static void ClearHeldWeapons(PlayerPickup pickup)
+    {
+        NetworkManager? networkManager = FishNet.InstanceFinder.NetworkManager;
+        if (networkManager == null || !networkManager.IsServer)
+        {
+            return;
+        }
+
+        DespawnHeldWeapon(networkManager, pickup.objInHand);
+        DespawnHeldWeapon(networkManager, pickup.objInLeftHand);
+        pickup.sync___set_value_hasObjectInHand(false, true);
+        pickup.sync___set_value_hasObjectInLeftHand(false, true);
+        pickup.sync___set_value_objInHand(null, true);
+        pickup.sync___set_value_objInLeftHand(null, true);
     }
 
     private static void DespawnHeldWeapon(NetworkManager networkManager, GameObject? heldWeapon)
