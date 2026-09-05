@@ -133,10 +133,29 @@ internal static class MovementTuning
     // Tracks whether the in-progress BForce decay (bfactor/bforcefinal) came from a wall jump kick,
     // so HandleBForce's clamp only ever touches that specific effect and leaves knockback/bounces alone
     private static readonly ConditionalWeakTable<FirstPersonController, StrongBox<bool>> WallJumpBForceActive = new();
+    private static readonly ConditionalWeakTable<FirstPersonController, StrongBox<bool>> SlideBForceActive = new();
 
     internal static void MarkWallJumpBForce(FirstPersonController controller, bool isWallJump)
     {
         WallJumpBForceActive.GetOrCreateValue(controller).Value = isWallJump;
+    }
+
+    internal static void MarkSlideBForce(FirstPersonController controller, bool isSliding)
+    {
+        SlideBForceActive.GetOrCreateValue(controller).Value = isSliding;
+    }
+
+    internal static void SuppressSlideBoost(FirstPersonController controller)
+    {
+        if (!SlideBForceActive.TryGetValue(controller, out StrongBox<bool> active) || !active.Value)
+        {
+            return;
+        }
+        EnsureCached();
+
+        _bfactor.SetValue(controller, 0f);
+        _bforcefinal.SetValue(controller, Vector3.zero);
+        active.Value = false;
     }
 
     internal static void ClampWallJumpBoost(FirstPersonController controller, float capSpeed)

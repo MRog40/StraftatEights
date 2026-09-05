@@ -37,12 +37,14 @@ internal static class GameModeRespawn
         int managerId = manager.GetInstanceID();
         yield return new WaitForSeconds(delay);
         MethodInfo? respawnLogic = CmdRespawnLogic;
-        bool success = respawnLogic != null && manager != null;
-        if (success)
+        bool success = false;
+        if (respawnLogic != null && manager != null)
         {
             try
             {
                 respawnLogic!.Invoke(manager, null);
+                FinalizeRespawn(manager);
+                success = true;
             }
             catch (System.Exception exception)
             {
@@ -69,6 +71,7 @@ internal static class GameModeRespawn
                 try
                 {
                     CmdRespawnLogic.Invoke(manager, null);
+                    FinalizeRespawn(manager);
                     PendingManagers.Remove(playerId);
                     yield break;
                 }
@@ -81,6 +84,46 @@ internal static class GameModeRespawn
         }
         PendingManagers.Remove(playerId);
         Plugin.Logger.LogWarning($"[Respawn] player={playerId} failed after 3 attempts");
+    }
+
+    private static void FinalizeRespawn(PlayerManager manager)
+    {
+        manager.SetPlayerMove(true);
+        if (manager.player != null)
+        {
+            manager.player.sync___set_value_canMove(true, true);
+            manager.player.startOfRound = false;
+        }
+        if (PauseManager.Instance != null)
+        {
+            PauseManager.Instance.startRound = false;
+        }
+        if (GameManager.Instance != null && Plugin.Instance != null)
+        {
+            Plugin.Instance.StartCoroutine(KeepPlayerMovable(manager, 4f));
+        }
+    }
+
+    private static IEnumerator KeepPlayerMovable(PlayerManager manager, float duration)
+    {
+        float endTime = Time.time + duration;
+        while (Time.time < endTime)
+        {
+            if (manager != null)
+            {
+                manager.SetPlayerMove(true);
+                if (manager.player != null)
+                {
+                    manager.player.sync___set_value_canMove(true, true);
+                    manager.player.startOfRound = false;
+                }
+                if (PauseManager.Instance != null)
+                {
+                    PauseManager.Instance.startRound = false;
+                }
+            }
+            yield return null;
+        }
     }
 
     private static PlayerManager? FindManagerByPlayerId(int playerId)
@@ -97,7 +140,7 @@ internal static class GameModeRespawn
             return currentResult;
         }
 
-        SpawnPoint[] spawnPoints = Object.FindObjectsOfType<SpawnPoint>();
+        SpawnPoint[] spawnPoints = FindFreeForAllSpawnPoints();
         Transform? best = null;
         float bestDistance = float.MinValue;
         foreach (SpawnPoint spawnPoint in spawnPoints)
@@ -107,7 +150,14 @@ internal static class GameModeRespawn
                 continue;
             }
 
+            int occupiedLayers = Physics.OverlapSphereNonAlloc(spawnPoint.transform.position, spawnPoint.Radius, null, 5);
+            if (occupiedLayers > 0)
+            {
+                continue;
+            }
+
             float nearestPlayerDistance = float.MaxValue;
+            bool foundEnemy = false;
             foreach (ClientInstance client in ClientInstance.playerInstances.Values)
             {
                 PlayerHealth? health = client == null ? null : client.GetComponent<PlayerHealth>();
@@ -115,11 +165,12 @@ internal static class GameModeRespawn
                 {
                     continue;
                 }
+                foundEnemy = true;
                 nearestPlayerDistance = Mathf.Min(nearestPlayerDistance,
                     Vector3.Distance(spawnPoint.transform.position, health.transform.position));
             }
 
-            if (nearestPlayerDistance > bestDistance)
+            if (foundEnemy && nearestPlayerDistance > bestDistance)
             {
                 bestDistance = nearestPlayerDistance;
                 best = spawnPoint.transform;
@@ -127,6 +178,19 @@ internal static class GameModeRespawn
         }
 
         return best ?? currentResult!;
+    }
+
+    private static SpawnPoint[] FindFreeForAllSpawnPoints()
+    {
+        GameObject? group = GameObject.FindGameObjectWithTag("Spawnpoints4Player");
+        if (group == null)
+        {
+            group = GameObject.FindGameObjectWithTag("Spawnpoints");
+        }
+        SpawnPoint[] spawnPoints = group == null
+            ? Object.FindObjectsOfType<SpawnPoint>()
+            : group.GetComponentsInChildren<SpawnPoint>(true);
+        return spawnPoints;
     }
 
     internal static PlayerManager? FindManager(PlayerHealth health)

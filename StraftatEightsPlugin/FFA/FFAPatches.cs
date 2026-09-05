@@ -11,7 +11,9 @@ internal static class GameManager_FFAKill_Patch
         {
             return true;
         }
-        FFAState.OnServerKill(playerId, PlayerLookup.FindKillerId(PlayerLookup.FindPlayerHealthById(playerId)));
+        int killerId = PlayerLookup.FindKillerId(PlayerLookup.FindPlayerHealthById(playerId));
+        Plugin.Logger.LogInfo($"[FFA] Server death: deadPlayer={playerId} killer={killerId}; scheduling respawn");
+        FFAState.OnServerKill(playerId, killerId);
         GameModeRespawn.Schedule(playerId, FFAState.RespawnDelaySeconds);
         return false;
     }

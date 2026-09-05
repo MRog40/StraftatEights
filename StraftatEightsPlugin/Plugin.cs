@@ -31,9 +31,11 @@ public partial class Plugin : BaseUnityPlugin
         gameObject.AddComponent<GameModeHud>();
 
         InitializeGlobalModifiers();
+        InitializeGlobalWeapons();
         InitializeHealthSettings();
-        InitializeJuggernaut();
         InitializeFFA();
+        InitializeJuggernaut();
+        InitializeGunGame();
 
         new Harmony(MyPluginInfo.PLUGIN_GUID).PatchAll();
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
@@ -44,8 +46,11 @@ public partial class Plugin : BaseUnityPlugin
         GlobalModifiersState.PeriodicPushIfHost();
         HealthSettingsState.PeriodicPushIfHost();
         HealthSettingsState.ServerTick();
+        WeaponSettingsState.UpdateLocalCycle();
+        WeaponSettingsState.PeriodicPushIfHost();
         JuggernautState.PeriodicPushSettingsIfHost();
         FFAState.PeriodicPushSettingsIfHost();
+        GunGameState.PeriodicPushSettingsIfHost();
     }
 }
 

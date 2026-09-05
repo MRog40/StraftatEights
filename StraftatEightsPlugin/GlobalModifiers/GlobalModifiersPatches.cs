@@ -51,6 +51,24 @@ internal static class FirstPersonController_SlideBoost_Patch
         }
     }
 }
+
+[HarmonyPatch(typeof(FirstPersonController), "Jump")]
+internal static class FirstPersonController_SlideJumpForce_Patch
+{
+    private static void Prefix(FirstPersonController __instance)
+    {
+        if (GlobalModifiersState.SlideBoostEnabled || !__instance.isSliding)
+        {
+            return;
+        }
+
+        __instance.forceFactor = 0f;
+        __instance.forceAdded = Vector3.zero;
+        __instance.force = Vector3.zero;
+        __instance.isCrouching = false;
+    }
+}
+
 [HarmonyPatch(typeof(FirstPersonController), "BForce")]
 internal static class FirstPersonController_WallJumpBoostTrack_Patch
 {
@@ -60,6 +78,23 @@ internal static class FirstPersonController_WallJumpBoostTrack_Patch
     private static void Prefix(FirstPersonController __instance)
     {
         MovementTuning.MarkWallJumpBForce(__instance, __instance.CanWallJump);
+    }
+}
+
+[HarmonyPatch(typeof(FirstPersonController), "BForce")]
+internal static class FirstPersonController_SlideJumpBoostTrack_Patch
+{
+    private static void Prefix(FirstPersonController __instance)
+    {
+        MovementTuning.MarkSlideBForce(__instance, __instance.IsSliding);
+    }
+
+    private static void Postfix(FirstPersonController __instance)
+    {
+        if (!GlobalModifiersState.SlideBoostEnabled)
+        {
+            MovementTuning.SuppressSlideBoost(__instance);
+        }
     }
 }
 

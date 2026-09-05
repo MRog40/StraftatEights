@@ -11,7 +11,8 @@ internal enum GameMode
 {
     None = 0,
     FreeForAll = 1,
-    Juggernaut = 2
+    Juggernaut = 2,
+    GunGame = 3
 }
 
 internal static class GameModeManager
@@ -23,8 +24,8 @@ internal static class GameModeManager
 
     internal static void Initialize()
     {
-        ModeOrder = Plugin.Instance.Config.Bind("Mode Manager Settings", "Mode Order", "1, 2",
-            "Host-controlled: comma-separated game mode IDs. FFA is 1 and Juggernaut is 2.");
+        ModeOrder = Plugin.Instance.Config.Bind("Mode Manager Settings", "Mode Order", "1, 2, 3",
+            "Host-controlled: comma-separated game mode IDs. FFA is 1, Juggernaut is 2, and Gun Game is 3.");
         RandomModes = Plugin.Instance.Config.Bind("Mode Manager Settings", "Random Game Modes", false,
             "Host-controlled: choose the next enabled game mode at random instead of following Mode Order.");
         ModeOrder.SettingChanged += (_, _) => OnSettingsChanged();
@@ -52,6 +53,7 @@ internal static class GameModeManager
         }
         JuggernautState.ResetMatchState();
         FFAState.ResetMatchState();
+        GunGameState.ResetMatchState();
         SetActiveMode(NextEnabledMode(ActiveMode));
     }
 
@@ -114,7 +116,7 @@ internal static class GameModeManager
             }
         }
 
-        GameMode[] allModes = { GameMode.FreeForAll, GameMode.Juggernaut };
+        GameMode[] allModes = { GameMode.FreeForAll, GameMode.Juggernaut, GameMode.GunGame };
         foreach (GameMode mode in allModes)
         {
             if (IsEnabled(mode) && !modes.Contains(mode))
@@ -132,6 +134,7 @@ internal static class GameModeManager
         {
             "1" or "ffa" or "freeforall" => GameMode.FreeForAll,
             "2" or "juggernaut" => GameMode.Juggernaut,
+            "3" or "gungame" => GameMode.GunGame,
             _ => GameMode.None
         };
     }
@@ -142,6 +145,7 @@ internal static class GameModeManager
         {
             GameMode.Juggernaut => Plugin.JuggernautEnabled.Value,
             GameMode.FreeForAll => Plugin.FFAEnabled.Value,
+            GameMode.GunGame => Plugin.GunGameEnabled.Value,
             _ => false
         };
     }
@@ -155,6 +159,7 @@ internal static class GameModeManager
         ActiveMode = mode;
         JuggernautState.ResetMatchState();
         FFAState.ResetMatchState();
+        GunGameState.ResetMatchState();
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
             MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable, (int)mode);
@@ -166,6 +171,7 @@ internal static class GameModeManager
         ActiveMode = (GameMode)mode;
         JuggernautState.ResetMatchState();
         FFAState.ResetMatchState();
+        GunGameState.ResetMatchState();
     }
 }
 

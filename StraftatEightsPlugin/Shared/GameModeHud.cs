@@ -86,6 +86,11 @@ internal sealed class GameModeHud : MonoBehaviour
             text.Append("<b><color=#FF6A00>JUGGERNAUT</color></b>");
             AppendRows(text, JuggernautState.Points, true);
         }
+        else if (GameModeManager.IsActive(GameMode.GunGame))
+        {
+            text.Append("<b><color=#FFDD55>GUN GAME</color></b>  ").Append(GunGameState.KillsToWin).Append(" points to win");
+            AppendRows(text, GunGameState.Progress, false);
+        }
         return ClientInstance.ReplaceAllPlayerNameTags(text.ToString());
     }
 
