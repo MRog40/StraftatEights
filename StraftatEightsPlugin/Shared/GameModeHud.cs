@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using System.Linq;
+using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -15,9 +15,7 @@ internal sealed class GameModeHud : MonoBehaviour
     private static GameModeHud? _instance;
     private GameObject _panel = null!;
     private TextMeshProUGUI _announcement = null!;
-    private TextMeshProUGUI _header = null!;
-    private Transform _rows = null!;
-    private readonly List<GameObject> _rowObjects = new();
+    private TextMeshProUGUI _scoreboard = null!;
     private float _nextRefreshTime;
     private float _announcementUntil;
 
@@ -56,7 +54,7 @@ internal sealed class GameModeHud : MonoBehaviour
         panelRect.anchorMin = new Vector2(0f, 1f);
         panelRect.anchorMax = new Vector2(0f, 1f);
         panelRect.pivot = new Vector2(0f, 1f);
-        panelRect.sizeDelta = new Vector2(360f, 560f);
+        panelRect.sizeDelta = new Vector2(420f, 0f);
         panelRect.anchoredPosition = new Vector2(18f, -120f);
         _panel.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.45f);
 
@@ -65,31 +63,21 @@ internal sealed class GameModeHud : MonoBehaviour
         layout.childAlignment = TextAnchor.UpperLeft;
         layout.childControlWidth = true;
         layout.childControlHeight = true;
-        layout.childForceExpandWidth = true;
+        layout.childForceExpandWidth = false;
         layout.childForceExpandHeight = false;
 
-        GameObject headerObject = new("GameModeHeader");
-        headerObject.transform.SetParent(_panel.transform, false);
-        _header = headerObject.AddComponent<TextMeshProUGUI>();
-        _header.fontSize = 22f;
-        _header.richText = true;
-        _header.enableWordWrapping = false;
-        _header.alignment = TextAlignmentOptions.TopLeft;
-        _header.raycastTarget = false;
-        LayoutElement headerLayout = headerObject.AddComponent<LayoutElement>();
-        headerLayout.minHeight = 30f;
-        headerLayout.preferredHeight = 30f;
+        ContentSizeFitter fitter = _panel.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        GameObject rowsObject = new("GameModeRows");
-        rowsObject.transform.SetParent(_panel.transform, false);
-        _rows = rowsObject.transform;
-        VerticalLayoutGroup rowsLayout = rowsObject.AddComponent<VerticalLayoutGroup>();
-        rowsLayout.childControlWidth = true;
-        rowsLayout.childControlHeight = true;
-        rowsLayout.childForceExpandWidth = true;
-        rowsLayout.childForceExpandHeight = false;
-        LayoutElement rowsSize = rowsObject.AddComponent<LayoutElement>();
-        rowsSize.flexibleHeight = 1f;
+        GameObject scoreboardObject = new("GameModeScoreboard", typeof(RectTransform));
+        scoreboardObject.transform.SetParent(_panel.transform, false);
+        _scoreboard = scoreboardObject.AddComponent<TextMeshProUGUI>();
+        _scoreboard.fontSize = 22f;
+        _scoreboard.richText = true;
+        _scoreboard.enableWordWrapping = false;
+        _scoreboard.alignment = TextAlignmentOptions.TopLeft;
+        _scoreboard.raycastTarget = false;
         _panel.SetActive(false);
     }
 
@@ -115,7 +103,7 @@ internal sealed class GameModeHud : MonoBehaviour
         bool visible = GameModeManager.IsCustomMode && !GameModeManager.ShouldHideCustomHud
             && !GameModeManager.IsMatchOver
             && PauseManager.Instance != null && !PauseManager.Instance.inMainMenu
-            && !PauseManager.Instance.inVictoryMenu && ClientInstance.playerInstances.Count > 0;
+            && !PauseManager.Instance.inVictoryMenu && PlayerLookup.GetConnectedPlayerIds().Count > 0;
         _panel.SetActive(visible);
         if (visible)
         {
@@ -151,88 +139,68 @@ internal sealed class GameModeHud : MonoBehaviour
     {
         Dictionary<int, int> scores;
         bool crownFirst;
+        string header;
         if (GameModeManager.IsActive(GameMode.FreeForAll))
         {
-            _header.text = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + FFAState.KillsToWin + " points to win";
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + FFAState.KillsToWin + " points to win";
             scores = FFAState.Kills;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.Juggernaut))
         {
-            _header.text = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + JuggernautState.PointsToWin + " points to win";
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + JuggernautState.PointsToWin + " points to win";
             scores = JuggernautState.Points;
             crownFirst = true;
         }
         else if (GameModeManager.IsActive(GameMode.SniperBattle))
         {
-            _header.text = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + SniperBattleState.PointsToWin + " points to win";
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + SniperBattleState.PointsToWin + " points to win";
             scores = SniperBattleState.Points;
             crownFirst = false;
         }
         else
         {
-            _header.text = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + GunGameState.ScoreLimit + " points to win";
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + GunGameState.ScoreLimit + " points to win";
             scores = GunGameState.Progress;
             crownFirst = false;
         }
 
-        foreach (GameObject rowObject in _rowObjects)
+        List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
+        playerIds.Sort((left, right) =>
         {
-            Destroy(rowObject);
-        }
-        _rowObjects.Clear();
+            bool leftIsCrown = crownFirst && left == JuggernautState.CurrentJuggernautPlayerId;
+            bool rightIsCrown = crownFirst && right == JuggernautState.CurrentJuggernautPlayerId;
+            if (leftIsCrown != rightIsCrown)
+            {
+                return leftIsCrown ? -1 : 1;
+            }
 
-        List<KeyValuePair<int, int>> rows = ClientInstance.playerInstances.Keys
-            .Select(id => new KeyValuePair<int, int>(id, scores.TryGetValue(id, out int score) ? score : 0))
-            .OrderByDescending(row => crownFirst && row.Key == JuggernautState.CurrentJuggernautPlayerId)
-            .ThenByDescending(row => row.Value)
-            .ToList();
-        foreach (KeyValuePair<int, int> row in rows)
+            scores.TryGetValue(left, out int leftScore);
+            scores.TryGetValue(right, out int rightScore);
+            return rightScore.CompareTo(leftScore);
+        });
+
+        StringBuilder text = new(header);
+        foreach (int playerId in playerIds)
         {
-            AddScoreRow(row.Key, row.Value, crownFirst && row.Key == JuggernautState.CurrentJuggernautPlayerId);
+            scores.TryGetValue(playerId, out int score);
+            string playerName = ClientInstance.ReplaceAllPlayerNameTags(PlayerLookup.GetPlayerNameTag(playerId));
+            if (playerName.Length > MaxDisplayedNameLength)
+            {
+                playerName = playerName.Substring(0, MaxDisplayedNameLength);
+            }
+
+            bool isJuggernaut = crownFirst && playerId == JuggernautState.CurrentJuggernautPlayerId;
+            text.Append('\n').Append(isJuggernaut ? "<color=#FF6A00><b>" : "<color=#DDDDDD>")
+                .Append(playerName).Append("  ").Append(score);
+            if (isJuggernaut)
+            {
+                text.Append("  JUG</b>");
+            }
+            text.Append("</color>");
         }
-    }
 
-    private void AddScoreRow(int playerId, int score, bool isJuggernaut)
-    {
-        GameObject rowObject = new("GameModeScoreRow", typeof(RectTransform));
-        rowObject.transform.SetParent(_rows, false);
-        LayoutElement rowSize = rowObject.AddComponent<LayoutElement>();
-        rowSize.minHeight = 30f;
-        rowSize.preferredHeight = 30f;
-        HorizontalLayoutGroup rowLayout = rowObject.AddComponent<HorizontalLayoutGroup>();
-        rowLayout.childControlWidth = true;
-        rowLayout.childControlHeight = true;
-        rowLayout.childForceExpandWidth = false;
-        rowLayout.childForceExpandHeight = false;
-        rowLayout.spacing = 8f;
-
-        TextMeshProUGUI nameText = CreateRowText(rowObject.transform, TextAlignmentOptions.TopLeft);
-        LayoutElement nameLayout = nameText.gameObject.AddComponent<LayoutElement>();
-        nameLayout.flexibleWidth = 1f;
-        string playerName = ClientInstance.ReplaceAllPlayerNameTags(PlayerLookup.GetPlayerNameTag(playerId));
-        if (playerName.Length > MaxDisplayedNameLength)
-        {
-            playerName = playerName.Substring(0, MaxDisplayedNameLength);
-        }
-        nameText.text = "<color=#DDDDDD>" + playerName + "</color>";
-
-        TextMeshProUGUI scoreText = CreateRowText(rowObject.transform, TextAlignmentOptions.TopRight);
-        scoreText.text = "<color=#DDDDDD>" + score + (isJuggernaut ? "  <b>JUG</b>" : string.Empty) + "</color>";
-        _rowObjects.Add(rowObject);
-    }
-
-    private static TextMeshProUGUI CreateRowText(Transform parent, TextAlignmentOptions alignment)
-    {
-        GameObject textObject = new("GameModeRowText");
-        textObject.transform.SetParent(parent, false);
-        TextMeshProUGUI text = textObject.AddComponent<TextMeshProUGUI>();
-        text.fontSize = 22f;
-        text.richText = true;
-        text.enableWordWrapping = false;
-        text.alignment = alignment;
-        text.raycastTarget = false;
-        return text;
+        _scoreboard.text = text.ToString();
     }
 }
 

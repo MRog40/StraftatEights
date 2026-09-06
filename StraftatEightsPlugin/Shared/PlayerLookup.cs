@@ -1,3 +1,7 @@
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
 namespace StraftatEightsPlugin;
 
 // Cross-game-mode helpers for resolving player identity from PlayerHealth/ClientInstance. Shared by
@@ -5,6 +9,37 @@ namespace StraftatEightsPlugin;
 // like Gun Game later) instead of every feature re-implementing the same lookups.
 internal static class PlayerLookup
 {
+    internal static List<int> GetConnectedPlayerIds()
+    {
+        try
+        {
+            List<int> playerIds = new();
+            foreach (KeyValuePair<int, ClientInstance> entry in ClientInstance.playerInstances)
+            {
+                if (entry.Value != null && entry.Value)
+                {
+                    playerIds.Add(entry.Key);
+                }
+            }
+
+            if (playerIds.Count == 0)
+            {
+                playerIds = Object.FindObjectsOfType<ClientInstance>()
+                    .Where(client => client != null && client && client.PlayerId >= 0)
+                    .Select(client => client.PlayerId)
+                    .Distinct()
+                    .ToList();
+            }
+
+            playerIds.Sort();
+            return playerIds;
+        }
+        catch
+        {
+            return new List<int>();
+        }
+    }
+
     internal static PlayerHealth? FindPlayerHealthById(int playerId)
     {
         if (playerId < 0)
