@@ -121,15 +121,9 @@ internal static class FFAState
         }
         WinnerId = winnerId;
         Kills.Clear();
-        foreach (string entry in (killsData ?? string.Empty).Split(';'))
+        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(killsData, KillsToWin))
         {
-            int separator = entry.IndexOf(':');
-            if (separator > 0 && int.TryParse(entry.Substring(0, separator), out int id)
-                && int.TryParse(entry.Substring(separator + 1), out int kills)
-                && id >= 0 && kills >= 0 && kills <= KillsToWin)
-            {
-                Kills[id] = kills;
-            }
+            Kills[entry.Key] = entry.Value;
         }
     }
 
@@ -154,13 +148,7 @@ internal static class FFAState
 
     internal static string SerializeKills()
     {
-        StringBuilder result = new();
-        foreach (KeyValuePair<int, int> entry in Kills)
-        {
-            if (result.Length > 0) result.Append(';');
-            result.Append(entry.Key).Append(':').Append(entry.Value);
-        }
-        return result.ToString();
+        return ScoreCodec.Serialize(Kills);
     }
 
     private static void BroadcastLiveState()

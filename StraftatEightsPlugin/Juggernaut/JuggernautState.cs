@@ -148,19 +148,9 @@ internal static class JuggernautState
         CurrentJuggernautPlayerId = juggernautPlayerId;
         CurrentJuggernautKills = juggernautKills;
         Points.Clear();
-        if (string.IsNullOrEmpty(pointsData))
+        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(pointsData, PointsToWin))
         {
-            return;
-        }
-        foreach (string entry in pointsData.Split(';'))
-        {
-            int sep = entry.IndexOf(':');
-            if (sep > 0 && int.TryParse(entry.Substring(0, sep), out int id)
-                && int.TryParse(entry.Substring(sep + 1), out int pts)
-                && id >= 0 && pts >= 0 && pts <= PointsToWin)
-            {
-                Points[id] = pts;
-            }
+            Points[entry.Key] = entry.Value;
         }
     }
 
@@ -168,16 +158,7 @@ internal static class JuggernautState
     // as "id:points;id:points"
     internal static string SerializePoints()
     {
-        StringBuilder sb = new();
-        foreach (KeyValuePair<int, int> kv in Points)
-        {
-            if (sb.Length > 0)
-            {
-                sb.Append(';');
-            }
-            sb.Append(kv.Key).Append(':').Append(kv.Value);
-        }
-        return sb.ToString();
+        return ScoreCodec.Serialize(Points);
     }
 
     // Host-only: called every frame from GameManager.Update via JuggernautPatches

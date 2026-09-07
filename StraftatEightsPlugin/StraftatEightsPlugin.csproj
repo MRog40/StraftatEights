@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>StraftatEightsPlugin</AssemblyName>
     <Product>Straftat Eights</Product>
-    <Version>0.0.7</Version>
+    <Version>0.0.8</Version>
     <Name>StraftatEightsPlugin</Name>
     <Guid>88888888-cf51-4976-ac97-8a909ec0daa3</Guid>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -64,5 +64,11 @@
 
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="tests\**" />
+    <None Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
   </ItemGroup>
 </Project>

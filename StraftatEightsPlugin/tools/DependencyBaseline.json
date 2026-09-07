@@ -1,0 +1,14 @@
+{
+  "Assemblies": {
+    "Assembly-CSharp": "Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+    "FishNet.Runtime": "FishNet.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+    "ComputerysModdingUtilities": "ComputerysModdingUtilities, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+    "MyceliumNetworkingForStraftat": "MyceliumNetworkingForStraftat, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+  },
+  "Packages": [
+    "BepInEx.Analyzers/1.0.8",
+    "BepInEx.Core/5.4.21",
+    "BepInEx.PluginInfoProps/2.1.0",
+    "UnityEngine.Modules/2021.3.33"
+  ]
+}

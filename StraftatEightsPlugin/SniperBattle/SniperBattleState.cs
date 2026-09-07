@@ -123,15 +123,9 @@ internal static class SniperBattleState
         }
         WinnerId = winnerId;
         Points.Clear();
-        foreach (string entry in (pointsData ?? string.Empty).Split(';'))
+        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(pointsData, PointsToWin))
         {
-            int separator = entry.IndexOf(':');
-            if (separator > 0 && int.TryParse(entry.Substring(0, separator), out int id)
-                && int.TryParse(entry.Substring(separator + 1), out int points)
-                && id >= 0 && points >= 0 && points <= PointsToWin)
-            {
-                Points[id] = points;
-            }
+            Points[entry.Key] = entry.Value;
         }
     }
 
@@ -218,13 +212,7 @@ internal static class SniperBattleState
 
     private static string SerializePoints()
     {
-        StringBuilder result = new();
-        foreach (KeyValuePair<int, int> entry in Points)
-        {
-            if (result.Length > 0) result.Append(';');
-            result.Append(entry.Key).Append(':').Append(entry.Value);
-        }
-        return result.ToString();
+        return ScoreCodec.Serialize(Points);
     }
 
     private static void BroadcastLiveState()

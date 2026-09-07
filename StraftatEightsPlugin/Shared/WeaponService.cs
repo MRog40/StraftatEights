@@ -19,7 +19,7 @@ internal static class WeaponService
     private static MethodInfo? SetObjectInHandObserverLogic;
     private static bool _attachmentMethodsResolved;
     private static bool _attachmentMethodsAvailable;
-    private static readonly Dictionary<int, int> RequestVersions = new();
+    private static readonly RequestVersionTracker RequestVersions = new();
 
     internal static bool IsFinalGameScreen
     {
@@ -63,19 +63,14 @@ internal static class WeaponService
     internal static List<string> ParseWeaponList(string value)
     {
         CachePrefabs();
-        return (value ?? string.Empty).Split(',', ';').Select(item => item.Trim())
-            .Where(item => item.Length > 0 && Prefabs.ContainsKey(item))
-            .Distinct(StringComparer.Ordinal).ToList();
+        return WeaponListParser.Parse(value, Prefabs.Keys);
     }
 
     internal static void GiveWeapon(int playerId, string weaponName, int? spareMagazines = null)
     {
         if (Plugin.Instance != null && !IsFinalGameScreen)
         {
-            int requestVersion = RequestVersions.TryGetValue(playerId, out int previousVersion)
-                ? previousVersion + 1
-                : 1;
-            RequestVersions[playerId] = requestVersion;
+            int requestVersion = RequestVersions.Next(playerId);
             Plugin.Instance.StartCoroutine(GiveWeaponCoroutine(playerId, weaponName, spareMagazines,
                 SessionState.Generation, GameModeManager.RoundId, requestVersion));
         }
@@ -166,8 +161,7 @@ internal static class WeaponService
 
     private static bool IsCurrentRequest(int playerId, int requestVersion)
     {
-        return RequestVersions.TryGetValue(playerId, out int currentVersion)
-            && currentVersion == requestVersion;
+        return RequestVersions.IsCurrent(playerId, requestVersion);
     }
 
     internal static void AttachUnparentedWeapon(PlayerPickup pickup)

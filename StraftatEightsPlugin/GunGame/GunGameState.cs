@@ -82,15 +82,9 @@ internal static class GunGameState
             return;
         }
         Progress.Clear();
-        foreach (string entry in (data ?? string.Empty).Split(';'))
+        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(data, ScoreLimit))
         {
-            int separator = entry.IndexOf(':');
-            if (separator > 0 && int.TryParse(entry.Substring(0, separator), out int id)
-                && int.TryParse(entry.Substring(separator + 1), out int progress)
-                && id >= 0 && progress >= 0 && progress <= ScoreLimit)
-            {
-                Progress[id] = progress;
-            }
+            Progress[entry.Key] = entry.Value;
         }
     }
     internal static void OnServerKill(int deadPlayerId, int killerId)
@@ -109,13 +103,7 @@ internal static class GunGameState
     }
     internal static string SerializeProgress()
     {
-        StringBuilder result = new();
-        foreach (KeyValuePair<int, int> entry in Progress)
-        {
-            if (result.Length > 0) result.Append(';');
-            result.Append(entry.Key).Append(':').Append(entry.Value);
-        }
-        return result.ToString();
+        return ScoreCodec.Serialize(Progress);
     }
     private static void BroadcastLiveState()
     {

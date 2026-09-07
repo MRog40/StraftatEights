@@ -371,13 +371,9 @@ internal static class GameModeManager
     private static GameMode NextEnabledMode(GameMode current)
     {
         List<GameMode> modes = GetConfiguredModes();
-        if (modes.Count == 0)
-        {
-            return GameMode.None;
-        }
-
-        int start = modes.IndexOf(current);
-        return modes[(start + 1 + modes.Count) % modes.Count];
+        return ModeCycle.TrySelectNext(modes, current, out GameMode next)
+            ? next
+            : GameMode.None;
     }
 
     private static List<GameMode> GetConfiguredModes()

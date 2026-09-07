@@ -1,6 +1,6 @@
 {
   "name": "StraftatEightsPlugin",
-  "version_number": "0.0.7",
+  "version_number": "0.0.8",
   "website_url": "",
   "description": "Host-authoritative movement, health, weapon, and game-mode rules for STRAFTAT.",
   "dependencies": [

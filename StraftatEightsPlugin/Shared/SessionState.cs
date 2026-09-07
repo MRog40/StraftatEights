@@ -35,15 +35,7 @@ internal static class SessionState
     internal static bool TryAcceptSnapshot(int roundId, int revision,
         ref int lastRoundId, ref int lastRevision)
     {
-        if (roundId < 0 || revision < 0
-            || roundId < lastRoundId || (roundId == lastRoundId && revision < lastRevision))
-        {
-            return false;
-        }
-
-        lastRoundId = roundId;
-        lastRevision = revision;
-        return true;
+        return SnapshotValidation.TryAccept(roundId, revision, ref lastRoundId, ref lastRevision);
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision,

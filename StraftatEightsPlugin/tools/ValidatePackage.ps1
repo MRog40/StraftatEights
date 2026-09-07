@@ -31,9 +31,35 @@ if (-not (Test-Path $PackageDirectory)) {
 }
 else {
     $requiredFiles = @('manifest.json', 'README.md', 'icon.png', 'StraftatEightsPlugin.dll')
+    $topLevelFiles = @(Get-ChildItem $PackageDirectory -File | Select-Object -ExpandProperty Name)
     foreach ($file in $requiredFiles) {
         if (-not (Test-Path (Join-Path $PackageDirectory $file))) {
             $errors.Add("Required package file is missing: $file")
+        }
+    }
+    foreach ($file in $topLevelFiles) {
+        if ($requiredFiles -notcontains $file) {
+            $errors.Add("Unexpected top-level package file: $file")
+        }
+    }
+
+    $iconFile = Join-Path $PackageDirectory 'icon.png'
+    if (Test-Path $iconFile) {
+        $iconBytes = [System.IO.File]::ReadAllBytes($iconFile)
+        $pngSignature = @(137, 80, 78, 71, 13, 10, 26, 10)
+        $hasPngSignature = $iconBytes.Length -ge 24
+        for ($index = 0; $hasPngSignature -and $index -lt $pngSignature.Count; $index++) {
+            $hasPngSignature = $iconBytes[$index] -eq $pngSignature[$index]
+        }
+        if (-not $hasPngSignature) {
+            $errors.Add('icon.png is not a valid PNG file.')
+        }
+        else {
+            $iconWidth = ([int]$iconBytes[16] -shl 24) -bor ([int]$iconBytes[17] -shl 16) -bor ([int]$iconBytes[18] -shl 8) -bor [int]$iconBytes[19]
+            $iconHeight = ([int]$iconBytes[20] -shl 24) -bor ([int]$iconBytes[21] -shl 16) -bor ([int]$iconBytes[22] -shl 8) -bor [int]$iconBytes[23]
+            if ($iconWidth -ne 256 -or $iconHeight -ne 256) {
+                $errors.Add("icon.png must be 256x256 pixels; found ${iconWidth}x${iconHeight}.")
+            }
         }
     }
 
