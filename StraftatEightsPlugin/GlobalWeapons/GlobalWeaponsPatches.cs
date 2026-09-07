@@ -31,28 +31,6 @@ internal static class Weapon_GlobalReserveAmmo_Patch
     }
 }
 
-[HarmonyPatch(typeof(ItemBehaviour), "Start")]
-internal static class ItemBehaviour_GlobalWeaponsStart_Patch
-{
-    private static void Prefix(ItemBehaviour __instance)
-    {
-        if (GameModeManager.ShouldIgnoreGlobalWeaponSettings || !WeaponSettingsState.Enabled || !WeaponSettingsState.Cycle)
-        {
-            return;
-        }
-
-        __instance.dispenserStart = true;
-        Rigidbody? body = __instance.GetComponent<Rigidbody>();
-        if (body != null)
-        {
-            body.isKinematic = true;
-            body.useGravity = false;
-            body.velocity = Vector3.zero;
-            body.angularVelocity = Vector3.zero;
-        }
-    }
-}
-
 [HarmonyPatch(typeof(PlayerManager), "SpawnPlayer", new[] { typeof(int), typeof(int), typeof(Vector3), typeof(Quaternion) })]
 internal static class PlayerManager_GlobalWeaponsSpawn_Patch
 {
@@ -83,5 +61,14 @@ internal static class PlayerPickup_GlobalWeaponsHand_Patch
         {
             WeaponService.AttachUnparentedWeapon(__instance);
         }
+    }
+}
+
+[HarmonyPatch(typeof(PlayerPickup), "RightHandFix")]
+internal static class PlayerPickup_ServerGrantAttachment_Patch
+{
+    private static bool Prefix(PlayerPickup __instance)
+    {
+        return !WeaponService.IsOwnerAttachmentPending(__instance);
     }
 }

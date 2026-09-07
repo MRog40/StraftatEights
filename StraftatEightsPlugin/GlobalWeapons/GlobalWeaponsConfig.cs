@@ -48,4 +48,10 @@ public partial class Plugin
             WeaponSettingsState.GiveCycledWeapon(playerId);
         }
     }
+
+    [CustomRPC]
+    public void AttachServerGrantedWeapon(int playerId)
+    {
+        WeaponService.AttachGrantedWeaponForOwner(playerId);
+    }
 }

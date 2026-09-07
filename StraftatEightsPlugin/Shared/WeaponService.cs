@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using FishNet.Managing;
 using FishNet.Object;
+using MyceliumNetworking;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -20,6 +21,7 @@ internal static class WeaponService
     private static bool _attachmentMethodsResolved;
     private static bool _attachmentMethodsAvailable;
     private static readonly RequestVersionTracker RequestVersions = new();
+    private static readonly HashSet<int> PendingOwnerAttachments = new();
 
     internal static bool IsFinalGameScreen
     {
@@ -43,6 +45,7 @@ internal static class WeaponService
     internal static void ResetPendingRequests()
     {
         RequestVersions.Clear();
+        PendingOwnerAttachments.Clear();
     }
 
     internal static void CachePrefabs()
@@ -124,6 +127,7 @@ internal static class WeaponService
         Rigidbody? body = weapon.GetComponent<Rigidbody>();
         if (body != null) { body.isKinematic = true; body.useGravity = false; }
         networkManager.ServerManager.Spawn(weapon);
+        NotifyOwnerWeaponAttached(playerId);
         yield return new WaitForSeconds(0.1f);
         if (!IsCurrentRequest(playerId, requestVersion) || !SessionState.IsCurrent(sessionGeneration)
             || GameModeManager.RoundId != roundId
@@ -230,6 +234,98 @@ internal static class WeaponService
         pickup.sync___set_value_hasObjectInLeftHand(false, true);
         pickup.sync___set_value_objInHand(null, true);
         pickup.sync___set_value_objInLeftHand(null, true);
+    }
+
+    internal static void AttachGrantedWeaponForOwner(int playerId)
+    {
+        if (Plugin.Instance == null)
+        {
+            return;
+        }
+
+        PendingOwnerAttachments.Add(playerId);
+        Plugin.Instance.StartCoroutine(AttachGrantedWeaponAfterSync(playerId, SessionState.Generation));
+    }
+
+    internal static bool IsOwnerAttachmentPending(PlayerPickup pickup)
+    {
+        return pickup.IsOwner && ClientInstance.Instance != null
+            && PendingOwnerAttachments.Contains(ClientInstance.Instance.PlayerId);
+    }
+
+    private static IEnumerator AttachGrantedWeaponAfterSync(int playerId, int sessionGeneration)
+    {
+        for (int attempt = 0; attempt < 20; attempt++)
+        {
+            if (!SessionState.IsCurrent(sessionGeneration))
+            {
+                PendingOwnerAttachments.Remove(playerId);
+                yield break;
+            }
+
+            if (ClientInstance.Instance == null || ClientInstance.Instance.PlayerId != playerId)
+            {
+                yield return new WaitForSeconds(0.1f);
+                continue;
+            }
+
+            PlayerManager? manager = ClientInstance.Instance.PlayerSpawner;
+            PlayerPickup? pickup = manager?.player?.playerPickupScript;
+            GameObject? heldObject = pickup?.objInHand;
+            if (pickup != null && heldObject != null && heldObject)
+            {
+                pickup.hasObjectInHand = true;
+                if (AttachWeaponLocally(pickup, heldObject))
+                {
+                    PendingOwnerAttachments.Remove(playerId);
+                    yield break;
+                }
+            }
+
+            yield return new WaitForSeconds(0.1f);
+        }
+
+        PendingOwnerAttachments.Remove(playerId);
+    }
+
+    private static bool AttachWeaponLocally(PlayerPickup pickup, GameObject weapon)
+    {
+        Weapon? weaponComponent = weapon.GetComponent<Weapon>();
+        ItemBehaviour? item = weapon.GetComponent<ItemBehaviour>();
+        if (weaponComponent == null || item == null || !ResolveAttachmentMethods())
+        {
+            return false;
+        }
+
+        try
+        {
+            Transform hand = weaponComponent.requireBothHands
+                ? pickup.pickupPositionBothHand[item.camChildIndex]
+                : pickup.pickupPositionRightHand[item.camChildIndex];
+            object[] args = { weapon, hand.position, hand.rotation, pickup.gameObject, true };
+            SetObjectInHandObserverLogic!.Invoke(pickup, args);
+            pickup.HandsReconstruct();
+            pickup.UpdateIKPoistion();
+            item.InstantComeBackOnFire();
+            item.dispenserStart = false;
+            return weapon.layer == 8;
+        }
+        catch (Exception exception)
+        {
+            Plugin.Logger.LogDebug($"[WeaponService] Owner attachment retry: {exception.GetBaseException().Message}");
+            return false;
+        }
+    }
+
+    internal static void NotifyOwnerWeaponAttached(int playerId)
+    {
+        if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId, nameof(Plugin.AttachServerGrantedWeapon),
+            ReliableType.Reliable, playerId);
     }
 
     private static void DespawnHeldWeapon(NetworkManager networkManager, GameObject? heldWeapon)
