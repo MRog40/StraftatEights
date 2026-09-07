@@ -114,6 +114,7 @@ internal static class FirstPersonController_WallJumpBoost_Patch
 }
 
 [HarmonyPatch(typeof(FirstPersonController), "Update")]
+[HarmonyPriority(Priority.First)]
 internal static class FirstPersonController_Speed_Patch
 {
     private static float _nextOwnerLogTime;
@@ -139,9 +140,19 @@ internal static class FirstPersonController_Speed_Patch
     }
 }
 
-[HarmonyPatch(typeof(FirstPersonController), "Awake___UserLogic")]
+[HarmonyPatch]
 internal static class FirstPersonController_Tuning_Patch
 {
+    private static System.Reflection.MethodBase? TargetMethod()
+    {
+        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance
+            | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+        return typeof(FirstPersonController).GetMethod("Awake___UserLogic", flags)
+            ?? typeof(FirstPersonController).GetMethod("Awake", flags);
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
     // Initial apply at spawn; Update's version check picks up any later live edits
     private static void Postfix(FirstPersonController __instance)
     {

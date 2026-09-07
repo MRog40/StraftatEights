@@ -82,19 +82,19 @@ internal static class GameModeManager
             GameModeCapabilities.IgnoreGlobalWeapons | GameModeCapabilities.IgnoreGlobalHealth),
         [GameMode.FreeForAll] = new ModeDescriptor("FFA", new Color32(85, 204, 255, 255),
             () => Plugin.FFAEnabled.Value, FfaReset, GameModeCapabilities.CustomRound,
-            FFAState.PeriodicPushSettingsIfHost),
+               FFAState.PeriodicPushIfHost),
         [GameMode.Juggernaut] = new ModeDescriptor("JUGGERNAUT", new Color32(255, 106, 0, 255),
             () => Plugin.JuggernautEnabled.Value, JuggernautReset, GameModeCapabilities.CustomRound,
             JuggernautState.PeriodicPushSettingsIfHost, JuggernautState.EnsureLoadout),
         [GameMode.GunGame] = new ModeDescriptor("GUN GAME", new Color32(255, 221, 85, 255),
             () => Plugin.GunGameEnabled.Value, GunGameReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons,
-            GunGameState.PeriodicPushSettingsIfHost),
+               GunGameState.PeriodicPushIfHost),
         [GameMode.SniperBattle] = new ModeDescriptor("SNIPER BATTLE", new Color32(255, 96, 128, 255),
             () => Plugin.SniperBattleEnabled.Value, SniperBattleReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.ClearOutlines,
-            SniperBattleState.PeriodicPushSettingsIfHost, SniperBattleState.EnsureLoadouts),
+               SniperBattleState.PeriodicPushIfHost, SniperBattleState.EnsureLoadouts),
         [GameMode.MichaelMeyers] = new ModeDescriptor("MICHAEL MEYERS", new Color32(204, 34, 34, 255),
             () => Plugin.MichaelMeyersEnabled.Value, MichaelMeyersReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
@@ -120,6 +120,12 @@ internal static class GameModeManager
     internal static int RoundId { get; private set; }
     internal static ConfigEntry<float> RespawnDelaySeconds = null!;
     internal static float EffectiveRespawnDelaySeconds { get; set; } = 3f;
+    private static int _globalSettingsRevision;
+    private static int _lastGlobalSettingsRoundId = -1;
+    private static int _lastGlobalSettingsRevision = -1;
+    private static int _activeModeRevision;
+    private static int _lastActiveModeRoundId = -1;
+    private static int _lastActiveModeRevision = -1;
 
     internal static void Initialize()
     {
@@ -131,6 +137,7 @@ internal static class GameModeManager
         MyceliumNetwork.RegisterNetworkObject(Plugin.Instance, ModId);
         MyceliumNetwork.LobbyCreated += OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += OnLobbyEntered;
+        MyceliumNetwork.LobbyLeft += OnLobbyLeft;
         MyceliumNetwork.PlayerEntered += OnPlayerEntered;
     }
 
@@ -151,6 +158,7 @@ internal static class GameModeManager
     private static void BroadcastGlobalSettings()
     {
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncGlobalSettings), ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, RoundId, ++_globalSettingsRevision,
             EffectiveRespawnDelaySeconds);
     }
 
@@ -319,6 +327,11 @@ internal static class GameModeManager
 
     private static void OnLobbyEntered()
     {
+        _lastGlobalSettingsRoundId = -1;
+        _lastGlobalSettingsRevision = -1;
+        _lastActiveModeRoundId = -1;
+        _lastActiveModeRevision = -1;
+        SessionState.BeginLobby();
         if (MyceliumNetwork.IsHost)
         {
             ApplyGlobalSettingsFromHostConfig();
@@ -327,14 +340,31 @@ internal static class GameModeManager
         }
     }
 
+    private static void OnLobbyLeft()
+    {
+        SessionState.EndLobby();
+        ResetMatchState();
+        ActiveMode = GameMode.None;
+        Phase = GameModePhase.Inactive;
+        RoundId++;
+        EffectiveRespawnDelaySeconds = 3f;
+        GlobalModifiersState.ResetForLobbyLeft();
+        HealthSettingsState.ResetForLobbyLeft();
+        WeaponSettingsState.ResetForLobbyLeft();
+        WeaponService.ResetPendingRequests();
+        GameModeRespawn.ResetForLobbyLeft();
+    }
+
     private static void OnPlayerEntered(CSteamID player)
     {
         if (MyceliumNetwork.IsHost)
         {
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncGlobalSettings), player,
-                ReliableType.Reliable, EffectiveRespawnDelaySeconds);
+                ReliableType.Reliable, MyceliumNetwork.LobbyHost, RoundId, _globalSettingsRevision,
+                EffectiveRespawnDelaySeconds);
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncActiveGameMode), player,
-                ReliableType.Reliable, (int)ActiveMode, RoundId, (int)Phase);
+                ReliableType.Reliable, MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId,
+                (int)Phase, _activeModeRevision);
         }
     }
 
@@ -390,9 +420,22 @@ internal static class GameModeManager
         }
     }
 
+    internal static bool TryAcceptGlobalSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    {
+        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+            ref _lastGlobalSettingsRoundId, ref _lastGlobalSettingsRevision);
+    }
+
+    internal static bool TryAcceptActiveModeSnapshot(CSteamID hostId, int roundId, int revision)
+    {
+        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+            ref _lastActiveModeRoundId, ref _lastActiveModeRevision);
+    }
+
     internal static void ApplyActiveMode(int mode, int roundId, int phase)
     {
-        if (roundId < RoundId)
+        if (!Enum.IsDefined(typeof(GameMode), mode) || !Enum.IsDefined(typeof(GameModePhase), phase)
+            || roundId < RoundId)
         {
             return;
         }
@@ -405,9 +448,7 @@ internal static class GameModeManager
         }
 
         RoundId = roundId;
-        Phase = Enum.IsDefined(typeof(GameModePhase), phase)
-            ? (GameModePhase)phase
-            : GameModePhase.Inactive;
+        Phase = (GameModePhase)phase;
     }
 
     internal static void ResetMatchState()
@@ -453,7 +494,7 @@ internal static class GameModeManager
     private static void BroadcastActiveMode()
     {
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable,
-            (int)ActiveMode, RoundId, (int)Phase);
+            MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId, (int)Phase, ++_activeModeRevision);
     }
 
     private static readonly HashSet<int> PendingDeaths = new();
@@ -480,8 +521,10 @@ internal static class GameModeManager
 
     private static IEnumerator AdvanceAfterCustomRound(int roundId)
     {
+        int sessionGeneration = SessionState.Generation;
         yield return new WaitForSeconds(4f);
-        if (roundId == RoundId && Phase == GameModePhase.EndingRound && SceneMotor.Instance != null)
+        if (SessionState.IsCurrent(sessionGeneration) && roundId == RoundId
+            && Phase == GameModePhase.EndingRound && SceneMotor.Instance != null)
         {
             SceneMotor.Instance.ChangeNetworkScene();
         }
@@ -495,21 +538,28 @@ internal static class GameModeManager
             return false;
         }
 
+        if (mode != GameMode.MichaelMeyers && !FishNetCompatibility.CanRespawn)
+        {
+            Plugin.Logger.LogWarning($"[GameMode] Custom death handling disabled for {mode}: FishNet respawn API is unavailable.");
+            return false;
+        }
+
         if (PendingDeaths.Add(playerId))
         {
-            Plugin.Instance.StartCoroutine(ProcessServerDeath(playerId, mode, RoundId));
+            Plugin.Instance.StartCoroutine(ProcessServerDeath(playerId, mode, RoundId, SessionState.Generation));
         }
         return true;
     }
 
-    private static IEnumerator ProcessServerDeath(int playerId, GameMode mode, int roundId)
+    private static IEnumerator ProcessServerDeath(int playerId, GameMode mode, int roundId, int sessionGeneration)
     {
         // Gun's lethal-hit RPC calls PlayerDied before it writes PlayerHealth.killer.
         // Let that RPC finish before resolving the attacker.
         yield return null;
         PendingDeaths.Remove(playerId);
 
-        if (ActiveMode != mode || RoundId != roundId || Phase == GameModePhase.EndingRound)
+        if (!SessionState.IsCurrent(sessionGeneration) || ActiveMode != mode || RoundId != roundId
+            || Phase == GameModePhase.EndingRound)
         {
             yield break;
         }
@@ -543,9 +593,19 @@ internal static class GameModeManager
     }
 }
 
-[HarmonyLib.HarmonyPatch(typeof(GameManager), "RpcLogic___PlayerDied_3316948804")]
+[HarmonyLib.HarmonyPatch]
 internal static class GameManager_GameModeDeath_Patch
 {
+    private static System.Reflection.MethodBase? TargetMethod()
+    {
+        return FishNetCompatibility.FindGeneratedMethod(typeof(GameManager), "RpcLogic___PlayerDied_",
+            method => method.ReturnType == typeof(void)
+                && method.GetParameters() is { Length: 1 } parameters
+                && parameters[0].ParameterType == typeof(int));
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
     private static bool Prefix(GameManager __instance, int playerId)
     {
         if (!__instance.IsServer || !GameModeManager.IsCustomMode)
@@ -560,14 +620,22 @@ internal static class GameManager_GameModeDeath_Patch
 public partial class Plugin
 {
     [CustomRPC]
-    public void SyncGlobalSettings(float respawnDelaySeconds)
+    public void SyncGlobalSettings(CSteamID hostId, int roundId, int revision, float respawnDelaySeconds)
     {
-        GameModeManager.EffectiveRespawnDelaySeconds = respawnDelaySeconds;
+        if (!GameModeManager.TryAcceptGlobalSettingsSnapshot(hostId, roundId, revision))
+        {
+            return;
+        }
+        GameModeManager.EffectiveRespawnDelaySeconds = Mathf.Clamp(respawnDelaySeconds, 0f, 10f);
     }
 
     [CustomRPC]
-    public void SyncActiveGameMode(int mode, int roundId, int phase)
+    public void SyncActiveGameMode(CSteamID hostId, int mode, int roundId, int phase, int revision)
     {
+        if (!GameModeManager.TryAcceptActiveModeSnapshot(hostId, roundId, revision))
+        {
+            return;
+        }
         GameModeManager.ApplyActiveMode(mode, roundId, phase);
     }
 }

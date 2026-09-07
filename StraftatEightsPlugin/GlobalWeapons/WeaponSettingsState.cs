@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
@@ -16,27 +17,72 @@ internal static class WeaponSettingsState
     private static readonly Dictionary<int, float> PendingLoadouts = new();
     private static float _nextPushTime;
     private static float _nextLoadoutCheckTime;
+    private static int _settingsRevision;
+    private static int _lastSettingsRoundId = -1;
+    private static int _lastSettingsRevision = -1;
     internal static void Apply(bool enabled, string allowedWeapons, int spareMagazines, bool cycleWeapons)
     {
-        Enabled = enabled; Cycle = cycleWeapons; SpareMagazines = spareMagazines; Allowed = WeaponService.ParseWeaponList(allowedWeapons);
+        spareMagazines = Mathf.Clamp(spareMagazines, 2, 10);
+        allowedWeapons ??= string.Empty;
+        List<string> nextAllowed = WeaponService.ParseWeaponList(allowedWeapons);
+        bool settingsChanged = Enabled != enabled || Cycle != cycleWeapons || SpareMagazines != spareMagazines;
+        bool allowedChanged = Allowed.Count != nextAllowed.Count
+            || !Allowed.SequenceEqual(nextAllowed, StringComparer.Ordinal);
+
+        Enabled = enabled;
+        Cycle = cycleWeapons;
+        SpareMagazines = spareMagazines;
+        Allowed = nextAllowed;
+
+        if (settingsChanged || allowedChanged)
+        {
+            WeaponService.ResetPendingRequests();
+            PendingLoadouts.Clear();
+            _nextLoadoutCheckTime = 0f;
+        }
+        if (allowedChanged)
+        {
+            SelectedWeapons.Clear();
+        }
     }
     private static void ApplyFromConfig() => Apply(Plugin.WeaponTweaksEnabled.Value, Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value, Plugin.CycleWeapons.Value);
     internal static void PushIfHost()
     {
         if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost) return;
         ApplyFromConfig();
-        MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId, nameof(Plugin.SyncWeaponSettings), ReliableType.Reliable, Plugin.WeaponTweaksEnabled.Value, Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value, Plugin.CycleWeapons.Value);
+        MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId, nameof(Plugin.SyncWeaponSettings), ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
+            Plugin.WeaponTweaksEnabled.Value, Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value,
+            Plugin.CycleWeapons.Value);
     }
     internal static void PeriodicPushIfHost() { if (HostSettingsSync.IsDue(ref _nextPushTime)) PushIfHost(); }
     internal static void OnLobbyEntered()
     {
+        _lastSettingsRoundId = -1;
+        _lastSettingsRevision = -1;
         SelectedWeapons.Clear();
         PendingLoadouts.Clear();
         if (MyceliumNetwork.IsHost) ApplyFromConfig();
     }
+
+    internal static void ResetForLobbyLeft()
+    {
+        SelectedWeapons.Clear();
+        PendingLoadouts.Clear();
+        Apply(false, string.Empty, 5, false);
+    }
     internal static void OnPlayerEntered(CSteamID player)
     {
-        if (MyceliumNetwork.IsHost) MyceliumNetwork.RPCTarget(Plugin.GlobalWeaponsModId, nameof(Plugin.SyncWeaponSettings), player, ReliableType.Reliable, Plugin.WeaponTweaksEnabled.Value, Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value, Plugin.CycleWeapons.Value);
+        if (MyceliumNetwork.IsHost) MyceliumNetwork.RPCTarget(Plugin.GlobalWeaponsModId, nameof(Plugin.SyncWeaponSettings), player,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
+            Plugin.WeaponTweaksEnabled.Value, Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value,
+            Plugin.CycleWeapons.Value);
+    }
+
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    {
+        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+            ref _lastSettingsRoundId, ref _lastSettingsRevision);
     }
 
     internal static void UpdateLocalCycle()

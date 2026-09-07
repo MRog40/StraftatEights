@@ -1,5 +1,6 @@
 using BepInEx.Configuration;
 using MyceliumNetworking;
+using Steamworks;
 
 namespace StraftatEightsPlugin;
 
@@ -44,8 +45,13 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncHealthSettings(bool enabled, int maxHealthPercent, bool regenEnabled, int regenDelaySeconds, int regenRate)
+    public void SyncHealthSettings(CSteamID hostId, int roundId, int revision, bool enabled,
+        int maxHealthPercent, bool regenEnabled, int regenDelaySeconds, int regenRate)
     {
+        if (!HealthSettingsState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
+        {
+            return;
+        }
         Logger.LogInfo($"[HealthSettings] Received sync: tweaks={enabled} maxHealth%={maxHealthPercent} regen={regenEnabled} delay={regenDelaySeconds:0.##} rate={regenRate}");
         HealthSettingsState.Apply(enabled, maxHealthPercent, regenEnabled, regenDelaySeconds, regenRate);
     }

@@ -1,5 +1,6 @@
 using BepInEx.Configuration;
 using MyceliumNetworking;
+using Steamworks;
 
 namespace StraftatEightsPlugin;
 
@@ -32,17 +33,23 @@ public partial class Plugin
 
     // Invoked on every peer when the host (re)broadcasts its settings
     [CustomRPC]
-    public void SyncJuggernautSettings(bool enabled)
+    public void SyncJuggernautSettings(CSteamID hostId, int roundId, int revision, bool enabled)
     {
+        if (!JuggernautState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
+        {
+            return;
+        }
         Logger.LogInfo($"[Juggernaut] Received settings sync: enabled={enabled}");
         JuggernautState.ApplySettings(enabled);
     }
 
     // Invoked on every peer whenever the host (re)broadcasts who's currently the Juggernaut and everyone's points
     [CustomRPC]
-    public void SyncJuggernautLiveState(int juggernautPlayerId, int juggernautKills, string pointsData)
+    public void SyncJuggernautLiveState(CSteamID hostId, int juggernautPlayerId, int juggernautKills,
+        string pointsData, int roundId, int revision)
     {
-        JuggernautState.ApplyLiveState(juggernautPlayerId, juggernautKills, pointsData);
+        JuggernautState.ApplyLiveState(hostId, juggernautPlayerId, juggernautKills, pointsData,
+            roundId, revision);
     }
 
     // Host-broadcast chat announcement (crown changes, etc) - every peer just writes it locally

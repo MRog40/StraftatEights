@@ -18,6 +18,13 @@ internal static class SniperBattleState
 
     private static readonly Dictionary<int, float> PendingLoadouts = new();
     private static float _nextSettingsPushTime;
+    private static float _nextLiveStatePushTime;
+    private static int _settingsRevision;
+    private static int _lastSettingsRoundId = -1;
+    private static int _lastSettingsRevision = -1;
+    private static int _liveStateRevision;
+    private static int _lastLiveStateRoundId = -1;
+    private static int _lastLiveStateRevision = -1;
     private static float _nextLoadoutCheckTime;
 
     internal static void ApplySettings(bool enabled, int pointsToWin)
@@ -41,6 +48,7 @@ internal static class SniperBattleState
         }
         ApplyFromConfig();
         MyceliumNetwork.RPC(Plugin.SniperBattleModId, nameof(Plugin.SyncSniperBattleSettings), ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
             Plugin.SniperBattleEnabled.Value, Plugin.SniperBattlePointsToWin.Value);
     }
 
@@ -52,8 +60,19 @@ internal static class SniperBattleState
         }
     }
 
+       internal static void PeriodicPushIfHost()
+       {
+           PeriodicPushSettingsIfHost();
+           if (HostSettingsSync.IsDue(ref _nextLiveStatePushTime))
+           {
+               BroadcastLiveState();
+           }
+       }
+
     internal static void OnLobbyEntered()
     {
+        _lastSettingsRoundId = -1;
+        _lastSettingsRevision = -1;
         if (MyceliumNetwork.IsHost)
         {
             ApplyFromConfig();
@@ -68,27 +87,48 @@ internal static class SniperBattleState
             return;
         }
         MyceliumNetwork.RPCTarget(Plugin.SniperBattleModId, nameof(Plugin.SyncSniperBattleSettings), player,
-            ReliableType.Reliable, Plugin.SniperBattleEnabled.Value, Plugin.SniperBattlePointsToWin.Value);
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
+            Plugin.SniperBattleEnabled.Value, Plugin.SniperBattlePointsToWin.Value);
         MyceliumNetwork.RPCTarget(Plugin.SniperBattleModId, nameof(Plugin.SyncSniperBattleLiveState), player,
-            ReliableType.Reliable, SerializePoints(), WinnerId);
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializePoints(), WinnerId,
+            GameModeManager.RoundId, _liveStateRevision);
+    }
+
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    {
+        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+            ref _lastSettingsRoundId, ref _lastSettingsRevision);
     }
 
     internal static void ResetMatchState()
     {
+        _liveStateRevision++;
+        _lastLiveStateRoundId = -1;
+        _lastLiveStateRevision = -1;
         WinnerId = -1;
         Points.Clear();
         PendingLoadouts.Clear();
     }
 
-    internal static void ApplyLiveState(string pointsData, int winnerId)
+    internal static void ApplyLiveState(CSteamID hostId, string pointsData, int winnerId, int roundId, int revision)
     {
+        if (winnerId < -1)
+        {
+            return;
+        }
+        if (!SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+            ref _lastLiveStateRoundId, ref _lastLiveStateRevision))
+        {
+            return;
+        }
         WinnerId = winnerId;
         Points.Clear();
         foreach (string entry in (pointsData ?? string.Empty).Split(';'))
         {
             int separator = entry.IndexOf(':');
             if (separator > 0 && int.TryParse(entry.Substring(0, separator), out int id)
-                && int.TryParse(entry.Substring(separator + 1), out int points))
+                && int.TryParse(entry.Substring(separator + 1), out int points)
+                && id >= 0 && points >= 0 && points <= PointsToWin)
             {
                 Points[id] = points;
             }
@@ -125,7 +165,7 @@ internal static class SniperBattleState
         float currentHealth = health.sync___get_value_health();
         if (currentHealth > PlayerHealth)
         {
-            health.RpcLogic___RemoveHealth_431000436(currentHealth - PlayerHealth);
+            FishNetCompatibility.TryRemoveHealth(health, currentHealth - PlayerHealth);
         }
     }
 
@@ -191,8 +231,9 @@ internal static class SniperBattleState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            _liveStateRevision++;
             MyceliumNetwork.RPC(Plugin.SniperBattleModId, nameof(Plugin.SyncSniperBattleLiveState), ReliableType.Reliable,
-                SerializePoints(), WinnerId);
+                MyceliumNetwork.LobbyHost, SerializePoints(), WinnerId, GameModeManager.RoundId, _liveStateRevision);
         }
     }
 

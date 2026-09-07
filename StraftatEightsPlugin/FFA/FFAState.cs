@@ -14,17 +14,21 @@ internal static class FFAState
     internal static readonly Dictionary<int, int> Kills = new();
 
     private static float _nextSettingsPushTime;
+    private static float _nextLiveStatePushTime;
+    private static int _settingsRevision;
+    private static int _lastSettingsRoundId = -1;
+    private static int _lastSettingsRevision = -1;
+    private static int _liveStateRevision;
+    private static int _lastLiveStateRoundId = -1;
+    private static int _lastLiveStateRevision = -1;
 
     internal static void ApplySettings(bool enabled, int killsToWin)
     {
-        bool wasEnabled = Enabled;
+        killsToWin = Mathf.Clamp(killsToWin, 3, 30);
+        bool changed = Enabled != enabled || KillsToWin != killsToWin;
         Enabled = enabled;
         KillsToWin = killsToWin;
-        if (!wasEnabled && enabled)
-        {
-            ResetMatchState();
-        }
-        else if (wasEnabled && !enabled)
+        if (changed)
         {
             ResetMatchState();
         }
@@ -43,6 +47,7 @@ internal static class FFAState
         }
         ApplySettingsFromHostConfig();
         MyceliumNetwork.RPC(Plugin.FFAModId, nameof(Plugin.SyncFFASettings), ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
             Plugin.FFAEnabled.Value, Plugin.FFAKillsToWin.Value);
     }
 
@@ -55,8 +60,19 @@ internal static class FFAState
         PushSettingsIfHost();
     }
 
+       internal static void PeriodicPushIfHost()
+       {
+           PeriodicPushSettingsIfHost();
+           if (HostSettingsSync.IsDue(ref _nextLiveStatePushTime))
+           {
+               BroadcastLiveState();
+           }
+       }
+
     internal static void OnLobbyEntered()
     {
+        _lastSettingsRoundId = -1;
+        _lastSettingsRevision = -1;
         if (MyceliumNetwork.IsHost)
         {
             ApplySettingsFromHostConfig();
@@ -71,26 +87,46 @@ internal static class FFAState
             return;
         }
         MyceliumNetwork.RPCTarget(Plugin.FFAModId, nameof(Plugin.SyncFFASettings), player, ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
             Plugin.FFAEnabled.Value, Plugin.FFAKillsToWin.Value);
         MyceliumNetwork.RPCTarget(Plugin.FFAModId, nameof(Plugin.SyncFFALiveState), player, ReliableType.Reliable,
-            SerializeKills(), WinnerId);
+            MyceliumNetwork.LobbyHost, SerializeKills(), WinnerId, GameModeManager.RoundId, _liveStateRevision);
+    }
+
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    {
+        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+            ref _lastSettingsRoundId, ref _lastSettingsRevision);
     }
 
     internal static void ResetMatchState()
     {
+        _liveStateRevision++;
+        _lastLiveStateRoundId = -1;
+        _lastLiveStateRevision = -1;
         WinnerId = -1;
         Kills.Clear();
     }
 
-    internal static void ApplyLiveState(string killsData, int winnerId)
+    internal static void ApplyLiveState(CSteamID hostId, string killsData, int winnerId, int roundId, int revision)
     {
+        if (winnerId < -1)
+        {
+            return;
+        }
+        if (!SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+            ref _lastLiveStateRoundId, ref _lastLiveStateRevision))
+        {
+            return;
+        }
         WinnerId = winnerId;
         Kills.Clear();
         foreach (string entry in (killsData ?? string.Empty).Split(';'))
         {
             int separator = entry.IndexOf(':');
             if (separator > 0 && int.TryParse(entry.Substring(0, separator), out int id)
-                && int.TryParse(entry.Substring(separator + 1), out int kills))
+                && int.TryParse(entry.Substring(separator + 1), out int kills)
+                && id >= 0 && kills >= 0 && kills <= KillsToWin)
             {
                 Kills[id] = kills;
             }
@@ -131,7 +167,9 @@ internal static class FFAState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
-            MyceliumNetwork.RPC(Plugin.FFAModId, nameof(Plugin.SyncFFALiveState), ReliableType.Reliable, SerializeKills(), WinnerId);
+            _liveStateRevision++;
+            MyceliumNetwork.RPC(Plugin.FFAModId, nameof(Plugin.SyncFFALiveState), ReliableType.Reliable,
+                MyceliumNetwork.LobbyHost, SerializeKills(), WinnerId, GameModeManager.RoundId, _liveStateRevision);
         }
     }
 

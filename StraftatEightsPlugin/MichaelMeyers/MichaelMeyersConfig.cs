@@ -1,5 +1,6 @@
 using BepInEx.Configuration;
 using MyceliumNetworking;
+using Steamworks;
 
 namespace StraftatEightsPlugin;
 
@@ -27,15 +28,20 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncMichaelMeyersSettings(bool enabled)
+    public void SyncMichaelMeyersSettings(CSteamID hostId, int roundId, int revision, bool enabled)
     {
+        if (!MichaelMeyersState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
+        {
+            return;
+        }
         MichaelMeyersState.ApplySettings(enabled);
     }
 
     [CustomRPC]
-    public void SyncMichaelMeyersLiveState(int michaelPlayerId, bool oneVsOne)
+    public void SyncMichaelMeyersLiveState(CSteamID hostId, int michaelPlayerId, bool oneVsOne,
+        int roundId, int revision)
     {
-        MichaelMeyersState.ApplyLiveState(michaelPlayerId, oneVsOne);
+        MichaelMeyersState.ApplyLiveState(hostId, michaelPlayerId, oneVsOne, roundId, revision);
     }
 
     [CustomRPC]

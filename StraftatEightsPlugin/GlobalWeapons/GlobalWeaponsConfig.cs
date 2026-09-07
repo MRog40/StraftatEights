@@ -1,5 +1,6 @@
 using BepInEx.Configuration;
 using MyceliumNetworking;
+using Steamworks;
 
 namespace StraftatEightsPlugin;
 
@@ -29,8 +30,13 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncWeaponSettings(bool enabled, string allowedWeapons, int spareMagazines, bool cycleWeapons)
+    public void SyncWeaponSettings(CSteamID hostId, int roundId, int revision, bool enabled,
+        string allowedWeapons, int spareMagazines, bool cycleWeapons)
     {
+        if (!WeaponSettingsState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
+        {
+            return;
+        }
         WeaponSettingsState.Apply(enabled, allowedWeapons, spareMagazines, cycleWeapons);
     }
 

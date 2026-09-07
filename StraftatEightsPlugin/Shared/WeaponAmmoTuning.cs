@@ -113,13 +113,18 @@ internal static class WeaponAmmoTuning
             return;
         }
 
-        hudRefreshCoroutine = Plugin.Instance.StartCoroutine(RefreshLocalAmmoHudAfterReset());
+        hudRefreshCoroutine = Plugin.Instance.StartCoroutine(RefreshLocalAmmoHudAfterReset(SessionState.Generation));
     }
 
-    private static IEnumerator RefreshLocalAmmoHudAfterReset()
+    private static IEnumerator RefreshLocalAmmoHudAfterReset(int sessionGeneration)
     {
         for (int attempt = 0; attempt < 40; attempt++)
         {
+            if (!SessionState.IsCurrent(sessionGeneration))
+            {
+                hudRefreshCoroutine = null;
+                yield break;
+            }
             yield return new WaitForSeconds(0.1f);
             RefreshLocalAmmoHud();
         }

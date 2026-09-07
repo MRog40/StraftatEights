@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 
@@ -28,10 +27,15 @@ internal static class GameModeRespawn
     private static readonly HashSet<int> PendingManagers = new();
     private static readonly HashSet<int> SuppressedRoundStarts = new();
     private static readonly HashSet<int> PendingSpawnAdjustments = new();
-    private static readonly MethodInfo? CmdRespawnLogic = typeof(PlayerManager).GetMethod(
-        "RpcLogic___CmdRespawn_2166136261", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
     internal static bool AnyModeEnabled => GameModeManager.IsCustomMode;
+
+    internal static void ResetForLobbyLeft()
+    {
+        PendingManagers.Clear();
+        SuppressedRoundStarts.Clear();
+        PendingSpawnAdjustments.Clear();
+    }
 
     internal static void Schedule(PlayerManager manager, float delay)
     {
@@ -39,7 +43,8 @@ internal static class GameModeRespawn
         {
             return;
         }
-        Plugin.Instance.StartCoroutine(RespawnAfterDelay(manager, delay, 0));
+        Plugin.Instance.StartCoroutine(RespawnAfterDelay(manager, delay, 0,
+            SessionState.Generation, GameModeManager.RoundId));
     }
 
     internal static void Schedule(int playerId, float delay)
@@ -48,24 +53,32 @@ internal static class GameModeRespawn
         {
             return;
         }
-        Plugin.Instance.StartCoroutine(RespawnPlayerAfterDelay(playerId, delay));
+        Plugin.Instance.StartCoroutine(RespawnPlayerAfterDelay(playerId, delay,
+            SessionState.Generation, GameModeManager.RoundId));
     }
 
-    private static IEnumerator RespawnAfterDelay(PlayerManager manager, float delay, int attempt)
+    private static IEnumerator RespawnAfterDelay(PlayerManager manager, float delay, int attempt,
+        int sessionGeneration, int roundId)
     {
         int managerId = manager.GetInstanceID();
         yield return new WaitForSeconds(delay);
-        MethodInfo? respawnLogic = CmdRespawnLogic;
+        if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId)
+        {
+            PendingManagers.Remove(managerId);
+            yield break;
+        }
         bool success = false;
-        if (respawnLogic != null && manager != null)
+        if (manager != null)
         {
             try
             {
                 MarkRoundStartSuppressed(manager);
-                respawnLogic!.Invoke(manager, null);
-                FinalizeRespawn(manager);
-                ClearSpawnAdjustment(manager);
-                success = true;
+                success = FishNetCompatibility.TryInvokeRespawn(manager);
+                if (success)
+                {
+                    FinalizeRespawn(manager);
+                    ClearSpawnAdjustment(manager);
+                }
             }
             catch (System.Exception exception)
             {
@@ -75,29 +88,39 @@ internal static class GameModeRespawn
             }
         }
         PendingManagers.Remove(managerId);
-        if (!success && attempt < 2 && Plugin.Instance != null && manager != null)
+        if (!success && attempt < 2 && Plugin.Instance != null && manager != null
+            && SessionState.IsCurrent(sessionGeneration) && GameModeManager.RoundId == roundId)
         {
             PendingManagers.Add(managerId);
-            Plugin.Instance.StartCoroutine(RespawnAfterDelay(manager, 0.25f, attempt + 1));
+            Plugin.Instance.StartCoroutine(RespawnAfterDelay(manager, 0.25f, attempt + 1,
+                sessionGeneration, roundId));
         }
     }
 
-    private static IEnumerator RespawnPlayerAfterDelay(int playerId, float delay)
+    private static IEnumerator RespawnPlayerAfterDelay(int playerId, float delay,
+        int sessionGeneration, int roundId)
     {
         yield return new WaitForSeconds(delay);
         for (int attempt = 0; attempt < 3; attempt++)
         {
+            if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId)
+            {
+                PendingManagers.Remove(playerId);
+                yield break;
+            }
             PlayerManager? manager = FindManagerByPlayerId(playerId);
-            if (manager != null && CmdRespawnLogic != null)
+            if (manager != null)
             {
                 try
                 {
                     MarkRoundStartSuppressed(manager);
-                    CmdRespawnLogic.Invoke(manager, null);
-                    FinalizeRespawn(manager);
-                    ClearSpawnAdjustment(manager);
-                    PendingManagers.Remove(playerId);
-                    yield break;
+                    if (FishNetCompatibility.TryInvokeRespawn(manager))
+                    {
+                        FinalizeRespawn(manager);
+                        ClearSpawnAdjustment(manager);
+                        PendingManagers.Remove(playerId);
+                        yield break;
+                    }
                 }
                 catch (System.Exception exception)
                 {
@@ -152,15 +175,21 @@ internal static class GameModeRespawn
         }
         if (GameManager.Instance != null && Plugin.Instance != null)
         {
-            Plugin.Instance.StartCoroutine(KeepPlayerMovable(manager, 4f));
+            Plugin.Instance.StartCoroutine(KeepPlayerMovable(manager, 4f,
+                SessionState.Generation, GameModeManager.RoundId));
         }
     }
 
-    private static IEnumerator KeepPlayerMovable(PlayerManager manager, float duration)
+    private static IEnumerator KeepPlayerMovable(PlayerManager manager, float duration,
+        int sessionGeneration, int roundId)
     {
         float endTime = Time.time + duration;
         while (Time.time < endTime)
         {
+            if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId)
+            {
+                yield break;
+            }
             if (manager != null)
             {
                 manager.SetPlayerMove(true);

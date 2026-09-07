@@ -25,6 +25,7 @@ internal static class GameManager_JuggernautTick_Patch
 }
 
 [HarmonyPatch(typeof(FirstPersonController), "Update")]
+[HarmonyPriority(Priority.Last)]
 internal static class FirstPersonController_JuggernautSpeed_Patch
 {
     // Runs after GlobalModifiers' own Update prefix sets movementFactor for this frame, then layers

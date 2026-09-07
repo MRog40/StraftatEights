@@ -1,6 +1,9 @@
 ﻿using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
+using System;
+using System.Linq;
+using System.Reflection;
 
 [assembly: ComputerysModdingUtilities.StraftatMod(isVanillaCompatible: false)]
 
@@ -27,6 +30,7 @@ public partial class Plugin : BaseUnityPlugin
         Instance = this;
         Logger = base.Logger;
 
+        FishNetCompatibility.LogPreflight();
         WeaponService.Initialize();
         GameModeManager.Initialize();
         gameObject.AddComponent<GameModeHud>();
@@ -41,8 +45,30 @@ public partial class Plugin : BaseUnityPlugin
         InitializeGunGame();
         InitializeSniperBattle();
 
-        new Harmony(MyPluginInfo.PLUGIN_GUID).PatchAll();
+        PatchAllSafely(new Harmony(MyPluginInfo.PLUGIN_GUID));
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
+    }
+
+    private static void PatchAllSafely(Harmony harmony)
+    {
+        Type[] patchTypes = AccessTools.GetTypesFromAssembly(typeof(Plugin).Assembly)
+            .Where(type => type.GetCustomAttributes(typeof(HarmonyPatch), false).Length > 0)
+            .OrderBy(type => type.FullName, StringComparer.Ordinal)
+            .ToArray();
+
+        foreach (Type patchType in patchTypes)
+        {
+            try
+            {
+                int patchedCount = harmony.CreateClassProcessor(patchType).Patch().Count();
+                Logger.LogInfo($"[Harmony] Patched {patchType.FullName} ({patchedCount} method(s)).");
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError($"[Harmony] Disabled patch class {patchType.FullName}: "
+                    + exception.GetBaseException().Message);
+            }
+        }
     }
 
     private void Update()

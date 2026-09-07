@@ -1,5 +1,6 @@
 using BepInEx.Configuration;
 using MyceliumNetworking;
+using Steamworks;
 
 namespace StraftatEightsPlugin;
 
@@ -28,15 +29,19 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncFFASettings(bool enabled, int killsToWin)
+    public void SyncFFASettings(CSteamID hostId, int roundId, int revision, bool enabled, int killsToWin)
     {
+        if (!FFAState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
+        {
+            return;
+        }
         FFAState.ApplySettings(enabled, killsToWin);
     }
 
     [CustomRPC]
-    public void SyncFFALiveState(string killsData, int winnerId)
+    public void SyncFFALiveState(CSteamID hostId, string killsData, int winnerId, int roundId, int revision)
     {
-        FFAState.ApplyLiveState(killsData, winnerId);
+        FFAState.ApplyLiveState(hostId, killsData, winnerId, roundId, revision);
     }
 
     [CustomRPC]

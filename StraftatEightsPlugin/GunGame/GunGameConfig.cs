@@ -1,5 +1,6 @@
 using BepInEx.Configuration;
 using MyceliumNetworking;
+using Steamworks;
 
 namespace StraftatEightsPlugin;
 
@@ -27,11 +28,16 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncGunGameSettings(bool enabled, string weaponOrder)
+    public void SyncGunGameSettings(CSteamID hostId, int roundId, int revision, bool enabled, string weaponOrder)
     {
+        if (!GunGameState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
+        {
+            return;
+        }
         GunGameState.ApplySettings(enabled, weaponOrder);
     }
 
     [CustomRPC]
-    public void SyncGunGameLiveState(string progressData) => GunGameState.ApplyLiveState(progressData);
+    public void SyncGunGameLiveState(CSteamID hostId, string progressData, int roundId, int revision) =>
+        GunGameState.ApplyLiveState(hostId, progressData, roundId, revision);
 }

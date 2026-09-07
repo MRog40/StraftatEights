@@ -19,6 +19,7 @@ internal static class WeaponService
     private static MethodInfo? SetObjectInHandObserverLogic;
     private static bool _attachmentMethodsResolved;
     private static bool _attachmentMethodsAvailable;
+    private static readonly Dictionary<int, int> RequestVersions = new();
 
     internal static bool IsFinalGameScreen
     {
@@ -39,6 +40,11 @@ internal static class WeaponService
         ResolveAttachmentMethods();
     }
 
+    internal static void ResetPendingRequests()
+    {
+        RequestVersions.Clear();
+    }
+
     internal static void CachePrefabs()
     {
         if (Prefabs.Count != 0) return;
@@ -57,7 +63,7 @@ internal static class WeaponService
     internal static List<string> ParseWeaponList(string value)
     {
         CachePrefabs();
-        return value.Split(',', ';').Select(item => item.Trim())
+        return (value ?? string.Empty).Split(',', ';').Select(item => item.Trim())
             .Where(item => item.Length > 0 && Prefabs.ContainsKey(item))
             .Distinct(StringComparer.Ordinal).ToList();
     }
@@ -66,22 +72,32 @@ internal static class WeaponService
     {
         if (Plugin.Instance != null && !IsFinalGameScreen)
         {
-            Plugin.Instance.StartCoroutine(GiveWeaponCoroutine(playerId, weaponName, spareMagazines));
+            int requestVersion = RequestVersions.TryGetValue(playerId, out int previousVersion)
+                ? previousVersion + 1
+                : 1;
+            RequestVersions[playerId] = requestVersion;
+            Plugin.Instance.StartCoroutine(GiveWeaponCoroutine(playerId, weaponName, spareMagazines,
+                SessionState.Generation, GameModeManager.RoundId, requestVersion));
         }
     }
 
-    private static IEnumerator GiveWeaponCoroutine(int playerId, string weaponName, int? spareMagazines)
+    private static IEnumerator GiveWeaponCoroutine(int playerId, string weaponName, int? spareMagazines,
+        int sessionGeneration, int roundId, int requestVersion)
     {
         NetworkManager? networkManager = FishNet.InstanceFinder.NetworkManager;
         GameObject? prefab = FindPrefab(weaponName);
-        if (networkManager == null || !networkManager.IsServer || prefab == null
+        if (!IsCurrentRequest(playerId, requestVersion) || !SessionState.IsCurrent(sessionGeneration)
+            || GameModeManager.RoundId != roundId
+            || networkManager == null || !networkManager.IsServer || prefab == null
             || !ResolveAttachmentMethods()) yield break;
 
         PlayerPickup? pickup = null;
         PlayerManager? manager = null;
         for (int attempt = 0; attempt < 40; attempt++)
         {
-            if (IsFinalGameScreen) yield break;
+            if (!IsCurrentRequest(playerId, requestVersion) || !SessionState.IsCurrent(sessionGeneration)
+                || GameModeManager.RoundId != roundId
+                || IsFinalGameScreen) yield break;
             if (ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client))
             {
                 manager = client.PlayerSpawner;
@@ -90,8 +106,9 @@ internal static class WeaponService
             if (pickup != null && manager?.player != null) break;
             yield return new WaitForSeconds(0.25f);
         }
-        if (pickup == null || manager?.player == null) yield break;
-        if (IsFinalGameScreen) yield break;
+        if (pickup == null || manager?.player == null || !IsCurrentRequest(playerId, requestVersion)
+            || !SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
+            || IsFinalGameScreen) yield break;
 
         DespawnHeldWeapon(networkManager, pickup.objInHand);
         DespawnHeldWeapon(networkManager, pickup.objInLeftHand);
@@ -100,7 +117,9 @@ internal static class WeaponService
         pickup.sync___set_value_objInHand(null, true);
         pickup.sync___set_value_objInLeftHand(null, true);
         yield return new WaitForSeconds(0.15f);
-        if (IsFinalGameScreen) yield break;
+        if (!IsCurrentRequest(playerId, requestVersion) || !SessionState.IsCurrent(sessionGeneration)
+            || GameModeManager.RoundId != roundId
+            || IsFinalGameScreen) yield break;
 
         GameObject weapon = UnityEngine.Object.Instantiate(prefab, manager.player.transform.position, manager.player.transform.rotation);
         ItemBehaviour? item = weapon.GetComponent<ItemBehaviour>();
@@ -109,7 +128,9 @@ internal static class WeaponService
         if (body != null) { body.isKinematic = true; body.useGravity = false; }
         networkManager.ServerManager.Spawn(weapon);
         yield return new WaitForSeconds(0.1f);
-        if (IsFinalGameScreen)
+        if (!IsCurrentRequest(playerId, requestVersion) || !SessionState.IsCurrent(sessionGeneration)
+            || GameModeManager.RoundId != roundId
+            || IsFinalGameScreen)
         {
             DespawnHeldWeapon(networkManager, weapon);
             yield break;
@@ -118,6 +139,7 @@ internal static class WeaponService
         Weapon? weaponComponent = weapon.GetComponent<Weapon>();
         if (item == null || weaponComponent == null)
         {
+            DespawnHeldWeapon(networkManager, weapon);
             yield break;
         }
 
@@ -140,6 +162,12 @@ internal static class WeaponService
         pickup.UpdateIKPoistion();
         item.InstantComeBackOnFire();
         if (item != null) item.dispenserStart = false;
+    }
+
+    private static bool IsCurrentRequest(int playerId, int requestVersion)
+    {
+        return RequestVersions.TryGetValue(playerId, out int currentVersion)
+            && currentVersion == requestVersion;
     }
 
     internal static void AttachUnparentedWeapon(PlayerPickup pickup)

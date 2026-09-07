@@ -1,5 +1,6 @@
 using BepInEx.Configuration;
 using MyceliumNetworking;
+using Steamworks;
 
 namespace StraftatEightsPlugin;
 
@@ -73,8 +74,14 @@ public partial class Plugin
 
     // Invoked on every peer when the host (re)broadcasts its settings
     [CustomRPC]
-    public void SyncMovementSettings(bool enabled, bool wallJump, bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent, int gravityPercent, int momentumPercent, int airSpeedRatioPercent)
+    public void SyncMovementSettings(CSteamID hostId, int roundId, int revision, bool enabled, bool wallJump,
+        bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent,
+        int gravityPercent, int momentumPercent, int airSpeedRatioPercent)
     {
+        if (!GlobalModifiersState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
+        {
+            return;
+        }
         Logger.LogInfo($"[MovementSettings] Received sync: enabled={enabled} wallJump={wallJump} sliding={sliding} slideBoost={slideBoost} wallJumpBoost={wallJumpBoost} moveSpeed%={moveSpeedPercent} adsSpeed%={adsSpeedPercent} gravity%={gravityPercent} momentum%={momentumPercent} airSpeed%={airSpeedRatioPercent}");
         GlobalModifiersState.Apply(enabled, wallJump, sliding, slideBoost, wallJumpBoost, moveSpeedPercent, adsSpeedPercent, gravityPercent, momentumPercent, airSpeedRatioPercent);
     }

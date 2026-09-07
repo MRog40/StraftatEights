@@ -72,8 +72,14 @@ internal static class HealthSettingsTuning
             if (!Mathf.Approximately(bonus, 0f))
             {
                 ApplyingPassiveHealth = true;
-                controller.RpcLogic___RemoveHealth_431000436(-bonus);
-                ApplyingPassiveHealth = false;
+                try
+                {
+                    FishNetCompatibility.TryRemoveHealth(controller, -bonus);
+                }
+                finally
+                {
+                    ApplyingPassiveHealth = false;
+                }
                 Plugin.Logger.LogInfo($"[HealthSettings] Health server write: owner={controller.IsOwner} healthAfter={controller.health:0.##} bonus={bonus:0.##}");
             }
         }
@@ -125,7 +131,7 @@ internal static class HealthSettingsTuning
         ApplyingPassiveHealth = true;
         try
         {
-            controller.RpcLogic___RemoveHealth_431000436(-healthToAdd);
+            FishNetCompatibility.TryRemoveHealth(controller, -healthToAdd);
         }
         finally
         {

@@ -20,6 +20,12 @@ internal static class MichaelMeyersState
     private static float _nextSettingsPushTime;
     private static float _nextLiveStatePushTime;
     private static float _nextLoadoutCheckTime;
+    private static int _settingsRevision;
+    private static int _lastSettingsRoundId = -1;
+    private static int _lastSettingsRevision = -1;
+    private static int _liveStateRevision;
+    private static int _lastLiveStateRoundId = -1;
+    private static int _lastLiveStateRevision = -1;
     private static readonly HashSet<int> RoundPlayers = new();
     private static readonly HashSet<int> AlivePlayers = new();
     private static readonly Dictionary<int, float> PendingLoadouts = new();
@@ -47,6 +53,7 @@ internal static class MichaelMeyersState
 
         ApplyFromConfig();
         MyceliumNetwork.RPC(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersSettings), ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
             Plugin.MichaelMeyersEnabled.Value);
     }
 
@@ -68,6 +75,8 @@ internal static class MichaelMeyersState
 
     internal static void OnLobbyEntered()
     {
+        _lastSettingsRoundId = -1;
+        _lastSettingsRevision = -1;
         if (MyceliumNetwork.IsHost)
         {
             ApplyFromConfig();
@@ -83,14 +92,25 @@ internal static class MichaelMeyersState
         }
 
         MyceliumNetwork.RPCTarget(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersSettings), player,
-            ReliableType.Reliable, Plugin.MichaelMeyersEnabled.Value);
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
+            Plugin.MichaelMeyersEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersLiveState), player,
-            ReliableType.Reliable, CurrentMichaelPlayerId, OneVsOne);
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, OneVsOne,
+            GameModeManager.RoundId, _liveStateRevision);
+    }
+
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    {
+        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+            ref _lastSettingsRoundId, ref _lastSettingsRevision);
     }
 
     internal static void ResetMatchState()
     {
         _roundToken++;
+        _liveStateRevision++;
+        _lastLiveStateRoundId = -1;
+        _lastLiveStateRevision = -1;
         _winnerId = -1;
         CurrentMichaelPlayerId = -1;
         OneVsOne = false;
@@ -100,8 +120,18 @@ internal static class MichaelMeyersState
         _nextLoadoutCheckTime = 0f;
     }
 
-    internal static void ApplyLiveState(int michaelPlayerId, bool oneVsOne)
+    internal static void ApplyLiveState(CSteamID hostId, int michaelPlayerId, bool oneVsOne,
+        int roundId, int revision)
     {
+        if (michaelPlayerId < -1)
+        {
+            return;
+        }
+        if (!SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+            ref _lastLiveStateRoundId, ref _lastLiveStateRevision))
+        {
+            return;
+        }
         CurrentMichaelPlayerId = michaelPlayerId;
         OneVsOne = oneVsOne;
     }
@@ -129,14 +159,15 @@ internal static class MichaelMeyersState
         }
 
         int token = _roundToken;
-        Plugin.Instance.StartCoroutine(SelectMichaelAfterDelay(token));
+        Plugin.Instance.StartCoroutine(SelectMichaelAfterDelay(token, SessionState.Generation, GameModeManager.RoundId));
         BroadcastLiveState();
     }
 
-    private static IEnumerator SelectMichaelAfterDelay(int token)
+    private static IEnumerator SelectMichaelAfterDelay(int token, int sessionGeneration, int roundId)
     {
         yield return new WaitForSeconds(5f);
-        if (token != _roundToken || !Enabled || !GameModeManager.IsActive(GameMode.MichaelMeyers)
+        if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
+            || token != _roundToken || !Enabled || !GameModeManager.IsActive(GameMode.MichaelMeyers)
             || _winnerId >= 0)
         {
             yield break;
@@ -354,7 +385,8 @@ internal static class MichaelMeyersState
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
             MyceliumNetwork.RPC(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersLiveState),
-                ReliableType.Reliable, CurrentMichaelPlayerId, OneVsOne);
+                ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, OneVsOne,
+                GameModeManager.RoundId, ++_liveStateRevision);
         }
     }
 

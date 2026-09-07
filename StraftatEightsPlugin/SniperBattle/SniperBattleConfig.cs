@@ -1,5 +1,6 @@
 using BepInEx.Configuration;
 using MyceliumNetworking;
+using Steamworks;
 
 namespace StraftatEightsPlugin;
 
@@ -27,15 +28,20 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncSniperBattleSettings(bool enabled, int pointsToWin)
+    public void SyncSniperBattleSettings(CSteamID hostId, int roundId, int revision,
+        bool enabled, int pointsToWin)
     {
+        if (!SniperBattleState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
+        {
+            return;
+        }
         SniperBattleState.ApplySettings(enabled, pointsToWin);
     }
 
     [CustomRPC]
-    public void SyncSniperBattleLiveState(string pointsData, int winnerId)
+    public void SyncSniperBattleLiveState(CSteamID hostId, string pointsData, int winnerId, int roundId, int revision)
     {
-        SniperBattleState.ApplyLiveState(pointsData, winnerId);
+        SniperBattleState.ApplyLiveState(hostId, pointsData, winnerId, roundId, revision);
     }
 
     [CustomRPC]
