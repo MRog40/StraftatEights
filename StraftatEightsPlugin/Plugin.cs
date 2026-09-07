@@ -81,6 +81,8 @@ public partial class Plugin : BaseUnityPlugin
         WeaponSettingsState.PeriodicPushIfHost();
         WeaponSettingsState.EnsureCycleLoadouts();
         GameModeManager.EnsureActiveModeLoadouts();
+        JuggernautOutline.EnforceOutline();
+        MichaelMeyersOutline.EnforceOutline();
     }
 }
 

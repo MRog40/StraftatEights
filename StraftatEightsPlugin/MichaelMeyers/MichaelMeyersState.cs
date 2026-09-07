@@ -10,9 +10,12 @@ namespace StraftatEightsPlugin;
 internal static class MichaelMeyersState
 {
     internal const string WeaponName = "Couperet";
+    internal const string SurvivorWeaponName = WeaponName;
+    private const float SurvivorWeaponDelaySeconds = 3f;
     internal const float MovementMultiplier = 1.05f;
     internal static bool Enabled;
     internal static int CurrentMichaelPlayerId = -1;
+    private static int _oneVsOneSurvivorId = -1;
     internal static bool OneVsOne;
 
     private static int _winnerId = -1;
@@ -113,6 +116,7 @@ internal static class MichaelMeyersState
         _lastLiveStateRevision = -1;
         _winnerId = -1;
         CurrentMichaelPlayerId = -1;
+        _oneVsOneSurvivorId = -1;
         OneVsOne = false;
         RoundPlayers.Clear();
         AlivePlayers.Clear();
@@ -188,6 +192,7 @@ internal static class MichaelMeyersState
         }
 
         CurrentMichaelPlayerId = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+        PrepareOneVsOneSurvivor();
         Announce(PlayerLookup.GetPlayerNameTag(CurrentMichaelPlayerId) + " is <color=#CC2222><b>MICHAEL MEYERS</b></color>!");
         BroadcastLiveState();
         GiveStartingWeapon(CurrentMichaelPlayerId);
@@ -222,6 +227,19 @@ internal static class MichaelMeyersState
                 {
                     PendingLoadouts[playerId] = Time.unscaledTime + 2f;
                     WeaponService.GiveWeapon(playerId, WeaponName);
+                }
+            }
+            else if (CanHoldSurvivorWeapon(playerId))
+            {
+                if (IsWeaponHeld(pickup, SurvivorWeaponName))
+                {
+                    PendingLoadouts.Remove(playerId);
+                }
+                else if (!PendingLoadouts.TryGetValue(playerId, out float retryTime)
+                    || Time.unscaledTime >= retryTime)
+                {
+                    PendingLoadouts[playerId] = Time.unscaledTime + 2f;
+                    WeaponService.GiveWeapon(playerId, SurvivorWeaponName);
                 }
             }
             else if (HasHeldObject(pickup))
@@ -259,22 +277,7 @@ internal static class MichaelMeyersState
         if (CurrentMichaelPlayerId >= 0 && deadPlayerId != CurrentMichaelPlayerId
             && AlivePlayers.Count == 2 && AlivePlayers.Contains(CurrentMichaelPlayerId))
         {
-            OneVsOne = true;
-            int survivorId = -1;
-            foreach (int playerId in AlivePlayers)
-            {
-                if (playerId != CurrentMichaelPlayerId)
-                {
-                    survivorId = playerId;
-                    break;
-                }
-            }
-
-            if (survivorId >= 0)
-            {
-                Announce(PlayerLookup.GetPlayerNameTag(survivorId) + " received a <b>COUPERET</b>. Fight for the final kill!");
-                GiveStartingWeapon(survivorId);
-            }
+            PrepareOneVsOneSurvivor();
         }
 
         BroadcastLiveState();
@@ -295,7 +298,19 @@ internal static class MichaelMeyersState
     private static bool CanHoldCouperet(int playerId)
     {
         return playerId >= 0 && GameModeManager.IsActive(GameMode.MichaelMeyers)
-            && (playerId == CurrentMichaelPlayerId || (OneVsOne && playerId != CurrentMichaelPlayerId));
+            && playerId == CurrentMichaelPlayerId;
+    }
+
+    internal static bool CanHoldSurvivorWeapon(PlayerHealth health)
+    {
+        int playerId = health.playerValues?.playerClient?.PlayerId ?? -1;
+        return CanHoldSurvivorWeapon(playerId);
+    }
+
+    private static bool CanHoldSurvivorWeapon(int playerId)
+    {
+        return playerId >= 0 && GameModeManager.IsActive(GameMode.MichaelMeyers)
+            && OneVsOne && playerId == _oneVsOneSurvivorId;
     }
 
     internal static bool IsMichael(FirstPersonController controller)
@@ -339,10 +354,15 @@ internal static class MichaelMeyersState
 
     private static bool IsCouperetHeld(PlayerPickup pickup)
     {
+        return IsWeaponHeld(pickup, WeaponName);
+    }
+
+    private static bool IsWeaponHeld(PlayerPickup pickup, string weaponName)
+    {
         Weapon? rightWeapon = GetWeapon(pickup.objInHand);
         Weapon? leftWeapon = GetWeapon(pickup.objInLeftHand);
-        return (rightWeapon != null && IsCouperet(rightWeapon))
-            || (leftWeapon != null && IsCouperet(leftWeapon));
+        return (rightWeapon != null && rightWeapon.name.StartsWith(weaponName, StringComparison.Ordinal))
+            || (leftWeapon != null && leftWeapon.name.StartsWith(weaponName, StringComparison.Ordinal));
     }
 
     private static bool HasHeldObject(PlayerPickup pickup)
@@ -377,6 +397,28 @@ internal static class MichaelMeyersState
         {
             PendingLoadouts[playerId] = Time.unscaledTime + 2f;
             WeaponService.GiveWeapon(playerId, WeaponName);
+        }
+    }
+
+    private static void PrepareOneVsOneSurvivor()
+    {
+        if (AlivePlayers.Count != 2 || CurrentMichaelPlayerId < 0 || !AlivePlayers.Contains(CurrentMichaelPlayerId))
+        {
+            return;
+        }
+
+        foreach (int playerId in AlivePlayers)
+        {
+            if (playerId == CurrentMichaelPlayerId)
+            {
+                continue;
+            }
+
+            _oneVsOneSurvivorId = playerId;
+            OneVsOne = true;
+            PendingLoadouts[playerId] = Time.unscaledTime + SurvivorWeaponDelaySeconds;
+            Announce(PlayerLookup.GetPlayerNameTag(playerId) + " will receive a <b>COUPERET</b> for the final fight!");
+            return;
         }
     }
 

@@ -24,3 +24,5 @@ The plugin supports these modes and systems:
 4. Restart the game after changing the plugin version.
 
 The plugin configuration is created by BepInEx on first launch. Hosts control the shared settings for their lobby.
+
+The `Global Settings` section contains the shared `Points To Win` limit for FFA, Juggernaut, Sniper Battle, and Gun Game. The host also selects the next enabled game mode at random when a match starts or a map changes. Clients receive both values from the host.

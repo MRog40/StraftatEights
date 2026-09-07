@@ -12,7 +12,7 @@ internal static class SniperBattleState
     internal const string WeaponName = "M2000";
     internal const float PlayerHealth = 10f;
     internal static bool Enabled;
-    internal static int PointsToWin = 10;
+    internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
     internal static int WinnerId = -1;
     internal static readonly Dictionary<int, int> Points = new();
 
@@ -27,18 +27,17 @@ internal static class SniperBattleState
     private static int _lastLiveStateRevision = -1;
     private static float _nextLoadoutCheckTime;
 
-    internal static void ApplySettings(bool enabled, int pointsToWin)
+    internal static void ApplySettings(bool enabled)
     {
-        bool changed = Enabled != enabled || PointsToWin != pointsToWin;
+        bool changed = Enabled != enabled;
         Enabled = enabled;
-        PointsToWin = Mathf.Clamp(pointsToWin, 3, 30);
         if (changed)
         {
             ResetMatchState();
         }
     }
 
-    private static void ApplyFromConfig() => ApplySettings(Plugin.SniperBattleEnabled.Value, Plugin.SniperBattlePointsToWin.Value);
+    private static void ApplyFromConfig() => ApplySettings(Plugin.SniperBattleEnabled.Value);
 
     internal static void PushSettingsIfHost()
     {
@@ -48,8 +47,7 @@ internal static class SniperBattleState
         }
         ApplyFromConfig();
         MyceliumNetwork.RPC(Plugin.SniperBattleModId, nameof(Plugin.SyncSniperBattleSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
-            Plugin.SniperBattleEnabled.Value, Plugin.SniperBattlePointsToWin.Value);
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision, Plugin.SniperBattleEnabled.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -88,7 +86,7 @@ internal static class SniperBattleState
         }
         MyceliumNetwork.RPCTarget(Plugin.SniperBattleModId, nameof(Plugin.SyncSniperBattleSettings), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
-            Plugin.SniperBattleEnabled.Value, Plugin.SniperBattlePointsToWin.Value);
+            Plugin.SniperBattleEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.SniperBattleModId, nameof(Plugin.SyncSniperBattleLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializePoints(), WinnerId,
             GameModeManager.RoundId, _liveStateRevision);

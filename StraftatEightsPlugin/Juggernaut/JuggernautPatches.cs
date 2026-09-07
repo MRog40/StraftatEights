@@ -18,9 +18,7 @@ internal static class GameManager_JuggernautTick_Patch
             {
                 JuggernautState.ServerTick(Time.deltaTime);
             }
-            JuggernautState.PeriodicPushSettingsIfHost();
         }
-        JuggernautOutline.EnforceOutline();
     }
 }
 

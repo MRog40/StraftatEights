@@ -38,7 +38,10 @@ internal static class PlayerPickup_MichaelMeyersWeapon_Patch
         }
 
         PlayerHealth? health = __instance.GetComponent<PlayerHealth>();
-        return health != null && MichaelMeyersState.CanHoldCouperet(health) && MichaelMeyersState.IsCouperet(weapon);
+        return health != null
+            && ((MichaelMeyersState.CanHoldCouperet(health) && MichaelMeyersState.IsCouperet(weapon))
+                || (MichaelMeyersState.CanHoldSurvivorWeapon(health)
+                    && weapon.name.StartsWith(MichaelMeyersState.SurvivorWeaponName, System.StringComparison.Ordinal)));
     }
 }
 

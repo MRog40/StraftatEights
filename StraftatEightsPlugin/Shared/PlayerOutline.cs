@@ -39,10 +39,19 @@ internal static class PlayerOutline
                 continue;
             }
 
-            materials[0].SetFloat("_ASEOutlineWidth", meshObject.name == "SM_Aboubi_Head00" ? 0.02f : 0.04f);
-            materials[0].SetColor("_ASEOutlineColor", color);
-            renderer.materials = materials;
-            AppliedRenderers.Add(renderer);
+            float outlineWidth = meshObject.name == "SM_Aboubi_Head00" ? 0.02f : 0.04f;
+            if (!Mathf.Approximately(materials[0].GetFloat("_ASEOutlineWidth"), outlineWidth)
+                || materials[0].GetColor("_ASEOutlineColor") != color)
+            {
+                materials[0].SetFloat("_ASEOutlineWidth", outlineWidth);
+                materials[0].SetColor("_ASEOutlineColor", color);
+                renderer.materials = materials;
+            }
+
+            if (!AppliedRenderers.Contains(renderer))
+            {
+                AppliedRenderers.Add(renderer);
+            }
         }
     }
 
@@ -102,6 +111,8 @@ internal static class PlayerOutline
         }
         AppliedRenderers.Clear();
     }
+
+    internal static bool HasAppliedRenderers => AppliedRenderers.Count > 0;
 
     private static void ClearRenderer(GameObject meshObject)
     {

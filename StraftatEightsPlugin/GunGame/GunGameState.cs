@@ -12,7 +12,7 @@ internal static class GunGameState
     internal static bool Enabled;
     internal static readonly Dictionary<int, int> Progress = new();
     internal static List<string> WeaponOrder { get; private set; } = new();
-    internal static int ScoreLimit => WeaponOrder.Count;
+    internal static int ScoreLimit => GameModeManager.EffectivePointsToWin;
     private static float _nextSettingsPushTime;
     private static float _nextLiveStatePushTime;
     private static int _settingsRevision;
@@ -94,8 +94,19 @@ internal static class GunGameState
         int next = current + 1;
         Progress[killerId] = next;
         if (ScoreLimit > 0 && next >= ScoreLimit) GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(killerId));
-        else if (WeaponOrder.Count > 0) WeaponService.GiveWeapon(killerId, WeaponOrder[System.Math.Min(next, WeaponOrder.Count - 1)]);
+        else if (WeaponOrder.Count > 0) WeaponService.GiveWeapon(killerId, WeaponOrder[GetWeaponIndex(next)]);
         BroadcastLiveState();
+    }
+
+    private static int GetWeaponIndex(int progress)
+    {
+        if (WeaponOrder.Count <= 1 || ScoreLimit <= 1)
+        {
+            return 0;
+        }
+
+        long scaledIndex = (long)progress * (WeaponOrder.Count - 1) / (ScoreLimit - 1);
+        return (int)System.Math.Min(scaledIndex, WeaponOrder.Count - 1);
     }
     internal static void GiveStartingWeapon(int playerId)
     {

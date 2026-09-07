@@ -49,17 +49,20 @@ internal static class GameModeManager
         internal readonly Func<bool> IsEnabled;
         internal readonly Action Reset;
         internal readonly GameModeCapabilities Capabilities;
+        internal readonly Action PeriodicSettingsPush;
         internal readonly Action PeriodicPush;
         internal readonly Action EnsureLoadouts;
 
         internal ModeDescriptor(string label, Color color, Func<bool> isEnabled, Action reset,
-            GameModeCapabilities capabilities, Action? periodicPush = null, Action? ensureLoadouts = null)
+            GameModeCapabilities capabilities, Action? periodicPush = null, Action? ensureLoadouts = null,
+            Action? periodicSettingsPush = null)
         {
             Label = label;
             Color = color;
             IsEnabled = isEnabled;
             Reset = reset;
             Capabilities = capabilities;
+            PeriodicSettingsPush = periodicSettingsPush ?? periodicPush ?? Noop;
             PeriodicPush = periodicPush ?? Noop;
             EnsureLoadouts = ensureLoadouts ?? Noop;
         }
@@ -82,24 +85,27 @@ internal static class GameModeManager
             GameModeCapabilities.IgnoreGlobalWeapons | GameModeCapabilities.IgnoreGlobalHealth),
         [GameMode.FreeForAll] = new ModeDescriptor("FFA", new Color32(85, 204, 255, 255),
             () => Plugin.FFAEnabled.Value, FfaReset, GameModeCapabilities.CustomRound,
-               FFAState.PeriodicPushIfHost),
+               FFAState.PeriodicPushIfHost, periodicSettingsPush: FFAState.PeriodicPushSettingsIfHost),
         [GameMode.Juggernaut] = new ModeDescriptor("JUGGERNAUT", new Color32(255, 106, 0, 255),
             () => Plugin.JuggernautEnabled.Value, JuggernautReset, GameModeCapabilities.CustomRound,
-            JuggernautState.PeriodicPushSettingsIfHost, JuggernautState.EnsureLoadout),
+            JuggernautState.PeriodicPushIfHost, JuggernautState.EnsureLoadout,
+            JuggernautState.PeriodicPushSettingsIfHost),
         [GameMode.GunGame] = new ModeDescriptor("GUN GAME", new Color32(255, 221, 85, 255),
             () => Plugin.GunGameEnabled.Value, GunGameReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons,
-               GunGameState.PeriodicPushIfHost),
+               GunGameState.PeriodicPushIfHost, periodicSettingsPush: GunGameState.PeriodicPushSettingsIfHost),
         [GameMode.SniperBattle] = new ModeDescriptor("SNIPER BATTLE", new Color32(255, 96, 128, 255),
             () => Plugin.SniperBattleEnabled.Value, SniperBattleReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.ClearOutlines,
-               SniperBattleState.PeriodicPushIfHost, SniperBattleState.EnsureLoadouts),
+               SniperBattleState.PeriodicPushIfHost, SniperBattleState.EnsureLoadouts,
+               SniperBattleState.PeriodicPushSettingsIfHost),
         [GameMode.MichaelMeyers] = new ModeDescriptor("MICHAEL MEYERS", new Color32(204, 34, 34, 255),
             () => Plugin.MichaelMeyersEnabled.Value, MichaelMeyersReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.HideHud | GameModeCapabilities.ClearOutlines,
-            MichaelMeyersPeriodicPush, MichaelMeyersState.EnsureLoadouts)
+            MichaelMeyersPeriodicPush, MichaelMeyersState.EnsureLoadouts,
+            MichaelMeyersState.PeriodicPushSettingsIfHost)
     };
 
     private static void DefaultReset() { }
@@ -119,7 +125,9 @@ internal static class GameModeManager
     internal static GameModePhase Phase { get; private set; } = GameModePhase.Inactive;
     internal static int RoundId { get; private set; }
     internal static ConfigEntry<float> RespawnDelaySeconds = null!;
+    internal static ConfigEntry<int> PointsToWin = null!;
     internal static float EffectiveRespawnDelaySeconds { get; set; } = 3f;
+    internal static int EffectivePointsToWin { get; private set; } = 10;
     private static int _globalSettingsRevision;
     private static int _lastGlobalSettingsRoundId = -1;
     private static int _lastGlobalSettingsRevision = -1;
@@ -133,6 +141,10 @@ internal static class GameModeManager
             new ConfigDescription("Host-controlled: how long a killed player waits before respawning.",
                 new AcceptableValueRange<float>(0f, 10f)));
         RespawnDelaySeconds.SettingChanged += (_, _) => OnGlobalSettingsChanged();
+        PointsToWin = Plugin.Instance.Config.Bind("Global Settings", "Points To Win", 10,
+            new ConfigDescription("Host-controlled: score required to win point-based game modes.",
+                new AcceptableValueRange<int>(3, 30)));
+        PointsToWin.SettingChanged += (_, _) => OnGlobalSettingsChanged();
 
         MyceliumNetwork.RegisterNetworkObject(Plugin.Instance, ModId);
         MyceliumNetwork.LobbyCreated += OnLobbyEntered;
@@ -152,14 +164,33 @@ internal static class GameModeManager
 
     private static void ApplyGlobalSettingsFromHostConfig()
     {
-        EffectiveRespawnDelaySeconds = RespawnDelaySeconds.Value;
+        ApplyGlobalSettings(RespawnDelaySeconds.Value, PointsToWin.Value);
+    }
+
+    internal static void ApplyGlobalSettings(float respawnDelaySeconds, int pointsToWin)
+    {
+        EffectiveRespawnDelaySeconds = Mathf.Clamp(respawnDelaySeconds, 0f, 10f);
+        int nextPointsToWin = Mathf.Clamp(pointsToWin, 3, 30);
+        if (EffectivePointsToWin != nextPointsToWin)
+        {
+            EffectivePointsToWin = nextPointsToWin;
+            ResetPointModeStates();
+        }
+    }
+
+    private static void ResetPointModeStates()
+    {
+        FFAState.ResetMatchState();
+        JuggernautState.ResetMatchState();
+        GunGameState.ResetMatchState();
+        SniperBattleState.ResetMatchState();
     }
 
     private static void BroadcastGlobalSettings()
     {
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncGlobalSettings), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, RoundId, ++_globalSettingsRevision,
-            EffectiveRespawnDelaySeconds);
+            EffectiveRespawnDelaySeconds, EffectivePointsToWin);
     }
 
     internal static void OnSettingsChanged()
@@ -181,6 +212,10 @@ internal static class GameModeManager
         ApplyGlobalSettingsFromHostConfig();
         BroadcastGlobalSettings();
         BroadcastActiveMode();
+        foreach (ModeDescriptor descriptor in Modes.Values)
+        {
+            descriptor.PeriodicSettingsPush();
+        }
         PeriodicActiveModePushIfHost();
     }
 
@@ -348,6 +383,7 @@ internal static class GameModeManager
         Phase = GameModePhase.Inactive;
         RoundId++;
         EffectiveRespawnDelaySeconds = 3f;
+        EffectivePointsToWin = 10;
         GlobalModifiersState.ResetForLobbyLeft();
         HealthSettingsState.ResetForLobbyLeft();
         WeaponSettingsState.ResetForLobbyLeft();
@@ -361,7 +397,7 @@ internal static class GameModeManager
         {
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncGlobalSettings), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, RoundId, _globalSettingsRevision,
-                EffectiveRespawnDelaySeconds);
+                EffectiveRespawnDelaySeconds, EffectivePointsToWin);
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncActiveGameMode), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId,
                 (int)Phase, _activeModeRevision);
@@ -371,7 +407,7 @@ internal static class GameModeManager
     private static GameMode NextEnabledMode(GameMode current)
     {
         List<GameMode> modes = GetConfiguredModes();
-        return ModeCycle.TrySelectNext(modes, current, out GameMode next)
+        return ModeCycle.TrySelectRandom(modes, current, UnityEngine.Random.Range(0, int.MaxValue), out GameMode next)
             ? next
             : GameMode.None;
     }
@@ -616,13 +652,14 @@ internal static class GameManager_GameModeDeath_Patch
 public partial class Plugin
 {
     [CustomRPC]
-    public void SyncGlobalSettings(CSteamID hostId, int roundId, int revision, float respawnDelaySeconds)
+    public void SyncGlobalSettings(CSteamID hostId, int roundId, int revision, float respawnDelaySeconds,
+        int pointsToWin)
     {
         if (!GameModeManager.TryAcceptGlobalSettingsSnapshot(hostId, roundId, revision))
         {
             return;
         }
-        GameModeManager.EffectiveRespawnDelaySeconds = Mathf.Clamp(respawnDelaySeconds, 0f, 10f);
+        GameModeManager.ApplyGlobalSettings(respawnDelaySeconds, pointsToWin);
     }
 
     [CustomRPC]
@@ -643,6 +680,7 @@ internal static class GameManager_GameModeReset_Patch
     {
         GameModeManager.ResetGameState();
         JuggernautOutline.ResetState();
+        MichaelMeyersOutline.ResetState();
     }
 }
 

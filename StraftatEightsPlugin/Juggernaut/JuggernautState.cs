@@ -15,7 +15,7 @@ internal static class JuggernautState
     internal const float BaseHealth = 200f / 25f;
     internal const float HealthPerKill = 50f / 25f;
     internal const float MovementMultiplier = 0.5f;
-    internal const int PointsToWin = 10;
+    internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
     internal static bool Enabled;
 
     internal static int CurrentJuggernautPlayerId = -1;
@@ -24,6 +24,7 @@ internal static class JuggernautState
     internal static readonly Dictionary<int, int> Points = new();
 
     private static float _nextBroadcastTime;
+    private static float _nextLiveStatePushTime;
     private static float _nextLoadoutCheckTime;
     private static int _settingsRevision;
     private static int _lastSettingsRoundId = -1;
@@ -43,6 +44,7 @@ internal static class JuggernautState
         WinnerId = -1;
         Points.Clear();
         _nextBroadcastTime = 0f;
+        _nextLiveStatePushTime = 0f;
         PendingLoadouts.Clear();
     }
 
@@ -81,11 +83,21 @@ internal static class JuggernautState
     // hosting (the live-state broadcast in ServerTick already does this every second; settings didn't).
     internal static void PeriodicPushSettingsIfHost()
     {
-        if (!HostSettingsSync.IsDue(ref _nextPeriodicSettingsPushTime))
+        if (HostSettingsSync.IsDue(ref _nextPeriodicSettingsPushTime))
         {
-            return;
+            PushSettingsIfHost();
         }
-        PushSettingsIfHost();
+    }
+
+    internal static void PeriodicPushIfHost()
+    {
+        PeriodicPushSettingsIfHost();
+
+        if (Enabled && GameModeManager.IsActive(GameMode.Juggernaut)
+            && HostSettingsSync.IsDue(ref _nextLiveStatePushTime))
+        {
+            BroadcastLiveState();
+        }
     }
 
     internal static void OnLobbyEntered()

@@ -9,7 +9,7 @@ namespace StraftatEightsPlugin;
 internal static class FFAState
 {
     internal static bool Enabled;
-    internal static int KillsToWin = 10;
+    internal static int KillsToWin => GameModeManager.EffectivePointsToWin;
     internal static int WinnerId = -1;
     internal static readonly Dictionary<int, int> Kills = new();
 
@@ -22,22 +22,17 @@ internal static class FFAState
     private static int _lastLiveStateRoundId = -1;
     private static int _lastLiveStateRevision = -1;
 
-    internal static void ApplySettings(bool enabled, int killsToWin)
+    internal static void ApplySettings(bool enabled)
     {
-        killsToWin = Mathf.Clamp(killsToWin, 3, 30);
-        bool changed = Enabled != enabled || KillsToWin != killsToWin;
+        bool changed = Enabled != enabled;
         Enabled = enabled;
-        KillsToWin = killsToWin;
         if (changed)
         {
             ResetMatchState();
         }
     }
 
-    private static void ApplySettingsFromHostConfig()
-    {
-        ApplySettings(Plugin.FFAEnabled.Value, Plugin.FFAKillsToWin.Value);
-    }
+    private static void ApplySettingsFromHostConfig() => ApplySettings(Plugin.FFAEnabled.Value);
 
     internal static void PushSettingsIfHost()
     {
@@ -47,8 +42,7 @@ internal static class FFAState
         }
         ApplySettingsFromHostConfig();
         MyceliumNetwork.RPC(Plugin.FFAModId, nameof(Plugin.SyncFFASettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
-            Plugin.FFAEnabled.Value, Plugin.FFAKillsToWin.Value);
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision, Plugin.FFAEnabled.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -87,8 +81,7 @@ internal static class FFAState
             return;
         }
         MyceliumNetwork.RPCTarget(Plugin.FFAModId, nameof(Plugin.SyncFFASettings), player, ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
-            Plugin.FFAEnabled.Value, Plugin.FFAKillsToWin.Value);
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision, Plugin.FFAEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.FFAModId, nameof(Plugin.SyncFFALiveState), player, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, SerializeKills(), WinnerId, GameModeManager.RoundId, _liveStateRevision);
     }

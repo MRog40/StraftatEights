@@ -81,6 +81,41 @@ internal static class ModeCycle
         next = modes[(currentIndex + 1) % modes.Count];
         return true;
     }
+
+    internal static bool TrySelectRandom<T>(IReadOnlyList<T> modes, T current, int selectionIndex, out T next)
+    {
+        if (modes.Count == 0)
+        {
+            next = default!;
+            return false;
+        }
+
+        int currentIndex = -1;
+        EqualityComparer<T> comparer = EqualityComparer<T>.Default;
+        for (int index = 0; index < modes.Count; index++)
+        {
+            if (comparer.Equals(modes[index], current))
+            {
+                currentIndex = index;
+                break;
+            }
+        }
+
+        int candidateCount = currentIndex < 0 ? modes.Count : modes.Count - 1;
+        if (candidateCount == 0)
+        {
+            next = modes[0];
+            return true;
+        }
+
+        int candidateIndex = (int)((uint)selectionIndex % (uint)candidateCount);
+        if (currentIndex >= 0 && candidateIndex >= currentIndex)
+        {
+            candidateIndex++;
+        }
+        next = modes[candidateIndex];
+        return true;
+    }
 }
 
 internal sealed class RequestVersionTracker

@@ -52,6 +52,14 @@ Assert(ModeCycle.TrySelectNext(modes, "Missing", out nextMode) && nextMode == "D
     "An unconfigured current mode must select the first configured mode.");
 Assert(!ModeCycle.TrySelectNext(Array.Empty<string>(), "Default", out _),
     "Mode selection must report no result when no modes are configured.");
+Assert(ModeCycle.TrySelectRandom(modes, "Default", 0, out nextMode) && nextMode == "FFA",
+    "Random mode selection must choose an enabled mode other than the current mode.");
+Assert(ModeCycle.TrySelectRandom(modes, "Default", 1, out nextMode) && nextMode == "GunGame",
+    "Random mode selection must reach every non-current enabled mode.");
+Assert(ModeCycle.TrySelectRandom(modes, "Missing", 0, out nextMode) && nextMode == "Default",
+    "Random mode selection must choose any enabled mode when the current mode is missing.");
+Assert(ModeCycle.TrySelectRandom(new[] { "Only" }, "Only", 42, out string onlyMode) && onlyMode == "Only",
+    "Random mode selection must keep the only enabled mode.");
 
 RequestVersionTracker requests = new();
 int firstRequest = requests.Next(7);
