@@ -13,3 +13,16 @@ internal static class PlayerManager_GunGameSpawn_Patch
         if (client != null) GunGameState.GiveStartingWeapon(client.PlayerId);
     }
 }
+
+[HarmonyPatch(typeof(Weapon), "WeaponUpdate")]
+internal static class Weapon_GunGameUnlimitedAmmo_Patch
+{
+    private static void Postfix(Weapon __instance)
+    {
+        if (GameModeManager.IsActive(GameMode.GunGame) && GunGameState.Enabled)
+        {
+            WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
+            WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
+        }
+    }
+}

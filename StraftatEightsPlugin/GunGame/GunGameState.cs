@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using MyceliumNetworking;
 using Steamworks;
+using UnityEngine;
 
 namespace StraftatEightsPlugin;
 
@@ -15,6 +16,8 @@ internal static class GunGameState
     internal static int ScoreLimit => GameModeManager.EffectivePointsToWin;
     private static float _nextSettingsPushTime;
     private static float _nextLiveStatePushTime;
+    private static float _nextLoadoutCheckTime;
+    private static readonly Dictionary<int, float> PendingLoadouts = new();
     private static int _settingsRevision;
     private static int _lastSettingsRoundId = -1;
     private static int _lastSettingsRevision = -1;
@@ -72,6 +75,8 @@ internal static class GunGameState
         _liveStateRevision++;
         _lastLiveStateRoundId = -1;
         _lastLiveStateRevision = -1;
+        _nextLoadoutCheckTime = 0f;
+        PendingLoadouts.Clear();
         Progress.Clear();
     }
     internal static void ApplyLiveState(CSteamID hostId, string data, int roundId, int revision)
@@ -94,7 +99,7 @@ internal static class GunGameState
         int next = current + 1;
         Progress[killerId] = next;
         if (ScoreLimit > 0 && next >= ScoreLimit) GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(killerId));
-        else if (WeaponOrder.Count > 0) WeaponService.GiveWeapon(killerId, WeaponOrder[GetWeaponIndex(next)]);
+        else if (WeaponOrder.Count > 0) GiveWeaponForProgress(killerId, next);
         BroadcastLiveState();
     }
 
@@ -108,9 +113,74 @@ internal static class GunGameState
         long scaledIndex = (long)progress * (WeaponOrder.Count - 1) / (ScoreLimit - 1);
         return (int)System.Math.Min(scaledIndex, WeaponOrder.Count - 1);
     }
+    internal static void EnsureLoadouts()
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.GunGame) || !MyceliumNetwork.InLobby
+            || !MyceliumNetwork.IsHost || WeaponService.IsFinalGameScreen
+            || Time.unscaledTime < _nextLoadoutCheckTime)
+        {
+            return;
+        }
+
+        _nextLoadoutCheckTime = Time.unscaledTime + 1f;
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client == null || !client || client.PlayerSpawner == null || !client.PlayerSpawner
+                || client.PlayerSpawner.player == null || !client.PlayerSpawner.player)
+            {
+                continue;
+            }
+
+            int progress = Progress.TryGetValue(client.PlayerId, out int currentProgress) ? currentProgress : 0;
+            string? expectedWeapon = GetWeaponForProgress(progress);
+            if (expectedWeapon == null)
+            {
+                continue;
+            }
+
+            PlayerPickup? pickup = client.PlayerSpawner.player.playerPickupScript;
+            GameObject? heldObject = pickup?.objInHand;
+            Weapon? heldWeapon = heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
+            if (heldWeapon != null && heldWeapon.name.StartsWith(expectedWeapon, StringComparison.Ordinal))
+            {
+                PendingLoadouts.Remove(client.PlayerId);
+                continue;
+            }
+
+            if (!PendingLoadouts.TryGetValue(client.PlayerId, out float retryTime)
+                || Time.unscaledTime >= retryTime)
+            {
+                GiveStartingWeapon(client.PlayerId);
+            }
+        }
+    }
+
     internal static void GiveStartingWeapon(int playerId)
     {
-        if (WeaponOrder.Count > 0) WeaponService.GiveWeapon(playerId, WeaponOrder[0]);
+        if (!Enabled || !GameModeManager.IsActive(GameMode.GunGame) || !MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int progress = Progress.TryGetValue(playerId, out int currentProgress) ? currentProgress : 0;
+        GiveWeaponForProgress(playerId, progress);
+    }
+
+    private static void GiveWeaponForProgress(int playerId, int progress)
+    {
+        string? weaponName = GetWeaponForProgress(progress);
+        if (weaponName == null)
+        {
+            return;
+        }
+
+        PendingLoadouts[playerId] = Time.unscaledTime + 5f;
+        WeaponService.GiveWeapon(playerId, weaponName, unlimitedAmmo: true);
+    }
+
+    private static string? GetWeaponForProgress(int progress)
+    {
+        return WeaponOrder.Count == 0 ? null : WeaponOrder[GetWeaponIndex(progress)];
     }
     internal static string SerializeProgress()
     {

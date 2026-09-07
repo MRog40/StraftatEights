@@ -66,17 +66,19 @@ internal static class WeaponService
         return WeaponListParser.Parse(value, Prefabs.Keys);
     }
 
-    internal static void GiveWeapon(int playerId, string weaponName, int? spareMagazines = null)
+    internal static void GiveWeapon(int playerId, string weaponName, int? spareMagazines = null,
+        bool unlimitedAmmo = false)
     {
         if (Plugin.Instance != null && !IsFinalGameScreen)
         {
             int requestVersion = RequestVersions.Next(playerId);
-            Plugin.Instance.StartCoroutine(GiveWeaponCoroutine(playerId, weaponName, spareMagazines,
+            Plugin.Instance.StartCoroutine(GiveWeaponCoroutine(playerId, weaponName, spareMagazines, unlimitedAmmo,
                 SessionState.Generation, GameModeManager.RoundId, requestVersion));
         }
     }
 
     private static IEnumerator GiveWeaponCoroutine(int playerId, string weaponName, int? spareMagazines,
+        bool unlimitedAmmo,
         int sessionGeneration, int roundId, int requestVersion)
     {
         NetworkManager? networkManager = FishNet.InstanceFinder.NetworkManager;
@@ -138,7 +140,11 @@ internal static class WeaponService
             yield break;
         }
 
-        if (spareMagazines.HasValue)
+        if (unlimitedAmmo)
+        {
+            WeaponAmmoTuning.InitializeUnlimited(weaponComponent);
+        }
+        else if (spareMagazines.HasValue)
         {
             WeaponAmmoTuning.InitializeFromSpawnerPickup(weaponComponent, spareMagazines.Value);
         }

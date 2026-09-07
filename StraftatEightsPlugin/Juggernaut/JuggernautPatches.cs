@@ -64,7 +64,8 @@ internal static class Weapon_JuggernautMinigunAmmo_Patch
 {
     private static void Prefix(Weapon __instance)
     {
-        if (!GameModeManager.IsActive(GameMode.Juggernaut) || !JuggernautState.IsCurrentJuggernautWeapon(__instance)
+        if (!GameModeManager.IsActive(GameMode.Juggernaut) || __instance == null
+            || !__instance.name.StartsWith(JuggernautState.WeaponName, System.StringComparison.Ordinal)
             || !__instance.needsAmmo)
         {
             return;
@@ -88,16 +89,16 @@ internal static class Minigun_JuggernautAmmoDisplay_Patch
 {
     private static void Postfix(Minigun __instance)
     {
-        if (!GameModeManager.IsActive(GameMode.Juggernaut)
-            || !JuggernautState.IsCurrentJuggernautWeapon(__instance))
+        if (!GameModeManager.IsActive(GameMode.Juggernaut) || __instance == null
+            || !__instance.name.StartsWith(JuggernautState.WeaponName, System.StringComparison.Ordinal))
         {
             return;
         }
 
-        __instance.currentAmmo = 0;
+        __instance.currentAmmo = 1;
         if (__instance.IsOwner && PauseManager.Instance != null)
         {
-            PauseManager.Instance.ChangeAmmoText("0", __instance.chargedBullets + " / ", __instance.inRightHand);
+            PauseManager.Instance.ChangeAmmoText("1", __instance.chargedBullets + " / ", __instance.inRightHand);
         }
     }
 }
@@ -108,7 +109,8 @@ internal static class Minigun_JuggernautReload_Patch
     private static bool Prefix(Minigun __instance)
     {
         return !GameModeManager.IsActive(GameMode.Juggernaut)
-            || !JuggernautState.IsCurrentJuggernautWeapon(__instance);
+            || __instance == null
+            || !__instance.name.StartsWith(JuggernautState.WeaponName, System.StringComparison.Ordinal);
     }
 }
 

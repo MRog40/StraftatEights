@@ -93,7 +93,8 @@ internal static class GameModeManager
         [GameMode.GunGame] = new ModeDescriptor("GUN GAME", new Color32(255, 221, 85, 255),
             () => Plugin.GunGameEnabled.Value, GunGameReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons,
-               GunGameState.PeriodicPushIfHost, periodicSettingsPush: GunGameState.PeriodicPushSettingsIfHost),
+               GunGameState.PeriodicPushIfHost, GunGameState.EnsureLoadouts,
+               periodicSettingsPush: GunGameState.PeriodicPushSettingsIfHost),
         [GameMode.SniperBattle] = new ModeDescriptor("SNIPER BATTLE", new Color32(255, 96, 128, 255),
             () => Plugin.SniperBattleEnabled.Value, SniperBattleReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
@@ -219,8 +220,13 @@ internal static class GameModeManager
         PeriodicActiveModePushIfHost();
     }
 
-    private static void PeriodicActiveModePushIfHost()
+    internal static void PeriodicActiveModePushIfHost()
     {
+        if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
         if (Modes.TryGetValue(ActiveMode, out ModeDescriptor? descriptor))
         {
             descriptor.PeriodicPush();

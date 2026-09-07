@@ -17,6 +17,7 @@ internal static class WeaponAmmoTuning
         public bool Reloading;
         public bool ManualReloadPressed;
         public bool OriginalInHandDespawn;
+        public bool UnlimitedAmmo;
     }
 
     private static readonly ConditionalWeakTable<Weapon, Memory> MemoryByWeapon = new();
@@ -42,6 +43,22 @@ internal static class WeaponAmmoTuning
         memory.Initialized = true;
     }
 
+    internal static void InitializeUnlimited(Weapon weapon)
+    {
+        if (weapon == null || !weapon.needsAmmo)
+        {
+            return;
+        }
+
+        Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
+        if (!memory.Initialized)
+        {
+            memory.MagazineSize = Mathf.Max(1, weapon.currentAmmo);
+            memory.Initialized = true;
+        }
+        memory.UnlimitedAmmo = true;
+    }
+
     internal static void InitializeFromSpawnerPickup(Weapon weapon, int spareMagazines)
     {
         if (weapon == null || !weapon.needsAmmo)
@@ -52,6 +69,7 @@ internal static class WeaponAmmoTuning
         Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
         memory.Reloading = false;
         memory.ManualReloadPressed = false;
+        memory.UnlimitedAmmo = false;
 
         if (weapon.reloadWeapon)
         {
@@ -181,7 +199,7 @@ internal static class WeaponAmmoTuning
         bool wasReloadPressed = memory.ManualReloadPressed;
         memory.ManualReloadPressed = reloadPressed;
 
-        if (!enabled || !reloadPressed || wasReloadPressed || weapon.reloadWeapon || !weapon.IsOwner || weapon.gameObject.layer != 8 || memory.Reloading || memory.SpareRounds <= 0 || weapon.currentAmmo >= memory.MagazineSize)
+        if (!enabled || !reloadPressed || wasReloadPressed || weapon.reloadWeapon || !weapon.IsOwner || weapon.gameObject.layer != 8 || memory.Reloading || (!memory.UnlimitedAmmo && memory.SpareRounds <= 0) || weapon.currentAmmo >= memory.MagazineSize)
         {
             return;
         }
@@ -196,9 +214,27 @@ internal static class WeaponAmmoTuning
             return;
         }
         Initialize(weapon, spareMagazines);
+        if (MemoryByWeapon.TryGetValue(weapon, out Memory memory))
+        {
+            memory.UnlimitedAmmo = false;
+        }
         if (weapon.gameObject.layer == 8)
         {
             ReloadIfEmpty(weapon, spareMagazines);
+        }
+    }
+
+    internal static void ApplyUnlimitedToWeapon(Weapon weapon)
+    {
+        if (weapon == null || !weapon.needsAmmo)
+        {
+            return;
+        }
+
+        InitializeUnlimited(weapon);
+        if (weapon.gameObject.layer == 8)
+        {
+            ReloadIfEmpty(weapon, 0);
         }
     }
 
@@ -210,7 +246,8 @@ internal static class WeaponAmmoTuning
         }
 
         Initialize(weapon, spareMagazines);
-        if (!MemoryByWeapon.TryGetValue(weapon, out Memory memory) || memory.SpareRounds <= 0)
+        if (!MemoryByWeapon.TryGetValue(weapon, out Memory memory)
+            || (!memory.UnlimitedAmmo && memory.SpareRounds <= 0))
         {
             return;
         }
@@ -258,8 +295,13 @@ internal static class WeaponAmmoTuning
             yield break;
         }
 
-        int rounds = Mathf.Min(memory.MagazineSize, memory.SpareRounds);
-        memory.SpareRounds -= rounds;
+        int rounds = memory.UnlimitedAmmo
+            ? memory.MagazineSize
+            : Mathf.Min(memory.MagazineSize, memory.SpareRounds);
+        if (!memory.UnlimitedAmmo)
+        {
+            memory.SpareRounds -= rounds;
+        }
         weapon.currentAmmo = rounds;
         weapon.cantTakeSafeBool = false;
         weapon.noAmmoClicks = 0;

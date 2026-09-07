@@ -74,6 +74,7 @@ public partial class Plugin : BaseUnityPlugin
     private void Update()
     {
         GameModeManager.PeriodicPushIfHost();
+        GameModeManager.PeriodicActiveModePushIfHost();
         GlobalModifiersState.PeriodicPushIfHost();
         HealthSettingsState.PeriodicPushIfHost();
         HealthSettingsState.ServerTick();
