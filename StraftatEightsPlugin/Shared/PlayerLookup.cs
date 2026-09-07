@@ -51,15 +51,23 @@ internal static class PlayerLookup
             if (client.PlayerSpawner != null && client.PlayerSpawner.player != null)
             {
                 PlayerHealth? health = client.PlayerSpawner.player.GetComponent<PlayerHealth>();
-                if (health != null)
+                if (IsPlayerHealthForId(health, playerId))
                 {
                     return health;
                 }
             }
             PlayerHealth? clientHealth = client.GetComponent<PlayerHealth>();
-            if (clientHealth != null)
+            if (IsPlayerHealthForId(clientHealth, playerId))
             {
                 return clientHealth;
+            }
+        }
+
+        foreach (PlayerHealth health in Object.FindObjectsOfType<PlayerHealth>(true))
+        {
+            if (IsPlayerHealthForId(health, playerId))
+            {
+                return health;
             }
         }
 
@@ -74,19 +82,24 @@ internal static class PlayerLookup
             if (playerSpawner != null && playerSpawner.player != null)
             {
                 PlayerHealth? health = playerSpawner.player.GetComponent<PlayerHealth>();
-                if (health != null)
+                if (IsPlayerHealthForId(health, playerId))
                 {
                     return health;
                 }
             }
 
             PlayerHealth? sceneHealth = sceneClient.GetComponent<PlayerHealth>();
-            if (sceneHealth != null)
+            if (IsPlayerHealthForId(sceneHealth, playerId))
             {
                 return sceneHealth;
             }
         }
         return null;
+    }
+
+    private static bool IsPlayerHealthForId(PlayerHealth? health, int playerId)
+    {
+        return health != null && health.playerValues?.playerClient?.PlayerId == playerId;
     }
 
     // Resolves a killer's PlayerId from a dead player's PlayerHealth.killer transform - every weapon
