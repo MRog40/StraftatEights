@@ -1,6 +1,7 @@
 obj/
 bin/Debug/netstandard2.0/
 /package/
+/*.zip
 .vs/
 *.user
 /AGENTS.md
