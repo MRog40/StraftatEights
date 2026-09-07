@@ -14,21 +14,9 @@ internal static class PlayerOutline
             return;
         }
 
-        PlayerSetup? setup = player.GetComponent<PlayerSetup>();
-        if (setup == null || setup.meshesToChange == null)
+        foreach (SkinnedMeshRenderer renderer in player.GetComponentsInChildren<SkinnedMeshRenderer>(true))
         {
-            return;
-        }
-
-        foreach (GameObject meshObject in setup.meshesToChange)
-        {
-            if (meshObject == null)
-            {
-                continue;
-            }
-
-            SkinnedMeshRenderer? renderer = meshObject.GetComponent<SkinnedMeshRenderer>();
-            if (renderer == null)
+            if (renderer == null || !renderer.gameObject.activeInHierarchy)
             {
                 continue;
             }
@@ -39,7 +27,7 @@ internal static class PlayerOutline
                 continue;
             }
 
-            float outlineWidth = meshObject.name == "SM_Aboubi_Head00" ? 0.02f : 0.04f;
+            float outlineWidth = renderer.gameObject.name == "SM_Aboubi_Head00" ? 0.02f : 0.04f;
             if (!Mathf.Approximately(materials[0].GetFloat("_ASEOutlineWidth"), outlineWidth)
                 || materials[0].GetColor("_ASEOutlineColor") != color)
             {
