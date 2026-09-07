@@ -479,7 +479,8 @@ internal static class GameModeManager
         }
 
         GameMode nextMode = (GameMode)mode;
-        if (ActiveMode != nextMode)
+        bool newRound = roundId > RoundId;
+        if (ActiveMode != nextMode || newRound)
         {
             ResetMatchState();
             ActiveMode = nextMode;

@@ -57,7 +57,10 @@ internal static class JuggernautOutline
         {
             PlayerOutline.ClearApplied();
             PlayerOutline.Apply(health, Color.red);
-            _outlinedPlayer = health;
+            if (PlayerOutline.HasAppliedRenderers)
+            {
+                _outlinedPlayer = health;
+            }
         }
     }
 }

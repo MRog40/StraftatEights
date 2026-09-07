@@ -50,9 +50,41 @@ internal static class PlayerLookup
         {
             if (client.PlayerSpawner != null && client.PlayerSpawner.player != null)
             {
-                return client.PlayerSpawner.player.GetComponent<PlayerHealth>();
+                PlayerHealth? health = client.PlayerSpawner.player.GetComponent<PlayerHealth>();
+                if (health != null)
+                {
+                    return health;
+                }
             }
-            return client.GetComponent<PlayerHealth>();
+            PlayerHealth? clientHealth = client.GetComponent<PlayerHealth>();
+            if (clientHealth != null)
+            {
+                return clientHealth;
+            }
+        }
+
+        foreach (ClientInstance sceneClient in Object.FindObjectsOfType<ClientInstance>())
+        {
+            if (sceneClient == null || !sceneClient || sceneClient.PlayerId != playerId)
+            {
+                continue;
+            }
+
+            PlayerManager? playerSpawner = sceneClient.PlayerSpawner;
+            if (playerSpawner != null && playerSpawner.player != null)
+            {
+                PlayerHealth? health = playerSpawner.player.GetComponent<PlayerHealth>();
+                if (health != null)
+                {
+                    return health;
+                }
+            }
+
+            PlayerHealth? sceneHealth = sceneClient.GetComponent<PlayerHealth>();
+            if (sceneHealth != null)
+            {
+                return sceneHealth;
+            }
         }
         return null;
     }
