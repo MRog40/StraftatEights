@@ -55,6 +55,66 @@ internal static class ScoreCodec
         }
         return scores;
     }
+
+    internal static Dictionary<int, int> ParseSigned(string data, int maximumScore)
+    {
+        Dictionary<int, int> scores = new();
+        foreach (string entry in (data ?? string.Empty).Split(';'))
+        {
+            int separator = entry.IndexOf(':');
+            if (separator > 0 && int.TryParse(entry.Substring(0, separator), out int id)
+                && int.TryParse(entry.Substring(separator + 1), out int score)
+                && id >= 0 && score <= maximumScore)
+            {
+                scores[id] = score;
+            }
+        }
+        return scores;
+    }
+}
+
+internal static class OneInTheChamberRules
+{
+    internal const int PlayerHealth = 10;
+
+    internal static bool IsAllowedWeapon(string weaponName)
+    {
+        return weaponName.StartsWith("Pistol", StringComparison.Ordinal)
+            || weaponName.StartsWith("Couperet", StringComparison.Ordinal);
+    }
+
+    internal static bool ApplyDeath(HashSet<int> alivePlayers, Dictionary<int, int> reserveBullets,
+        int deadPlayerId, int killerId)
+    {
+        if (!alivePlayers.Remove(deadPlayerId))
+        {
+            return false;
+        }
+
+        if (killerId >= 0 && killerId != deadPlayerId && alivePlayers.Contains(killerId))
+        {
+            reserveBullets.TryGetValue(killerId, out int bullets);
+            reserveBullets[killerId] = bullets + 1;
+        }
+
+        return true;
+    }
+}
+
+internal static class HotPotatoRules
+{
+    internal static bool IsAllowedWeapon(string weaponName, bool hasPotato)
+    {
+        string expected = hasPotato ? "BaseballBat" : "Shotgun";
+        return weaponName.StartsWith(expected, StringComparison.Ordinal);
+    }
+
+    internal static int ResolvePotato(int potatoPlayerId, int killerId, int deadPlayerId)
+    {
+        return killerId == potatoPlayerId && killerId != deadPlayerId
+            ? deadPlayerId
+            : potatoPlayerId;
+    }
 }
 
 internal static class ModeCycle

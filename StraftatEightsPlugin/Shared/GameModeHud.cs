@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
+using MyceliumNetworking;
+using Steamworks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,13 +13,17 @@ internal sealed class GameModeHud : MonoBehaviour
     private const float RefreshInterval = 0.25f;
     private const float AnnouncementDuration = 2f;
     private const float AnnouncementVerticalOffset = 260f;
+    private const float ScorePopupDuration = 1f;
+    private const float ScorePopupVerticalOffset = -70f;
     private const int MaxDisplayedNameLength = 14;
     private static GameModeHud? _instance;
     private GameObject _panel = null!;
     private TextMeshProUGUI _announcement = null!;
+    private TextMeshProUGUI _scorePopup = null!;
     private TextMeshProUGUI _scoreboard = null!;
     private float _nextRefreshTime;
     private float _announcementUntil;
+    private float _scorePopupUntil;
 
     private void Awake()
     {
@@ -47,6 +53,26 @@ internal sealed class GameModeHud : MonoBehaviour
         _announcement.outlineColor = new Color(0f, 0f, 0f, 0.9f);
         _announcement.raycastTarget = false;
         announcementObject.SetActive(false);
+
+        GameObject scorePopupObject = new("GameModeScorePopup");
+        scorePopupObject.transform.SetParent(transform, false);
+        RectTransform scorePopupRect = scorePopupObject.AddComponent<RectTransform>();
+        scorePopupRect.anchorMin = new Vector2(0.5f, 0.5f);
+        scorePopupRect.anchorMax = new Vector2(0.5f, 0.5f);
+        scorePopupRect.pivot = new Vector2(0.5f, 0.5f);
+        scorePopupRect.sizeDelta = new Vector2(400f, 80f);
+        scorePopupRect.anchoredPosition = new Vector2(0f, ScorePopupVerticalOffset);
+        _scorePopup = scorePopupObject.AddComponent<TextMeshProUGUI>();
+        _scorePopup.fontSize = 44f;
+        _scorePopup.fontStyle = FontStyles.Bold;
+        _scorePopup.color = new Color32(130, 255, 150, 255);
+        _scorePopup.richText = true;
+        _scorePopup.alignment = TextAlignmentOptions.Center;
+        _scorePopup.enableWordWrapping = false;
+        _scorePopup.outlineWidth = 0.2f;
+        _scorePopup.outlineColor = new Color(0f, 0f, 0f, 0.9f);
+        _scorePopup.raycastTarget = false;
+        scorePopupObject.SetActive(false);
 
         _panel = new GameObject("GameModePanel");
         _panel.transform.SetParent(transform, false);
@@ -83,6 +109,11 @@ internal sealed class GameModeHud : MonoBehaviour
 
     private void Update()
     {
+        if (_scorePopup.gameObject.activeSelf && Time.unscaledTime >= _scorePopupUntil)
+        {
+            _scorePopup.gameObject.SetActive(false);
+        }
+
         if (GameModeManager.IsMatchOver)
         {
             _announcement.gameObject.SetActive(false);
@@ -135,8 +166,54 @@ internal sealed class GameModeHud : MonoBehaviour
         _instance._announcement.gameObject.SetActive(true);
     }
 
+    internal static void ShowScorePopupForPlayer(int playerId, int amount)
+    {
+        if (playerId < 0 || amount <= 0 || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        if (ClientInstance.Instance != null && ClientInstance.Instance.PlayerId == playerId)
+        {
+            ShowScorePopup(amount);
+            return;
+        }
+
+        if (ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client)
+            && client != null && client && client.PlayerSteamID != 0)
+        {
+            MyceliumNetwork.RPCTarget(GameModeManager.ModId, nameof(Plugin.SyncScorePopup),
+                new CSteamID(client.PlayerSteamID), ReliableType.Reliable, amount);
+        }
+    }
+
+    internal static void ShowScorePopup(int amount)
+    {
+        if (_instance == null || amount <= 0)
+        {
+            return;
+        }
+
+        _instance._scorePopup.text = "+" + amount;
+        _instance._scorePopupUntil = Time.unscaledTime + ScorePopupDuration;
+        _instance._scorePopup.gameObject.SetActive(true);
+    }
+
     private void RefreshScoreboard()
     {
+        if (GameModeManager.IsActive(GameMode.MichaelMeyers))
+        {
+            _scoreboard.text = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode)
+                + "  Survivors: " + MichaelMeyersState.SurvivorCount;
+            return;
+        }
+        if (GameModeManager.IsActive(GameMode.OneInTheChamber))
+        {
+            _scoreboard.text = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode)
+                + "  " + OneInTheChamberState.AliveCount + " players alive";
+            return;
+        }
+
         Dictionary<int, int> scores;
         bool crownFirst;
         string header;
@@ -156,6 +233,24 @@ internal sealed class GameModeHud : MonoBehaviour
         {
             header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + SniperBattleState.PointsToWin + " points to win";
             scores = SniperBattleState.Points;
+            crownFirst = false;
+        }
+        else if (GameModeManager.IsActive(GameMode.KillTheRat))
+        {
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + KillTheRatState.PointsToWin + " points to win";
+            scores = KillTheRatState.Points;
+            crownFirst = false;
+        }
+        else if (GameModeManager.IsActive(GameMode.HotPotato))
+        {
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + HotPotatoState.KillsToWin + " points to win";
+            scores = HotPotatoState.Kills;
+            crownFirst = false;
+        }
+        else if (GameModeManager.IsActive(GameMode.Infidel))
+        {
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + InfidelState.KillsToWin + " points to win";
+            scores = InfidelState.Scores;
             crownFirst = false;
         }
         else

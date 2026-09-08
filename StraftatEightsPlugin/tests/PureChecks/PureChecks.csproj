@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\..\Shared\PureValidation.cs" Link="PureValidation.cs" />
+    <Compile Include="..\..\Shared\ScoreRules.cs" Link="ScoreRules.cs" />
   </ItemGroup>
 </Project>

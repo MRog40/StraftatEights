@@ -128,12 +128,13 @@ internal static class FFAState
         }
 
         Kills.TryGetValue(killerId, out int currentKills);
-        int totalKills = currentKills + 1;
+        int totalKills = currentKills + ScoreRules.PointsPerKill;
         Kills[killerId] = totalKills;
+        GameModeHud.ShowScorePopupForPlayer(killerId, ScoreRules.PointsPerKill);
         if (totalKills >= KillsToWin)
         {
             WinnerId = killerId;
-            Announce(PlayerLookup.GetPlayerNameTag(killerId) + " reached " + KillsToWin + " kills and won the round!");
+            Announce(PlayerLookup.GetPlayerNameTag(killerId) + " reached " + KillsToWin + " points and won the round!");
             GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(killerId));
         }
         BroadcastLiveState();

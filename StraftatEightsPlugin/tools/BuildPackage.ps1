@@ -50,4 +50,4 @@ if (Test-Path $PackageDirectory) {
 }
 Move-Item $stagingDirectory $PackageDirectory
 
-Write-Output "Package staged successfully: $PackageDirectory"
+Write-Output "Package staged successfully: $PackageDirectory" 

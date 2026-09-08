@@ -13,7 +13,7 @@ public partial class Plugin
     {
         const string section = "Game Mode Settings";
         SniperBattleEnabled = Config.Bind(section, "Sniper Battle Enabled", false,
-            "Host-controlled: players respawn with only the M2000, which has unlimited ammo, and score one point per kill.");
+            "Host-controlled: players respawn with only the M2000, which has unlimited ammo, and score ten points per kill.");
 
         SniperBattleEnabled.SettingChanged += (_, _) => { SniperBattleState.PushSettingsIfHost(); GameModeManager.OnSettingsChanged(); };
 

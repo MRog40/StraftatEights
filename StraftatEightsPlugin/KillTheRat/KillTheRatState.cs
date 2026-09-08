@@ -1,0 +1,362 @@
+using System;
+using System.Collections.Generic;
+using MyceliumNetworking;
+using Steamworks;
+using UnityEngine;
+
+namespace StraftatEightsPlugin;
+
+internal static class KillTheRatState
+{
+    internal const string HumanWeaponName = "Glock";
+    internal const string RatWeaponName = "Taser";
+    internal const float RatHealthMultiplier = 0.5f;
+    internal const float RatMovementMultiplier = 2f;
+    internal static bool Enabled;
+    internal static int CurrentRatPlayerId = -1;
+    internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
+    internal static int WinnerId = -1;
+    internal static readonly Dictionary<int, int> Points = new();
+
+    private static float _nextSettingsPushTime;
+    private static float _nextLiveStatePushTime;
+    private static float _nextLoadoutCheckTime;
+    private static float _survivalAccumulator;
+    private static int _settingsRevision;
+    private static int _lastSettingsRoundId = -1;
+    private static int _lastSettingsRevision = -1;
+    private static int _liveStateRevision;
+    private static int _lastLiveStateRoundId = -1;
+    private static int _lastLiveStateRevision = -1;
+    private static readonly Dictionary<int, float> PendingLoadouts = new();
+
+    internal static void ApplySettings(bool enabled)
+    {
+        bool changed = Enabled != enabled;
+        Enabled = enabled;
+        if (changed)
+        {
+            ResetMatchState();
+        }
+    }
+
+    private static void ApplySettingsFromHostConfig() => ApplySettings(Plugin.KillTheRatEnabled.Value);
+
+    internal static void PushSettingsIfHost()
+    {
+        if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        ApplySettingsFromHostConfig();
+        MyceliumNetwork.RPC(Plugin.KillTheRatModId, nameof(Plugin.SyncKillTheRatSettings), ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
+            Plugin.KillTheRatEnabled.Value);
+    }
+
+    internal static void PeriodicPushSettingsIfHost()
+    {
+        if (HostSettingsSync.IsDue(ref _nextSettingsPushTime))
+        {
+            PushSettingsIfHost();
+        }
+    }
+
+    internal static void PeriodicPushIfHost()
+    {
+        if (HostSettingsSync.IsDue(ref _nextLiveStatePushTime))
+        {
+            BroadcastLiveState();
+        }
+    }
+
+    internal static void OnLobbyEntered()
+    {
+        _lastSettingsRoundId = -1;
+        _lastSettingsRevision = -1;
+        if (MyceliumNetwork.IsHost)
+        {
+            ApplySettingsFromHostConfig();
+            ResetMatchState();
+        }
+    }
+
+    internal static void OnPlayerEntered(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        MyceliumNetwork.RPCTarget(Plugin.KillTheRatModId, nameof(Plugin.SyncKillTheRatSettings), player,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
+            Plugin.KillTheRatEnabled.Value);
+        MyceliumNetwork.RPCTarget(Plugin.KillTheRatModId, nameof(Plugin.SyncKillTheRatLiveState), player,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentRatPlayerId, SerializePoints(),
+            WinnerId, GameModeManager.RoundId, _liveStateRevision);
+    }
+
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    {
+        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+    }
+
+    internal static void ResetMatchState()
+    {
+        _liveStateRevision++;
+        _lastLiveStateRoundId = -1;
+        _lastLiveStateRevision = -1;
+        _survivalAccumulator = 0f;
+        _nextLoadoutCheckTime = 0f;
+        CurrentRatPlayerId = -1;
+        WinnerId = -1;
+        Points.Clear();
+        PendingLoadouts.Clear();
+    }
+
+    internal static void ApplyLiveState(CSteamID hostId, int ratPlayerId, string pointsData,
+        int winnerId, int roundId, int revision)
+    {
+        if (ratPlayerId < -1 || winnerId < -1)
+        {
+            return;
+        }
+        if (!SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+            ref _lastLiveStateRoundId, ref _lastLiveStateRevision))
+        {
+            return;
+        }
+
+        CurrentRatPlayerId = ratPlayerId;
+        WinnerId = winnerId;
+        Points.Clear();
+        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(pointsData, PointsToWin))
+        {
+            Points[entry.Key] = entry.Value;
+        }
+    }
+
+    internal static void ServerTick(float deltaTime)
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.KillTheRat)
+            || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost
+            || CurrentRatPlayerId < 0 || WinnerId >= 0)
+        {
+            return;
+        }
+
+        _survivalAccumulator += Mathf.Max(0f, deltaTime);
+        int seconds = Mathf.FloorToInt(_survivalAccumulator);
+        if (seconds <= 0)
+        {
+            return;
+        }
+
+        _survivalAccumulator -= seconds;
+        for (int second = 0; second < seconds && WinnerId < 0; second++)
+        {
+            AwardPoints(CurrentRatPlayerId, ScoreRules.PointsPerRatSurvivalSecond);
+        }
+    }
+
+    internal static void OnServerKill(int deadPlayerId, int killerId)
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.KillTheRat) || WinnerId >= 0)
+        {
+            return;
+        }
+
+        bool legitKill = killerId >= 0 && killerId != deadPlayerId;
+        if (deadPlayerId == CurrentRatPlayerId)
+        {
+            if (legitKill && killerId != CurrentRatPlayerId && AwardPoints(killerId, ScoreRules.PointsPerKill))
+            {
+                BecomeRat(killerId, PlayerLookup.GetPlayerNameTag(killerId)
+                    + " killed the RAT and is now the RAT! Kill them!");
+            }
+            else if (WinnerId < 0)
+            {
+                ClearRat();
+            }
+            return;
+        }
+
+        if (CurrentRatPlayerId < 0 && legitKill)
+        {
+            BecomeRat(killerId, PlayerLookup.GetPlayerNameTag(killerId)
+                + " got the first kill and is now the RAT! Kill them!");
+        }
+    }
+
+    internal static bool IsRat(PlayerHealth health)
+    {
+        return GameModeManager.IsActive(GameMode.KillTheRat)
+            && health.playerValues?.playerClient?.PlayerId == CurrentRatPlayerId;
+    }
+
+    internal static bool IsRat(FirstPersonController controller)
+    {
+        PlayerHealth? health = controller == null ? null : controller.GetComponent<PlayerHealth>();
+        return health != null && IsRat(health);
+    }
+
+    internal static bool IsRatWeapon(Weapon weapon)
+    {
+        return weapon != null && weapon.name.StartsWith(RatWeaponName, StringComparison.Ordinal);
+    }
+
+    internal static bool IsHumanWeapon(Weapon weapon)
+    {
+        return weapon != null && weapon.name.StartsWith(HumanWeaponName, StringComparison.Ordinal);
+    }
+
+    internal static void ApplyHealth(PlayerHealth controller, float baselineFullHealth)
+    {
+        float ratFullHealth = baselineFullHealth * RatHealthMultiplier;
+        controller.fullHealth = ratFullHealth;
+        if (!controller.IsServer)
+        {
+            return;
+        }
+
+        float healthToRemove = controller.sync___get_value_health() - ratFullHealth;
+        if (healthToRemove <= 0f)
+        {
+            return;
+        }
+
+        HealthSettingsTuning.ApplyingPassiveHealth = true;
+        try
+        {
+            FishNetCompatibility.TryRemoveHealth(controller, healthToRemove);
+        }
+        finally
+        {
+            HealthSettingsTuning.ApplyingPassiveHealth = false;
+        }
+    }
+
+    internal static void EnsureLoadouts()
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.KillTheRat)
+            || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost || WeaponService.IsFinalGameScreen
+            || Time.unscaledTime < _nextLoadoutCheckTime)
+        {
+            return;
+        }
+
+        _nextLoadoutCheckTime = Time.unscaledTime + 0.5f;
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client == null || !client || client.PlayerSpawner == null || !client.PlayerSpawner)
+            {
+                continue;
+            }
+
+            PlayerPickup? pickup = client.PlayerSpawner.player?.playerPickupScript;
+            if (pickup == null)
+            {
+                continue;
+            }
+
+            bool isRat = client.PlayerId == CurrentRatPlayerId;
+            string weaponName = isRat ? RatWeaponName : HumanWeaponName;
+            Weapon? heldWeapon = GetWeapon(pickup.objInHand) ?? GetWeapon(pickup.objInLeftHand);
+            if (heldWeapon != null && heldWeapon.name.StartsWith(weaponName, StringComparison.Ordinal))
+            {
+                if (!isRat)
+                {
+                    WeaponAmmoTuning.InitializeUnlimited(heldWeapon);
+                }
+                PendingLoadouts.Remove(client.PlayerId);
+                continue;
+            }
+
+            if (!PendingLoadouts.TryGetValue(client.PlayerId, out float retryTime)
+                || Time.unscaledTime >= retryTime)
+            {
+                PendingLoadouts[client.PlayerId] = Time.unscaledTime + 2f;
+                WeaponService.GiveWeapon(client.PlayerId, weaponName, unlimitedAmmo: !isRat);
+            }
+        }
+    }
+
+    internal static void RequestLoadout(int playerId)
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.KillTheRat) || !MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        bool isRat = playerId == CurrentRatPlayerId;
+        PendingLoadouts[playerId] = Time.unscaledTime + 2f;
+        WeaponService.GiveWeapon(playerId, isRat ? RatWeaponName : HumanWeaponName,
+            unlimitedAmmo: !isRat);
+    }
+
+    private static bool AwardPoints(int playerId, int amount)
+    {
+        Points.TryGetValue(playerId, out int current);
+        int total = current + amount;
+        Points[playerId] = total;
+        GameModeHud.ShowScorePopupForPlayer(playerId, amount);
+        if (total >= PointsToWin)
+        {
+            WinnerId = playerId;
+            Announce(PlayerLookup.GetPlayerNameTag(playerId) + " reached " + PointsToWin
+                + " points and won the KILL THE RAT round!");
+            BroadcastLiveState();
+            GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(playerId));
+            return false;
+        }
+
+        BroadcastLiveState();
+        return true;
+    }
+
+    private static void BecomeRat(int playerId, string announcement)
+    {
+        CurrentRatPlayerId = playerId;
+        _survivalAccumulator = 0f;
+        Announce(announcement);
+        PendingLoadouts.Remove(playerId);
+        RequestLoadout(playerId);
+        BroadcastLiveState();
+    }
+
+    private static void ClearRat()
+    {
+        CurrentRatPlayerId = -1;
+        _survivalAccumulator = 0f;
+        PendingLoadouts.Clear();
+        Announce("The RAT died. Humans, kill each other to choose a new RAT!");
+        BroadcastLiveState();
+    }
+
+    private static Weapon? GetWeapon(GameObject? heldObject)
+    {
+        return heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
+    }
+
+    private static string SerializePoints() => ScoreCodec.Serialize(Points);
+
+    private static void BroadcastLiveState()
+    {
+        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
+        {
+            MyceliumNetwork.RPC(Plugin.KillTheRatModId, nameof(Plugin.SyncKillTheRatLiveState), ReliableType.Reliable,
+                MyceliumNetwork.LobbyHost, CurrentRatPlayerId, SerializePoints(), WinnerId,
+                GameModeManager.RoundId, ++_liveStateRevision);
+        }
+    }
+
+    private static void Announce(string text)
+    {
+        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
+        {
+            MyceliumNetwork.RPC(Plugin.KillTheRatModId, nameof(Plugin.KillTheRatAnnounce), ReliableType.Reliable, text);
+        }
+    }
+}

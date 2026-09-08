@@ -201,7 +201,7 @@ internal static class JuggernautState
         {
             if (legitKill)
             {
-                AwardPoints(killerId, 1);
+                AwardPoints(killerId, ScoreRules.PointsPerKill);
                 BecomeJuggernaut(killerId, PlayerLookup.GetPlayerNameTag(killerId) + " drew <color=red>first blood</color> and is the <color=#FF6A00><b>JUGGERNAUT</b></color>!");
             }
             return;
@@ -211,7 +211,7 @@ internal static class JuggernautState
         {
             if (legitKill)
             {
-                AwardPoints(killerId, 2);
+                AwardPoints(killerId, ScoreRules.PointsPerJuggernautCrown);
                 BecomeJuggernaut(killerId, PlayerLookup.GetPlayerNameTag(killerId) + " slayed the Juggernaut and <color=#FF6A00><b>claimed the crown</b></color>!");
             }
             return;
@@ -220,7 +220,7 @@ internal static class JuggernautState
         if (legitKill && killerId == CurrentJuggernautPlayerId)
         {
             CurrentJuggernautKills++;
-            AwardPoints(killerId, 1);
+            AwardPoints(killerId, ScoreRules.PointsPerKill);
             GrantHealthForKill(killerId);
             BroadcastLiveState();
         }
@@ -243,6 +243,7 @@ internal static class JuggernautState
         Points.TryGetValue(playerId, out int value);
         int total = value + amount;
         Points[playerId] = total;
+        GameModeHud.ShowScorePopupForPlayer(playerId, amount);
         if (total >= PointsToWin)
         {
             WinnerId = playerId;

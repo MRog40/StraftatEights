@@ -40,6 +40,10 @@ public partial class Plugin : BaseUnityPlugin
         InitializeGlobalWeapons();
         InitializeDefaultGameMode();
         InitializeMichaelMeyers();
+        InitializeKillTheRat();
+        InitializeOneInTheChamber();
+        InitializeHotPotato();
+        InitializeInfidel();
         InitializeFFA();
         InitializeJuggernaut();
         InitializeGunGame();
@@ -84,6 +88,7 @@ public partial class Plugin : BaseUnityPlugin
         GameModeManager.EnsureActiveModeLoadouts();
         JuggernautOutline.EnforceOutline();
         MichaelMeyersOutline.EnforceOutline();
+        KillTheRatOutline.EnforceOutline();
     }
 }
 

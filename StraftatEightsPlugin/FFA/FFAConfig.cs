@@ -14,7 +14,7 @@ public partial class Plugin
     {
         const string section = "Game Mode Settings";
         FFAEnabled = Config.Bind(section, "Free For All Enabled", false,
-            "Host-controlled: players score kills independently; the first to the limit wins.");
+            "Host-controlled: players score ten points per kill; the first to 100 points wins.");
 
         FFAEnabled.SettingChanged += (_, _) => { FFAState.PushSettingsIfHost(); GameModeManager.OnSettingsChanged(); };
 

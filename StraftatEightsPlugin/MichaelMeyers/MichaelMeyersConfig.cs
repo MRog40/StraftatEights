@@ -38,10 +38,10 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncMichaelMeyersLiveState(CSteamID hostId, int michaelPlayerId, bool oneVsOne,
+    public void SyncMichaelMeyersLiveState(CSteamID hostId, int michaelPlayerId, int survivorCount, bool oneVsOne,
         int roundId, int revision)
     {
-        MichaelMeyersState.ApplyLiveState(hostId, michaelPlayerId, oneVsOne, roundId, revision);
+        MichaelMeyersState.ApplyLiveState(hostId, michaelPlayerId, survivorCount, oneVsOne, roundId, revision);
     }
 
     [CustomRPC]

@@ -15,6 +15,7 @@ internal static class MichaelMeyersState
     internal const float MovementMultiplier = 1.05f;
     internal static bool Enabled;
     internal static int CurrentMichaelPlayerId = -1;
+    internal static int SurvivorCount { get; private set; }
     private static int _oneVsOneSurvivorId = -1;
     internal static bool OneVsOne;
 
@@ -98,7 +99,7 @@ internal static class MichaelMeyersState
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
             Plugin.MichaelMeyersEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersLiveState), player,
-            ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, OneVsOne,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, SurvivorCount, OneVsOne,
             GameModeManager.RoundId, _liveStateRevision);
     }
 
@@ -116,6 +117,7 @@ internal static class MichaelMeyersState
         _lastLiveStateRevision = -1;
         _winnerId = -1;
         CurrentMichaelPlayerId = -1;
+        SurvivorCount = 0;
         _oneVsOneSurvivorId = -1;
         OneVsOne = false;
         RoundPlayers.Clear();
@@ -124,10 +126,10 @@ internal static class MichaelMeyersState
         _nextLoadoutCheckTime = 0f;
     }
 
-    internal static void ApplyLiveState(CSteamID hostId, int michaelPlayerId, bool oneVsOne,
+    internal static void ApplyLiveState(CSteamID hostId, int michaelPlayerId, int survivorCount, bool oneVsOne,
         int roundId, int revision)
     {
-        if (michaelPlayerId < -1)
+        if (michaelPlayerId < -1 || survivorCount < 0)
         {
             return;
         }
@@ -137,6 +139,7 @@ internal static class MichaelMeyersState
             return;
         }
         CurrentMichaelPlayerId = michaelPlayerId;
+        SurvivorCount = survivorCount;
         OneVsOne = oneVsOne;
     }
 
@@ -156,6 +159,7 @@ internal static class MichaelMeyersState
                 AlivePlayers.Add(client.PlayerId);
             }
         }
+        SurvivorCount = Math.Max(0, AlivePlayers.Count - 1);
 
         if (RoundPlayers.Count < 2 || Plugin.Instance == null)
         {
@@ -261,6 +265,7 @@ internal static class MichaelMeyersState
         {
             return;
         }
+        SurvivorCount = Math.Max(0, AlivePlayers.Count - 1);
 
         if (AlivePlayers.Count <= 1)
         {
@@ -427,7 +432,7 @@ internal static class MichaelMeyersState
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
             MyceliumNetwork.RPC(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersLiveState),
-                ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, OneVsOne,
+                ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, SurvivorCount, OneVsOne,
                 GameModeManager.RoundId, ++_liveStateRevision);
         }
     }

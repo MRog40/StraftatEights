@@ -2,10 +2,7 @@ using UnityEngine;
 
 namespace StraftatEightsPlugin;
 
-// Gives the current Juggernaut a colored outline visible to other players, using the same outline
-// shader properties the base game's enemy-outline feature uses (_ASEOutlineWidth/_ASEOutlineColor on
-// each body part's SkinnedMeshRenderer material).
-internal static class JuggernautOutline
+internal static class KillTheRatOutline
 {
     private static PlayerHealth? _outlinedPlayer;
     private static GameMode _lastMode = GameMode.None;
@@ -32,17 +29,19 @@ internal static class JuggernautOutline
             return;
         }
 
-        if (!GameModeManager.IsActive(GameMode.Juggernaut))
+        if (!GameModeManager.IsActive(GameMode.KillTheRat))
         {
-            if (_outlinedPlayer != null)
+            if (!GameModeManager.IsActive(GameMode.Juggernaut)
+                && !GameModeManager.IsActive(GameMode.MichaelMeyers)
+                && _outlinedPlayer != null)
             {
                 PlayerOutline.ClearApplied();
-                _outlinedPlayer = null;
             }
+            _outlinedPlayer = null;
             return;
         }
 
-        PlayerHealth? health = PlayerLookup.FindPlayerHealthById(JuggernautState.CurrentJuggernautPlayerId);
+        PlayerHealth? health = PlayerLookup.FindPlayerHealthById(KillTheRatState.CurrentRatPlayerId);
         if (health == null || !health.gameObject.activeInHierarchy)
         {
             if (_outlinedPlayer != null)
@@ -59,6 +58,6 @@ internal static class JuggernautOutline
             _outlinedPlayer = health;
         }
 
-        PlayerOutline.Apply(health, new Color(1f, 0.42f, 0f));
+        PlayerOutline.Apply(health, Color.yellow);
     }
 }

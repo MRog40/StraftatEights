@@ -18,6 +18,7 @@ internal static class WeaponAmmoTuning
         public bool ManualReloadPressed;
         public bool OriginalInHandDespawn;
         public bool UnlimitedAmmo;
+        public bool SingleShot;
     }
 
     private static readonly ConditionalWeakTable<Weapon, Memory> MemoryByWeapon = new();
@@ -57,6 +58,54 @@ internal static class WeaponAmmoTuning
             memory.Initialized = true;
         }
         memory.UnlimitedAmmo = true;
+    }
+
+    internal static void InitializeSingleShot(Weapon weapon, int spareRounds)
+    {
+        if (weapon == null || !weapon.needsAmmo)
+        {
+            return;
+        }
+
+        Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
+        if (!memory.SingleShot)
+        {
+            memory.MagazineSize = 1;
+            memory.SpareRounds = Mathf.Max(0, spareRounds);
+            memory.Initialized = true;
+            memory.UnlimitedAmmo = false;
+            memory.SingleShot = true;
+            weapon.reloadWeapon = false;
+            weapon.currentAmmo = 1;
+        }
+    }
+
+    internal static void SetSingleShotSpareRounds(Weapon weapon, int spareRounds)
+    {
+        InitializeSingleShot(weapon, spareRounds);
+        if (MemoryByWeapon.TryGetValue(weapon, out Memory memory))
+        {
+            memory.SpareRounds = Mathf.Max(0, spareRounds);
+        }
+    }
+
+    internal static void AddSingleShotSpareRounds(Weapon weapon, int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        InitializeSingleShot(weapon, 0);
+        if (MemoryByWeapon.TryGetValue(weapon, out Memory memory))
+        {
+            memory.SpareRounds += amount;
+        }
+    }
+
+    internal static bool IsSingleShot(Weapon weapon)
+    {
+        return MemoryByWeapon.TryGetValue(weapon, out Memory memory) && memory.SingleShot;
     }
 
     internal static void InitializeFromSpawnerPickup(Weapon weapon, int spareMagazines)

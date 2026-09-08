@@ -28,9 +28,30 @@ internal static class HealthSettingsTuning
         {
             memory.BaselineFullHealth = controller.fullHealth;
         }
+        if (GameModeManager.IsActive(GameMode.Infidel))
+        {
+            InfidelState.ApplyHealth(controller);
+            memory.LastModeSpecificHealth = true;
+            memory.LastAppliedVersion = version;
+            return;
+        }
+        if (GameModeManager.IsActive(GameMode.OneInTheChamber))
+        {
+            OneInTheChamberState.ApplyHealth(controller);
+            memory.LastModeSpecificHealth = true;
+            memory.LastAppliedVersion = version;
+            return;
+        }
         if (GameModeManager.IsActive(GameMode.Juggernaut) && JuggernautState.IsCurrentJuggernaut(controller))
         {
             JuggernautState.ApplyHealth(controller);
+            memory.LastModeSpecificHealth = true;
+            memory.LastAppliedVersion = version;
+            return;
+        }
+        if (GameModeManager.IsActive(GameMode.KillTheRat) && KillTheRatState.IsRat(controller))
+        {
+            KillTheRatState.ApplyHealth(controller, memory.BaselineFullHealth);
             memory.LastModeSpecificHealth = true;
             memory.LastAppliedVersion = version;
             return;
@@ -88,7 +109,8 @@ internal static class HealthSettingsTuning
     internal static void RegenerateIfNeeded(PlayerHealth controller, Memory memory)
     {
         bool juggernautHealth = GameModeManager.IsActive(GameMode.Juggernaut) && JuggernautState.IsCurrentJuggernaut(controller);
-        if (juggernautHealth || GameModeManager.ShouldIgnoreGlobalHealthSettings || !controller.IsServer || !controller.gameObject.activeInHierarchy || controller.health <= 0f)
+        bool ratHealth = GameModeManager.IsActive(GameMode.KillTheRat) && KillTheRatState.IsRat(controller);
+        if (juggernautHealth || ratHealth || GameModeManager.ShouldIgnoreGlobalHealthSettings || !controller.IsServer || !controller.gameObject.activeInHierarchy || controller.health <= 0f)
         {
             return;
         }

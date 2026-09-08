@@ -42,6 +42,43 @@ Assert(parsedScores.Count == 2 && parsedScores[4] == 2 && parsedScores[9] == 7,
 Dictionary<int, int> filteredScores = ScoreCodec.Parse("1:3;2:0;3:99;bad;1:4", 10);
 Assert(filteredScores.Count == 2 && filteredScores[1] == 4 && filteredScores[2] == 0,
     "Score parsing must reject malformed/out-of-range entries and keep the last duplicate.");
+Assert(ScoreRules.PointsToWin == 100 && ScoreRules.PointsPerKill == 10
+    && ScoreRules.PointsPerJuggernautCrown == 20 && ScoreRules.PointsPerRatSurvivalSecond == 1,
+    "Shared score rules must use the 100-point target and mode award values.");
+Dictionary<int, int> maximumScores = ScoreCodec.Parse("1:100;2:101", ScoreRules.PointsToWin);
+Assert(maximumScores.Count == 1 && maximumScores[1] == ScoreRules.PointsToWin,
+    "Score parsing must accept the shared maximum and reject values above it.");
+
+Assert(OneInTheChamberRules.IsAllowedWeapon("Pistol(Clone)"),
+    "One in the Chamber must allow the exact Pistol prefab.");
+Assert(OneInTheChamberRules.IsAllowedWeapon("Couperet(Clone)"),
+    "One in the Chamber must allow the Couperet prefab.");
+Assert(!OneInTheChamberRules.IsAllowedWeapon("Glock(Clone)")
+    && !OneInTheChamberRules.IsAllowedWeapon("Webley(Clone)"),
+    "One in the Chamber must reject Glock and Webley substitutions.");
+HashSet<int> alivePlayers = new() { 1, 2, 3 };
+Dictionary<int, int> reserveBullets = new() { [1] = 0, [2] = 2 };
+Assert(OneInTheChamberRules.ApplyDeath(alivePlayers, reserveBullets, 3, 1)
+    && !alivePlayers.Contains(3) && reserveBullets[1] == 1,
+    "A valid kill must eliminate the victim and award one bullet.");
+Assert(OneInTheChamberRules.ApplyDeath(alivePlayers, reserveBullets, 2, -1)
+    && !alivePlayers.Contains(2) && reserveBullets[1] == 1,
+    "A non-kill death must eliminate the victim without awarding a bullet.");
+Assert(alivePlayers.Count == 1 && alivePlayers.Contains(1),
+    "The last remaining player must be the round winner.");
+Assert(OneInTheChamberRules.PlayerHealth == 10,
+    "One in the Chamber must use ten health for every player.");
+Assert(HotPotatoRules.IsAllowedWeapon("BaseballBat(Clone)", true)
+    && HotPotatoRules.IsAllowedWeapon("Shotgun(Clone)", false),
+    "Hot Potato must use the BaseballBat and Shotgun prefabs.");
+Assert(!HotPotatoRules.IsAllowedWeapon("Glock(Clone)", false),
+    "Hot Potato must reject unrelated weapons.");
+Assert(HotPotatoRules.ResolvePotato(1, 1, 2) == 2
+    && HotPotatoRules.ResolvePotato(1, 3, 2) == 1,
+    "Only a kill by the current bat holder may transfer the potato.");
+Dictionary<int, int> signedScores = ScoreCodec.ParseSigned("1:-20;2:40", ScoreRules.PointsToWin);
+Assert(signedScores.Count == 2 && signedScores[1] == -20 && signedScores[2] == 40,
+    "Infidel score payloads must preserve negative and positive awards.");
 
 List<string> modes = new() { "Default", "FFA", "GunGame" };
 Assert(ModeCycle.TrySelectNext(modes, "Default", out string nextMode) && nextMode == "FFA",

@@ -17,7 +17,11 @@ internal enum GameMode
     GunGame = 3,
     SniperBattle = 4,
     Default = 5,
-    MichaelMeyers = 6
+    MichaelMeyers = 6,
+    KillTheRat = 7,
+    OneInTheChamber = 8,
+    HotPotato = 9,
+    Infidel = 10
 }
 
 internal enum GameModePhase
@@ -75,7 +79,11 @@ internal static class GameModeManager
         GameMode.Juggernaut,
         GameMode.GunGame,
         GameMode.SniperBattle,
-        GameMode.MichaelMeyers
+        GameMode.MichaelMeyers,
+        GameMode.KillTheRat,
+        GameMode.OneInTheChamber,
+        GameMode.HotPotato,
+        GameMode.Infidel
     };
 
     private static readonly Dictionary<GameMode, ModeDescriptor> Modes = new()
@@ -106,7 +114,29 @@ internal static class GameModeManager
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.HideHud | GameModeCapabilities.ClearOutlines,
             MichaelMeyersPeriodicPush, MichaelMeyersState.EnsureLoadouts,
-            MichaelMeyersState.PeriodicPushSettingsIfHost)
+            MichaelMeyersState.PeriodicPushSettingsIfHost),
+        [GameMode.KillTheRat] = new ModeDescriptor("KILL THE RAT", new Color32(170, 170, 170, 255),
+            () => Plugin.KillTheRatEnabled.Value, KillTheRatReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons,
+            KillTheRatState.PeriodicPushIfHost, KillTheRatState.EnsureLoadouts,
+            KillTheRatState.PeriodicPushSettingsIfHost),
+        [GameMode.OneInTheChamber] = new ModeDescriptor("ONE IN THE CHAMBER", new Color32(180, 180, 180, 255),
+            () => Plugin.OneInTheChamberEnabled.Value, OneInTheChamberReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.IgnoreGlobalHealth,
+            OneInTheChamberState.PeriodicPushIfHost, OneInTheChamberState.EnsureLoadouts,
+            OneInTheChamberState.PeriodicPushSettingsIfHost),
+        [GameMode.HotPotato] = new ModeDescriptor("HOT POTATO", new Color32(255, 170, 70, 255),
+            () => Plugin.HotPotatoEnabled.Value, HotPotatoReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons,
+            HotPotatoState.PeriodicPushIfHost, HotPotatoState.EnsureLoadouts,
+            HotPotatoState.PeriodicPushSettingsIfHost),
+        [GameMode.Infidel] = new ModeDescriptor("INFIDEL", new Color32(204, 64, 64, 255),
+            () => Plugin.InfidelEnabled.Value, InfidelReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.IgnoreGlobalHealth,
+            InfidelState.PeriodicPushIfHost, InfidelState.EnsureLoadouts,
+            InfidelState.PeriodicPushSettingsIfHost)
     };
 
     private static void DefaultReset() { }
@@ -121,6 +151,10 @@ internal static class GameModeManager
     private static void GunGameReset() => GunGameState.ResetMatchState();
     private static void SniperBattleReset() => SniperBattleState.ResetMatchState();
     private static void MichaelMeyersReset() => MichaelMeyersState.ResetMatchState();
+    private static void KillTheRatReset() => KillTheRatState.ResetMatchState();
+    private static void OneInTheChamberReset() => OneInTheChamberState.ResetMatchState();
+    private static void HotPotatoReset() => HotPotatoState.ResetMatchState();
+    private static void InfidelReset() => InfidelState.ResetMatchState();
 
     internal static GameMode ActiveMode { get; private set; }
     internal static GameModePhase Phase { get; private set; } = GameModePhase.Inactive;
@@ -128,7 +162,7 @@ internal static class GameModeManager
     internal static ConfigEntry<float> RespawnDelaySeconds = null!;
     internal static ConfigEntry<int> PointsToWin = null!;
     internal static float EffectiveRespawnDelaySeconds { get; set; } = 3f;
-    internal static int EffectivePointsToWin { get; private set; } = 10;
+    internal static int EffectivePointsToWin { get; private set; } = ScoreRules.PointsToWin;
     private static int _globalSettingsRevision;
     private static int _lastGlobalSettingsRoundId = -1;
     private static int _lastGlobalSettingsRevision = -1;
@@ -142,9 +176,10 @@ internal static class GameModeManager
             new ConfigDescription("Host-controlled: how long a killed player waits before respawning.",
                 new AcceptableValueRange<float>(0f, 10f)));
         RespawnDelaySeconds.SettingChanged += (_, _) => OnGlobalSettingsChanged();
-        PointsToWin = Plugin.Instance.Config.Bind("Global Settings", "Points To Win", 10,
-            new ConfigDescription("Host-controlled: score required to win point-based game modes.",
-                new AcceptableValueRange<int>(3, 30)));
+        PointsToWin = Plugin.Instance.Config.Bind("Global Settings", "Points To Win", ScoreRules.PointsToWin,
+            new ConfigDescription("Fixed score limit for all point-based game modes.",
+                new AcceptableValueRange<int>(ScoreRules.PointsToWin, ScoreRules.PointsToWin)));
+        PointsToWin.Value = ScoreRules.PointsToWin;
         PointsToWin.SettingChanged += (_, _) => OnGlobalSettingsChanged();
 
         MyceliumNetwork.RegisterNetworkObject(Plugin.Instance, ModId);
@@ -171,7 +206,7 @@ internal static class GameModeManager
     internal static void ApplyGlobalSettings(float respawnDelaySeconds, int pointsToWin)
     {
         EffectiveRespawnDelaySeconds = Mathf.Clamp(respawnDelaySeconds, 0f, 10f);
-        int nextPointsToWin = Mathf.Clamp(pointsToWin, 3, 30);
+        int nextPointsToWin = ScoreRules.PointsToWin;
         if (EffectivePointsToWin != nextPointsToWin)
         {
             EffectivePointsToWin = nextPointsToWin;
@@ -389,7 +424,7 @@ internal static class GameModeManager
         Phase = GameModePhase.Inactive;
         RoundId++;
         EffectiveRespawnDelaySeconds = 3f;
-        EffectivePointsToWin = 10;
+        EffectivePointsToWin = ScoreRules.PointsToWin;
         GlobalModifiersState.ResetForLobbyLeft();
         HealthSettingsState.ResetForLobbyLeft();
         WeaponSettingsState.ResetForLobbyLeft();
@@ -577,7 +612,8 @@ internal static class GameModeManager
             return false;
         }
 
-        if (mode != GameMode.MichaelMeyers && !FishNetCompatibility.CanRespawn)
+        if (mode != GameMode.MichaelMeyers && mode != GameMode.OneInTheChamber
+            && !FishNetCompatibility.CanRespawn)
         {
             Plugin.Logger.LogWarning($"[GameMode] Custom death handling disabled for {mode}: FishNet respawn API is unavailable.");
             return false;
@@ -628,6 +664,20 @@ internal static class GameModeManager
             case GameMode.MichaelMeyers:
                 MichaelMeyersState.OnServerKill(playerId, killerId);
                 break;
+            case GameMode.KillTheRat:
+                KillTheRatState.OnServerKill(playerId, killerId);
+                GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
+                break;
+            case GameMode.OneInTheChamber:
+                OneInTheChamberState.OnServerKill(playerId, killerId);
+                break;
+            case GameMode.HotPotato:
+                HotPotatoState.OnServerKill(playerId, killerId);
+                GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
+                break;
+            case GameMode.Infidel:
+                InfidelState.OnServerKill(playerId, killerId);
+                break;
         }
     }
 }
@@ -659,6 +709,17 @@ internal static class GameManager_GameModeDeath_Patch
 public partial class Plugin
 {
     [CustomRPC]
+    public void SyncScorePopup(int amount)
+    {
+        if (amount <= 0 || amount > ScoreRules.PointsToWin)
+        {
+            return;
+        }
+
+        GameModeHud.ShowScorePopup(amount);
+    }
+
+    [CustomRPC]
     public void SyncGlobalSettings(CSteamID hostId, int roundId, int revision, float respawnDelaySeconds,
         int pointsToWin)
     {
@@ -688,6 +749,7 @@ internal static class GameManager_GameModeReset_Patch
         GameModeManager.ResetGameState();
         JuggernautOutline.ResetState();
         MichaelMeyersOutline.ResetState();
+        KillTheRatOutline.ResetState();
     }
 }
 
