@@ -172,8 +172,7 @@ internal static class GameModeManager
                 new AcceptableValueRange<float>(0f, 10f)));
         RespawnDelaySeconds.SettingChanged += (_, _) => OnGlobalSettingsChanged();
         PointsToWin = Plugin.Instance.Config.Bind("Global Settings", "Points To Win", ScoreRules.PointsToWin,
-            new ConfigDescription("Fixed score limit for all point-based game modes.",
-                new AcceptableValueRange<int>(ScoreRules.PointsToWin, ScoreRules.PointsToWin)));
+            "Fixed score limit for all point-based game modes.");
         PointsToWin.Value = ScoreRules.PointsToWin;
         PointsToWin.SettingChanged += (_, _) => OnGlobalSettingsChanged();
 

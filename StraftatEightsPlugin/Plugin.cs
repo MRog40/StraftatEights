@@ -26,7 +26,7 @@ public partial class Plugin : BaseUnityPlugin
     // Shared/ holds cross-mode helpers (player lookups, team/weapon utilities) so future modes don't
     // duplicate them.
     private void Awake()  
-    {
+    {   
         Instance = this;
         Logger = base.Logger;
 

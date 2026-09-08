@@ -29,6 +29,9 @@ The plugin supports these modes and systems:
 
 The plugin configuration is created by BepInEx on first launch. Hosts control the shared settings for their lobby.
 
+For development and future mode work, see [MULTIPLAYER_SYNC_NOTES.md](MULTIPLAYER_SYNC_NOTES.md) and
+[FUTURE_MODE_GUIDE.md](FUTURE_MODE_GUIDE.md).
+
 FFA, Juggernaut, Sniper Battle, and Gun Game use a shared 100-point limit. Normal kills award 10 points; taking the Juggernaut crown awards 20 points. The host selects the next enabled game mode at random when a match starts or a map changes. Clients receive the active mode and score state from the host.
 
 Kill the Rat gives every player an unlimited Glock. The first player to get a kill becomes the Rat, gains a Taser, has half health, and moves at double speed. The Rat gains one point per second; killing the Rat awards 10 points and transfers the role. If the Rat dies without a killer, players must kill each other to choose a new Rat.

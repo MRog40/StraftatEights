@@ -132,3 +132,60 @@ When a result is asymmetric, compare the host and client logs and verify these f
 2. The client accepted it instead of rejecting it as old state.
 3. The client resolved the current replicated player object, not a stale respawn object.
 4. The client applied the local presentation after the player's materials and renderers were ready.
+
+## Shared sync implementation
+
+- `Shared/ModeSyncState.cs` owns transport bookkeeping only: settings/live revisions, resend timers,
+  accepted snapshot cursors, lobby reset, and live-state reset. It must not know a mode's payload,
+  score rules, roles, loadouts, or coroutines.
+- Every mode and global sync system has one private `ModeSyncState`. Keep settings and live revisions
+  separate. Use `LastLiveRoundId` only for mode-specific round-aware live-state decisions.
+- `ResetForLobby()` clears accepted cursors and retry timers. `ResetLiveState()` clears live cursors
+  without resetting outgoing revision order. This prevents stale state while preserving ordering for
+  late joiners.
+- A mode's state class keeps the RPC method signature, payload construction, payload validation,
+  gameplay state, and thin acceptance adapters. This keeps the wire contract stable while removing
+  repeated transport code.
+- Custom resend intervals belong in the mode's `ModeSyncState` constructor. Juggernaut uses a one
+  second live-state interval; ordinary settings and live streams use the shared default interval.
+
+## Global systems
+
+- Global movement, health, and weapon settings use the same host ID, round ID, revision, acceptance,
+  late-join, and periodic resend rules as game modes.
+- Global weapons keeps selected cycling weapons and pending loadout retries outside the sync helper.
+  Selection is keyed by player ID because weapon objects are replaced after respawn.
+- `GameModeManager` has separate settings and active-mode streams. Its active-mode snapshot carries
+  the mode, round, phase, and live revision; its global settings snapshot carries respawn and score
+  values. Do not merge these payloads just to reduce RPC count.
+- Mode capabilities provide precedence guards at shared patch boundaries. A mode-specific weapon,
+  health, movement, or respawn rule must explicitly block or layer the global rule while active.
+
+## Startup and ModMenu
+
+- BepInEx and ModMenu read the plugin's `ConfigFile`, not the source files. A config file can contain
+  entries left by an older build, so old sections do not prove that the current startup completed.
+- Bind every config entry before optional HUD setup or patch work can stop startup. `Plugin.cs` uses
+  per-feature safe initialization and logs `[Startup] Failed to initialize ...` while continuing to
+  later config modules.
+- ModMenu automatically displays supported `Config.Bind` entries. Normal settings do not require a
+  ModMenu API reference. Use shared section names to group related settings.
+- When settings disappear after a refactor, check the current BepInEx log for the final plugin-loaded
+  message, compare the deployed DLL hash with the build output, and restart the game after replacing
+  the DLL. There is no hot reload.
+
+## Future mode checklist
+
+Before merging a new mode, confirm:
+
+- the mode has its own folder, config, state, patch, and presentation files;
+- it has one unique Mycelium `ModId` and primitive RPC payloads;
+- all host actions and authoritative mutations are server-side;
+- settings and live state use `ModeSyncState` and periodic resend;
+- lobby, match, round, scene, respawn, and late-join resets are explicit;
+- global precedence flags are applied at shared patch boundaries;
+- player and weapon lookups use current player IDs, not stale component references;
+- all local visuals are applied on every peer after spawn and cosmetics;
+- Debug, pure checks, diagnostics, whitespace checks, Release, and the multiplayer test matrix pass.
+
+For the complete mode recipe and version-sensitive checklist, see `FUTURE_MODE_GUIDE.md`.
