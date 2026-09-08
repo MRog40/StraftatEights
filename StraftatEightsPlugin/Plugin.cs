@@ -65,10 +65,19 @@ public partial class Plugin : BaseUnityPlugin
             try
             {
                 int patchedCount = harmony.CreateClassProcessor(patchType).Patch().Count();
+                if (patchedCount == 0)
+                {
+                    const string reason = "no patch target was installed";
+                    HarmonyPatchStatus.RecordFailure(patchType, reason);
+                    Logger.LogError($"[Harmony] Disabled patch class {patchType.FullName}: {reason}.");
+                    continue;
+                }
+
                 Logger.LogInfo($"[Harmony] Patched {patchType.FullName} ({patchedCount} method(s)).");
             }
             catch (Exception exception)
             {
+                HarmonyPatchStatus.RecordFailure(patchType, exception.GetBaseException().Message);
                 Logger.LogError($"[Harmony] Disabled patch class {patchType.FullName}: "
                     + exception.GetBaseException().Message);
             }

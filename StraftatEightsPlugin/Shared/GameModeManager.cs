@@ -468,7 +468,9 @@ internal static class GameModeManager
 
     private static bool IsEnabled(GameMode mode)
     {
-        return Modes.TryGetValue(mode, out ModeDescriptor? descriptor) && descriptor.IsEnabled();
+        return Modes.TryGetValue(mode, out ModeDescriptor? descriptor)
+            && descriptor.IsEnabled()
+            && HarmonyPatchStatus.IsModeAvailable(mode);
     }
 
     private static void SetActiveMode(GameMode mode)
@@ -514,6 +516,15 @@ internal static class GameModeManager
         }
 
         GameMode nextMode = (GameMode)mode;
+        if (!HarmonyPatchStatus.IsModeAvailable(nextMode))
+        {
+            ResetMatchState();
+            ActiveMode = GameMode.None;
+            Phase = GameModePhase.Inactive;
+            RoundId = roundId;
+            return;
+        }
+
         bool newRound = roundId > RoundId;
         if (ActiveMode != nextMode || newRound)
         {

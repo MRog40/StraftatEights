@@ -16,7 +16,6 @@ internal static class WeaponService
     private static readonly Dictionary<string, GameObject> Prefabs = new(StringComparer.Ordinal);
     private static readonly BindingFlags Flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
     private static MethodInfo? SetObjectInHandLogic;
-    private static MethodInfo? SetObjectInHandObserver;
     private static MethodInfo? SetObjectInHandObserverLogic;
     private static bool _attachmentMethodsResolved;
     private static bool _attachmentMethodsAvailable;
@@ -194,7 +193,6 @@ internal static class WeaponService
             pickup.sync___set_value_hasObjectInLeftHand(true, true);
             pickup.sync___set_value_objInLeftHand(weapon, true);
         }
-        SetObjectInHandObserver!.Invoke(pickup, args);
         SetObjectInHandObserverLogic!.Invoke(pickup, args);
         pickup.HandsReconstruct();
         if (!rightHand)
@@ -397,10 +395,8 @@ internal static class WeaponService
 
         _attachmentMethodsResolved = true;
         SetObjectInHandLogic = FindAttachmentMethod("RpcLogic___SetObjectInHandServer_");
-        SetObjectInHandObserver = FindAttachmentMethod("SetObjectInHandObserver");
         SetObjectInHandObserverLogic = FindAttachmentMethod("RpcLogic___SetObjectInHandObserver_");
         _attachmentMethodsAvailable = SetObjectInHandLogic != null
-            && SetObjectInHandObserver != null
             && SetObjectInHandObserverLogic != null;
         if (!_attachmentMethodsAvailable)
         {
