@@ -209,7 +209,7 @@ internal static class GameModeManager
     {
         EffectiveRespawnDelaySeconds = Mathf.Clamp(respawnDelaySeconds, 0f, 10f);
         EffectiveInvincibleAfterSpawnSeconds = Mathf.Clamp(invincibleAfterSpawnSeconds, 0f, 10f);
-        int nextPointsToWin = ScoreRules.PointsToWin;
+        int nextPointsToWin = pointsToWin;
         if (EffectivePointsToWin != nextPointsToWin)
         {
             EffectivePointsToWin = nextPointsToWin;

@@ -11,8 +11,8 @@ internal static class InfidelState
 {
     internal const string WeaponName = "AK-K";
     internal const int SpareMagazines = 2;
-    internal const float InfidelHealth = 200f;
-    internal const float TerroristHealth = 100f;
+    internal const float InfidelHealth = 200f / 25f;
+    internal const float TerroristHealth = 100f / 25f;
     internal const float MovementMultiplier = 0.7f;
     internal const float WeaponDelaySeconds = 10f;
 
