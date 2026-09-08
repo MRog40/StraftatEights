@@ -30,23 +30,23 @@ public partial class Plugin : BaseUnityPlugin
         Instance = this;
         Logger = base.Logger;
 
-        FishNetCompatibility.LogPreflight();
-        WeaponService.Initialize();
-        GameModeManager.Initialize();
+        InitializeSafely("compatibility checks", FishNetCompatibility.LogPreflight);
+        InitializeSafely("weapon service", WeaponService.Initialize);
+        InitializeSafely("game mode manager", GameModeManager.Initialize);
 
-        InitializeGlobalModifiers();
-        InitializeHealthSettings();
-        InitializeGlobalWeapons();
-        InitializeDefaultGameMode();
-        InitializeMichaelMeyers();
-        InitializeKillTheRat();
-        InitializeOneInTheChamber();
-        InitializeHotPotato();
-        InitializeInfidel();
-        InitializeFFA();
-        InitializeJuggernaut();
-        InitializeGunGame();
-        InitializeSniperBattle();
+        InitializeSafely("global modifiers", InitializeGlobalModifiers);
+        InitializeSafely("health settings", InitializeHealthSettings);
+        InitializeSafely("global weapons", InitializeGlobalWeapons);
+        InitializeSafely("default game mode", InitializeDefaultGameMode);
+        InitializeSafely("Michael Meyers", InitializeMichaelMeyers);
+        InitializeSafely("Kill the Rat", InitializeKillTheRat);
+        InitializeSafely("One in the Chamber", InitializeOneInTheChamber);
+        InitializeSafely("Hot Potato", InitializeHotPotato);
+        InitializeSafely("Infidel", InitializeInfidel);
+        InitializeSafely("Free For All", InitializeFFA);
+        InitializeSafely("Juggernaut", InitializeJuggernaut);
+        InitializeSafely("Gun Game", InitializeGunGame);
+        InitializeSafely("Sniper Battle", InitializeSniperBattle);
 
         try
         {
@@ -59,6 +59,19 @@ public partial class Plugin : BaseUnityPlugin
 
         PatchAllSafely(new Harmony(MyPluginInfo.PLUGIN_GUID));
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
+    }
+
+    private static void InitializeSafely(string featureName, Action initialize)
+    {
+        try
+        {
+            initialize();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError($"[Startup] Failed to initialize {featureName}: "
+                + exception.GetBaseException().Message);
+        }
     }
 
     private static void PatchAllSafely(Harmony harmony)
