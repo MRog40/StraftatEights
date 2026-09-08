@@ -27,15 +27,8 @@ internal static class InfidelState
     private static readonly HashSet<int> AlivePlayers = new();
     private static readonly HashSet<int> PendingHealthResets = new();
     private static readonly Dictionary<int, float> PendingLoadouts = new();
-    private static float _nextSettingsPushTime;
-    private static float _nextLiveStatePushTime;
     private static float _nextLoadoutCheckTime;
-    private static int _settingsRevision;
-    private static int _lastSettingsRoundId = -1;
-    private static int _lastSettingsRevision = -1;
-    private static int _liveStateRevision;
-    private static int _lastLiveStateRoundId = -1;
-    private static int _lastLiveStateRevision = -1;
+    private static readonly ModeSyncState Sync = new();
     private static int _subRoundId;
     private static int _localRoleSubRoundId = -1;
     private static bool _subRoundEnding;
@@ -61,13 +54,13 @@ internal static class InfidelState
 
         ApplySettingsFromHostConfig();
         MyceliumNetwork.RPC(Plugin.InfidelModId, nameof(Plugin.SyncInfidelSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
             Plugin.InfidelEnabled.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
     {
-        if (HostSettingsSync.IsDue(ref _nextSettingsPushTime))
+        if (Sync.IsSettingsPushDue())
         {
             PushSettingsIfHost();
         }
@@ -75,7 +68,7 @@ internal static class InfidelState
 
     internal static void PeriodicPushIfHost()
     {
-        if (!HostSettingsSync.IsDue(ref _nextLiveStatePushTime))
+        if (!Sync.IsLivePushDue())
         {
             return;
         }
@@ -86,8 +79,7 @@ internal static class InfidelState
 
     internal static void OnLobbyEntered()
     {
-        _lastSettingsRoundId = -1;
-        _lastSettingsRevision = -1;
+        Sync.ResetForLobby();
         if (MyceliumNetwork.IsHost)
         {
             ApplySettingsFromHostConfig();
@@ -103,11 +95,11 @@ internal static class InfidelState
         }
 
         MyceliumNetwork.RPCTarget(Plugin.InfidelModId, nameof(Plugin.SyncInfidelSettings), player,
-            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
             Plugin.InfidelEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.InfidelModId, nameof(Plugin.SyncInfidelLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeScores(), WinnerId,
-            _subRoundId, WeaponsUnlocked, GameModeManager.RoundId, _liveStateRevision);
+            _subRoundId, WeaponsUnlocked, GameModeManager.RoundId, Sync.LiveRevision);
 
         if (InfidelPlayerId >= 0 && SubRoundIsActive())
         {
@@ -124,16 +116,13 @@ internal static class InfidelState
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
 
     internal static void ResetMatchState()
     {
         StopSubRoundTransition();
-        _liveStateRevision++;
-        _lastLiveStateRoundId = -1;
-        _lastLiveStateRevision = -1;
+        Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
         _subRoundId = 0;
         _localRoleSubRoundId = -1;
@@ -151,9 +140,8 @@ internal static class InfidelState
     internal static void ApplyLiveState(CSteamID hostId, string scoresData, int winnerId,
         int subRoundId, bool weaponsUnlocked, int roundId, int revision)
     {
-        int previousRoundId = _lastLiveStateRoundId;
-        if (winnerId < -1 || !SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastLiveStateRoundId, ref _lastLiveStateRevision))
+        int previousRoundId = Sync.LastLiveRoundId;
+        if (winnerId < -1 || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
         {
             return;
         }
@@ -313,8 +301,6 @@ internal static class InfidelState
                 : "You are a <color=#4D9BFF><b>TERRORIST</b></color>.");
         }
     }
-
-    internal static bool IsSubRoundActive() => SubRoundIsActive();
 
     private static bool SubRoundIsActive()
     {
@@ -573,7 +559,7 @@ internal static class InfidelState
         {
             MyceliumNetwork.RPC(Plugin.InfidelModId, nameof(Plugin.SyncInfidelLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, SerializeScores(), WinnerId, _subRoundId,
-                WeaponsUnlocked, GameModeManager.RoundId, ++_liveStateRevision);
+                WeaponsUnlocked, GameModeManager.RoundId, Sync.NextLiveRevision());
         }
     }
 

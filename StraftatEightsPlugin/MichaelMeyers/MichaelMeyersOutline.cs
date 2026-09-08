@@ -7,26 +7,18 @@ namespace StraftatEightsPlugin;
 internal static class MichaelMeyersOutline
 {
     private static readonly Dictionary<int, PlayerHealth> OutlinedPlayers = new();
-    private static GameMode _lastMode = GameMode.None;
 
     internal static void ResetState()
     {
-        PlayerOutline.ClearApplied();
         OutlinedPlayers.Clear();
-        _lastMode = GameMode.None;
     }
 
     internal static void EnforceOutline()
     {
         GameMode activeMode = GameModeManager.ActiveMode;
-        if (_lastMode != activeMode)
+        if (PlayerOutline.UpdateMode(activeMode))
         {
-            if (!GameModeManager.IsActive(GameMode.Juggernaut))
-            {
-                PlayerOutline.ClearAll();
-            }
             OutlinedPlayers.Clear();
-            _lastMode = activeMode;
         }
 
         if (!GameModeManager.IsActive(GameMode.MichaelMeyers))

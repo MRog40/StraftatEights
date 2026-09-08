@@ -27,9 +27,7 @@ internal static class GlobalModifiersState
     // When disabled, every value is forced back to its true stock/neutral equivalent (not just this
     // mod's own defaults - e.g. ADS slowdown defaults to an intentional 80%, but "disabled" means 100%)
     // so the individual sliders are ignored entirely and movement is pure stock Straftat.
-    private static int _settingsRevision;
-    private static int _lastSettingsRoundId = -1;
-    private static int _lastSettingsRevision = -1;
+    private static readonly ModeSyncState Sync = new();
 
     internal static void Apply(bool enabled, bool wallJump, bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent, int gravityPercent, int momentumPercent, int airSpeedRatioPercent)
     {
@@ -83,7 +81,7 @@ internal static class GlobalModifiersState
         ApplyFromHostConfig();
         Plugin.Logger.LogInfo($"[MovementSettings] Host broadcasting movement settings to {MyceliumNetwork.PlayerCount} player(s)");
         MyceliumNetwork.RPC(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), ReliableType.Reliable,
-            RpcArgs(++_settingsRevision));
+            RpcArgs(Sync.NextSettingsRevision()));
     }
 
     // Mycelium's P2P session in this game intermittently fails to deliver a message with no error on
@@ -91,11 +89,9 @@ internal static class GlobalModifiersState
     // log), so a single one-shot broadcast on config change or player join isn't reliable enough.
     // Resending periodically regardless of whether anything changed self-heals within a few seconds,
     // the same way the (working) Juggernaut mod's every-second state rebroadcast does.
-    private static float _nextPeriodicPushTime;
-
     internal static void PeriodicPushIfHost()
     {
-        if (!HostSettingsSync.IsDue(ref _nextPeriodicPushTime))
+        if (!Sync.IsSettingsPushDue())
         {
             return;
         }
@@ -105,8 +101,7 @@ internal static class GlobalModifiersState
     internal static void OnLobbyEntered()
     {
         Plugin.Logger.LogInfo($"[GlobalModifiers] Lobby session started, IsHost={MyceliumNetwork.IsHost}");
-        _lastSettingsRoundId = -1;
-        _lastSettingsRevision = -1;
+        Sync.ResetForLobby();
         if (MyceliumNetwork.IsHost)
         {
             ApplyFromHostConfig();
@@ -115,6 +110,7 @@ internal static class GlobalModifiersState
 
     internal static void ResetForLobbyLeft()
     {
+        Sync.ResetForLobby();
         Apply(false, true, true, true, true, 100, 100, 100, 100, Mathf.RoundToInt(MovementTuning.StockAirSpeedRatioPercent));
     }
 
@@ -127,13 +123,12 @@ internal static class GlobalModifiersState
         }
         Plugin.Logger.LogInfo($"[MovementSettings] Sending catch-up movement settings to newly joined player {player}");
         MyceliumNetwork.RPCTarget(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), player,
-            ReliableType.Reliable, RpcArgs(_settingsRevision));
+            ReliableType.Reliable, RpcArgs(Sync.SettingsRevision));
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
 
     // MyceliumNetworking's serializer only supports primitives

@@ -84,12 +84,6 @@ internal static class MovementTuning
         box.Value = version;
     }
 
-    internal static float GetWalkSpeed(FirstPersonController controller)
-    {
-        EnsureCached();
-        return (float)_walkSpeed.GetValue(controller);
-    }
-
     internal static float GetSprintSpeed(FirstPersonController controller)
     {
         EnsureCached();

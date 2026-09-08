@@ -23,28 +23,17 @@ internal static class JuggernautState
     internal static int WinnerId = -1;
     internal static readonly Dictionary<int, int> Points = new();
 
-    private static float _nextBroadcastTime;
-    private static float _nextLiveStatePushTime;
     private static float _nextLoadoutCheckTime;
-    private static int _settingsRevision;
-    private static int _lastSettingsRoundId = -1;
-    private static int _lastSettingsRevision = -1;
-    private static int _liveStateRevision;
-    private static int _lastLiveStateRoundId = -1;
-    private static int _lastLiveStateRevision = -1;
+    private static readonly ModeSyncState Sync = new(livePushInterval: 1f);
     private static readonly Dictionary<int, float> PendingLoadouts = new();
 
     internal static void ResetMatchState()
     {
-        _liveStateRevision++;
-        _lastLiveStateRoundId = -1;
-        _lastLiveStateRevision = -1;
+        Sync.ResetLiveState();
         CurrentJuggernautPlayerId = -1;
         CurrentJuggernautKills = 0;
         WinnerId = -1;
         Points.Clear();
-        _nextBroadcastTime = 0f;
-        _nextLiveStatePushTime = 0f;
         PendingLoadouts.Clear();
     }
 
@@ -73,17 +62,15 @@ internal static class JuggernautState
         ApplySettingsFromHostConfig();
         Plugin.Logger.LogInfo($"[Juggernaut] Host broadcasting settings to {MyceliumNetwork.PlayerCount} player(s)");
         MyceliumNetwork.RPC(Plugin.JuggernautModId, nameof(Plugin.SyncJuggernautSettings), ReliableType.Reliable,
-            SettingsRpcArgs(++_settingsRevision));
+            SettingsRpcArgs(Sync.NextSettingsRevision()));
     }
-
-    private static float _nextPeriodicSettingsPushTime;
 
     // Same reasoning as GlobalModifiersState.PeriodicPushIfHost: a single one-shot settings broadcast
     // can be silently dropped by a flaky Mycelium P2P session, so keep resending periodically while
     // hosting (the live-state broadcast in ServerTick already does this every second; settings didn't).
     internal static void PeriodicPushSettingsIfHost()
     {
-        if (HostSettingsSync.IsDue(ref _nextPeriodicSettingsPushTime))
+        if (Sync.IsSettingsPushDue())
         {
             PushSettingsIfHost();
         }
@@ -94,7 +81,7 @@ internal static class JuggernautState
         PeriodicPushSettingsIfHost();
 
         if (Enabled && GameModeManager.IsActive(GameMode.Juggernaut)
-            && HostSettingsSync.IsDue(ref _nextLiveStatePushTime))
+            && Sync.IsLivePushDue())
         {
             BroadcastLiveState();
         }
@@ -102,8 +89,7 @@ internal static class JuggernautState
 
     internal static void OnLobbyEntered()
     {
-        _lastSettingsRoundId = -1;
-        _lastSettingsRevision = -1;
+        Sync.ResetForLobby();
         Plugin.Logger.LogInfo($"[Juggernaut] Lobby session started, IsHost={MyceliumNetwork.IsHost}");
         if (MyceliumNetwork.IsHost)
         {
@@ -121,17 +107,16 @@ internal static class JuggernautState
         }
         Plugin.Logger.LogInfo($"[Juggernaut] Sending catch-up settings/state to newly joined player {player}");
         MyceliumNetwork.RPCTarget(Plugin.JuggernautModId, nameof(Plugin.SyncJuggernautSettings), player,
-            ReliableType.Reliable, SettingsRpcArgs(_settingsRevision));
+            ReliableType.Reliable, SettingsRpcArgs(Sync.SettingsRevision));
         MyceliumNetwork.RPCTarget(Plugin.JuggernautModId, nameof(Plugin.SyncJuggernautLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentJuggernautPlayerId, CurrentJuggernautKills,
             SerializePoints(),
-            GameModeManager.RoundId, _liveStateRevision);
+            GameModeManager.RoundId, Sync.LiveRevision);
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
 
     private static object[] SettingsRpcArgs(int revision)
@@ -152,8 +137,7 @@ internal static class JuggernautState
         {
             return;
         }
-        if (!SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastLiveStateRoundId, ref _lastLiveStateRevision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
         {
             return;
         }
@@ -181,9 +165,8 @@ internal static class JuggernautState
             return;
         }
 
-        if (Time.unscaledTime >= _nextBroadcastTime)
+        if (Sync.IsLivePushDue())
         {
-            _nextBroadcastTime = Time.unscaledTime + 1f;
             BroadcastLiveState();
         }
     }
@@ -387,7 +370,7 @@ internal static class JuggernautState
         }
         MyceliumNetwork.RPC(Plugin.JuggernautModId, nameof(Plugin.SyncJuggernautLiveState), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, CurrentJuggernautPlayerId, CurrentJuggernautKills, SerializePoints(),
-            GameModeManager.RoundId, ++_liveStateRevision);
+            GameModeManager.RoundId, Sync.NextLiveRevision());
     }
 
     private static void Announce(string text)

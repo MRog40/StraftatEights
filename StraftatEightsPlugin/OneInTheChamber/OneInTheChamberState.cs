@@ -16,15 +16,8 @@ internal static class OneInTheChamberState
     internal static readonly HashSet<int> AlivePlayers = new();
     internal static readonly Dictionary<int, int> ReserveBullets = new();
 
-    private static float _nextSettingsPushTime;
-    private static float _nextLiveStatePushTime;
     private static float _nextLoadoutCheckTime;
-    private static int _settingsRevision;
-    private static int _lastSettingsRoundId = -1;
-    private static int _lastSettingsRevision = -1;
-    private static int _liveStateRevision;
-    private static int _lastLiveStateRoundId = -1;
-    private static int _lastLiveStateRevision = -1;
+    private static readonly ModeSyncState Sync = new();
     private static readonly HashSet<int> RoundPlayers = new();
     private static readonly Dictionary<int, float> PendingRightLoadouts = new();
     private static readonly Dictionary<int, float> PendingLeftLoadouts = new();
@@ -50,13 +43,13 @@ internal static class OneInTheChamberState
 
         ApplySettingsFromHostConfig();
         MyceliumNetwork.RPC(Plugin.OneInTheChamberModId, nameof(Plugin.SyncOneInTheChamberSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
             Plugin.OneInTheChamberEnabled.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
     {
-        if (HostSettingsSync.IsDue(ref _nextSettingsPushTime))
+        if (Sync.IsSettingsPushDue())
         {
             PushSettingsIfHost();
         }
@@ -64,7 +57,7 @@ internal static class OneInTheChamberState
 
     internal static void PeriodicPushIfHost()
     {
-        if (HostSettingsSync.IsDue(ref _nextLiveStatePushTime))
+        if (Sync.IsLivePushDue())
         {
             SyncReserveBulletsFromWeapons();
             BroadcastLiveState();
@@ -73,8 +66,7 @@ internal static class OneInTheChamberState
 
     internal static void OnLobbyEntered()
     {
-        _lastSettingsRoundId = -1;
-        _lastSettingsRevision = -1;
+        Sync.ResetForLobby();
         if (MyceliumNetwork.IsHost)
         {
             ApplySettingsFromHostConfig();
@@ -90,24 +82,21 @@ internal static class OneInTheChamberState
         }
 
         MyceliumNetwork.RPCTarget(Plugin.OneInTheChamberModId, nameof(Plugin.SyncOneInTheChamberSettings), player,
-            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
             Plugin.OneInTheChamberEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.OneInTheChamberModId, nameof(Plugin.SyncOneInTheChamberLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeAlive(), SerializeBullets(),
-            GameModeManager.RoundId, _liveStateRevision);
+            GameModeManager.RoundId, Sync.LiveRevision);
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
 
     internal static void ResetMatchState()
     {
-        _liveStateRevision++;
-        _lastLiveStateRoundId = -1;
-        _lastLiveStateRevision = -1;
+        Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
         AlivePlayers.Clear();
         RoundPlayers.Clear();
@@ -119,8 +108,7 @@ internal static class OneInTheChamberState
     internal static void ApplyLiveState(CSteamID hostId, string aliveData, string bulletsData,
         int roundId, int revision)
     {
-        if (!SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastLiveStateRoundId, ref _lastLiveStateRevision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
         {
             return;
         }
@@ -431,7 +419,7 @@ internal static class OneInTheChamberState
         {
             MyceliumNetwork.RPC(Plugin.OneInTheChamberModId, nameof(Plugin.SyncOneInTheChamberLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, SerializeAlive(), SerializeBullets(),
-                GameModeManager.RoundId, ++_liveStateRevision);
+                GameModeManager.RoundId, Sync.NextLiveRevision());
         }
     }
 

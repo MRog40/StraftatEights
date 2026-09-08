@@ -20,6 +20,41 @@ internal static class SnapshotValidation
     }
 }
 
+internal sealed class ModeSyncValidation
+{
+    private int lastSettingsRoundId = -1;
+    private int lastSettingsRevision = -1;
+    private int lastLiveRoundId = -1;
+    private int lastLiveRevision = -1;
+
+    internal int SettingsRevision { get; private set; }
+    internal int LiveRevision { get; private set; }
+
+    internal int NextSettingsRevision() => ++SettingsRevision;
+
+    internal int NextLiveRevision() => ++LiveRevision;
+
+    internal bool TryAcceptSettings(int roundId, int revision)
+    {
+        return SnapshotValidation.TryAccept(roundId, revision,
+            ref lastSettingsRoundId, ref lastSettingsRevision);
+    }
+
+    internal bool TryAcceptLive(int roundId, int revision)
+    {
+        return SnapshotValidation.TryAccept(roundId, revision,
+            ref lastLiveRoundId, ref lastLiveRevision);
+    }
+
+    internal void ResetForLobby()
+    {
+        lastSettingsRoundId = -1;
+        lastSettingsRevision = -1;
+        lastLiveRoundId = -1;
+        lastLiveRevision = -1;
+    }
+}
+
 internal static class WeaponListParser
 {
     internal static List<string> Parse(string value, IEnumerable<string> validNames)

@@ -26,6 +26,20 @@ Assert(!SnapshotValidation.TryAccept(-1, 0, ref lastRound, ref lastRevision),
 Assert(!SnapshotValidation.TryAccept(3, -1, ref lastRound, ref lastRevision),
     "A negative revision must be rejected.");
 
+ModeSyncValidation sync = new();
+Assert(sync.NextSettingsRevision() == 1 && sync.NextLiveRevision() == 1,
+    "Settings and live revisions must start as independent streams.");
+Assert(sync.TryAcceptSettings(2, 1), "The first settings snapshot should be accepted.");
+Assert(sync.TryAcceptLive(1, 4), "The first live snapshot should use its own cursor.");
+Assert(!sync.TryAcceptSettings(1, 99), "An older settings round must be rejected.");
+Assert(!sync.TryAcceptLive(1, 3), "An older live revision must be rejected.");
+Assert(sync.TryAcceptLive(2, 0), "A new live round must accept a reset revision.");
+sync.ResetForLobby();
+Assert(sync.TryAcceptSettings(0, 0) && sync.TryAcceptLive(0, 0),
+    "Lobby reset must clear both accepted snapshot cursors.");
+Assert(sync.SettingsRevision == 1 && sync.LiveRevision == 1,
+    "Lobby reset must preserve outgoing revisions for late-join ordering.");
+
 List<string> parsed = WeaponListParser.Parse(
     " Glock; SMG, Glock, Invalid, ;SMG ",
     new[] { "Glock", "SMG", "Shotgun" });

@@ -13,11 +13,8 @@ internal static class HealthSettingsState
     internal static float RegenRate = 10f;
     internal static int TuningVersion;
 
-    private static float _nextPeriodicPushTime;
     private static float _nextServerScanTime;
-    private static int _settingsRevision;
-    private static int _lastSettingsRoundId = -1;
-    private static int _lastSettingsRevision = -1;
+    private static readonly ModeSyncState Sync = new();
 
     internal static void Apply(bool enabled, int maxHealthPercent, bool regenEnabled, int regenDelaySeconds, int regenRate)
     {
@@ -53,12 +50,12 @@ internal static class HealthSettingsState
         }
         ApplyFromHostConfig();
         MyceliumNetwork.RPC(Plugin.HealthSettingsModId, nameof(Plugin.SyncHealthSettings), ReliableType.Reliable,
-            RpcArgs(++_settingsRevision));
+            RpcArgs(Sync.NextSettingsRevision()));
     }
 
     internal static void PeriodicPushIfHost()
     {
-        if (!HostSettingsSync.IsDue(ref _nextPeriodicPushTime))
+        if (!Sync.IsSettingsPushDue())
         {
             return;
         }
@@ -72,7 +69,6 @@ internal static class HealthSettingsState
         {
             return;
         }
-
         _nextServerScanTime = Time.unscaledTime + 0.1f;
         PlayerHealth[] players = UnityEngine.Object.FindObjectsOfType<PlayerHealth>(true);
         foreach (PlayerHealth player in players)
@@ -84,8 +80,7 @@ internal static class HealthSettingsState
 
     internal static void OnLobbyEntered()
     {
-        _lastSettingsRoundId = -1;
-        _lastSettingsRevision = -1;
+        Sync.ResetForLobby();
         if (MyceliumNetwork.IsHost)
         {
             ApplyFromHostConfig();
@@ -94,6 +89,7 @@ internal static class HealthSettingsState
 
     internal static void ResetForLobbyLeft()
     {
+        Sync.ResetForLobby();
         Apply(false, 100, false, 5, 25);
     }
 
@@ -104,13 +100,12 @@ internal static class HealthSettingsState
             return;
         }
         MyceliumNetwork.RPCTarget(Plugin.HealthSettingsModId, nameof(Plugin.SyncHealthSettings), player,
-            ReliableType.Reliable, RpcArgs(_settingsRevision));
+            ReliableType.Reliable, RpcArgs(Sync.SettingsRevision));
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
 
     private static object[] RpcArgs(int revision)

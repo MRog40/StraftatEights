@@ -13,14 +13,7 @@ internal static class FFAState
     internal static int WinnerId = -1;
     internal static readonly Dictionary<int, int> Kills = new();
 
-    private static float _nextSettingsPushTime;
-    private static float _nextLiveStatePushTime;
-    private static int _settingsRevision;
-    private static int _lastSettingsRoundId = -1;
-    private static int _lastSettingsRevision = -1;
-    private static int _liveStateRevision;
-    private static int _lastLiveStateRoundId = -1;
-    private static int _lastLiveStateRevision = -1;
+    private static readonly ModeSyncState Sync = new();
 
     internal static void ApplySettings(bool enabled)
     {
@@ -42,12 +35,12 @@ internal static class FFAState
         }
         ApplySettingsFromHostConfig();
         MyceliumNetwork.RPC(Plugin.FFAModId, nameof(Plugin.SyncFFASettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision, Plugin.FFAEnabled.Value);
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(), Plugin.FFAEnabled.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
     {
-        if (!HostSettingsSync.IsDue(ref _nextSettingsPushTime))
+        if (!Sync.IsSettingsPushDue())
         {
             return;
         }
@@ -57,7 +50,7 @@ internal static class FFAState
        internal static void PeriodicPushIfHost()
        {
            PeriodicPushSettingsIfHost();
-           if (HostSettingsSync.IsDue(ref _nextLiveStatePushTime))
+           if (Sync.IsLivePushDue())
            {
                BroadcastLiveState();
            }
@@ -65,8 +58,7 @@ internal static class FFAState
 
     internal static void OnLobbyEntered()
     {
-        _lastSettingsRoundId = -1;
-        _lastSettingsRevision = -1;
+        Sync.ResetForLobby();
         if (MyceliumNetwork.IsHost)
         {
             ApplySettingsFromHostConfig();
@@ -81,22 +73,19 @@ internal static class FFAState
             return;
         }
         MyceliumNetwork.RPCTarget(Plugin.FFAModId, nameof(Plugin.SyncFFASettings), player, ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision, Plugin.FFAEnabled.Value);
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision, Plugin.FFAEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.FFAModId, nameof(Plugin.SyncFFALiveState), player, ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, SerializeKills(), WinnerId, GameModeManager.RoundId, _liveStateRevision);
+            MyceliumNetwork.LobbyHost, SerializeKills(), WinnerId, GameModeManager.RoundId, Sync.LiveRevision);
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
 
     internal static void ResetMatchState()
     {
-        _liveStateRevision++;
-        _lastLiveStateRoundId = -1;
-        _lastLiveStateRevision = -1;
+        Sync.ResetLiveState();
         WinnerId = -1;
         Kills.Clear();
     }
@@ -107,8 +96,7 @@ internal static class FFAState
         {
             return;
         }
-        if (!SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastLiveStateRoundId, ref _lastLiveStateRevision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
         {
             return;
         }
@@ -149,9 +137,9 @@ internal static class FFAState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
-            _liveStateRevision++;
             MyceliumNetwork.RPC(Plugin.FFAModId, nameof(Plugin.SyncFFALiveState), ReliableType.Reliable,
-                MyceliumNetwork.LobbyHost, SerializeKills(), WinnerId, GameModeManager.RoundId, _liveStateRevision);
+                MyceliumNetwork.LobbyHost, SerializeKills(), WinnerId, GameModeManager.RoundId,
+                Sync.NextLiveRevision());
         }
     }
 

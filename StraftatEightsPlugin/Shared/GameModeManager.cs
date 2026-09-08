@@ -163,12 +163,7 @@ internal static class GameModeManager
     internal static ConfigEntry<int> PointsToWin = null!;
     internal static float EffectiveRespawnDelaySeconds { get; set; } = 3f;
     internal static int EffectivePointsToWin { get; private set; } = ScoreRules.PointsToWin;
-    private static int _globalSettingsRevision;
-    private static int _lastGlobalSettingsRoundId = -1;
-    private static int _lastGlobalSettingsRevision = -1;
-    private static int _activeModeRevision;
-    private static int _lastActiveModeRoundId = -1;
-    private static int _lastActiveModeRevision = -1;
+    private static readonly ModeSyncState Sync = new();
 
     internal static void Initialize()
     {
@@ -225,7 +220,7 @@ internal static class GameModeManager
     private static void BroadcastGlobalSettings()
     {
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncGlobalSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, RoundId, ++_globalSettingsRevision,
+            MyceliumNetwork.LobbyHost, RoundId, Sync.NextSettingsRevision(),
             EffectiveRespawnDelaySeconds, EffectivePointsToWin);
     }
 
@@ -237,11 +232,9 @@ internal static class GameModeManager
         }
     }
 
-    private static float _nextModePushTime;
-
     internal static void PeriodicPushIfHost()
     {
-        if (!HostSettingsSync.IsDue(ref _nextModePushTime))
+        if (!Sync.IsSettingsPushDue())
         {
             return;
         }
@@ -252,7 +245,6 @@ internal static class GameModeManager
         {
             descriptor.PeriodicSettingsPush();
         }
-        PeriodicActiveModePushIfHost();
     }
 
     internal static void PeriodicActiveModePushIfHost()
@@ -377,11 +369,6 @@ internal static class GameModeManager
             (ActiveMode == GameMode.Juggernaut && JuggernautState.IsCurrentJuggernautWeapon(weapon));
     }
 
-    internal static string GetModeLabel(GameMode mode)
-    {
-        return Modes.TryGetValue(mode, out ModeDescriptor? descriptor) ? descriptor.Label : "UNKNOWN";
-    }
-
     internal static string GetModeLabelMarkup(GameMode mode)
     {
         if (!Modes.TryGetValue(mode, out ModeDescriptor? descriptor))
@@ -403,10 +390,7 @@ internal static class GameModeManager
 
     private static void OnLobbyEntered()
     {
-        _lastGlobalSettingsRoundId = -1;
-        _lastGlobalSettingsRevision = -1;
-        _lastActiveModeRoundId = -1;
-        _lastActiveModeRevision = -1;
+        Sync.ResetForLobby();
         SessionState.BeginLobby();
         if (MyceliumNetwork.IsHost)
         {
@@ -437,11 +421,11 @@ internal static class GameModeManager
         if (MyceliumNetwork.IsHost)
         {
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncGlobalSettings), player,
-                ReliableType.Reliable, MyceliumNetwork.LobbyHost, RoundId, _globalSettingsRevision,
+                ReliableType.Reliable, MyceliumNetwork.LobbyHost, RoundId, Sync.SettingsRevision,
                 EffectiveRespawnDelaySeconds, EffectivePointsToWin);
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncActiveGameMode), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId,
-                (int)Phase, _activeModeRevision);
+                (int)Phase, Sync.LiveRevision);
         }
     }
 
@@ -497,14 +481,12 @@ internal static class GameModeManager
 
     internal static bool TryAcceptGlobalSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastGlobalSettingsRoundId, ref _lastGlobalSettingsRevision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
 
     internal static bool TryAcceptActiveModeSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastActiveModeRoundId, ref _lastActiveModeRevision);
+        return Sync.TryAcceptLiveSnapshot(hostId, roundId, revision);
     }
 
     internal static void ApplyActiveMode(int mode, int roundId, int phase)
@@ -579,7 +561,7 @@ internal static class GameModeManager
     private static void BroadcastActiveMode()
     {
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId, (int)Phase, ++_activeModeRevision);
+            MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId, (int)Phase, Sync.NextLiveRevision());
     }
 
     private static readonly HashSet<int> PendingDeaths = new();
@@ -758,6 +740,7 @@ internal static class GameManager_GameModeReset_Patch
     private static void Postfix()
     {
         GameModeManager.ResetGameState();
+        PlayerOutline.ResetState();
         JuggernautOutline.ResetState();
         MichaelMeyersOutline.ResetState();
         KillTheRatOutline.ResetState();

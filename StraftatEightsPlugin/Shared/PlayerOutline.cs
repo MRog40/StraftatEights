@@ -6,6 +6,52 @@ namespace StraftatEightsPlugin;
 internal static class PlayerOutline
 {
     private static readonly List<SkinnedMeshRenderer> AppliedRenderers = new();
+    private static GameMode _lastMode = GameMode.None;
+
+    internal static void ResetState()
+    {
+        ClearApplied();
+        _lastMode = GameMode.None;
+    }
+
+    internal static bool UpdateMode(GameMode activeMode)
+    {
+        if (_lastMode == activeMode)
+        {
+            return false;
+        }
+
+        ClearAll();
+        _lastMode = activeMode;
+        return true;
+    }
+
+    internal static void ApplySingleTarget(ref PlayerHealth? current, PlayerHealth? target, Color color)
+    {
+        if (target == null || !target || !target.gameObject.activeInHierarchy)
+        {
+            ClearTarget(ref current);
+            return;
+        }
+
+        if (current != target)
+        {
+            ClearApplied();
+            current = target;
+        }
+
+        Apply(target, color);
+    }
+
+    internal static void ClearTarget(ref PlayerHealth? current)
+    {
+        if (current != null && current)
+        {
+            ClearApplied();
+        }
+
+        current = null;
+    }
 
     internal static void Apply(PlayerHealth player, Color color)
     {

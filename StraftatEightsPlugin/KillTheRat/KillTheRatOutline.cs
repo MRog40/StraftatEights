@@ -5,23 +5,18 @@ namespace StraftatEightsPlugin;
 internal static class KillTheRatOutline
 {
     private static PlayerHealth? _outlinedPlayer;
-    private static GameMode _lastMode = GameMode.None;
 
     internal static void ResetState()
     {
-        PlayerOutline.ClearApplied();
         _outlinedPlayer = null;
-        _lastMode = GameMode.None;
     }
 
     internal static void EnforceOutline()
     {
         GameMode activeMode = GameModeManager.ActiveMode;
-        if (_lastMode != activeMode)
+        if (PlayerOutline.UpdateMode(activeMode))
         {
-            PlayerOutline.ClearAll();
             _outlinedPlayer = null;
-            _lastMode = activeMode;
         }
 
         if (GameModeManager.ShouldClearPlayerOutlines)
@@ -35,29 +30,13 @@ internal static class KillTheRatOutline
                 && !GameModeManager.IsActive(GameMode.MichaelMeyers)
                 && _outlinedPlayer != null)
             {
-                PlayerOutline.ClearApplied();
+                PlayerOutline.ClearTarget(ref _outlinedPlayer);
             }
             _outlinedPlayer = null;
             return;
         }
 
         PlayerHealth? health = PlayerLookup.FindPlayerHealthById(KillTheRatState.CurrentRatPlayerId);
-        if (health == null || !health.gameObject.activeInHierarchy)
-        {
-            if (_outlinedPlayer != null)
-            {
-                PlayerOutline.ClearApplied();
-                _outlinedPlayer = null;
-            }
-            return;
-        }
-
-        if (_outlinedPlayer != health)
-        {
-            PlayerOutline.ClearApplied();
-            _outlinedPlayer = health;
-        }
-
-        PlayerOutline.Apply(health, Color.yellow);
+        PlayerOutline.ApplySingleTarget(ref _outlinedPlayer, health, Color.yellow);
     }
 }

@@ -204,11 +204,6 @@ internal static class WeaponService
         if (item != null) item.dispenserStart = false;
     }
 
-    private static bool IsCurrentRequest(int playerId, int requestVersion)
-    {
-        return RequestVersions.IsCurrent(playerId, requestVersion);
-    }
-
     internal static void AttachUnparentedWeapon(PlayerPickup pickup)
     {
         if (!pickup.IsOwner || !pickup.hasObjectInHand || pickup.objInHand == null)

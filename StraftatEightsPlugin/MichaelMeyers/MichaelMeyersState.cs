@@ -21,15 +21,8 @@ internal static class MichaelMeyersState
 
     private static int _winnerId = -1;
     private static int _roundToken;
-    private static float _nextSettingsPushTime;
-    private static float _nextLiveStatePushTime;
     private static float _nextLoadoutCheckTime;
-    private static int _settingsRevision;
-    private static int _lastSettingsRoundId = -1;
-    private static int _lastSettingsRevision = -1;
-    private static int _liveStateRevision;
-    private static int _lastLiveStateRoundId = -1;
-    private static int _lastLiveStateRevision = -1;
+    private static readonly ModeSyncState Sync = new();
     private static readonly HashSet<int> RoundPlayers = new();
     private static readonly HashSet<int> AlivePlayers = new();
     private static readonly Dictionary<int, float> PendingLoadouts = new();
@@ -57,13 +50,13 @@ internal static class MichaelMeyersState
 
         ApplyFromConfig();
         MyceliumNetwork.RPC(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
             Plugin.MichaelMeyersEnabled.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
     {
-        if (HostSettingsSync.IsDue(ref _nextSettingsPushTime))
+        if (Sync.IsSettingsPushDue())
         {
             PushSettingsIfHost();
         }
@@ -71,7 +64,7 @@ internal static class MichaelMeyersState
 
     internal static void PeriodicPushLiveStateIfHost()
     {
-        if (HostSettingsSync.IsDue(ref _nextLiveStatePushTime))
+        if (Sync.IsLivePushDue())
         {
             BroadcastLiveState();
         }
@@ -79,8 +72,7 @@ internal static class MichaelMeyersState
 
     internal static void OnLobbyEntered()
     {
-        _lastSettingsRoundId = -1;
-        _lastSettingsRevision = -1;
+        Sync.ResetForLobby();
         if (MyceliumNetwork.IsHost)
         {
             ApplyFromConfig();
@@ -96,25 +88,22 @@ internal static class MichaelMeyersState
         }
 
         MyceliumNetwork.RPCTarget(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersSettings), player,
-            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
             Plugin.MichaelMeyersEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, SurvivorCount, OneVsOne,
-            GameModeManager.RoundId, _liveStateRevision);
+            GameModeManager.RoundId, Sync.LiveRevision);
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
 
     internal static void ResetMatchState()
     {
         _roundToken++;
-        _liveStateRevision++;
-        _lastLiveStateRoundId = -1;
-        _lastLiveStateRevision = -1;
+        Sync.ResetLiveState();
         _winnerId = -1;
         CurrentMichaelPlayerId = -1;
         SurvivorCount = 0;
@@ -133,8 +122,7 @@ internal static class MichaelMeyersState
         {
             return;
         }
-        if (!SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastLiveStateRoundId, ref _lastLiveStateRevision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
         {
             return;
         }
@@ -433,7 +421,7 @@ internal static class MichaelMeyersState
         {
             MyceliumNetwork.RPC(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersLiveState),
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, SurvivorCount, OneVsOne,
-                GameModeManager.RoundId, ++_liveStateRevision);
+                GameModeManager.RoundId, Sync.NextLiveRevision());
         }
     }
 

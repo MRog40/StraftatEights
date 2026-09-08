@@ -15,11 +15,8 @@ internal static class WeaponSettingsState
     internal static List<string> Allowed = new();
     private static readonly Dictionary<int, string> SelectedWeapons = new();
     private static readonly Dictionary<int, float> PendingLoadouts = new();
-    private static float _nextPushTime;
     private static float _nextLoadoutCheckTime;
-    private static int _settingsRevision;
-    private static int _lastSettingsRoundId = -1;
-    private static int _lastSettingsRevision = -1;
+    private static readonly ModeSyncState Sync = new();
     internal static void Apply(bool enabled, string allowedWeapons, int spareMagazines, bool cycleWeapons)
     {
         spareMagazines = Mathf.Clamp(spareMagazines, 2, 10);
@@ -51,15 +48,14 @@ internal static class WeaponSettingsState
         if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost) return;
         ApplyFromConfig();
         MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId, nameof(Plugin.SyncWeaponSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
             Plugin.WeaponTweaksEnabled.Value, Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value,
             Plugin.CycleWeapons.Value);
     }
-    internal static void PeriodicPushIfHost() { if (HostSettingsSync.IsDue(ref _nextPushTime)) PushIfHost(); }
+    internal static void PeriodicPushIfHost() { if (Sync.IsSettingsPushDue()) PushIfHost(); }
     internal static void OnLobbyEntered()
     {
-        _lastSettingsRoundId = -1;
-        _lastSettingsRevision = -1;
+        Sync.ResetForLobby();
         SelectedWeapons.Clear();
         PendingLoadouts.Clear();
         if (MyceliumNetwork.IsHost) ApplyFromConfig();
@@ -69,20 +65,20 @@ internal static class WeaponSettingsState
     {
         SelectedWeapons.Clear();
         PendingLoadouts.Clear();
+        Sync.ResetForLobby();
         Apply(false, string.Empty, 5, false);
     }
     internal static void OnPlayerEntered(CSteamID player)
     {
         if (MyceliumNetwork.IsHost) MyceliumNetwork.RPCTarget(Plugin.GlobalWeaponsModId, nameof(Plugin.SyncWeaponSettings), player,
-            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
             Plugin.WeaponTweaksEnabled.Value, Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value,
             Plugin.CycleWeapons.Value);
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
 
     internal static void UpdateLocalCycle()

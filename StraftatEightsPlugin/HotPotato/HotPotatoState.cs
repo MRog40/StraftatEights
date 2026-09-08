@@ -16,15 +16,8 @@ internal static class HotPotatoState
     internal static int KillsToWin => GameModeManager.EffectivePointsToWin;
     internal static readonly Dictionary<int, int> Kills = new();
 
-    private static float _nextSettingsPushTime;
-    private static float _nextLiveStatePushTime;
     private static float _nextLoadoutCheckTime;
-    private static int _settingsRevision;
-    private static int _lastSettingsRoundId = -1;
-    private static int _lastSettingsRevision = -1;
-    private static int _liveStateRevision;
-    private static int _lastLiveStateRoundId = -1;
-    private static int _lastLiveStateRevision = -1;
+    private static readonly ModeSyncState Sync = new();
     private static readonly Dictionary<int, float> PendingLoadouts = new();
 
     internal static void ApplySettings(bool enabled)
@@ -48,13 +41,13 @@ internal static class HotPotatoState
 
         ApplySettingsFromHostConfig();
         MyceliumNetwork.RPC(Plugin.HotPotatoModId, nameof(Plugin.SyncHotPotatoSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
             Plugin.HotPotatoEnabled.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
     {
-        if (HostSettingsSync.IsDue(ref _nextSettingsPushTime))
+        if (Sync.IsSettingsPushDue())
         {
             PushSettingsIfHost();
         }
@@ -62,7 +55,7 @@ internal static class HotPotatoState
 
     internal static void PeriodicPushIfHost()
     {
-        if (HostSettingsSync.IsDue(ref _nextLiveStatePushTime))
+        if (Sync.IsLivePushDue())
         {
             BroadcastLiveState();
         }
@@ -70,8 +63,7 @@ internal static class HotPotatoState
 
     internal static void OnLobbyEntered()
     {
-        _lastSettingsRoundId = -1;
-        _lastSettingsRevision = -1;
+        Sync.ResetForLobby();
         if (MyceliumNetwork.IsHost)
         {
             ApplySettingsFromHostConfig();
@@ -87,24 +79,21 @@ internal static class HotPotatoState
         }
 
         MyceliumNetwork.RPCTarget(Plugin.HotPotatoModId, nameof(Plugin.SyncHotPotatoSettings), player,
-            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
             Plugin.HotPotatoEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.HotPotatoModId, nameof(Plugin.SyncHotPotatoLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeKills(), PotatoPlayerId, WinnerId,
-            GameModeManager.RoundId, _liveStateRevision);
+            GameModeManager.RoundId, Sync.LiveRevision);
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
 
     internal static void ResetMatchState()
     {
-        _liveStateRevision++;
-        _lastLiveStateRoundId = -1;
-        _lastLiveStateRevision = -1;
+        Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
         PotatoPlayerId = -1;
         WinnerId = -1;
@@ -119,8 +108,7 @@ internal static class HotPotatoState
         {
             return;
         }
-        if (!SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastLiveStateRoundId, ref _lastLiveStateRevision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
         {
             return;
         }
@@ -223,16 +211,6 @@ internal static class HotPotatoState
         return playerId == PotatoPlayerId ? BatWeaponName : ShotgunWeaponName;
     }
 
-    internal static bool IsBat(Weapon weapon)
-    {
-        return weapon != null && weapon.name.StartsWith(BatWeaponName, StringComparison.Ordinal);
-    }
-
-    internal static bool IsShotgun(Weapon weapon)
-    {
-        return weapon != null && weapon.name.StartsWith(ShotgunWeaponName, StringComparison.Ordinal);
-    }
-
     internal static void EnsureLoadouts()
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.HotPotato) || !MyceliumNetwork.InLobby
@@ -287,7 +265,7 @@ internal static class HotPotatoState
         {
             MyceliumNetwork.RPC(Plugin.HotPotatoModId, nameof(Plugin.SyncHotPotatoLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, SerializeKills(), PotatoPlayerId, WinnerId,
-                GameModeManager.RoundId, ++_liveStateRevision);
+                GameModeManager.RoundId, Sync.NextLiveRevision());
         }
     }
 

@@ -14,16 +14,9 @@ internal static class GunGameState
     internal static readonly Dictionary<int, int> Progress = new();
     internal static List<string> WeaponOrder { get; private set; } = new();
     internal static int ScoreLimit => GameModeManager.EffectivePointsToWin;
-    private static float _nextSettingsPushTime;
-    private static float _nextLiveStatePushTime;
     private static float _nextLoadoutCheckTime;
     private static readonly Dictionary<int, float> PendingLoadouts = new();
-    private static int _settingsRevision;
-    private static int _lastSettingsRoundId = -1;
-    private static int _lastSettingsRevision = -1;
-    private static int _liveStateRevision;
-    private static int _lastLiveStateRoundId = -1;
-    private static int _lastLiveStateRevision = -1;
+    private static readonly ModeSyncState Sync = new();
 
     internal static void ApplySettings(bool enabled, string weaponOrder)
     {
@@ -40,49 +33,44 @@ internal static class GunGameState
         if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost) return;
         ApplyFromConfig();
         MyceliumNetwork.RPC(Plugin.GunGameModId, nameof(Plugin.SyncGunGameSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
             Plugin.GunGameEnabled.Value, Plugin.GunGameWeaponOrder.Value);
     }
-    internal static void PeriodicPushSettingsIfHost() { if (HostSettingsSync.IsDue(ref _nextSettingsPushTime)) PushSettingsIfHost(); }
+    internal static void PeriodicPushSettingsIfHost() { if (Sync.IsSettingsPushDue()) PushSettingsIfHost(); }
        internal static void PeriodicPushIfHost()
        {
            PeriodicPushSettingsIfHost();
-           if (HostSettingsSync.IsDue(ref _nextLiveStatePushTime)) BroadcastLiveState();
+           if (Sync.IsLivePushDue()) BroadcastLiveState();
        }
     internal static void OnLobbyEntered()
     {
-        _lastSettingsRoundId = -1;
-        _lastSettingsRevision = -1;
+        Sync.ResetForLobby();
         if (MyceliumNetwork.IsHost) { ApplyFromConfig(); ResetMatchState(); }
     }
     internal static void OnPlayerEntered(CSteamID player)
     {
         if (!MyceliumNetwork.IsHost) return;
         MyceliumNetwork.RPCTarget(Plugin.GunGameModId, nameof(Plugin.SyncGunGameSettings), player, ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
             Plugin.GunGameEnabled.Value, Plugin.GunGameWeaponOrder.Value);
         MyceliumNetwork.RPCTarget(Plugin.GunGameModId, nameof(Plugin.SyncGunGameLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeProgress(), GameModeManager.RoundId,
-            _liveStateRevision);
+            Sync.LiveRevision);
     }
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
     internal static void ResetMatchState()
     {
-        _liveStateRevision++;
-        _lastLiveStateRoundId = -1;
-        _lastLiveStateRevision = -1;
+        Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
         PendingLoadouts.Clear();
         Progress.Clear();
     }
     internal static void ApplyLiveState(CSteamID hostId, string data, int roundId, int revision)
     {
-        if (!SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-                ref _lastLiveStateRoundId, ref _lastLiveStateRevision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
         {
             return;
         }
@@ -191,9 +179,9 @@ internal static class GunGameState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
-            _liveStateRevision++;
             MyceliumNetwork.RPC(Plugin.GunGameModId, nameof(Plugin.SyncGunGameLiveState), ReliableType.Reliable,
-                MyceliumNetwork.LobbyHost, SerializeProgress(), GameModeManager.RoundId, _liveStateRevision);
+                MyceliumNetwork.LobbyHost, SerializeProgress(), GameModeManager.RoundId,
+                Sync.NextLiveRevision());
         }
     }
 }

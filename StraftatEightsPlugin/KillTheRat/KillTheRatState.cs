@@ -18,16 +18,9 @@ internal static class KillTheRatState
     internal static int WinnerId = -1;
     internal static readonly Dictionary<int, int> Points = new();
 
-    private static float _nextSettingsPushTime;
-    private static float _nextLiveStatePushTime;
     private static float _nextLoadoutCheckTime;
     private static float _survivalAccumulator;
-    private static int _settingsRevision;
-    private static int _lastSettingsRoundId = -1;
-    private static int _lastSettingsRevision = -1;
-    private static int _liveStateRevision;
-    private static int _lastLiveStateRoundId = -1;
-    private static int _lastLiveStateRevision = -1;
+    private static readonly ModeSyncState Sync = new();
     private static readonly Dictionary<int, float> PendingLoadouts = new();
 
     internal static void ApplySettings(bool enabled)
@@ -51,13 +44,13 @@ internal static class KillTheRatState
 
         ApplySettingsFromHostConfig();
         MyceliumNetwork.RPC(Plugin.KillTheRatModId, nameof(Plugin.SyncKillTheRatSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, ++_settingsRevision,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
             Plugin.KillTheRatEnabled.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
     {
-        if (HostSettingsSync.IsDue(ref _nextSettingsPushTime))
+        if (Sync.IsSettingsPushDue())
         {
             PushSettingsIfHost();
         }
@@ -65,7 +58,7 @@ internal static class KillTheRatState
 
     internal static void PeriodicPushIfHost()
     {
-        if (HostSettingsSync.IsDue(ref _nextLiveStatePushTime))
+        if (Sync.IsLivePushDue())
         {
             BroadcastLiveState();
         }
@@ -73,8 +66,7 @@ internal static class KillTheRatState
 
     internal static void OnLobbyEntered()
     {
-        _lastSettingsRoundId = -1;
-        _lastSettingsRevision = -1;
+        Sync.ResetForLobby();
         if (MyceliumNetwork.IsHost)
         {
             ApplySettingsFromHostConfig();
@@ -90,24 +82,21 @@ internal static class KillTheRatState
         }
 
         MyceliumNetwork.RPCTarget(Plugin.KillTheRatModId, nameof(Plugin.SyncKillTheRatSettings), player,
-            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, _settingsRevision,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
             Plugin.KillTheRatEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.KillTheRatModId, nameof(Plugin.SyncKillTheRatLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentRatPlayerId, SerializePoints(),
-            WinnerId, GameModeManager.RoundId, _liveStateRevision);
+            WinnerId, GameModeManager.RoundId, Sync.LiveRevision);
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
-        return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
 
     internal static void ResetMatchState()
     {
-        _liveStateRevision++;
-        _lastLiveStateRoundId = -1;
-        _lastLiveStateRevision = -1;
+        Sync.ResetLiveState();
         _survivalAccumulator = 0f;
         _nextLoadoutCheckTime = 0f;
         CurrentRatPlayerId = -1;
@@ -123,8 +112,7 @@ internal static class KillTheRatState
         {
             return;
         }
-        if (!SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastLiveStateRoundId, ref _lastLiveStateRevision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
         {
             return;
         }
@@ -348,7 +336,7 @@ internal static class KillTheRatState
         {
             MyceliumNetwork.RPC(Plugin.KillTheRatModId, nameof(Plugin.SyncKillTheRatLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, CurrentRatPlayerId, SerializePoints(), WinnerId,
-                GameModeManager.RoundId, ++_liveStateRevision);
+                GameModeManager.RoundId, Sync.NextLiveRevision());
         }
     }
 
