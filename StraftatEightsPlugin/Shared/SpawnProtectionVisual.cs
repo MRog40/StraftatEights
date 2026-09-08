@@ -5,6 +5,8 @@ namespace StraftatEightsPlugin;
 
 internal static class SpawnProtectionVisual
 {
+    private const float GhostOutlineThickness = 0.10f;
+
     private readonly struct OutlineSnapshot
     {
         internal readonly float Width;
@@ -57,8 +59,7 @@ internal static class SpawnProtectionVisual
                             : Color.clear);
                 }
 
-                materials[0].SetFloat("_ASEOutlineWidth",
-                    GameModeManager.EffectiveSpawnProtectionOutlineThickness);
+                materials[0].SetFloat("_ASEOutlineWidth", GhostOutlineThickness);
                 if (materials[0].HasProperty("_ASEOutlineColor"))
                 {
                     materials[0].SetColor("_ASEOutlineColor", GhostColor);

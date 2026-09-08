@@ -42,8 +42,7 @@ This will be published to Thunderstore. I use Gale. If it's not published, you c
 - Configure `Invincible After Spawn (s)` from 0 to 10 seconds. The default is 2 seconds.
 - Spawn protection starts after a successful custom-mode respawn.
 - Protected players cannot take damage during the protection period.
-- Protected players receive a temporary gray outline. The outline thickness is configurable from
-	`0.01` to `0.1`, with a default of `0.035`.
+- Protected players receive a temporary gray outline.
 - Protection is host-authoritative and applies to respawn-based modes. One-life modes do not use it.
 
 ### Weapon Settings

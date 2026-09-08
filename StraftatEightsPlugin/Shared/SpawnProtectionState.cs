@@ -36,12 +36,28 @@ internal static class SpawnProtectionState
 
     internal static bool IsProtected(PlayerHealth health)
     {
-        if (health == null || health.playerValues?.playerClient == null)
+        if (health == null || !health)
         {
             return false;
         }
 
-        return IsProtected(health.playerValues.playerClient.PlayerId);
+        if (health.playerValues?.playerClient != null)
+        {
+            return IsProtected(health.playerValues.playerClient.PlayerId);
+        }
+
+        foreach (KeyValuePair<int, ClientInstance> entry in ClientInstance.playerInstances)
+        {
+            if (entry.Value == null || !entry.Value || entry.Value.PlayerSpawner == null
+                || entry.Value.PlayerSpawner.player != health)
+            {
+                continue;
+            }
+
+            return IsProtected(entry.Key);
+        }
+
+        return false;
     }
 
     internal static bool IsProtected(int playerId)

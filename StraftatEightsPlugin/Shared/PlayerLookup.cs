@@ -13,7 +13,7 @@ internal static class PlayerLookup
     {
         try
         {
-            List<int> playerIds = new();
+            HashSet<int> playerIds = new();
             foreach (KeyValuePair<int, ClientInstance> entry in ClientInstance.playerInstances)
             {
                 if (entry.Value != null && entry.Value)
@@ -22,17 +22,17 @@ internal static class PlayerLookup
                 }
             }
 
-            if (playerIds.Count == 0)
+            foreach (ClientInstance client in Object.FindObjectsOfType<ClientInstance>())
             {
-                playerIds = Object.FindObjectsOfType<ClientInstance>()
-                    .Where(client => client != null && client && client.PlayerId >= 0)
-                    .Select(client => client.PlayerId)
-                    .Distinct()
-                    .ToList();
+                if (client != null && client && client.PlayerId >= 0)
+                {
+                    playerIds.Add(client.PlayerId);
+                }
             }
 
-            playerIds.Sort();
-            return playerIds;
+            List<int> result = playerIds.ToList();
+            result.Sort();
+            return result;
         }
         catch
         {
@@ -52,6 +52,10 @@ internal static class PlayerLookup
             {
                 PlayerHealth? health = client.PlayerSpawner.player.GetComponent<PlayerHealth>();
                 if (IsPlayerHealthForId(health, playerId))
+                {
+                    return health;
+                }
+                if (IsMappedLivePlayerHealth(health, client))
                 {
                     return health;
                 }
@@ -86,6 +90,10 @@ internal static class PlayerLookup
                 {
                     return health;
                 }
+                if (IsMappedLivePlayerHealth(health, sceneClient))
+                {
+                    return health;
+                }
             }
 
             PlayerHealth? sceneHealth = sceneClient.GetComponent<PlayerHealth>();
@@ -100,6 +108,13 @@ internal static class PlayerLookup
     private static bool IsPlayerHealthForId(PlayerHealth? health, int playerId)
     {
         return health != null && health.playerValues?.playerClient?.PlayerId == playerId;
+    }
+
+    private static bool IsMappedLivePlayerHealth(PlayerHealth? health, ClientInstance client)
+    {
+        return health != null && health && health.gameObject.activeInHierarchy
+            && client.PlayerSpawner != null && client.PlayerSpawner.player != null
+            && client.PlayerSpawner.player.GetComponent<PlayerHealth>() == health;
     }
 
     // Resolves a killer's PlayerId from a dead player's PlayerHealth.killer transform - every weapon

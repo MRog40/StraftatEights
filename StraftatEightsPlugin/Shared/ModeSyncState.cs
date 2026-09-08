@@ -65,9 +65,6 @@ internal sealed class ModeSyncState
     internal void ResetLiveState()
     {
         NextLiveRevision();
-        _lastLiveRoundId = -1;
-        _lastLiveRevision = -1;
-        LastLiveRoundId = -1;
     }
 
     private int _lastSettingsRoundId = -1;

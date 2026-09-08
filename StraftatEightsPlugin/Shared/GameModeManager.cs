@@ -161,11 +161,9 @@ internal static class GameModeManager
     internal static int RoundId { get; private set; }
     internal static ConfigEntry<float> RespawnDelaySeconds = null!;
     internal static ConfigEntry<float> InvincibleAfterSpawnSeconds = null!;
-    internal static ConfigEntry<float> SpawnProtectionOutlineThickness = null!;
     internal static ConfigEntry<int> PointsToWin = null!;
     internal static float EffectiveRespawnDelaySeconds { get; set; } = 3f;
     internal static float EffectiveInvincibleAfterSpawnSeconds { get; private set; } = 2f;
-    internal static float EffectiveSpawnProtectionOutlineThickness { get; private set; } = 0.035f;
     internal static int EffectivePointsToWin { get; private set; } = ScoreRules.PointsToWin;
     private static readonly ModeSyncState Sync = new();
 
@@ -179,10 +177,6 @@ internal static class GameModeManager
             new ConfigDescription("Host-controlled: how long a player cannot take damage after a custom-mode respawn.",
                 new AcceptableValueRange<float>(0f, 10f)));
         InvincibleAfterSpawnSeconds.SettingChanged += (_, _) => OnGlobalSettingsChanged();
-        SpawnProtectionOutlineThickness = Plugin.Instance.Config.Bind("Global Settings", "Spawn Protection Outline Thickness", 0.035f,
-            new ConfigDescription("Host-controlled: outline width shown during spawn protection.",
-                new AcceptableValueRange<float>(0.01f, 0.1f)));
-        SpawnProtectionOutlineThickness.SettingChanged += (_, _) => OnGlobalSettingsChanged();
         PointsToWin = Plugin.Instance.Config.Bind("Global Settings", "Points To Win", ScoreRules.PointsToWin,
             "Fixed score limit for all point-based game modes.");
         PointsToWin.Value = ScoreRules.PointsToWin;
@@ -207,15 +201,14 @@ internal static class GameModeManager
     private static void ApplyGlobalSettingsFromHostConfig()
     {
         ApplyGlobalSettings(RespawnDelaySeconds.Value, InvincibleAfterSpawnSeconds.Value,
-            SpawnProtectionOutlineThickness.Value, PointsToWin.Value);
+            PointsToWin.Value);
     }
 
     internal static void ApplyGlobalSettings(float respawnDelaySeconds, float invincibleAfterSpawnSeconds,
-        float spawnProtectionOutlineThickness, int pointsToWin)
+        int pointsToWin)
     {
         EffectiveRespawnDelaySeconds = Mathf.Clamp(respawnDelaySeconds, 0f, 10f);
         EffectiveInvincibleAfterSpawnSeconds = Mathf.Clamp(invincibleAfterSpawnSeconds, 0f, 10f);
-        EffectiveSpawnProtectionOutlineThickness = Mathf.Clamp(spawnProtectionOutlineThickness, 0.01f, 0.1f);
         int nextPointsToWin = ScoreRules.PointsToWin;
         if (EffectivePointsToWin != nextPointsToWin)
         {
@@ -237,7 +230,7 @@ internal static class GameModeManager
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncGlobalSettings), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, RoundId, Sync.NextSettingsRevision(),
             EffectiveRespawnDelaySeconds, EffectiveInvincibleAfterSpawnSeconds,
-            EffectiveSpawnProtectionOutlineThickness, EffectivePointsToWin);
+            EffectivePointsToWin);
     }
 
     internal static void OnSettingsChanged()
@@ -425,7 +418,6 @@ internal static class GameModeManager
         RoundId++;
         EffectiveRespawnDelaySeconds = 3f;
         EffectiveInvincibleAfterSpawnSeconds = 2f;
-        EffectiveSpawnProtectionOutlineThickness = 0.035f;
         EffectivePointsToWin = ScoreRules.PointsToWin;
         SpawnProtectionState.ResetForLobbyLeft();
         GlobalModifiersState.ResetForLobbyLeft();
@@ -443,7 +435,7 @@ internal static class GameModeManager
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncGlobalSettings), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, RoundId, Sync.SettingsRevision,
                 EffectiveRespawnDelaySeconds, EffectiveInvincibleAfterSpawnSeconds,
-                EffectiveSpawnProtectionOutlineThickness, EffectivePointsToWin);
+                EffectivePointsToWin);
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncActiveGameMode), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId,
                 (int)Phase, Sync.LiveRevision);
@@ -529,7 +521,9 @@ internal static class GameModeManager
         }
 
         bool newRound = roundId > RoundId;
-        if (ActiveMode != nextMode || newRound)
+        bool modeChanged = ActiveMode != nextMode || newRound;
+        bool phaseChanged = Phase != (GameModePhase)phase;
+        if (modeChanged)
         {
             ResetMatchState();
             ActiveMode = nextMode;
@@ -537,6 +531,10 @@ internal static class GameModeManager
 
         RoundId = roundId;
         Phase = (GameModePhase)phase;
+        if (modeChanged || phaseChanged)
+        {
+            Plugin.Logger.LogInfo($"[GameMode] Applied host state: mode={nextMode} round={roundId} phase={(GameModePhase)phase}");
+        }
     }
 
     internal static void ResetMatchState()
@@ -554,10 +552,17 @@ internal static class GameModeManager
     internal static void ResetGameState()
     {
         ResetMatchState();
-        RoundId++;
-        Phase = ActiveMode == GameMode.None || !MyceliumNetwork.InLobby
-            ? GameModePhase.Inactive
-            : GameModePhase.Lobby;
+        if (MyceliumNetwork.IsHost)
+        {
+            RoundId++;
+            Phase = ActiveMode == GameMode.None || !MyceliumNetwork.InLobby
+                ? GameModePhase.Inactive
+                : GameModePhase.Lobby;
+            return;
+        }
+
+        ActiveMode = GameMode.None;
+        Phase = GameModePhase.Inactive;
     }
 
     internal static void BeginRound()
@@ -737,14 +742,14 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncGlobalSettings(CSteamID hostId, int roundId, int revision, float respawnDelaySeconds,
-        float invincibleAfterSpawnSeconds, float spawnProtectionOutlineThickness, int pointsToWin)
+        float invincibleAfterSpawnSeconds, int pointsToWin)
     {
         if (!GameModeManager.TryAcceptGlobalSettingsSnapshot(hostId, roundId, revision))
         {
             return;
         }
         GameModeManager.ApplyGlobalSettings(respawnDelaySeconds, invincibleAfterSpawnSeconds,
-            spawnProtectionOutlineThickness, pointsToWin);
+            pointsToWin);
     }
 
     [CustomRPC]
