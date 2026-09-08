@@ -33,7 +33,6 @@ public partial class Plugin : BaseUnityPlugin
         FishNetCompatibility.LogPreflight();
         WeaponService.Initialize();
         GameModeManager.Initialize();
-        gameObject.AddComponent<GameModeHud>();
 
         InitializeGlobalModifiers();
         InitializeHealthSettings();
@@ -49,16 +48,35 @@ public partial class Plugin : BaseUnityPlugin
         InitializeGunGame();
         InitializeSniperBattle();
 
+        try
+        {
+            gameObject.AddComponent<GameModeHud>();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError("[GameModeHud] Startup failed: " + exception.GetBaseException().Message);
+        }
+
         PatchAllSafely(new Harmony(MyPluginInfo.PLUGIN_GUID));
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
     }
 
     private static void PatchAllSafely(Harmony harmony)
     {
-        Type[] patchTypes = AccessTools.GetTypesFromAssembly(typeof(Plugin).Assembly)
-            .Where(type => type.GetCustomAttributes(typeof(HarmonyPatch), false).Length > 0)
-            .OrderBy(type => type.FullName, StringComparer.Ordinal)
-            .ToArray();
+        Type[] patchTypes;
+        try
+        {
+            patchTypes = AccessTools.GetTypesFromAssembly(typeof(Plugin).Assembly)
+                .Where(type => type.GetCustomAttributes(typeof(HarmonyPatch), false).Length > 0)
+                .OrderBy(type => type.FullName, StringComparer.Ordinal)
+                .ToArray();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError("[Harmony] Could not discover patch classes: "
+                + exception.GetBaseException().Message);
+            return;
+        }
 
         foreach (Type patchType in patchTypes)
         {
