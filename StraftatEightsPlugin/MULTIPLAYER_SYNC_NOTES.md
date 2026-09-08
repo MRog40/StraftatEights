@@ -160,6 +160,9 @@ When a result is asymmetric, compare the host and client logs and verify these f
   values. Do not merge these payloads just to reduce RPC count.
 - Mode capabilities provide precedence guards at shared patch boundaries. A mode-specific weapon,
   health, movement, or respawn rule must explicitly block or layer the global rule while active.
+- Custom respawns use the global `Invincible After Spawn (s)` setting. The host activates a per-player
+  expiry only after the server respawn succeeds, blocks positive damage in the generated health logic,
+  and periodically syncs the short-lived state so every peer can show the temporary white outline.
 
 ## Startup and ModMenu
 

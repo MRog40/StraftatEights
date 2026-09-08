@@ -26,7 +26,7 @@ public partial class Plugin : BaseUnityPlugin
     // Shared/ holds cross-mode helpers (player lookups, team/weapon utilities) so future modes don't
     // duplicate them.
     private void Awake()  
-    {   
+    {
         Instance = this;
         Logger = base.Logger;
 
@@ -125,10 +125,12 @@ public partial class Plugin : BaseUnityPlugin
         WeaponSettingsState.UpdateLocalCycle();
         WeaponSettingsState.PeriodicPushIfHost();
         WeaponSettingsState.EnsureCycleLoadouts();
+        SpawnProtectionState.PeriodicPushIfHost();
         GameModeManager.EnsureActiveModeLoadouts();
         JuggernautOutline.EnforceOutline();
         MichaelMeyersOutline.EnforceOutline();
         KillTheRatOutline.EnforceOutline();
+        SpawnProtectionVisual.Enforce();
     }
 }
 

@@ -77,6 +77,7 @@ internal static class GameModeRespawn
                 if (success)
                 {
                     FinalizeRespawn(manager);
+                    SpawnProtectionState.Activate(FindPlayerId(manager));
                     ClearSpawnAdjustment(manager);
                 }
             }
@@ -117,6 +118,7 @@ internal static class GameModeRespawn
                     if (FishNetCompatibility.TryInvokeRespawn(manager))
                     {
                         FinalizeRespawn(manager);
+                        SpawnProtectionState.Activate(playerId);
                         ClearSpawnAdjustment(manager);
                         PendingManagers.Remove(playerId);
                         yield break;
@@ -212,6 +214,19 @@ internal static class GameModeRespawn
         return ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client)
             ? client.PlayerSpawner
             : null;
+    }
+
+    private static int FindPlayerId(PlayerManager manager)
+    {
+        foreach (KeyValuePair<int, ClientInstance> entry in ClientInstance.playerInstances)
+        {
+            if (entry.Value != null && entry.Value && entry.Value.PlayerSpawner == manager)
+            {
+                return entry.Key;
+            }
+        }
+
+        return -1;
     }
 
     internal static Transform ChooseDistantSpawn(Transform currentResult)
