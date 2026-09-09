@@ -6,7 +6,9 @@ namespace StraftatEightsPlugin;
 [HarmonyPatch(typeof(MeleeWeapon), "HitServer")]
 internal static class MeleeWeapon_HotPotatoBatDamage_Patch
 {
-    private static void Prefix(MeleeWeapon __instance, PlayerHealth enemyHealth, ref float damageToGive)
+    private static void Prefix(MeleeWeapon __instance, PlayerHealth enemyHealth, string hitName,
+        bool ___secondAttackPlaying, ref float ___baseAttackDamage, ref float ___secondAttackDamage,
+        float ___headMultiplier)
     {
         if (!GameModeManager.IsActive(GameMode.HotPotato)
             || __instance == null
@@ -16,7 +18,20 @@ internal static class MeleeWeapon_HotPotatoBatDamage_Patch
             return;
         }
 
-        damageToGive = Mathf.Max(0.01f, enemyHealth.fullHealth * 0.5f);
+        float damage = Mathf.Max(0.01f, enemyHealth.fullHealth * 0.5f);
+        if (hitName == "Head_Col" && ___headMultiplier > 0f)
+        {
+            damage /= ___headMultiplier;
+        }
+
+        if (___secondAttackPlaying)
+        {
+            ___secondAttackDamage = damage;
+        }
+        else
+        {
+            ___baseAttackDamage = damage;
+        }
     }
 }
 
