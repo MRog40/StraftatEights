@@ -8,25 +8,23 @@ namespace StraftatEightsPlugin;
 internal static class GameModeRespawn
 {
     private const float MinimumPlayerSeparation = 1.25f;
-    private static readonly Vector3[] SpawnOffsets =
-    {
-        Vector3.zero,
-        new Vector3(1f, 0f, 0f),
-        new Vector3(-1f, 0f, 0f),
-        new Vector3(0f, 0f, 1f),
-        new Vector3(0f, 0f, -1f),
-        new Vector3(0.7f, 0f, 0.7f),
-        new Vector3(-0.7f, 0f, 0.7f),
-        new Vector3(0.7f, 0f, -0.7f),
-        new Vector3(-0.7f, 0f, -0.7f),
-        new Vector3(1.5f, 0f, 0f),
-        new Vector3(-1.5f, 0f, 0f),
-        new Vector3(0f, 0f, 1.5f),
-        new Vector3(0f, 0f, -1.5f)
-    };
+    private static readonly Vector3[] SpawnOffsets = { Vector3.zero };
     private static readonly HashSet<int> PendingManagers = new();
     private static readonly HashSet<int> SuppressedRoundStarts = new();
     private static readonly HashSet<int> PendingSpawnAdjustments = new();
+    private static readonly Dictionary<int, CosmeticIndices> PendingRespawnCosmetics = new();
+
+    private readonly struct CosmeticIndices
+    {
+        internal CosmeticIndices(int suitIndex, int cigaretteIndex)
+        {
+            SuitIndex = suitIndex;
+            CigaretteIndex = cigaretteIndex;
+        }
+
+        internal int SuitIndex { get; }
+        internal int CigaretteIndex { get; }
+    }
 
     internal static bool AnyModeEnabled => GameModeManager.IsCustomMode;
 
@@ -35,6 +33,15 @@ internal static class GameModeRespawn
         PendingManagers.Clear();
         SuppressedRoundStarts.Clear();
         PendingSpawnAdjustments.Clear();
+        PendingRespawnCosmetics.Clear();
+    }
+
+    internal static void ResetForMatch()
+    {
+        PendingManagers.Clear();
+        SuppressedRoundStarts.Clear();
+        PendingSpawnAdjustments.Clear();
+        PendingRespawnCosmetics.Clear();
     }
 
     internal static void Schedule(PlayerManager manager, float delay)
@@ -72,6 +79,7 @@ internal static class GameModeRespawn
         {
             try
             {
+                CaptureRespawnCosmetics(manager);
                 MarkRoundStartSuppressed(manager);
                 success = FishNetCompatibility.TryInvokeRespawn(manager);
                 if (success)
@@ -113,6 +121,7 @@ internal static class GameModeRespawn
             {
                 try
                 {
+                    CaptureRespawnCosmetics(manager);
                     MarkRoundStartSuppressed(manager);
                     if (FishNetCompatibility.TryInvokeRespawn(manager))
                     {
@@ -138,6 +147,27 @@ internal static class GameModeRespawn
     {
         SuppressedRoundStarts.Add(manager.GetInstanceID());
         PendingSpawnAdjustments.Add(manager.GetInstanceID());
+    }
+
+    internal static void CaptureRespawnCosmetics(PlayerManager manager)
+    {
+        PlayerSetup? playerSetup = manager.player?.GetComponent<PlayerSetup>();
+        if (playerSetup != null)
+        {
+            PendingRespawnCosmetics[manager.GetInstanceID()] = new CosmeticIndices(
+                playerSetup.mat, playerSetup.cig);
+        }
+    }
+
+    internal static void ApplyRespawnCosmetics(PlayerManager manager, ref int suitIndex,
+        ref int cigaretteIndex)
+    {
+        if (PendingRespawnCosmetics.TryGetValue(manager.GetInstanceID(), out CosmeticIndices cosmetics))
+        {
+            suitIndex = cosmetics.SuitIndex;
+            cigaretteIndex = cosmetics.CigaretteIndex;
+            PendingRespawnCosmetics.Remove(manager.GetInstanceID());
+        }
     }
 
     internal static void ClearRoundStartSuppressed(PlayerManager manager)
@@ -372,8 +402,10 @@ internal static class PlayerManager_DistantSpawn_Patch
 [HarmonyPatch(typeof(PlayerManager), "SpawnPlayer", new[] { typeof(int), typeof(int), typeof(Vector3), typeof(Quaternion) })]
 internal static class PlayerManager_CustomRespawnSpawn_Patch
 {
-    private static void Prefix(PlayerManager __instance, ref Vector3 position)
+    private static void Prefix(PlayerManager __instance, ref int suitIndex, ref int cigIndex,
+        ref Vector3 position)
     {
+        GameModeRespawn.ApplyRespawnCosmetics(__instance, ref suitIndex, ref cigIndex);
         if (GameModeRespawn.ConsumeSpawnAdjustment(__instance))
         {
             position = GameModeRespawn.ChooseSpawnPosition(position);

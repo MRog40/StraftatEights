@@ -71,13 +71,14 @@ internal static class WeaponService
     }
 
     internal static void GiveWeapon(int playerId, string weaponName, int? spareMagazines = null,
-        bool unlimitedAmmo = false)
+        bool unlimitedAmmo = false, bool clearBothHands = true)
     {
         if (Plugin.Instance != null && !IsFinalGameScreen)
         {
             int requestVersion = RequestVersions.Next(playerId);
             Plugin.Instance.StartCoroutine(GiveWeaponCoroutine(playerId, weaponName, spareMagazines, unlimitedAmmo,
-                SessionState.Generation, GameModeManager.RoundId, requestVersion, RequestVersions, true, true));
+                SessionState.Generation, GameModeManager.RoundId, requestVersion, RequestVersions, true,
+                clearBothHands));
         }
     }
 
@@ -132,6 +133,12 @@ internal static class WeaponService
             pickup.sync___set_value_objInHand(null, true);
             pickup.sync___set_value_objInLeftHand(null, true);
         }
+        else if (rightHand)
+        {
+            DespawnHeldWeapon(networkManager, pickup.objInHand);
+            pickup.sync___set_value_hasObjectInHand(false, true);
+            pickup.sync___set_value_objInHand(null, true);
+        }
         else
         {
             DespawnHeldWeapon(networkManager, pickup.objInLeftHand);
@@ -148,7 +155,6 @@ internal static class WeaponService
         if (item != null) item.dispenserStart = true;
         Rigidbody? body = weapon.GetComponent<Rigidbody>();
         if (body != null) { body.isKinematic = true; body.useGravity = false; }
-        NotifyOwnerWeaponAttached(playerId);
         networkManager.ServerManager.Spawn(weapon);
         yield return new WaitForSeconds(0.1f);
         if (!requestVersions.IsCurrent(playerId, requestVersion) || !SessionState.IsCurrent(sessionGeneration)
@@ -158,6 +164,8 @@ internal static class WeaponService
             DespawnHeldWeapon(networkManager, weapon);
             yield break;
         }
+
+        NotifyOwnerWeaponAttached(playerId);
 
         Weapon? weaponComponent = weapon.GetComponent<Weapon>();
         if (item == null || weaponComponent == null)
@@ -308,7 +316,8 @@ internal static class WeaponService
             GameObject? leftObject = pickup?.objInLeftHand;
             if (pickup != null && ((rightObject != null && rightObject) || (leftObject != null && leftObject)))
             {
-                pickup.hasObjectInHand = true;
+                pickup.hasObjectInHand = rightObject != null && rightObject;
+                pickup.hasObjectInLeftHand = leftObject != null && leftObject;
                 bool rightAttached = rightObject == null || !rightObject || AttachWeaponLocally(pickup, rightObject, true);
                 bool leftAttached = leftObject == null || !leftObject || AttachWeaponLocally(pickup, leftObject, false);
                 if (rightAttached && leftAttached)

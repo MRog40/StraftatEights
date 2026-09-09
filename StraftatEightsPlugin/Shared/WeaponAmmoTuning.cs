@@ -39,14 +39,40 @@ internal static class WeaponAmmoTuning
             return;
         }
 
-        int magazineSize = weapon.reloadWeapon
-            ? (weapon.ammoCharge > 0 ? weapon.ammoCharge : Mathf.RoundToInt(weapon.chargedBullets))
-            : weapon.currentAmmo;
+        int magazineSize = GetPrefabMagazineSize(weapon);
+        if (magazineSize <= 0)
+        {
+            magazineSize = weapon.reloadWeapon
+                ? (weapon.ammoCharge > 0 ? weapon.ammoCharge : Mathf.RoundToInt(weapon.chargedBullets))
+                : weapon.currentAmmo;
+        }
         if (magazineSize > 0)
         {
             memory.MagazineSize = magazineSize;
             memory.Initialized = true;
         }
+    }
+
+    private static int GetPrefabMagazineSize(Weapon weapon)
+    {
+        string prefabName = weapon.name;
+        const string cloneSuffix = "(Clone)";
+        if (prefabName.EndsWith(cloneSuffix, StringComparison.Ordinal))
+        {
+            prefabName = prefabName.Substring(0, prefabName.Length - cloneSuffix.Length);
+        }
+
+        Weapon? prefabWeapon = WeaponService.FindPrefab(prefabName)?.GetComponent<Weapon>();
+        if (prefabWeapon == null || !prefabWeapon.needsAmmo)
+        {
+            return 0;
+        }
+
+        return prefabWeapon.reloadWeapon
+            ? (prefabWeapon.ammoCharge > 0
+                ? prefabWeapon.ammoCharge
+                : Mathf.RoundToInt(prefabWeapon.chargedBullets))
+            : prefabWeapon.currentAmmo;
     }
 
     internal static void Initialize(Weapon weapon, int spareMagazines)

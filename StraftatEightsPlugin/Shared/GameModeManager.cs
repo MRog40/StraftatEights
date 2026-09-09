@@ -90,7 +90,7 @@ internal static class GameModeManager
     {
         [GameMode.Default] = new ModeDescriptor("DEFAULT", new Color32(220, 220, 220, 255),
             () => Plugin.DefaultGameModeEnabled.Value, DefaultReset,
-            GameModeCapabilities.IgnoreGlobalWeapons | GameModeCapabilities.IgnoreGlobalHealth),
+            GameModeCapabilities.IgnoreGlobalHealth),
         [GameMode.FreeForAll] = new ModeDescriptor("FFA", new Color32(85, 204, 255, 255),
             () => Plugin.FFAEnabled.Value, FfaReset, GameModeCapabilities.CustomRound,
                FFAState.PeriodicPushIfHost, periodicSettingsPush: FFAState.PeriodicPushSettingsIfHost),
@@ -240,9 +240,9 @@ internal static class GameModeManager
         ApplyGlobalSettingsFromHostConfig();
         BroadcastGlobalSettings();
         BroadcastActiveMode();
-        foreach (ModeDescriptor descriptor in Modes.Values)
+        if (Modes.TryGetValue(ActiveMode, out ModeDescriptor? activeDescriptor))
         {
-            descriptor.PeriodicSettingsPush();
+            activeDescriptor.PeriodicSettingsPush();
         }
     }
 
@@ -527,6 +527,7 @@ internal static class GameModeManager
     {
         _customRoundTransitionPending = false;
         PendingDeaths.Clear();
+        GameModeRespawn.ResetForMatch();
         foreach (ModeDescriptor descriptor in Modes.Values)
         {
             descriptor.Reset();

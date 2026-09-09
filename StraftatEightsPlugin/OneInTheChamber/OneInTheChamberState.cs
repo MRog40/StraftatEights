@@ -309,7 +309,7 @@ internal static class OneInTheChamberState
     private static void RequestRightLoadout(int playerId)
     {
         PendingRightLoadouts[playerId] = Time.unscaledTime + 2f;
-        WeaponService.GiveWeapon(playerId, PistolWeaponName);
+        WeaponService.GiveWeapon(playerId, PistolWeaponName, clearBothHands: false);
     }
 
     private static void AddBulletToPistol(int playerId)

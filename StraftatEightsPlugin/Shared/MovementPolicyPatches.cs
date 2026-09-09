@@ -22,8 +22,7 @@ internal static class MovementPolicy
 
     internal static bool CanSlide(FirstPersonController controller)
     {
-        return !GameModeManager.IsActive(GameMode.MichaelMeyers)
-            && !JuggernautState.IsCurrentJuggernaut(controller)
+        return !JuggernautState.IsCurrentJuggernaut(controller)
             && GlobalModifiersState.SlidingEnabled;
     }
 
@@ -82,15 +81,6 @@ internal static class FirstPersonController_SlidePolicy_Patch
     }
 }
 
-[HarmonyPatch(typeof(FirstPersonController), "HandleSlide")]
-internal static class FirstPersonController_HandleSlidePolicy_Patch
-{
-    private static bool Prefix()
-    {
-        return !GameModeManager.IsActive(GameMode.MichaelMeyers);
-    }
-}
-
 [HarmonyPatch(typeof(FirstPersonController), "Jump")]
 [HarmonyPriority(Priority.Last)]
 internal static class FirstPersonController_JumpPolicy_Patch
@@ -124,8 +114,6 @@ internal static class FirstPersonController_MovementPolicy_Patch
         if (GameModeManager.IsActive(GameMode.MichaelMeyers))
         {
             __instance.CanWallJump = false;
-            __instance.isSliding = false;
-            __instance.isCrouching = false;
         }
     }
 

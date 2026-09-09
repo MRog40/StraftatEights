@@ -31,6 +31,8 @@ internal static class InfidelState
     private static readonly ModeSyncState Sync = new();
     private static int _subRoundId;
     private static int _localRoleSubRoundId = -1;
+    private static int _localRoleAnnouncedSubRoundId = -1;
+    private static bool _startRetryPending;
     private static bool _subRoundEnding;
 
     internal static void ApplySettings(bool enabled)
@@ -74,7 +76,7 @@ internal static class InfidelState
         }
 
         BroadcastLiveState();
-        SendRoleStates(false);
+        SendRoleStates(true);
     }
 
     internal static void OnLobbyEntered()
@@ -110,7 +112,7 @@ internal static class InfidelState
                 PendingHealthResets.Add(playerId);
                 Scores.TryAdd(playerId, 0);
             }
-            SendRoleToPlayer(player, playerId, false);
+            SendRoleToPlayer(player, playerId, true);
         }
     }
 
@@ -126,6 +128,8 @@ internal static class InfidelState
         _nextLoadoutCheckTime = 0f;
         _subRoundId = 0;
         _localRoleSubRoundId = -1;
+        _localRoleAnnouncedSubRoundId = -1;
+        _startRetryPending = false;
         _subRoundEnding = false;
         InfidelPlayerId = -1;
         WinnerId = -1;
@@ -293,8 +297,9 @@ internal static class InfidelState
 
         _localRoleSubRoundId = subRoundId;
         LocalIsInfidel = isInfidel;
-        if (announce)
+        if (announce && _localRoleAnnouncedSubRoundId != subRoundId)
         {
+            _localRoleAnnouncedSubRoundId = subRoundId;
             GameModeHud.AnnounceTarget(isInfidel
                 ? "You are the <color=#CC2222><b>INFIDEL</b></color>."
                 : "You are a <color=#4D9BFF><b>TERRORIST</b></color>.", WeaponDelaySeconds);
@@ -313,29 +318,33 @@ internal static class InfidelState
             return;
         }
 
-        _subRoundId++;
-        _subRoundEnding = false;
-        WeaponsUnlocked = false;
-        _nextLoadoutCheckTime = 0f;
-        PendingLoadouts.Clear();
-        AlivePlayers.Clear();
-
         List<int> players = new();
         foreach (ClientInstance client in ClientInstance.playerInstances.Values)
         {
             if (client != null && client)
             {
                 players.Add(client.PlayerId);
-                AlivePlayers.Add(client.PlayerId);
-                PendingHealthResets.Add(client.PlayerId);
-                Scores.TryAdd(client.PlayerId, 0);
             }
         }
 
         if (players.Count == 0)
         {
             InfidelPlayerId = -1;
+            ScheduleStartSubRoundRetry();
             return;
+        }
+
+        _subRoundId++;
+        _subRoundEnding = false;
+        WeaponsUnlocked = false;
+        _nextLoadoutCheckTime = 0f;
+        PendingLoadouts.Clear();
+        AlivePlayers.Clear();
+        foreach (int playerId in players)
+        {
+            AlivePlayers.Add(playerId);
+            PendingHealthResets.Add(playerId);
+            Scores.TryAdd(playerId, 0);
         }
 
         InfidelPlayerId = players[UnityEngine.Random.Range(0, players.Count)];
@@ -349,6 +358,40 @@ internal static class InfidelState
             Plugin.Instance.StartCoroutine(UnlockWeaponsAfterDelay(token, SessionState.Generation,
                 GameModeManager.RoundId));
         }
+    }
+
+    private static void ScheduleStartSubRoundRetry()
+    {
+        if (_startRetryPending || Plugin.Instance == null)
+        {
+            return;
+        }
+
+        _startRetryPending = true;
+        Plugin.Instance.StartCoroutine(RetryStartSubRound(SessionState.Generation,
+            GameModeManager.RoundId, _subRoundId));
+    }
+
+    private static IEnumerator RetryStartSubRound(int sessionGeneration, int roundId,
+        int previousSubRoundId)
+    {
+        for (int attempt = 0; attempt < 20; attempt++)
+        {
+            yield return new WaitForSeconds(0.25f);
+            if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
+                || WinnerId >= 0 || _subRoundEnding || !GameModeManager.IsActive(GameMode.Infidel))
+            {
+                break;
+            }
+
+            StartSubRound();
+            if (_subRoundId > previousSubRoundId)
+            {
+                break;
+            }
+        }
+
+        _startRetryPending = false;
     }
 
     private static IEnumerator UnlockWeaponsAfterDelay(int token, int sessionGeneration, int roundId)
