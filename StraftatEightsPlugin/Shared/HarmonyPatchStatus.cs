@@ -12,9 +12,13 @@ internal static class HarmonyPatchStatus
     {
         typeof(GameManager_GameModeDeath_Patch),
         typeof(GameManager_GameModeReset_Patch),
-        typeof(PauseManager_GameModeLifecycle_Patch),
+        typeof(PauseManager_RoundLifecycle_Patch),
         typeof(SceneMotor_GameModeCycle_Patch),
-        typeof(GameManager_GameModeStart_Patch)
+        typeof(GameManager_GameModeStart_Patch),
+        typeof(ItemSpawner_WeaponPolicy_Patch),
+        typeof(PlayerPickup_WeaponPolicy_Patch),
+        typeof(FirstPersonController_MovementPolicy_Patch),
+        typeof(Weapon_UpdatePolicy_Patch)
     };
 
     private static readonly Dictionary<GameMode, Type[]> RequiredModePatches = new()
@@ -22,68 +26,33 @@ internal static class HarmonyPatchStatus
         [GameMode.Juggernaut] = new[]
         {
             typeof(GameManager_JuggernautTick_Patch),
-            typeof(FirstPersonController_JuggernautSpeed_Patch),
-            typeof(FirstPersonController_JuggernautJump_Patch),
-            typeof(Weapon_JuggernautMinigunAmmo_Patch),
             typeof(Minigun_JuggernautAmmoDisplay_Patch),
-            typeof(Minigun_JuggernautReload_Patch),
-            typeof(PlayerPickup_JuggernautWeapon_Patch)
+            typeof(Minigun_JuggernautReload_Patch)
         },
         [GameMode.GunGame] = new[]
         {
-            typeof(PlayerManager_GunGameSpawn_Patch),
-            typeof(Weapon_GunGameUnlimitedAmmo_Patch)
+            typeof(PlayerManager_GunGameSpawn_Patch)
         },
         [GameMode.SniperBattle] = new[]
         {
-            typeof(PlayerManager_SniperBattleSpawn_Patch),
-            typeof(PlayerPickup_SniperBattleWeapon_Patch),
-            typeof(Weapon_SniperBattleUnlimitedAmmo_Patch)
-        },
-        [GameMode.MichaelMeyers] = new[]
-        {
-            typeof(PauseManager_MichaelMeyersRoundStart_Patch),
-            typeof(ItemSpawner_MichaelMeyers_Patch),
-            typeof(PlayerPickup_MichaelMeyersWeapon_Patch),
-            typeof(FirstPersonController_MichaelMeyersMovement_Patch),
-            typeof(FirstPersonController_MichaelMeyersSlide_Patch),
-            typeof(FirstPersonController_MichaelMeyersHandleSlide_Patch),
-            typeof(FirstPersonController_MichaelMeyersWallJump_Patch),
-            typeof(FirstPersonController_MichaelMeyersWallCollision_Patch),
-            typeof(Weapon_MichaelMeyersMovement_Patch)
+            typeof(PlayerManager_SniperBattleSpawn_Patch)
         },
         [GameMode.KillTheRat] = new[]
         {
             typeof(GameManager_KillTheRatTick_Patch),
-            typeof(PlayerManager_KillTheRatSpawn_Patch),
-            typeof(PlayerPickup_KillTheRatWeapon_Patch),
-            typeof(Weapon_KillTheRatUnlimitedGlock_Patch),
-            typeof(FirstPersonController_KillTheRatSpeed_Patch)
+            typeof(PlayerManager_KillTheRatSpawn_Patch)
         },
         [GameMode.OneInTheChamber] = new[]
         {
-            typeof(PauseManager_OneInTheChamberRoundStart_Patch),
-            typeof(ItemSpawner_OneInTheChamber_Patch),
             typeof(PlayerManager_OneInTheChamberSpawn_Patch),
-            typeof(PlayerPickup_OneInTheChamberWeapon_Patch),
-            typeof(Weapon_OneInTheChamberAmmo_Patch)
         },
         [GameMode.HotPotato] = new[]
         {
-            typeof(PauseManager_HotPotatoRoundStart_Patch),
-            typeof(ItemSpawner_HotPotato_Patch),
-            typeof(PlayerManager_HotPotatoSpawn_Patch),
-            typeof(PlayerPickup_HotPotatoWeapon_Patch)
+            typeof(PlayerManager_HotPotatoSpawn_Patch)
         },
         [GameMode.Infidel] = new[]
         {
-            typeof(PauseManager_InfidelRoundStart_Patch),
-            typeof(ItemSpawner_Infidel_Patch),
             typeof(PlayerManager_InfidelSpawn_Patch),
-            typeof(PlayerPickup_InfidelWeapon_Patch),
-            typeof(FirstPersonController_InfidelMovement_Patch),
-            typeof(FirstPersonController_InfidelJump_Patch),
-            typeof(FirstPersonController_InfidelWallCollision_Patch)
         }
     };
 

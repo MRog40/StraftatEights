@@ -303,12 +303,3 @@ internal sealed class GameModeHud : MonoBehaviour
         _scoreboard.text = text.ToString();
     }
 }
-
-[HarmonyLib.HarmonyPatch(typeof(PauseManager), "InvokeRoundStarted")]
-internal static class PauseManager_GameModeAnnouncement_Patch
-{
-    private static void Postfix()
-    {
-        GameModeHud.AnnounceActiveMode();
-    }
-}

@@ -781,15 +781,6 @@ internal static class GameManager_GameModeReset_Patch
     }
 }
 
-[HarmonyLib.HarmonyPatch(typeof(PauseManager), "InvokeRoundStarted")]
-internal static class PauseManager_GameModeLifecycle_Patch
-{
-    private static void Postfix()
-    {
-        GameModeManager.BeginRound();
-    }
-}
-
 [HarmonyLib.HarmonyPatch(typeof(SceneMotor), "ChangeNetworkScene")]
 internal static class SceneMotor_GameModeCycle_Patch
 {

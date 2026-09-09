@@ -96,12 +96,17 @@ internal static class KillTheRatState
 
     internal static void ResetMatchState()
     {
+        bool preserveNewerRemoteState = !MyceliumNetwork.IsHost
+            && Sync.LastLiveRoundId >= GameModeManager.RoundId;
         Sync.ResetLiveState();
         _survivalAccumulator = 0f;
         _nextLoadoutCheckTime = 0f;
-        CurrentRatPlayerId = -1;
-        WinnerId = -1;
-        Points.Clear();
+        if (!preserveNewerRemoteState)
+        {
+            CurrentRatPlayerId = -1;
+            WinnerId = -1;
+            Points.Clear();
+        }
         PendingLoadouts.Clear();
     }
 
@@ -181,13 +186,19 @@ internal static class KillTheRatState
     internal static bool IsRat(PlayerHealth health)
     {
         return GameModeManager.IsActive(GameMode.KillTheRat)
-            && health.playerValues?.playerClient?.PlayerId == CurrentRatPlayerId;
+            && GetPlayerId(health) == CurrentRatPlayerId;
     }
 
     internal static bool IsRat(FirstPersonController controller)
     {
-        PlayerHealth? health = controller == null ? null : controller.GetComponent<PlayerHealth>();
-        return health != null && IsRat(health);
+        if (controller == null || !GameModeManager.IsActive(GameMode.KillTheRat))
+        {
+            return false;
+        }
+
+        PlayerValues? values = controller.GetComponent<PlayerValues>();
+        return values?.playerClient?.PlayerId == CurrentRatPlayerId
+            || IsRat(controller.GetComponent<PlayerHealth>());
     }
 
     internal static bool IsRatWeapon(Weapon weapon)
@@ -326,6 +337,11 @@ internal static class KillTheRatState
     private static Weapon? GetWeapon(GameObject? heldObject)
     {
         return heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
+    }
+
+    private static int GetPlayerId(PlayerHealth health)
+    {
+        return health.playerValues?.playerClient?.PlayerId ?? -1;
     }
 
     private static string SerializePoints() => ScoreCodec.Serialize(Points);

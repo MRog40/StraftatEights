@@ -5,27 +5,6 @@ namespace StraftatEightsPlugin;
 
 // Harmony patches that enforce GlobalModifiersState on the actual game objects
 
-[HarmonyPatch(typeof(FirstPersonController), "Slide")]
-internal static class FirstPersonController_Slide_Patch
-{
-    // Blocks the crouch-slide input handler entirely while sliding is disabled
-    private static bool Prefix(FirstPersonController __instance)
-    {
-        return !JuggernautState.IsCurrentJuggernaut(__instance) && GlobalModifiersState.SlidingEnabled;
-    }
-}
-[HarmonyPatch(typeof(FirstPersonController), "OnControllerColliderHit")]
-internal static class FirstPersonController_WallJump_Patch
-{
-    // The base game sets CanWallJump on every wall collision, so we clear it right after
-    private static void Postfix(FirstPersonController __instance)
-    {
-        if (!GlobalModifiersState.WallJumpEnabled)
-        {
-            __instance.CanWallJump = false;
-        }
-    }
-}
 [HarmonyPatch(typeof(FirstPersonController), "HandleAddingForce")]
 internal static class FirstPersonController_SlideBoost_Patch
 {
@@ -52,7 +31,7 @@ internal static class FirstPersonController_SlideBoost_Patch
     }
 }
 
-[HarmonyPatch(typeof(FirstPersonController), "Jump")]
+ [HarmonyPatch(typeof(FirstPersonController), "Jump")]
 internal static class FirstPersonController_SlideJumpForce_Patch
 {
     private static void Prefix(FirstPersonController __instance)
