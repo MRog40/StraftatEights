@@ -17,6 +17,7 @@ internal static class HarmonyPatchStatus
         typeof(GameManager_GameModeStart_Patch),
         typeof(ItemSpawner_WeaponPolicy_Patch),
         typeof(PlayerPickup_WeaponPolicy_Patch),
+        typeof(Weapon_AmmoInitialization_Patch),
         typeof(FirstPersonController_MovementPolicy_Patch),
         typeof(Weapon_UpdatePolicy_Patch)
     };
@@ -48,7 +49,8 @@ internal static class HarmonyPatchStatus
         },
         [GameMode.HotPotato] = new[]
         {
-            typeof(PlayerManager_HotPotatoSpawn_Patch)
+            typeof(PlayerManager_HotPotatoSpawn_Patch),
+            typeof(MeleeWeapon_HotPotatoBatDamage_Patch)
         },
         [GameMode.Infidel] = new[]
         {

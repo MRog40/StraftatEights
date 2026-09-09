@@ -16,8 +16,8 @@ if (-not (Test-Path $iconPath)) {
 }
 
 & (Join-Path $PSScriptRoot 'ValidateDependencies.ps1')
-if ($LASTEXITCODE -ne 0) {
-    throw "Dependency validation failed with exit code $LASTEXITCODE."
+if (-not $?) {
+    throw 'Dependency validation failed.'
 }
 
 & dotnet build $projectPath --configuration $Configuration --no-restore
@@ -41,8 +41,8 @@ Copy-Item $iconPath (Join-Path $stagingDirectory 'icon.png')
 Copy-Item (Join-Path $outputDirectory 'StraftatEightsPlugin.dll') $stagingDirectory
 
 & (Join-Path $PSScriptRoot 'ValidatePackage.ps1') -PackageDirectory $stagingDirectory
-if ($LASTEXITCODE -ne 0) {
-    throw "Package validation failed with exit code $LASTEXITCODE."
+if (-not $?) {
+    throw 'Package validation failed.'
 }
 
 if (Test-Path $PackageDirectory) {

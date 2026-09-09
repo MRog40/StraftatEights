@@ -5,6 +5,24 @@ using UnityEngine;
 
 namespace StraftatEightsPlugin;
 
+[HarmonyPatch]
+internal static class Weapon_AmmoInitialization_Patch
+{
+    private static MethodBase? TargetMethod()
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        return typeof(Weapon).GetMethod("Awake___UserLogic", flags)
+            ?? typeof(Weapon).GetMethod("Awake", flags);
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
+    private static void Postfix(Weapon __instance)
+    {
+        WeaponAmmoTuning.CaptureMagazineSize(__instance);
+    }
+}
+
 [HarmonyPatch(typeof(PauseManager), "MoveAmmoDisplay")]
 internal static class PauseManager_RemotePlayerHudCleanup_Patch
 {

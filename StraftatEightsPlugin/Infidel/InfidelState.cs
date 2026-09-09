@@ -152,7 +152,7 @@ internal static class InfidelState
             : Math.Max(_subRoundId, subRoundId);
         WeaponsUnlocked = weaponsUnlocked;
         Scores.Clear();
-        foreach (KeyValuePair<int, int> entry in ScoreCodec.ParseSigned(scoresData, KillsToWin))
+        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(scoresData, KillsToWin))
         {
             Scores[entry.Key] = entry.Value;
         }
@@ -183,20 +183,19 @@ internal static class InfidelState
 
         if (killerId >= 0 && killerId != deadPlayerId)
         {
-            AwardScore(killerId, deadWasInfidel ? 40 : -20);
-        }
-
-        if (deadWasInfidel)
-        {
-            foreach (int playerId in AlivePlayers)
+            bool killerIsInfidel = killerId == InfidelPlayerId;
+            int killerAward = InfidelRules.GetKillerAward(deadWasInfidel, killerIsInfidel,
+                deadWasInfidel ? AlivePlayers.Count : 0);
+            if (killerAward > 0)
             {
-                AwardScore(playerId, 20);
+                AwardScore(killerId, killerAward);
             }
-        }
 
-        if (!deadWasInfidel && AlivePlayers.Count == 1 && AlivePlayers.Contains(InfidelPlayerId))
-        {
-            AwardScore(InfidelPlayerId, 40);
+            int infidelBonusAward = InfidelRules.GetInfidelBonusAward(deadWasInfidel, killerIsInfidel);
+            if (infidelBonusAward > 0)
+            {
+                AwardScore(InfidelPlayerId, infidelBonusAward);
+            }
         }
 
         BroadcastLiveState();

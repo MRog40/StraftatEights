@@ -125,12 +125,9 @@ public partial class Plugin : BaseUnityPlugin
         WeaponSettingsState.UpdateLocalCycle();
         WeaponSettingsState.PeriodicPushIfHost();
         WeaponSettingsState.EnsureCycleLoadouts();
-        SpawnProtectionState.PeriodicPushIfHost();
         GameModeManager.EnsureActiveModeLoadouts();
         JuggernautOutline.EnforceOutline();
         MichaelMeyersOutline.EnforceOutline();
         KillTheRatOutline.EnforceOutline();
-        SpawnProtectionVisual.Enforce();
     }
 }
-

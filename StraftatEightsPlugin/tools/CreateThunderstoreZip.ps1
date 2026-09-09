@@ -10,8 +10,8 @@ $root = Split-Path -Parent $PSScriptRoot
 $manifestPath = Join-Path $root 'manifest.json'
 
 & (Join-Path $PSScriptRoot 'BuildPackage.ps1') -Configuration $Configuration -PackageDirectory $PackageDirectory
-if ($LASTEXITCODE -ne 0) {
-    throw "Package build failed with exit code $LASTEXITCODE."
+if (-not $?) {
+    throw 'Package build failed.'
 }
 
 $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
@@ -32,8 +32,8 @@ if (Test-Path $inspectionDirectory) {
 try {
     Expand-Archive -Path $ZipPath -DestinationPath $inspectionDirectory
     & (Join-Path $PSScriptRoot 'ValidatePackage.ps1') -PackageDirectory $inspectionDirectory
-    if ($LASTEXITCODE -ne 0) {
-        throw "ZIP inspection failed with exit code $LASTEXITCODE."
+    if (-not $?) {
+        throw 'ZIP inspection failed.'
     }
 }
 finally {

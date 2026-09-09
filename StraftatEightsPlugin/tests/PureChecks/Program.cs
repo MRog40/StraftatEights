@@ -90,9 +90,15 @@ Assert(!HotPotatoRules.IsAllowedWeapon("Glock(Clone)", false),
 Assert(HotPotatoRules.ResolvePotato(1, 1, 2) == 2
     && HotPotatoRules.ResolvePotato(1, 3, 2) == 1,
     "Only a kill by the current bat holder may transfer the potato.");
-Dictionary<int, int> signedScores = ScoreCodec.ParseSigned("1:-20;2:40", ScoreRules.PointsToWin);
-Assert(signedScores.Count == 2 && signedScores[1] == -20 && signedScores[2] == 40,
-    "Infidel score payloads must preserve negative and positive awards.");
+Assert(InfidelRules.GetKillerAward(false, true, 0) == 10,
+    "The Infidel must receive ten points for each terrorist kill.");
+Assert(InfidelRules.GetKillerAward(false, false, 0) == 0
+    && InfidelRules.GetInfidelBonusAward(false, false) == 10,
+    "A terrorist-on-terrorist kill must award ten points to the Infidel and none to the killer.");
+Assert(InfidelRules.GetKillerAward(true, false, 4) == 40
+    && InfidelRules.GetKillerAward(true, false, 2) == 20
+    && InfidelRules.GetInfidelBonusAward(true, false) == 0,
+    "Killing the Infidel must award ten points per surviving terrorist.");
 
 List<string> modes = new() { "Default", "FFA", "GunGame" };
 Assert(ModeCycle.TrySelectNext(modes, "Default", out string nextMode) && nextMode == "FFA",

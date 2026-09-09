@@ -77,7 +77,6 @@ internal static class GameModeRespawn
                 if (success)
                 {
                     FinalizeRespawn(manager);
-                    SpawnProtectionState.Activate(FindPlayerId(manager));
                     ClearSpawnAdjustment(manager);
                 }
             }
@@ -118,7 +117,6 @@ internal static class GameModeRespawn
                     if (FishNetCompatibility.TryInvokeRespawn(manager))
                     {
                         FinalizeRespawn(manager);
-                        SpawnProtectionState.Activate(playerId);
                         ClearSpawnAdjustment(manager);
                         PendingManagers.Remove(playerId);
                         yield break;

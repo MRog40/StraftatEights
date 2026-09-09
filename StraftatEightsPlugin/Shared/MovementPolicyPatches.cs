@@ -1,9 +1,25 @@
 using HarmonyLib;
+using UnityEngine;
 
 namespace StraftatEightsPlugin;
 
 internal static class MovementPolicy
 {
+    private static bool IsJuggernautMinigunFiring(FirstPersonController controller)
+    {
+        PlayerPickup? pickup = controller.playerPickupScript;
+        GameObject? heldObject = pickup?.objInHand;
+        Weapon? weapon = heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
+        if (weapon == null
+            || !weapon.name.StartsWith(JuggernautState.WeaponName, System.StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var fireAction = weapon.invertFire ? weapon.fire2 : weapon.fire1;
+        return fireAction != null && fireAction.ReadValue<float>() > 0.1f;
+    }
+
     internal static bool CanSlide(FirstPersonController controller)
     {
         return !GameModeManager.IsActive(GameMode.MichaelMeyers)
@@ -33,7 +49,9 @@ internal static class MovementPolicy
             case GameMode.Juggernaut:
                 if (JuggernautState.IsCurrentJuggernaut(controller))
                 {
-                    controller.movementFactor = JuggernautState.MovementMultiplier;
+                    controller.movementFactor = IsJuggernautMinigunFiring(controller)
+                        ? JuggernautState.MovementMultiplier
+                        : 1f;
                 }
                 break;
             case GameMode.KillTheRat:

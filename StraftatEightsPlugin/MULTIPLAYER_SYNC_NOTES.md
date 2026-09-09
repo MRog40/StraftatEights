@@ -62,10 +62,10 @@ repository. Read them before adding a networked game mode or patch.
   10 seconds. After the delay, active players receive the exact `AK-K` prefab with two spare magazines.
 - The Infidel has 200 health; Terrorists have 100 health. Global health and regeneration settings are
   ignored while the mode is active. Movement is 70 percent with sliding and wall jumping disabled.
-- The Infidel's death ends the sub-round immediately. Surviving Terrorists receive 20 points, the
-  killer receives 40 points when applicable, and all players respawn for a new sub-round. If the
-  Infidel is the last living player, it receives 40 points before the next sub-round. Scores persist
-  across sub-rounds until a player reaches 100 points.
+- The Infidel's death ends the sub-round immediately. The Infidel earns 10 points per Terrorist kill.
+  A Terrorist-on-Terrorist kill awards 0 points to the killer and 10 points to the Infidel. Killing
+  the Infidel awards the killer 10 points for each Terrorist still alive after the kill. All players
+  then respawn for a new sub-round, and scores persist until a player reaches 100 points.
 
 ## FishNet RPCs and Ownership
 
@@ -160,9 +160,8 @@ When a result is asymmetric, compare the host and client logs and verify these f
   values. Do not merge these payloads just to reduce RPC count.
 - Mode capabilities provide precedence guards at shared patch boundaries. A mode-specific weapon,
   health, movement, or respawn rule must explicitly block or layer the global rule while active.
-- Custom respawns use the global `Invincible After Spawn (s)` setting. The host activates a per-player
-  expiry only after the server respawn succeeds, blocks positive damage in the generated health logic,
-  and periodically syncs the short-lived state so every peer can show the temporary white outline.
+- Custom respawns remain host-authoritative and use the shared respawn timing path. They do not add
+  temporary invincibility or a special player outline.
 
 ## Startup and ModMenu
 

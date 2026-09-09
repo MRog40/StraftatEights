@@ -91,21 +91,6 @@ internal static class ScoreCodec
         return scores;
     }
 
-    internal static Dictionary<int, int> ParseSigned(string data, int maximumScore)
-    {
-        Dictionary<int, int> scores = new();
-        foreach (string entry in (data ?? string.Empty).Split(';'))
-        {
-            int separator = entry.IndexOf(':');
-            if (separator > 0 && int.TryParse(entry.Substring(0, separator), out int id)
-                && int.TryParse(entry.Substring(separator + 1), out int score)
-                && id >= 0 && score <= maximumScore)
-            {
-                scores[id] = score;
-            }
-        }
-        return scores;
-    }
 }
 
 internal static class OneInTheChamberRules
@@ -149,6 +134,27 @@ internal static class HotPotatoRules
         return killerId == potatoPlayerId && killerId != deadPlayerId
             ? deadPlayerId
             : potatoPlayerId;
+    }
+}
+
+internal static class InfidelRules
+{
+    internal const int PointsPerKill = 10;
+
+    internal static int GetKillerAward(bool deadWasInfidel, bool killerIsInfidel,
+        int aliveTerroristsAfterDeath)
+    {
+        if (deadWasInfidel)
+        {
+            return Math.Max(0, aliveTerroristsAfterDeath) * PointsPerKill;
+        }
+
+        return killerIsInfidel ? PointsPerKill : 0;
+    }
+
+    internal static int GetInfidelBonusAward(bool deadWasInfidel, bool killerIsInfidel)
+    {
+        return !deadWasInfidel && !killerIsInfidel ? PointsPerKill : 0;
     }
 }
 

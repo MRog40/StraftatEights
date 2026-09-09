@@ -1,7 +1,7 @@
 # Straftat Eights
 
 Straftat Eights is a host-authoritative BepInEx plugin for STRAFTAT. It adds configurable movement,
-health, weapons, spawn protection, and custom game modes for multiplayer lobbies.
+health, weapons, and custom game modes for multiplayer lobbies.
 
 ## Compatibility
 
@@ -36,14 +36,9 @@ This will be published to Thunderstore. I use Gale. If it's not published, you c
 - Configure regeneration delay and regeneration rate.
 - Game modes with their own health rules take priority over these global settings.
 
-### Respawn and Spawn Protection
+### Respawn
 
 - Configure the respawn delay from 0 to 10 seconds.
-- Configure `Invincible After Spawn (s)` from 0 to 10 seconds. The default is 2 seconds.
-- Spawn protection starts after a successful custom-mode respawn.
-- Protected players cannot take damage during the protection period.
-- Protected players receive a temporary gray outline.
-- Protection is host-authoritative and applies to respawn-based modes. One-life modes do not use it.
 
 ### Weapon Settings
 
@@ -87,7 +82,7 @@ reach 100 points wins.
 ### Michael Meyers
 
 One player becomes Michael and hunts the survivors with a Couperet. Survivors must avoid Michael until
-the round ends. This is a one-life mode and does not use custom respawn protection.
+the round ends. This is a one-life mode.
 
 ### Kill the Rat
 
@@ -109,8 +104,10 @@ bat holder gets a kill, the victim respawns with the bat and the former holder r
 
 One player is privately assigned as the Infidel. The other players are Terrorists. Players start with
 slow movement and no weapons, then receive delayed loadouts. The Infidel has increased health while
-Terrorists have normal health and no regeneration. Role events award points, and the first player to
-reach 100 points wins.
+Terrorists have normal health and no regeneration. The Infidel earns 10 points per terrorist kill.
+Terrorists earn no points for killing another Terrorist, but the Infidel earns 10 points. Killing the
+Infidel awards the killer 10 points for each Terrorist still alive. The first player to reach 100 points
+wins.
 
 ## Configuration
 

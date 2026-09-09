@@ -26,7 +26,7 @@ internal static class WeaponAmmoTuning
     private static AudioClip? fallbackReloadClip;
     private static Coroutine? hudRefreshCoroutine;
 
-    internal static void Initialize(Weapon weapon, int spareMagazines)
+    internal static void CaptureMagazineSize(Weapon weapon)
     {
         if (weapon == null || !weapon.needsAmmo)
         {
@@ -34,14 +34,39 @@ internal static class WeaponAmmoTuning
         }
 
         Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
-        if (memory.Initialized)
+        if (memory.Initialized || memory.SingleShot)
         {
             return;
         }
 
-        memory.MagazineSize = Mathf.Max(1, weapon.currentAmmo);
-        memory.SpareRounds = memory.MagazineSize * Mathf.Max(0, spareMagazines);
-        memory.Initialized = true;
+        int magazineSize = weapon.reloadWeapon
+            ? (weapon.ammoCharge > 0 ? weapon.ammoCharge : Mathf.RoundToInt(weapon.chargedBullets))
+            : weapon.currentAmmo;
+        if (magazineSize > 0)
+        {
+            memory.MagazineSize = magazineSize;
+            memory.Initialized = true;
+        }
+    }
+
+    internal static void Initialize(Weapon weapon, int spareMagazines)
+    {
+        if (weapon == null || !weapon.needsAmmo)
+        {
+            return;
+        }
+
+        CaptureMagazineSize(weapon);
+        Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
+        if (!memory.Initialized)
+        {
+            memory.MagazineSize = Mathf.Max(1, weapon.currentAmmo);
+            memory.Initialized = true;
+        }
+        if (memory.SpareRounds <= 0)
+        {
+            memory.SpareRounds = memory.MagazineSize * Mathf.Max(0, spareMagazines);
+        }
     }
 
     internal static void InitializeUnlimited(Weapon weapon)
@@ -52,6 +77,7 @@ internal static class WeaponAmmoTuning
         }
 
         Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
+        CaptureMagazineSize(weapon);
         if (!memory.Initialized)
         {
             memory.MagazineSize = Mathf.Max(1, weapon.currentAmmo);
@@ -115,6 +141,7 @@ internal static class WeaponAmmoTuning
             return;
         }
 
+        CaptureMagazineSize(weapon);
         Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
         memory.Reloading = false;
         memory.ManualReloadPressed = false;
@@ -122,13 +149,19 @@ internal static class WeaponAmmoTuning
 
         if (weapon.reloadWeapon)
         {
-            memory.MagazineSize = Mathf.Max(1, weapon.ammoCharge > 0 ? weapon.ammoCharge : Mathf.RoundToInt(weapon.chargedBullets));
+            if (memory.MagazineSize <= 0)
+            {
+                memory.MagazineSize = Mathf.Max(1, weapon.ammoCharge > 0 ? weapon.ammoCharge : Mathf.RoundToInt(weapon.chargedBullets));
+            }
             weapon.currentAmmo = memory.MagazineSize * Mathf.Max(0, spareMagazines);
             memory.SpareRounds = weapon.currentAmmo;
         }
         else
         {
-            memory.MagazineSize = Mathf.Max(1, weapon.currentAmmo);
+            if (memory.MagazineSize <= 0)
+            {
+                memory.MagazineSize = Mathf.Max(1, weapon.currentAmmo);
+            }
             memory.SpareRounds = memory.MagazineSize * Mathf.Max(0, spareMagazines);
             weapon.currentAmmo = memory.MagazineSize;
         }
