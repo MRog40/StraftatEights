@@ -156,13 +156,18 @@ internal sealed class GameModeHud : MonoBehaviour
 
     internal static void AnnounceTarget(string text)
     {
+        AnnounceTarget(text, AnnouncementDuration);
+    }
+
+    internal static void AnnounceTarget(string text, float durationSeconds)
+    {
         if (_instance == null || GameModeManager.IsMatchOver)
         {
             return;
         }
 
         _instance._announcement.text = text;
-        _instance._announcementUntil = Time.unscaledTime + AnnouncementDuration;
+        _instance._announcementUntil = Time.unscaledTime + Mathf.Max(0f, durationSeconds);
         _instance._announcement.gameObject.SetActive(true);
     }
 

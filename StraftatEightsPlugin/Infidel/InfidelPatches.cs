@@ -76,26 +76,6 @@ internal static class FirstPersonController_InfidelMovement_Patch
 
         __instance.movementFactor = InfidelState.MovementMultiplier;
         __instance.CanWallJump = false;
-        __instance.isSliding = false;
-        __instance.isCrouching = false;
-    }
-}
-
-[HarmonyPatch(typeof(FirstPersonController), "Slide")]
-internal static class FirstPersonController_InfidelSlide_Patch
-{
-    private static bool Prefix()
-    {
-        return !GameModeManager.IsActive(GameMode.Infidel);
-    }
-}
-
-[HarmonyPatch(typeof(FirstPersonController), "HandleSlide")]
-internal static class FirstPersonController_InfidelHandleSlide_Patch
-{
-    private static bool Prefix()
-    {
-        return !GameModeManager.IsActive(GameMode.Infidel);
     }
 }
 

@@ -82,8 +82,6 @@ internal static class HarmonyPatchStatus
             typeof(PlayerManager_InfidelSpawn_Patch),
             typeof(PlayerPickup_InfidelWeapon_Patch),
             typeof(FirstPersonController_InfidelMovement_Patch),
-            typeof(FirstPersonController_InfidelSlide_Patch),
-            typeof(FirstPersonController_InfidelHandleSlide_Patch),
             typeof(FirstPersonController_InfidelJump_Patch),
             typeof(FirstPersonController_InfidelWallCollision_Patch)
         }

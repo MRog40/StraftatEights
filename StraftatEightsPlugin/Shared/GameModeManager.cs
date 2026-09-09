@@ -561,8 +561,7 @@ internal static class GameModeManager
             return;
         }
 
-        ActiveMode = GameMode.None;
-        Phase = GameModePhase.Inactive;
+        Phase = ActiveMode == GameMode.None ? GameModePhase.Inactive : GameModePhase.Lobby;
     }
 
     internal static void BeginRound()

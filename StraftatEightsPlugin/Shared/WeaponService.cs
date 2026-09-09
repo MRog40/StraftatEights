@@ -148,8 +148,8 @@ internal static class WeaponService
         if (item != null) item.dispenserStart = true;
         Rigidbody? body = weapon.GetComponent<Rigidbody>();
         if (body != null) { body.isKinematic = true; body.useGravity = false; }
-        networkManager.ServerManager.Spawn(weapon);
         NotifyOwnerWeaponAttached(playerId);
+        networkManager.ServerManager.Spawn(weapon);
         yield return new WaitForSeconds(0.1f);
         if (!requestVersions.IsCurrent(playerId, requestVersion) || !SessionState.IsCurrent(sessionGeneration)
             || GameModeManager.RoundId != roundId
@@ -273,7 +273,10 @@ internal static class WeaponService
             return;
         }
 
-        PendingOwnerAttachments.Add(playerId);
+        if (!PendingOwnerAttachments.Add(playerId))
+        {
+            return;
+        }
         Plugin.Instance.StartCoroutine(AttachGrantedWeaponAfterSync(playerId, SessionState.Generation));
     }
 
@@ -361,6 +364,11 @@ internal static class WeaponService
         if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
         {
             return;
+        }
+
+        if (ClientInstance.Instance != null && ClientInstance.Instance.PlayerId == playerId)
+        {
+            AttachGrantedWeaponForOwner(playerId);
         }
 
         MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId, nameof(Plugin.AttachServerGrantedWeapon),

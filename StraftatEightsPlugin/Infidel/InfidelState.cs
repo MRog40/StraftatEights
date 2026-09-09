@@ -251,7 +251,7 @@ internal static class InfidelState
 
         float healthDelta = maximumHealth - health.sync___get_value_health();
         bool resetHealth = playerId >= 0 && PendingHealthResets.Remove(playerId);
-        if (!resetHealth && healthDelta <= 0f)
+        if (!resetHealth && healthDelta >= 0f)
         {
             return;
         }
@@ -298,7 +298,7 @@ internal static class InfidelState
         {
             GameModeHud.AnnounceTarget(isInfidel
                 ? "You are the <color=#CC2222><b>INFIDEL</b></color>."
-                : "You are a <color=#4D9BFF><b>TERRORIST</b></color>.");
+                : "You are a <color=#4D9BFF><b>TERRORIST</b></color>.", WeaponDelaySeconds);
         }
     }
 
