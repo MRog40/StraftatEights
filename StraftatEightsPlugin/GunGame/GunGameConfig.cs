@@ -33,6 +33,8 @@ public partial class Plugin
     [CustomRPC]
     public void SyncGunGameSettings(CSteamID hostId, int roundId, int revision, bool enabled, string weaponOrder)
     {
+        DebugLog.Info($"GunGame settings received source=rpc host={hostId.m_SteamID} round={roundId} "
+            + $"revision={revision} enabled={enabled} orderLength={weaponOrder?.Length ?? 0}");
         if (!GunGameState.TryAcceptSettingsSnapshot(hostId, roundId, revision, "gun-game-rpc"))
         {
             return;
@@ -44,6 +46,8 @@ public partial class Plugin
     [CustomRPC]
     public void SyncGunGameLiveState(CSteamID hostId, string progressData, int roundId, int revision)
     {
+        DebugLog.Info($"GunGame live state received source=rpc host={hostId.m_SteamID} round={roundId} "
+            + $"revision={revision} payloadLength={progressData?.Length ?? 0}");
         GunGameState.ApplyLiveState(hostId, progressData, roundId, revision, "gun-game-rpc");
     }
 }

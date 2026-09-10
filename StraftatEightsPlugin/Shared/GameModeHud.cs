@@ -5,6 +5,7 @@ using Steamworks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 namespace StraftatEightsPlugin;
 
@@ -147,6 +148,8 @@ internal sealed class GameModeHud : MonoBehaviour
 
         if (GameModeManager.IsMatchOver)
         {
+            DebugLog.Info($"HUD match-over gate scene={SceneManager.GetActiveScene().name} "
+                + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} round={GameModeManager.RoundId}");
             if (!_hasLoggedVisibility || _lastVisible || _lastVisibilityReason != "match-over")
             {
                 _hasLoggedVisibility = true;
@@ -215,6 +218,14 @@ internal sealed class GameModeHud : MonoBehaviour
         }
 
         bool visible = visibilityReason == "visible";
+        bool inMainMenu = pauseManager?.inMainMenu == true;
+        bool inVictoryMenu = pauseManager?.inVictoryMenu == true;
+        DebugLog.Every("hud-heartbeat", 1f,
+            $"HUD state visible={visible} reason={visibilityReason} panel={_panel.activeSelf} "
+            + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} round={GameModeManager.RoundId} "
+            + $"players={connectedPlayerCount} scores={GunGameState.Progress.Count} "
+            + $"scene={SceneManager.GetActiveScene().name} mainMenu={inMainMenu} "
+            + $"victoryMenu={inVictoryMenu} scoreboardLength={_scoreboard.text?.Length ?? 0}");
         if (!_hasLoggedVisibility || visible != _lastVisible || visibilityReason != _lastVisibilityReason)
         {
             _hasLoggedVisibility = true;

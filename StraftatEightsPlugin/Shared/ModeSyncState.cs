@@ -55,6 +55,7 @@ internal sealed class ModeSyncState
 
     internal void ResetForLobby()
     {
+        DebugLog.Info($"Mode sync reset for lobby settingsRevision={SettingsRevision} liveRevision={LiveRevision}");
         _lastSettingsRoundId = -1;
         _lastSettingsRevision = -1;
         _lastLiveRoundId = -1;
@@ -66,6 +67,7 @@ internal sealed class ModeSyncState
 
     internal void ResetLiveState()
     {
+        DebugLog.Info($"Mode live state reset settingsRevision={SettingsRevision} liveRevision={LiveRevision}");
         NextLiveRevision();
     }
 

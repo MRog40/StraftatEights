@@ -1,9 +1,11 @@
 ﻿using BepInEx;
+using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using System;
 using System.Linq;
 using System.Reflection;
+using UnityEngine.SceneManagement;
 
 [assembly: ComputerysModdingUtilities.StraftatMod(isVanillaCompatible: false)]
 
@@ -15,6 +17,7 @@ namespace StraftatEightsPlugin;
 public partial class Plugin : BaseUnityPlugin
 {
     internal static new ManualLogSource Logger = null!;
+    internal static ConfigEntry<bool> DebugLogging = null!;
 
     // Used by feature modules that need a persistent MonoBehaviour to host coroutines (e.g. delayed
     // auto-respawn) or attach child components (e.g. a HUD) to - the plugin object outlives scenes.
@@ -29,6 +32,10 @@ public partial class Plugin : BaseUnityPlugin
     {
         Instance = this;
         Logger = base.Logger;
+        DebugLogging = Config.Bind("Diagnostics", "Debug Logging", false,
+            "Enable detailed multiplayer, scene, HUD, and snapshot diagnostics.");
+        DebugLog.Reset();
+        DebugLog.Info($"Startup: version={MyPluginInfo.PLUGIN_VERSION} scene={SceneManager.GetActiveScene().name}");
 
         InitializeSafely("compatibility checks", FishNetCompatibility.LogPreflight);
         InitializeSafely("weapon service", WeaponService.Initialize);
@@ -117,6 +124,16 @@ public partial class Plugin : BaseUnityPlugin
 
     private void Update()
     {
+        DebugLog.Every("plugin-heartbeat", 2f,
+            $"Heartbeat: lobby={MyceliumNetworking.MyceliumNetwork.InLobby} "
+            + $"host={MyceliumNetworking.MyceliumNetwork.IsHost} "
+            + $"lobbyHost={MyceliumNetworking.MyceliumNetwork.LobbyHost.m_SteamID} "
+            + $"localPlayer={ClientInstance.Instance?.PlayerId ?? -1} "
+            + $"players={PlayerLookup.GetConnectedPlayerIds().Count} "
+            + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} "
+            + $"round={GameModeManager.RoundId} scene={SceneManager.GetActiveScene().name} "
+            + $"mainMenu={PauseManager.Instance?.inMainMenu.ToString() ?? "missing"} "
+            + $"victoryMenu={PauseManager.Instance?.inVictoryMenu.ToString() ?? "missing"}");
         GameModeManager.PeriodicPushIfHost();
         GameModeManager.PeriodicActiveModePushIfHost();
         GlobalModifiersState.PeriodicPushIfHost();

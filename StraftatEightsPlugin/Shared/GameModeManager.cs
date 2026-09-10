@@ -337,6 +337,8 @@ internal static class GameModeManager
 
     internal static void HandleSceneChange()
     {
+        DebugLog.Info($"Scene change requested host={MyceliumNetwork.IsHost} scene={SceneManager.GetActiveScene().name} "
+            + $"mode={ActiveMode} phase={Phase} round={RoundId} sceneIndex={SceneMotor.Instance?.sceneIndex ?? -1}");
         if (!MyceliumNetwork.IsHost)
         {
             return;
@@ -353,6 +355,8 @@ internal static class GameModeManager
 
     internal static void StartMatch()
     {
+        DebugLog.Info($"StartMatch called host={MyceliumNetwork.IsHost} lobby={MyceliumNetwork.InLobby} "
+            + $"mode={ActiveMode} phase={Phase} round={RoundId} matchOver={IsMatchOver}");
         if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
             || (ActiveMode != GameMode.None && !IsMatchOver))
         {
@@ -393,6 +397,7 @@ internal static class GameModeManager
 
     private static void EndMatch()
     {
+        DebugLog.Info($"EndMatch before reset mode={ActiveMode} phase={Phase} round={RoundId}");
         ResetMatchState();
         ActiveMode = GameMode.None;
         Phase = GameModePhase.Inactive;
@@ -447,6 +452,8 @@ internal static class GameModeManager
 
     private static void OnLobbyEntered()
     {
+        DebugLog.Info($"Lobby entered/created host={MyceliumNetwork.IsHost} lobby={MyceliumNetwork.InLobby} "
+            + $"lobbyHost={MyceliumNetwork.LobbyHost.m_SteamID} mode={ActiveMode} phase={Phase} round={RoundId}");
         Sync.ResetForLobby();
         SessionState.BeginLobby();
         if (MyceliumNetwork.IsHost)
@@ -474,6 +481,7 @@ internal static class GameModeManager
 
     private static void OnLobbyLeft()
     {
+        DebugLog.Info($"Lobby left mode={ActiveMode} phase={Phase} round={RoundId}");
         SessionState.EndLobby();
         ResetMatchState();
         ActiveMode = GameMode.None;
@@ -491,6 +499,8 @@ internal static class GameModeManager
 
     private static void OnPlayerEntered(CSteamID player)
     {
+        DebugLog.Info($"Player entered player={player.m_SteamID} host={MyceliumNetwork.IsHost} "
+            + $"localPlayer={ClientInstance.Instance?.PlayerId ?? -1} mode={ActiveMode} round={RoundId}");
         if (MyceliumNetwork.IsHost)
         {
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncGlobalSettings), player,
@@ -537,6 +547,8 @@ internal static class GameModeManager
 
     private static void ActivateMode(GameMode mode, bool forceReset)
     {
+        DebugLog.Info($"ActivateMode from={ActiveMode} to={mode} forceReset={forceReset} "
+            + $"beforePhase={Phase} beforeRound={RoundId} host={MyceliumNetwork.IsHost}");
         if (!forceReset && ActiveMode == mode)
         {
             return;
@@ -565,6 +577,8 @@ internal static class GameModeManager
 
     internal static void ApplyActiveMode(int mode, int roundId, int phase)
     {
+        DebugLog.Info($"ApplyActiveMode input mode={(GameMode)mode} round={roundId} phase={(GameModePhase)phase} "
+            + $"currentMode={ActiveMode} currentPhase={Phase} currentRound={RoundId}");
         if (!Enum.IsDefined(typeof(GameMode), mode) || !Enum.IsDefined(typeof(GameModePhase), phase)
             || roundId < RoundId)
         {
@@ -611,6 +625,7 @@ internal static class GameModeManager
 
     internal static void ResetGameState()
     {
+        DebugLog.Info($"ResetGameState host={MyceliumNetwork.IsHost} mode={ActiveMode} phase={Phase} round={RoundId}");
         ResetMatchState();
         if (MyceliumNetwork.IsHost)
         {
@@ -626,6 +641,7 @@ internal static class GameModeManager
 
     internal static void BeginRound()
     {
+        DebugLog.Info($"BeginRound host={MyceliumNetwork.IsHost} mode={ActiveMode} phase={Phase} round={RoundId}");
         if (ActiveMode == GameMode.None)
         {
             return;
@@ -648,6 +664,8 @@ internal static class GameModeManager
     private static void BroadcastActiveMode()
     {
         int revision = Sync.NextLiveRevision();
+        DebugLog.Info($"BroadcastActiveMode host={MyceliumNetwork.LobbyHost.m_SteamID} mode={ActiveMode} "
+            + $"phase={Phase} round={RoundId} revision={revision} players={MyceliumNetwork.PlayerCount}");
         PublishActiveModeSnapshot(revision);
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId, (int)Phase, revision);
@@ -862,6 +880,8 @@ internal static class GameManager_GameModeReset_Patch
 {
     private static void Postfix()
     {
+        DebugLog.Info($"GameManager.ResetGame postfix host={MyceliumNetwork.IsHost} "
+            + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} round={GameModeManager.RoundId}");
         GameModeManager.ResetGameState();
         PlayerOutline.ResetState();
         RespawnProtection.ResetState();
@@ -876,6 +896,9 @@ internal static class SceneMotor_GameModeCycle_Patch
 {
     private static void Prefix()
     {
+        DebugLog.Info($"SceneMotor.ChangeNetworkScene prefix scene={SceneManager.GetActiveScene().name} "
+            + $"host={MyceliumNetwork.IsHost} mode={GameModeManager.ActiveMode} "
+            + $"phase={GameModeManager.Phase} round={GameModeManager.RoundId}");
         GameModeManager.HandleSceneChange();
     }
 }
@@ -885,6 +908,9 @@ internal static class GameManager_GameModeStart_Patch
 {
     private static void Postfix()
     {
+        DebugLog.Info($"GameManager.StartGame postfix host={MyceliumNetwork.IsHost} "
+            + $"scene={SceneManager.GetActiveScene().name} mode={GameModeManager.ActiveMode} "
+            + $"phase={GameModeManager.Phase} round={GameModeManager.RoundId}");
         GameModeManager.StartMatch();
     }
 }

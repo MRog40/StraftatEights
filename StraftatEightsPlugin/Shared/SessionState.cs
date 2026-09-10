@@ -60,6 +60,8 @@ internal static class SessionState
             return false;
         }
 
+        int previousRoundId = lastRoundId;
+        int previousRevision = lastRevision;
         if (!TryAcceptSnapshot(roundId, revision, ref lastRoundId, ref lastRevision))
         {
             string reason = roundId < 0 || revision < 0 ? "invalid-cursor" : "stale-cursor";
@@ -68,6 +70,9 @@ internal static class SessionState
             return false;
         }
 
+        DebugLog.Info($"Snapshot accepted source={source} host={hostId.m_SteamID} "
+            + $"round={roundId} revision={revision} previousRound={previousRoundId} "
+            + $"previousRevision={previousRevision}");
         return true;
     }
 
