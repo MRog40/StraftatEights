@@ -31,8 +31,7 @@ internal static class WeaponDropPolicy
             case GameMode.GunGame:
                 return GunGameState.Enabled;
             case GameMode.Juggernaut:
-                return JuggernautState.IsCurrentJuggernaut(health)
-                    && weapon.name.StartsWith(JuggernautState.WeaponName, StringComparison.Ordinal);
+                return JuggernautState.IsCurrentJuggernautWeapon(weapon);
             case GameMode.MichaelMeyers:
                 return MichaelMeyersState.IsCouperet(weapon)
                     && (MichaelMeyersState.CanHoldCouperet(health)

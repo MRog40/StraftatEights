@@ -273,6 +273,14 @@ internal static class WeaponAmmoTuning
         weapon.shot = false;
     }
 
+    internal static void PreventAutoDespawn(Weapon weapon)
+    {
+        if (weapon != null)
+        {
+            SetFieldValue(weapon, "inHandDespawn", false);
+        }
+    }
+
     private static IEnumerator RefreshLocalAmmoHudAfterReset(int sessionGeneration)
     {
         for (int attempt = 0; attempt < 40; attempt++)

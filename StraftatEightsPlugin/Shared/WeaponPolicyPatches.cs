@@ -9,7 +9,7 @@ internal static class WeaponPolicy
     {
         if (GameModeManager.ShouldIgnoreGlobalWeaponSettings)
         {
-            return false;
+            return true;
         }
         if (!WeaponSettingsState.Enabled || WeaponSettingsState.Allowed.Count == 0)
         {

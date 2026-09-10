@@ -262,7 +262,18 @@ internal static class JuggernautState
         {
             health = weapon.rootObject.GetComponent<PlayerHealth>();
         }
-        return health != null && IsCurrentJuggernaut(health);
+        if (health == null && weapon.playerController != null)
+        {
+            health = weapon.playerController.GetComponent<PlayerHealth>();
+        }
+
+        if (health != null)
+        {
+            return IsCurrentJuggernaut(health);
+        }
+
+        return weapon.IsOwner && ClientInstance.Instance != null
+            && ClientInstance.Instance.PlayerId == CurrentJuggernautPlayerId;
     }
 
     internal static void ApplyHealth(PlayerHealth health)
@@ -305,7 +316,7 @@ internal static class JuggernautState
         if (Enabled && playerId == CurrentJuggernautPlayerId)
         {
             PendingLoadouts[playerId] = Time.unscaledTime + 5f;
-            WeaponService.GiveWeapon(playerId, WeaponName, spareMagazines: 1);
+            WeaponService.GiveWeapon(playerId, WeaponName, unlimitedAmmo: true);
         }
     }
 

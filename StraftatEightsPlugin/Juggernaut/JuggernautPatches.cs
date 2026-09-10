@@ -25,25 +25,30 @@ internal static class GameManager_JuggernautTick_Patch
 [HarmonyPatch(typeof(Minigun), "Update")]
 internal static class Minigun_JuggernautAmmo_Patch
 {
-    private const int MagazineSize = 150;
+    private const int MagazineSize = 100;
     private static readonly ConditionalWeakTable<Minigun, object> ConfiguredMiniguns = new();
 
     private static void Prefix(Minigun __instance)
     {
         if (!GameModeManager.IsActive(GameMode.Juggernaut) || __instance == null
-            || !__instance.name.StartsWith(JuggernautState.WeaponName, System.StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        if (ConfiguredMiniguns.TryGetValue(__instance, out _))
+            || !JuggernautState.IsCurrentJuggernautWeapon(__instance))
         {
             return;
         }
 
         __instance.ammoCharge = MagazineSize;
-        __instance.chargedBullets = MagazineSize;
-        __instance.currentAmmo = MagazineSize;
-        ConfiguredMiniguns.Add(__instance, new object());
+        WeaponAmmoTuning.PreventAutoDespawn(__instance);
+        if (!ConfiguredMiniguns.TryGetValue(__instance, out _))
+        {
+            __instance.chargedBullets = MagazineSize;
+            __instance.currentAmmo = MagazineSize;
+            ConfiguredMiniguns.Add(__instance, new object());
+            return;
+        }
+
+        if (!__instance.isReloading && __instance.currentAmmo <= 0)
+        {
+            __instance.currentAmmo = MagazineSize;
+        }
     }
 }
