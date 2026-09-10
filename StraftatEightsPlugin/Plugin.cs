@@ -131,4 +131,4 @@ public partial class Plugin : BaseUnityPlugin
         KillTheRatOutline.EnforceOutline();
         RespawnProtection.Update();
     }
-}
+} 

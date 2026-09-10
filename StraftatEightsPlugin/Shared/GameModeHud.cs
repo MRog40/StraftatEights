@@ -195,18 +195,23 @@ internal sealed class GameModeHud : MonoBehaviour
         {
             visibilityReason = "pause-manager-missing";
         }
-        else if (pauseManager.inMainMenu)
-        {
-            visibilityReason = "main-menu";
-        }
-        else if (pauseManager.inVictoryMenu)
-        {
-            visibilityReason = "victory-menu";
-        }
         else
         {
             connectedPlayerCount = PlayerLookup.GetConnectedPlayerIds().Count;
-            visibilityReason = connectedPlayerCount > 0 ? "visible" : "no-connected-players";
+            bool activeRoundWithPlayers = GameModeManager.Phase == GameModePhase.ActiveRound
+                && connectedPlayerCount > 0;
+            if (pauseManager.inVictoryMenu)
+            {
+                visibilityReason = "victory-menu";
+            }
+            else if (pauseManager.inMainMenu && !activeRoundWithPlayers)
+            {
+                visibilityReason = "main-menu";
+            }
+            else
+            {
+                visibilityReason = connectedPlayerCount > 0 ? "visible" : "no-connected-players";
+            }
         }
 
         bool visible = visibilityReason == "visible";
