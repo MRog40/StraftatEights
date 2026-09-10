@@ -115,6 +115,11 @@ internal static class FirstPersonController_MovementPolicy_Patch
         {
             __instance.CanWallJump = false;
         }
+
+        if (JuggernautState.IsCurrentJuggernaut(__instance))
+        {
+            __instance.isSprinting = false;
+        }
     }
 
     private static void Postfix(FirstPersonController __instance)

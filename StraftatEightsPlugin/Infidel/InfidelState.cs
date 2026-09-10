@@ -15,6 +15,7 @@ internal static class InfidelState
     internal const float TerroristHealth = 100f / 25f;
     internal const float MovementMultiplier = 0.7f;
     internal const float WeaponDelaySeconds = 10f;
+    internal const float RoleAnnouncementDuration = WeaponDelaySeconds + 10f;
 
     internal static bool Enabled;
     internal static int InfidelPlayerId { get; private set; } = -1;
@@ -302,7 +303,7 @@ internal static class InfidelState
             _localRoleAnnouncedSubRoundId = subRoundId;
             GameModeHud.AnnounceTarget(isInfidel
                 ? "You are the <color=#CC2222><b>INFIDEL</b></color>."
-                : "You are a <color=#4D9BFF><b>TERRORIST</b></color>.", WeaponDelaySeconds);
+                : "You are a <color=#4D9BFF><b>TERRORIST</b></color>.", RoleAnnouncementDuration);
         }
     }
 

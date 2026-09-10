@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using MyceliumNetworking;
 using Steamworks;
@@ -9,18 +10,25 @@ namespace StraftatEightsPlugin;
 internal static class OneInTheChamberState
 {
     internal const float PlayerHealth = 10f;
+    internal const int PointsPerRoundWin = ScoreRules.PointsPerRoundWin;
     internal const string PistolWeaponName = "Pistol";
     internal const string CouperetWeaponName = "Couperet";
     internal static bool Enabled;
     internal static int AliveCount => AlivePlayers.Count;
+    internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
+    internal static int SubRoundId { get; private set; }
+    internal static int WinnerId { get; private set; } = -1;
     internal static readonly HashSet<int> AlivePlayers = new();
     internal static readonly Dictionary<int, int> ReserveBullets = new();
+    internal static readonly Dictionary<int, int> Scores = new();
 
     private static float _nextLoadoutCheckTime;
     private static readonly ModeSyncState Sync = new();
     private static readonly HashSet<int> RoundPlayers = new();
     private static readonly Dictionary<int, float> PendingRightLoadouts = new();
     private static readonly Dictionary<int, float> PendingLeftLoadouts = new();
+    private static bool _startRetryPending;
+    private static bool _subRoundEnding;
 
     internal static void ApplySettings(bool enabled)
     {
@@ -86,7 +94,20 @@ internal static class OneInTheChamberState
             Plugin.OneInTheChamberEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.OneInTheChamberModId, nameof(Plugin.SyncOneInTheChamberLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeAlive(), SerializeBullets(),
-            GameModeManager.RoundId, Sync.LiveRevision);
+            SerializeScores(), SubRoundId, WinnerId, GameModeManager.RoundId, Sync.LiveRevision);
+
+        if (SubRoundId > 0 && WinnerId < 0 && !_subRoundEnding)
+        {
+            int playerId = FindPlayerId(player);
+            if (playerId >= 0)
+            {
+                RoundPlayers.Add(playerId);
+                AlivePlayers.Add(playerId);
+                ReserveBullets.TryAdd(playerId, 0);
+                Scores.TryAdd(playerId, 0);
+                BroadcastLiveState();
+            }
+        }
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
@@ -96,23 +117,34 @@ internal static class OneInTheChamberState
 
     internal static void ResetMatchState()
     {
+        StopSubRoundTransition();
         Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
+        _startRetryPending = false;
+        SubRoundId = 0;
+        WinnerId = -1;
         AlivePlayers.Clear();
         RoundPlayers.Clear();
         ReserveBullets.Clear();
+        Scores.Clear();
         PendingRightLoadouts.Clear();
         PendingLeftLoadouts.Clear();
     }
 
     internal static void ApplyLiveState(CSteamID hostId, string aliveData, string bulletsData,
-        int roundId, int revision)
+        string scoresData, int subRoundId, int winnerId, int roundId, int revision)
     {
-        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
+        int previousRoundId = Sync.LastLiveRoundId;
+        if (subRoundId < 0 || winnerId < -1
+            || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
         {
             return;
         }
 
+        SubRoundId = roundId != previousRoundId
+            ? subRoundId
+            : Math.Max(SubRoundId, subRoundId);
+        WinnerId = winnerId;
         AlivePlayers.Clear();
         foreach (int playerId in ParseIds(aliveData))
         {
@@ -123,6 +155,11 @@ internal static class OneInTheChamberState
         foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(bulletsData, int.MaxValue))
         {
             ReserveBullets[entry.Key] = entry.Value;
+        }
+        Scores.Clear();
+        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(scoresData, PointsToWin))
+        {
+            Scores[entry.Key] = entry.Value;
         }
         ApplyLocalReserveBullets();
     }
@@ -135,23 +172,13 @@ internal static class OneInTheChamberState
         }
 
         ResetMatchState();
-        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
-        {
-            if (client != null && client)
-            {
-                RoundPlayers.Add(client.PlayerId);
-                AlivePlayers.Add(client.PlayerId);
-                ReserveBullets[client.PlayerId] = 0;
-            }
-        }
-
-        EnsureLoadouts();
-        BroadcastLiveState();
+        StartSubRound();
     }
 
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
-        if (!Enabled || !GameModeManager.IsActive(GameMode.OneInTheChamber))
+        if (!Enabled || !GameModeManager.IsActive(GameMode.OneInTheChamber)
+            || WinnerId >= 0 || _subRoundEnding)
         {
             return;
         }
@@ -169,7 +196,20 @@ internal static class OneInTheChamberState
 
         if (AlivePlayers.Count <= 1)
         {
-            FinishRound(GetLastAlivePlayerId());
+            int roundWinnerId = GetLastAlivePlayerId();
+            if (roundWinnerId >= 0)
+            {
+                AwardScore(roundWinnerId, PointsPerRoundWin);
+            }
+
+            if (WinnerId >= 0)
+            {
+                FinishMatch(roundWinnerId);
+            }
+            else
+            {
+                BeginNextSubRound();
+            }
             return;
         }
 
@@ -180,7 +220,7 @@ internal static class OneInTheChamberState
     internal static void RequestLoadout(int playerId)
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.OneInTheChamber)
-            || !MyceliumNetwork.IsHost)
+            || !MyceliumNetwork.IsHost || WinnerId >= 0 || _subRoundEnding)
         {
             return;
         }
@@ -259,7 +299,7 @@ internal static class OneInTheChamberState
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.OneInTheChamber)
             || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost || WeaponService.IsFinalGameScreen
-            || Time.unscaledTime < _nextLoadoutCheckTime)
+            || WinnerId >= 0 || _subRoundEnding || Time.unscaledTime < _nextLoadoutCheckTime)
         {
             return;
         }
@@ -386,14 +426,191 @@ internal static class OneInTheChamberState
         return -1;
     }
 
-    private static void FinishRound(int winnerId)
+    private static int FindPlayerId(CSteamID steamId)
+    {
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client != null && client && client.PlayerSteamID == steamId.m_SteamID)
+            {
+                return client.PlayerId;
+            }
+        }
+        return -1;
+    }
+
+    private static void StopSubRoundTransition()
+    {
+        _subRoundEnding = false;
+    }
+
+    private static void StartSubRound()
+    {
+        if (WinnerId >= 0 || !MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        List<int> players = new();
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client != null && client)
+            {
+                players.Add(client.PlayerId);
+            }
+        }
+
+        if (players.Count == 0)
+        {
+            ScheduleStartSubRoundRetry();
+            return;
+        }
+
+        SubRoundId++;
+        _subRoundEnding = false;
+        _nextLoadoutCheckTime = 0f;
+        PendingRightLoadouts.Clear();
+        PendingLeftLoadouts.Clear();
+        AlivePlayers.Clear();
+        RoundPlayers.Clear();
+        ReserveBullets.Clear();
+        foreach (int playerId in players)
+        {
+            RoundPlayers.Add(playerId);
+            AlivePlayers.Add(playerId);
+            ReserveBullets[playerId] = 0;
+            Scores.TryAdd(playerId, 0);
+        }
+
+        ClearCurrentWeapons();
+        EnsureLoadouts();
+        BroadcastLiveState();
+    }
+
+    private static void ScheduleStartSubRoundRetry()
+    {
+        if (_startRetryPending || Plugin.Instance == null)
+        {
+            return;
+        }
+
+        _startRetryPending = true;
+        Plugin.Instance.StartCoroutine(RetryStartSubRound(SessionState.Generation,
+            GameModeManager.RoundId, SubRoundId));
+    }
+
+    private static IEnumerator RetryStartSubRound(int sessionGeneration, int roundId,
+        int previousSubRoundId)
+    {
+        for (int attempt = 0; attempt < 20; attempt++)
+        {
+            yield return new WaitForSeconds(0.25f);
+            if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
+                || WinnerId >= 0 || _subRoundEnding
+                || !GameModeManager.IsActive(GameMode.OneInTheChamber))
+            {
+                break;
+            }
+
+            StartSubRound();
+            if (SubRoundId > previousSubRoundId)
+            {
+                break;
+            }
+        }
+
+        _startRetryPending = false;
+    }
+
+    private static void BeginNextSubRound()
+    {
+        if (_subRoundEnding || Plugin.Instance == null)
+        {
+            return;
+        }
+
+        _subRoundEnding = true;
+        ClearCurrentWeapons();
+        foreach (int playerId in RoundPlayers)
+        {
+            if (ClientInstance.playerInstances.ContainsKey(playerId))
+            {
+                GameModeRespawn.Schedule(playerId, GameModeManager.EffectiveRespawnDelaySeconds);
+            }
+        }
+
+        Plugin.Instance.StartCoroutine(StartNextSubRoundAfterRespawn(
+            GameModeManager.EffectiveRespawnDelaySeconds + 0.75f,
+            SessionState.Generation, GameModeManager.RoundId));
+    }
+
+    private static IEnumerator StartNextSubRoundAfterRespawn(float delay, int sessionGeneration,
+        int roundId)
+    {
+        yield return new WaitForSeconds(delay);
+        if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
+            || WinnerId >= 0 || !GameModeManager.IsActive(GameMode.OneInTheChamber))
+        {
+            yield break;
+        }
+
+        StartSubRound();
+    }
+
+    private static void ClearCurrentWeapons()
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client != null && client)
+            {
+                ClearPlayerWeapons(client.PlayerId);
+            }
+        }
+    }
+
+    private static void ClearPlayerWeapons(int playerId)
+    {
+        if (!ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client)
+            || client == null || !client || client.PlayerSpawner == null || !client.PlayerSpawner
+            || client.PlayerSpawner.player == null || !client.PlayerSpawner.player)
+        {
+            return;
+        }
+
+        PlayerPickup? pickup = client.PlayerSpawner.player.playerPickupScript;
+        if (pickup != null)
+        {
+            WeaponService.ClearHeldWeapons(pickup);
+        }
+    }
+
+    private static void AwardScore(int playerId, int amount)
+    {
+        Scores.TryGetValue(playerId, out int currentScore);
+        int nextScore = currentScore + amount;
+        Scores[playerId] = nextScore;
+        if (amount > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(playerId, amount);
+        }
+        if (WinnerId < 0 && nextScore >= PointsToWin)
+        {
+            WinnerId = playerId;
+        }
+    }
+
+    private static void FinishMatch(int winnerId)
     {
         if (winnerId < 0 || ScoreManager.Instance == null)
         {
             return;
         }
 
-        Announce(PlayerLookup.GetPlayerNameTag(winnerId) + " won the <b>ONE IN THE CHAMBER</b> round!");
+        Announce(PlayerLookup.GetPlayerNameTag(winnerId) + " won the <b>ONE IN THE CHAMBER</b> match!");
         BroadcastLiveState();
         GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(winnerId));
     }
@@ -401,6 +618,8 @@ internal static class OneInTheChamberState
     private static string SerializeAlive() => string.Join(",", AlivePlayers);
 
     private static string SerializeBullets() => ScoreCodec.Serialize(ReserveBullets);
+
+    private static string SerializeScores() => ScoreCodec.Serialize(Scores);
 
     private static IEnumerable<int> ParseIds(string data)
     {
@@ -418,8 +637,8 @@ internal static class OneInTheChamberState
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
             MyceliumNetwork.RPC(Plugin.OneInTheChamberModId, nameof(Plugin.SyncOneInTheChamberLiveState), ReliableType.Reliable,
-                MyceliumNetwork.LobbyHost, SerializeAlive(), SerializeBullets(),
-                GameModeManager.RoundId, Sync.NextLiveRevision());
+                MyceliumNetwork.LobbyHost, SerializeAlive(), SerializeBullets(), SerializeScores(),
+                SubRoundId, WinnerId, GameModeManager.RoundId, Sync.NextLiveRevision());
         }
     }
 

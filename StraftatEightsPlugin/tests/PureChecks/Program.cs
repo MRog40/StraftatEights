@@ -56,8 +56,9 @@ Assert(parsedScores.Count == 2 && parsedScores[4] == 2 && parsedScores[9] == 7,
 Dictionary<int, int> filteredScores = ScoreCodec.Parse("1:3;2:0;3:99;bad;1:4", 10);
 Assert(filteredScores.Count == 2 && filteredScores[1] == 4 && filteredScores[2] == 0,
     "Score parsing must reject malformed/out-of-range entries and keep the last duplicate.");
-Assert(ScoreRules.PointsToWin == 100 && ScoreRules.PointsPerKill == 10
-    && ScoreRules.PointsPerJuggernautCrown == 20 && ScoreRules.PointsPerRatSurvivalSecond == 1,
+Assert(ScoreRules.PointsToWin == 100 && ScoreRules.PointsPerRoundWin == 50
+    && ScoreRules.PointsPerKill == 10
+    && ScoreRules.PointsPerJuggernautCrown == 20 && ScoreRules.PointsPerRatSurvivalSecond == 3,
     "Shared score rules must use the 100-point target and mode award values.");
 Dictionary<int, int> maximumScores = ScoreCodec.Parse("1:100;2:101", ScoreRules.PointsToWin);
 Assert(maximumScores.Count == 1 && maximumScores[1] == ScoreRules.PointsToWin,

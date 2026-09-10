@@ -174,6 +174,8 @@ internal static class WeaponService
             yield break;
         }
 
+        WeaponAmmoTuning.ResetWeaponState(weaponComponent);
+
         if (unlimitedAmmo)
         {
             WeaponAmmoTuning.InitializeUnlimited(weaponComponent);

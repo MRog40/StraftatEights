@@ -102,6 +102,41 @@ internal static class PlayerOutline
         }
     }
 
+    internal static void ApplyTemporary(PlayerHealth player, Color color, float outlineWidth)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+        foreach (SkinnedMeshRenderer renderer in player.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        {
+            if (renderer == null || !renderer.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            Material[] materials = renderer.materials;
+            if (materials.Length == 0 || materials[0] == null || !materials[0].HasProperty("_ASEOutlineWidth"))
+            {
+                continue;
+            }
+
+            if (!Mathf.Approximately(materials[0].GetFloat("_ASEOutlineWidth"), outlineWidth)
+                || materials[0].GetColor("_ASEOutlineColor") != color)
+            {
+                materials[0].SetFloat("_ASEOutlineWidth", outlineWidth);
+                materials[0].SetColor("_ASEOutlineColor", color);
+                renderer.materials = materials;
+            }
+        }
+    }
+
+    internal static void ClearTemporary(PlayerHealth player)
+    {
+        Clear(player);
+    }
+
     internal static void ClearAll()
     {
         foreach (ClientInstance client in ClientInstance.playerInstances.Values)

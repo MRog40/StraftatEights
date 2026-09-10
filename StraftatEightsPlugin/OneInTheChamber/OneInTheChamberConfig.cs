@@ -39,9 +39,10 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncOneInTheChamberLiveState(CSteamID hostId, string aliveData, string bulletsData,
-        int roundId, int revision)
+        string scoresData, int subRoundId, int winnerId, int roundId, int revision)
     {
-        OneInTheChamberState.ApplyLiveState(hostId, aliveData, bulletsData, roundId, revision);
+        OneInTheChamberState.ApplyLiveState(hostId, aliveData, bulletsData, scoresData,
+            subRoundId, winnerId, roundId, revision);
     }
 
     [CustomRPC]

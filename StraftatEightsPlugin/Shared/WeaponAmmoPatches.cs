@@ -69,3 +69,24 @@ internal static class PlayerSetup_WeaponAmmoHudReset_Patch
         }
     }
 }
+
+[HarmonyPatch]
+internal static class PlayerSetup_LocalHudRestore_Patch
+{
+    private static MethodBase? TargetMethod()
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        return typeof(PlayerSetup).GetMethod("OnStartClient___UserLogic", flags)
+            ?? typeof(PlayerSetup).GetMethod("OnStartClient", flags);
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
+    private static void Postfix(PlayerSetup __instance)
+    {
+        if (__instance != null && __instance.IsOwner)
+        {
+            WeaponAmmoTuning.ScheduleLocalAmmoHudRefresh();
+        }
+    }
+}

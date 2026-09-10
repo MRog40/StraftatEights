@@ -13,16 +13,19 @@ internal sealed class GameModeHud : MonoBehaviour
     private const float RefreshInterval = 0.25f;
     private const float AnnouncementDuration = 2f;
     private const float AnnouncementVerticalOffset = 260f;
+    private const float TargetAnnouncementVerticalOffset = 110f;
     private const float ScorePopupDuration = 1f;
     private const float ScorePopupVerticalOffset = -70f;
     private const int MaxDisplayedNameLength = 14;
     private static GameModeHud? _instance;
     private GameObject _panel = null!;
     private TextMeshProUGUI _announcement = null!;
+    private TextMeshProUGUI _targetAnnouncement = null!;
     private TextMeshProUGUI _scorePopup = null!;
     private TextMeshProUGUI _scoreboard = null!;
     private float _nextRefreshTime;
     private float _announcementUntil;
+    private float _targetAnnouncementUntil;
     private float _scorePopupUntil;
 
     private void Awake()
@@ -53,6 +56,25 @@ internal sealed class GameModeHud : MonoBehaviour
         _announcement.outlineColor = new Color(0f, 0f, 0f, 0.9f);
         _announcement.raycastTarget = false;
         announcementObject.SetActive(false);
+
+        GameObject targetAnnouncementObject = new("GameModeTargetAnnouncement");
+        targetAnnouncementObject.transform.SetParent(transform, false);
+        RectTransform targetAnnouncementRect = targetAnnouncementObject.AddComponent<RectTransform>();
+        targetAnnouncementRect.anchorMin = new Vector2(0.5f, 0.5f);
+        targetAnnouncementRect.anchorMax = new Vector2(0.5f, 0.5f);
+        targetAnnouncementRect.pivot = new Vector2(0.5f, 0.5f);
+        targetAnnouncementRect.sizeDelta = new Vector2(1200f, 160f);
+        targetAnnouncementRect.anchoredPosition = new Vector2(0f, TargetAnnouncementVerticalOffset);
+        _targetAnnouncement = targetAnnouncementObject.AddComponent<TextMeshProUGUI>();
+        _targetAnnouncement.fontSize = 56f;
+        _targetAnnouncement.fontStyle = FontStyles.Bold;
+        _targetAnnouncement.richText = true;
+        _targetAnnouncement.alignment = TextAlignmentOptions.Center;
+        _targetAnnouncement.enableWordWrapping = true;
+        _targetAnnouncement.outlineWidth = 0.2f;
+        _targetAnnouncement.outlineColor = new Color(0f, 0f, 0f, 0.9f);
+        _targetAnnouncement.raycastTarget = false;
+        targetAnnouncementObject.SetActive(false);
 
         GameObject scorePopupObject = new("GameModeScorePopup");
         scorePopupObject.transform.SetParent(transform, false);
@@ -114,9 +136,16 @@ internal sealed class GameModeHud : MonoBehaviour
             _scorePopup.gameObject.SetActive(false);
         }
 
+        if (_targetAnnouncement.gameObject.activeSelf
+            && Time.unscaledTime >= _targetAnnouncementUntil)
+        {
+            _targetAnnouncement.gameObject.SetActive(false);
+        }
+
         if (GameModeManager.IsMatchOver)
         {
             _announcement.gameObject.SetActive(false);
+            _targetAnnouncement.gameObject.SetActive(false);
             _panel.SetActive(false);
             return;
         }
@@ -166,9 +195,9 @@ internal sealed class GameModeHud : MonoBehaviour
             return;
         }
 
-        _instance._announcement.text = text;
-        _instance._announcementUntil = Time.unscaledTime + Mathf.Max(0f, durationSeconds);
-        _instance._announcement.gameObject.SetActive(true);
+        _instance._targetAnnouncement.text = text;
+        _instance._targetAnnouncementUntil = Time.unscaledTime + Mathf.Max(0f, durationSeconds);
+        _instance._targetAnnouncement.gameObject.SetActive(true);
     }
 
     internal static void ShowScorePopupForPlayer(int playerId, int amount)
@@ -212,55 +241,64 @@ internal sealed class GameModeHud : MonoBehaviour
                 + "  Survivors: " + MichaelMeyersState.SurvivorCount;
             return;
         }
-        if (GameModeManager.IsActive(GameMode.OneInTheChamber))
-        {
-            _scoreboard.text = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode)
-                + "  " + OneInTheChamberState.AliveCount + " players alive";
-            return;
-        }
-
         Dictionary<int, int> scores;
         bool crownFirst;
         string header;
         if (GameModeManager.IsActive(GameMode.FreeForAll))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + FFAState.KillsToWin + " points to win";
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + FFAState.KillsToWin;
             scores = FFAState.Kills;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.Juggernaut))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + JuggernautState.PointsToWin + " points to win";
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + JuggernautState.PointsToWin;
             scores = JuggernautState.Points;
             crownFirst = true;
         }
         else if (GameModeManager.IsActive(GameMode.SniperBattle))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + SniperBattleState.PointsToWin + " points to win";
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + SniperBattleState.PointsToWin;
             scores = SniperBattleState.Points;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.KillTheRat))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + KillTheRatState.PointsToWin + " points to win";
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + KillTheRatState.PointsToWin;
             scores = KillTheRatState.Points;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.HotPotato))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + HotPotatoState.KillsToWin + " points to win";
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + HotPotatoState.KillsToWin;
             scores = HotPotatoState.Kills;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.Infidel))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + InfidelState.KillsToWin + " points to win";
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + InfidelState.KillsToWin;
             scores = InfidelState.Scores;
+            crownFirst = false;
+        }
+        else if (GameModeManager.IsActive(GameMode.OneInTheChamber))
+        {
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - "
+                + OneInTheChamberState.PointsToWin + "  Round " + OneInTheChamberState.SubRoundId
+                + "  " + OneInTheChamberState.AliveCount + " alive";
+            scores = OneInTheChamberState.Scores;
+            crownFirst = false;
+        }
+        else if (GameModeManager.IsActive(GameMode.Default))
+        {
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - "
+                + DefaultGameModeState.PointsToWin + "  Round " + DefaultGameModeState.SubRoundId
+                + "  " + DefaultGameModeState.AliveCount + " alive";
+            scores = DefaultGameModeState.Scores;
             crownFirst = false;
         }
         else
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + "  " + GunGameState.ScoreLimit + " points to win";
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + GunGameState.ScoreLimit;
             scores = GunGameState.Progress;
             crownFirst = false;
         }

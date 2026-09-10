@@ -21,13 +21,30 @@ internal static class HealthSettingsTuning
 
     private static readonly ConditionalWeakTable<PlayerHealth, Memory> MemoryByInstance = new();
 
-    internal static void ApplyIfChanged(PlayerHealth controller, float healthMultiplier, int version)
+    internal static void CaptureBaseline(PlayerHealth controller)
     {
+        if (controller == null)
+        {
+            return;
+        }
+
         Memory memory = MemoryByInstance.GetOrCreateValue(controller);
         if (memory.BaselineFullHealth < 0f)
         {
             memory.BaselineFullHealth = controller.fullHealth;
         }
+    }
+
+    internal static void ApplyIfChanged(PlayerHealth controller, float healthMultiplier, int version)
+    {
+        CaptureBaseline(controller);
+        if (RespawnProtection.IsProtected(controller))
+        {
+            RespawnProtection.ApplyHealth(controller);
+            return;
+        }
+
+        Memory memory = MemoryByInstance.GetOrCreateValue(controller);
         if (GameModeManager.IsActive(GameMode.Infidel))
         {
             InfidelState.ApplyHealth(controller);

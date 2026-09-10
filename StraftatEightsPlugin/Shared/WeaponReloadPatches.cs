@@ -4,7 +4,8 @@ namespace StraftatEightsPlugin;
 
 internal static class WeaponReloadGuards
 {
-    internal static bool CanFire(Weapon weapon) => !WeaponAmmoTuning.IsReloading(weapon);
+    internal static bool CanFire(Weapon weapon) => !RespawnProtection.IsProtected(weapon)
+        && !WeaponAmmoTuning.IsReloading(weapon);
 }
 
 [HarmonyPatch(typeof(BeamGun), "FireBlast")]

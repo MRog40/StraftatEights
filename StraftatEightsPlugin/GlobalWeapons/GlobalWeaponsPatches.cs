@@ -29,11 +29,18 @@ internal static class PlayerPickup_WeaponHandPolicy_Patch
 {
     private static bool Prefix(PlayerPickup __instance)
     {
-        if (!GameModeManager.ShouldIgnoreGlobalWeaponSettings && WeaponSettingsState.Enabled && WeaponSettingsState.Cycle)
+        if (WeaponService.IsOwnerAttachmentPending(__instance))
         {
             WeaponService.AttachUnparentedWeapon(__instance);
+            return false;
         }
 
-        return !WeaponService.IsOwnerAttachmentPending(__instance);
+        if (WeaponDropPolicy.IsDropBlocked(__instance, true))
+        {
+            WeaponService.AttachUnparentedWeapon(__instance);
+            return false;
+        }
+
+        return true;
     }
 }

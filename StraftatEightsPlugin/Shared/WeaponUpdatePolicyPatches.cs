@@ -14,15 +14,6 @@ internal static class Weapon_UpdatePolicy_Patch
                 WeaponSettingsState.SpareMagazines);
         }
 
-        if (GameModeManager.IsActive(GameMode.Juggernaut)
-            && __instance != null
-            && __instance.name.StartsWith(JuggernautState.WeaponName, System.StringComparison.Ordinal)
-            && __instance.needsAmmo)
-        {
-            __instance.currentAmmo = 1;
-            __instance.chargedBullets = Mathf.Max(1, __instance.ammoCharge);
-        }
-
         if (GameModeManager.IsActive(GameMode.SniperBattle)
             && __instance != null
             && SniperBattleState.IsSniperWeapon(__instance)

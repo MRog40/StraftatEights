@@ -129,5 +129,6 @@ public partial class Plugin : BaseUnityPlugin
         JuggernautOutline.EnforceOutline();
         MichaelMeyersOutline.EnforceOutline();
         KillTheRatOutline.EnforceOutline();
+        RespawnProtection.Update();
     }
 }

@@ -305,7 +305,7 @@ internal static class JuggernautState
         if (Enabled && playerId == CurrentJuggernautPlayerId)
         {
             PendingLoadouts[playerId] = Time.unscaledTime + 5f;
-            WeaponService.GiveWeapon(playerId, WeaponName, unlimitedAmmo: true);
+            WeaponService.GiveWeapon(playerId, WeaponName, spareMagazines: 1);
         }
     }
 

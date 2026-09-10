@@ -115,3 +115,31 @@ internal static class PlayerPickup_WeaponPolicy_Patch
         return WeaponPolicy.CanEquip(__instance, obj, rightHand);
     }
 }
+
+[HarmonyPatch(typeof(PlayerPickup), "RightHandDrop")]
+internal static class PlayerPickup_RightHandDropPolicy_Patch
+{
+    private static bool Prefix(PlayerPickup __instance)
+    {
+        return !WeaponDropPolicy.IsDropBlocked(__instance, true);
+    }
+}
+
+[HarmonyPatch(typeof(PlayerPickup), "LeftHandDrop")]
+internal static class PlayerPickup_LeftHandDropPolicy_Patch
+{
+    private static bool Prefix(PlayerPickup __instance)
+    {
+        return !WeaponDropPolicy.IsDropBlocked(__instance, false);
+    }
+}
+
+[HarmonyPatch(typeof(PlayerPickup), "LeftHandFix")]
+internal static class PlayerPickup_LeftHandFixPolicy_Patch
+{
+    private static bool Prefix(PlayerPickup __instance)
+    {
+        return !WeaponService.IsOwnerAttachmentPending(__instance)
+            && !WeaponDropPolicy.IsDropBlocked(__instance, false);
+    }
+}

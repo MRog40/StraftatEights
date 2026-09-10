@@ -12,6 +12,7 @@ internal static class KillTheRatState
     internal const string RatWeaponName = "Taser";
     internal const float RatHealthMultiplier = 0.5f;
     internal const float RatMovementMultiplier = 2f;
+    internal const float VoidDeathY = -300f;
     internal static bool Enabled;
     internal static int CurrentRatPlayerId = -1;
     internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
@@ -199,6 +200,39 @@ internal static class KillTheRatState
         PlayerValues? values = controller.GetComponent<PlayerValues>();
         return values?.playerClient?.PlayerId == CurrentRatPlayerId
             || IsRat(controller.GetComponent<PlayerHealth>());
+    }
+
+    internal static bool HandleHumanVoidFall(FirstPersonController controller)
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.KillTheRat)
+            || controller == null || controller.transform.position.y >= VoidDeathY
+            || IsRat(controller))
+        {
+            return false;
+        }
+
+        PlayerHealth? health = controller.GetComponent<PlayerHealth>();
+        if (health == null || health.sync___get_value_health() <= 0f)
+        {
+            return false;
+        }
+
+        if (!health.IsServer && !controller.IsOwner)
+        {
+            return false;
+        }
+
+        Vector3 safePosition = controller.transform.position;
+        safePosition.y = VoidDeathY + 1f;
+        controller.transform.position = safePosition;
+        float lethalDamage = health.sync___get_value_health() + 1f;
+        if (health.IsServer)
+        {
+            return FishNetCompatibility.TryRemoveHealth(health, lethalDamage);
+        }
+
+        health.RemoveHealth(lethalDamage);
+        return true;
     }
 
     internal static bool IsRatWeapon(Weapon weapon)

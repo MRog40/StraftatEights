@@ -17,6 +17,12 @@ internal static class HarmonyPatchStatus
         typeof(GameManager_GameModeStart_Patch),
         typeof(ItemSpawner_WeaponPolicy_Patch),
         typeof(PlayerPickup_WeaponPolicy_Patch),
+        typeof(PlayerPickup_RightHandDropPolicy_Patch),
+        typeof(PlayerPickup_LeftHandDropPolicy_Patch),
+        typeof(PlayerPickup_LeftHandFixPolicy_Patch),
+        typeof(PlayerPickup_WeaponHandPolicy_Patch),
+        typeof(PlayerManager_RespawnProtection_Patch),
+        typeof(PlayerSetup_LocalHudRestore_Patch),
         typeof(Weapon_AmmoInitialization_Patch),
         typeof(FirstPersonController_MovementPolicy_Patch),
         typeof(Weapon_UpdatePolicy_Patch)
@@ -27,8 +33,7 @@ internal static class HarmonyPatchStatus
         [GameMode.Juggernaut] = new[]
         {
             typeof(GameManager_JuggernautTick_Patch),
-            typeof(Minigun_JuggernautAmmoDisplay_Patch),
-            typeof(Minigun_JuggernautReload_Patch)
+            typeof(Minigun_JuggernautAmmo_Patch)
         },
         [GameMode.GunGame] = new[]
         {
@@ -41,6 +46,7 @@ internal static class HarmonyPatchStatus
         [GameMode.KillTheRat] = new[]
         {
             typeof(GameManager_KillTheRatTick_Patch),
+            typeof(FirstPersonController_KillTheRatVoid_Patch),
             typeof(PlayerManager_KillTheRatSpawn_Patch)
         },
         [GameMode.OneInTheChamber] = new[]

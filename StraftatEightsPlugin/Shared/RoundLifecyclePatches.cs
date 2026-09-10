@@ -11,6 +11,9 @@ internal static class PauseManager_RoundLifecycle_Patch
 
         switch (GameModeManager.ActiveMode)
         {
+            case GameMode.Default:
+                DefaultGameModeState.OnRoundStarted();
+                break;
             case GameMode.MichaelMeyers:
                 MichaelMeyersState.OnRoundStarted();
                 break;

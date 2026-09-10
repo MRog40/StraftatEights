@@ -90,7 +90,8 @@ internal static class GameModeManager
     {
         [GameMode.Default] = new ModeDescriptor("DEFAULT", new Color32(220, 220, 220, 255),
             () => Plugin.DefaultGameModeEnabled.Value, DefaultReset,
-            GameModeCapabilities.IgnoreGlobalHealth),
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalHealth,
+            DefaultGameModeState.PeriodicPushIfHost),
         [GameMode.FreeForAll] = new ModeDescriptor("FFA", new Color32(85, 204, 255, 255),
             () => Plugin.FFAEnabled.Value, FfaReset, GameModeCapabilities.CustomRound,
                FFAState.PeriodicPushIfHost, periodicSettingsPush: FFAState.PeriodicPushSettingsIfHost),
@@ -139,7 +140,7 @@ internal static class GameModeManager
             InfidelState.PeriodicPushSettingsIfHost)
     };
 
-    private static void DefaultReset() { }
+    private static void DefaultReset() => DefaultGameModeState.ResetMatchState();
     private static void Noop() { }
     private static void MichaelMeyersPeriodicPush()
     {
@@ -210,6 +211,7 @@ internal static class GameModeManager
 
     private static void ResetPointModeStates()
     {
+        DefaultGameModeState.ResetMatchState();
         FFAState.ResetMatchState();
         JuggernautState.ResetMatchState();
         GunGameState.ResetMatchState();
@@ -227,7 +229,60 @@ internal static class GameModeManager
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost && !IsMatchOver)
         {
+            bool restartRound = Phase == GameModePhase.ActiveRound
+                && ActiveMode != GameMode.None && !IsEnabled(ActiveMode);
             EnsureActiveMode();
+            if (restartRound)
+            {
+                RestartRoundAfterModeDisabled();
+            }
+        }
+    }
+
+    private static void RestartRoundAfterModeDisabled()
+    {
+        if (Plugin.Instance == null)
+        {
+            return;
+        }
+
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client != null && client)
+            {
+                GameModeRespawn.Schedule(client.PlayerId, EffectiveRespawnDelaySeconds);
+            }
+        }
+
+        Plugin.Instance.StartCoroutine(BeginRoundAfterModeDisabled(
+            EffectiveRespawnDelaySeconds + 0.75f, SessionState.Generation, RoundId, ActiveMode));
+    }
+
+    private static IEnumerator BeginRoundAfterModeDisabled(float delay, int sessionGeneration,
+        int roundId, GameMode mode)
+    {
+        yield return new WaitForSeconds(delay);
+        if (!SessionState.IsCurrent(sessionGeneration) || RoundId != roundId
+            || ActiveMode != mode || IsMatchOver || !MyceliumNetwork.IsHost)
+        {
+            yield break;
+        }
+
+        BeginRound();
+        switch (ActiveMode)
+        {
+            case GameMode.MichaelMeyers:
+                MichaelMeyersState.OnRoundStarted();
+                break;
+            case GameMode.OneInTheChamber:
+                OneInTheChamberState.OnRoundStarted();
+                break;
+            case GameMode.HotPotato:
+                HotPotatoState.OnRoundStarted();
+                break;
+            case GameMode.Infidel:
+                InfidelState.OnRoundStarted();
+                break;
         }
     }
 
@@ -413,6 +468,7 @@ internal static class GameModeManager
         WeaponSettingsState.ResetForLobbyLeft();
         WeaponService.ResetPendingRequests();
         GameModeRespawn.ResetForLobbyLeft();
+        RespawnProtection.ResetState();
     }
 
     private static void OnPlayerEntered(CSteamID player)
@@ -654,6 +710,9 @@ internal static class GameModeManager
                 FFAState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
+            case GameMode.Default:
+                DefaultGameModeState.OnServerKill(playerId);
+                break;
             case GameMode.Juggernaut:
                 JuggernautState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
@@ -753,6 +812,7 @@ internal static class GameManager_GameModeReset_Patch
     {
         GameModeManager.ResetGameState();
         PlayerOutline.ResetState();
+        RespawnProtection.ResetState();
         JuggernautOutline.ResetState();
         MichaelMeyersOutline.ResetState();
         KillTheRatOutline.ResetState();

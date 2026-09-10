@@ -146,8 +146,13 @@ internal static class HotPotatoState
         }
 
         PotatoPlayerId = players[UnityEngine.Random.Range(0, players.Count)];
+        PendingLoadouts.Clear();
+        ClearCurrentWeapons();
         Announce(PlayerLookup.GetPlayerNameTag(PotatoPlayerId) + " has the <b>HOT POTATO</b>!");
-        EnsureLoadouts();
+        foreach (int playerId in players)
+        {
+            GiveExpectedWeapon(playerId);
+        }
         BroadcastLiveState();
     }
 
@@ -250,6 +255,29 @@ internal static class HotPotatoState
     {
         PendingLoadouts[playerId] = Time.unscaledTime + 2f;
         WeaponService.GiveWeapon(playerId, GetExpectedWeapon(playerId));
+    }
+
+    private static void ClearCurrentWeapons()
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client == null || !client || client.PlayerSpawner == null || !client.PlayerSpawner
+                || client.PlayerSpawner.player == null || !client.PlayerSpawner.player)
+            {
+                continue;
+            }
+
+            PlayerPickup? pickup = client.PlayerSpawner.player.playerPickupScript;
+            if (pickup != null)
+            {
+                WeaponService.ClearHeldWeapons(pickup);
+            }
+        }
     }
 
     private static Weapon? GetWeapon(GameObject? heldObject)

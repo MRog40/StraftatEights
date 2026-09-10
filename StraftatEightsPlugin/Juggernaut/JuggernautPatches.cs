@@ -1,4 +1,5 @@
 using HarmonyLib;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace StraftatEightsPlugin;
@@ -22,9 +23,12 @@ internal static class GameManager_JuggernautTick_Patch
     }
 }
 [HarmonyPatch(typeof(Minigun), "Update")]
-internal static class Minigun_JuggernautAmmoDisplay_Patch
+internal static class Minigun_JuggernautAmmo_Patch
 {
-    private static void Postfix(Minigun __instance)
+    private const int MagazineSize = 150;
+    private static readonly ConditionalWeakTable<Minigun, object> ConfiguredMiniguns = new();
+
+    private static void Prefix(Minigun __instance)
     {
         if (!GameModeManager.IsActive(GameMode.Juggernaut) || __instance == null
             || !__instance.name.StartsWith(JuggernautState.WeaponName, System.StringComparison.Ordinal))
@@ -32,20 +36,14 @@ internal static class Minigun_JuggernautAmmoDisplay_Patch
             return;
         }
 
-        __instance.currentAmmo = 1;
-        if (__instance.IsOwner && PauseManager.Instance != null)
+        if (ConfiguredMiniguns.TryGetValue(__instance, out _))
         {
-            PauseManager.Instance.ChangeAmmoText("1", __instance.chargedBullets + " / ", __instance.inRightHand);
+            return;
         }
-    }
-}
-[HarmonyPatch(typeof(Minigun), "Reload")]
-internal static class Minigun_JuggernautReload_Patch
-{
-    private static bool Prefix(Minigun __instance)
-    {
-        return !GameModeManager.IsActive(GameMode.Juggernaut)
-            || __instance == null
-            || !__instance.name.StartsWith(JuggernautState.WeaponName, System.StringComparison.Ordinal);
+
+        __instance.ammoCharge = MagazineSize;
+        __instance.chargedBullets = MagazineSize;
+        __instance.currentAmmo = MagazineSize;
+        ConfiguredMiniguns.Add(__instance, new object());
     }
 }

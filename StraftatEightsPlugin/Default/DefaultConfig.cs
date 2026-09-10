@@ -1,17 +1,37 @@
 using BepInEx.Configuration;
+using MyceliumNetworking;
+using Steamworks;
 
 namespace StraftatEightsPlugin;
 
 public partial class Plugin
 {
+    internal const uint DefaultGameModeModId = 3141592653u;
     internal static ConfigEntry<bool> DefaultGameModeEnabled = null!;
 
     private void InitializeDefaultGameMode()
     {
         const string section = "Game Mode Settings";
         DefaultGameModeEnabled = Config.Bind(section, "Default Game Mode Enabled", false,
-            "Host-controlled: uses normal Straftat one-life rules, map weapon spawners, and default health while keeping global movement settings active.");
+            "Host-controlled: uses map weapon spawners and default health while awarding 50 points to players for each sub-round win.");
 
         DefaultGameModeEnabled.SettingChanged += (_, _) => GameModeManager.OnSettingsChanged();
+
+        MyceliumNetwork.RegisterNetworkObject(this, DefaultGameModeModId);
+        MyceliumNetwork.PlayerEntered += DefaultGameModeState.OnPlayerEntered;
+    }
+
+    [CustomRPC]
+    public void SyncDefaultGameModeLiveState(CSteamID hostId, string scoresData,
+        string aliveData, int subRoundId, int winnerId, int roundId, int revision)
+    {
+        DefaultGameModeState.ApplyLiveState(hostId, scoresData, aliveData,
+            subRoundId, winnerId, roundId, revision);
+    }
+
+    [CustomRPC]
+    public void DefaultGameModeAnnounce(string text)
+    {
+        GameModeHud.AnnounceTarget(text);
     }
 }
