@@ -1,4 +1,5 @@
 using BepInEx.Configuration;
+using System.Collections.Generic;
 using MyceliumNetworking;
 using Steamworks;
 
@@ -18,25 +19,31 @@ public partial class Plugin
         SniperBattleEnabled.SettingChanged += (_, _) => { SniperBattleState.PushSettingsIfHost(); GameModeManager.OnSettingsChanged(); };
 
         MyceliumNetwork.RegisterNetworkObject(this, SniperBattleModId);
+        MyceliumNetwork.RegisterLobbyDataKey(SniperBattleState.SettingsLobbyDataKey);
+        MyceliumNetwork.RegisterLobbyDataKey(SniperBattleState.LiveLobbyDataKey);
         MyceliumNetwork.LobbyCreated += SniperBattleState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += SniperBattleState.OnLobbyEntered;
+        MyceliumNetwork.LobbyDataUpdated += SniperBattleState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += SniperBattleState.OnPlayerEntered;
     }
 
     [CustomRPC]
     public void SyncSniperBattleSettings(CSteamID hostId, int roundId, int revision, bool enabled)
     {
-        if (!SniperBattleState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
+        DebugLog.Info($"SniperBattle settings received source=rpc host={hostId.m_SteamID} "
+            + $"round={roundId} revision={revision} enabled={enabled}");
+        if (!SniperBattleState.TryAcceptSettingsSnapshot(hostId, roundId, revision, "sniper-battle-rpc"))
         {
             return;
         }
         SniperBattleState.ApplySettings(enabled);
+        Plugin.Logger.LogInfo($"[SniperBattle] Accepted settings via RPC: round={roundId} revision={revision}");
     }
 
     [CustomRPC]
     public void SyncSniperBattleLiveState(CSteamID hostId, string pointsData, int winnerId, int roundId, int revision)
     {
-        SniperBattleState.ApplyLiveState(hostId, pointsData, winnerId, roundId, revision);
+        SniperBattleState.ApplyLiveState(hostId, pointsData, winnerId, roundId, revision, "rpc");
     }
 
     [CustomRPC]

@@ -11,6 +11,8 @@ internal static class SniperBattleState
 {
     internal const string WeaponName = "M2000";
     internal const float PlayerHealth = 10f;
+    internal const string SettingsLobbyDataKey = "StraftatEights_SniperBattle_Settings";
+    internal const string LiveLobbyDataKey = "StraftatEights_SniperBattle_Live";
     internal static bool Enabled;
     internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
     internal static int WinnerId = -1;
@@ -39,8 +41,10 @@ internal static class SniperBattleState
             return;
         }
         ApplyFromConfig();
+        int revision = Sync.NextSettingsRevision();
+        PublishSettingsSnapshot(revision);
         MyceliumNetwork.RPC(Plugin.SniperBattleModId, nameof(Plugin.SyncSniperBattleSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(), Plugin.SniperBattleEnabled.Value);
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision, Plugin.SniperBattleEnabled.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -51,14 +55,14 @@ internal static class SniperBattleState
         }
     }
 
-       internal static void PeriodicPushIfHost()
-       {
-           PeriodicPushSettingsIfHost();
-           if (Sync.IsLivePushDue())
-           {
-               BroadcastLiveState();
-           }
-       }
+    internal static void PeriodicPushIfHost()
+    {
+        PeriodicPushSettingsIfHost();
+        if (Sync.IsLivePushDue())
+        {
+            BroadcastLiveState();
+        }
+    }
 
     internal static void OnLobbyEntered()
     {
@@ -67,6 +71,30 @@ internal static class SniperBattleState
         {
             ApplyFromConfig();
             ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
+        }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (keys.Contains(SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (keys.Contains(LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
         }
     }
 
@@ -84,39 +112,49 @@ internal static class SniperBattleState
             GameModeManager.RoundId, Sync.LiveRevision);
     }
 
-    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision,
+        string source = "unknown")
     {
-        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision, source);
     }
 
     internal static void ResetMatchState()
     {
+        DebugLog.Info($"SniperBattle match reset round={GameModeManager.RoundId} pointsCount={Points.Count} "
+            + $"liveRevision={Sync.LiveRevision} lastLiveRound={Sync.LastLiveRoundId}");
         Sync.ResetLiveState();
         WinnerId = -1;
         Points.Clear();
         PendingLoadouts.Clear();
     }
 
-    internal static void ApplyLiveState(CSteamID hostId, string pointsData, int winnerId, int roundId, int revision)
+    internal static void ApplyLiveState(CSteamID hostId, string pointsData, int winnerId, int roundId,
+        int revision, string source = "unknown")
     {
+        DebugLog.Info($"SniperBattle live state received source={source} host={hostId.m_SteamID} "
+            + $"round={roundId} revision={revision} winner={winnerId} payloadLength={pointsData?.Length ?? 0}");
         if (winnerId < -1)
         {
             return;
         }
-        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, "sniper-battle-" + source))
         {
             return;
         }
         WinnerId = winnerId;
         Points.Clear();
-        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(pointsData, PointsToWin))
+        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(pointsData ?? string.Empty, PointsToWin))
         {
             Points[entry.Key] = entry.Value;
         }
+        Plugin.Logger.LogInfo($"[SniperBattle] Accepted live state via {source}: round={roundId} "
+            + $"revision={revision} players={Points.Count}");
     }
 
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
+        DebugLog.Info($"SniperBattle server kill dead={deadPlayerId} killer={killerId} enabled={Enabled} "
+            + $"round={GameModeManager.RoundId} pointsCount={Points.Count}");
         if (!Enabled || WinnerId >= 0 || killerId < 0 || killerId == deadPlayerId)
         {
             return;
@@ -132,6 +170,8 @@ internal static class SniperBattleState
             Announce(PlayerLookup.GetPlayerNameTag(killerId) + " reached " + PointsToWin + " points and won the round!");
             GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(killerId));
         }
+        DebugLog.Info($"SniperBattle score updated killer={killerId} points={totalPoints} "
+            + $"round={GameModeManager.RoundId} winner={WinnerId}");
         BroadcastLiveState();
     }
 
@@ -206,10 +246,64 @@ internal static class SniperBattleState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            int revision = Sync.NextLiveRevision();
+            string pointsData = SerializePoints();
+            DebugLog.Info($"SniperBattle live broadcast host={MyceliumNetwork.LobbyHost.m_SteamID} "
+                + $"round={GameModeManager.RoundId} revision={revision} winner={WinnerId} "
+                + $"players={Points.Count} payloadLength={pointsData.Length}");
+            PublishLiveSnapshot(revision, pointsData);
             MyceliumNetwork.RPC(Plugin.SniperBattleModId, nameof(Plugin.SyncSniperBattleLiveState), ReliableType.Reliable,
-                MyceliumNetwork.LobbyHost, SerializePoints(), WinnerId, GameModeManager.RoundId,
-                Sync.NextLiveRevision());
+                MyceliumNetwork.LobbyHost, pointsData, WinnerId, GameModeManager.RoundId, revision);
         }
+    }
+
+    private static void PublishSettingsSnapshot(int revision)
+    {
+        string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
+            GameModeManager.RoundId, revision, Plugin.SniperBattleEnabled.Value ? "1" : "0");
+        MyceliumNetwork.SetLobbyData(SettingsLobbyDataKey, payload);
+    }
+
+    private static void PublishLiveSnapshot(int revision, string pointsData)
+    {
+        string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
+            GameModeManager.RoundId, revision, WinnerId, pointsData ?? string.Empty);
+        MyceliumNetwork.SetLobbyData(LiveLobbyDataKey, payload);
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        string payload = MyceliumNetwork.GetLobbyData<string>(SettingsLobbyDataKey) ?? string.Empty;
+        string[] parts = payload.Split('|');
+        if (parts.Length != 4 || !ulong.TryParse(parts[0], out ulong hostSteamId)
+            || !int.TryParse(parts[1], out int roundId) || !int.TryParse(parts[2], out int revision)
+            || (parts[3] != "0" && parts[3] != "1"))
+        {
+            return;
+        }
+
+        CSteamID hostId = new(hostSteamId);
+        if (Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision, "sniper-battle-lobby-data"))
+        {
+            bool enabled = parts[3] == "1";
+            DebugLog.Info($"SniperBattle settings accepted via lobby data round={roundId} "
+                + $"revision={revision} enabled={enabled}");
+            ApplySettings(enabled);
+        }
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        string payload = MyceliumNetwork.GetLobbyData<string>(LiveLobbyDataKey) ?? string.Empty;
+        string[] parts = payload.Split(new[] { '|' }, 5);
+        if (parts.Length != 5 || !ulong.TryParse(parts[0], out ulong hostSteamId)
+            || !int.TryParse(parts[1], out int roundId) || !int.TryParse(parts[2], out int revision)
+            || !int.TryParse(parts[3], out int winnerId))
+        {
+            return;
+        }
+
+        ApplyLiveState(new CSteamID(hostSteamId), parts[4], winnerId, roundId, revision, "lobby-data");
     }
 
     private static void Announce(string text)

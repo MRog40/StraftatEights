@@ -38,6 +38,7 @@ public partial class Plugin : BaseUnityPlugin
         DebugLog.Info($"Startup: version={MyPluginInfo.PLUGIN_VERSION} scene={SceneManager.GetActiveScene().name}");
 
         InitializeSafely("compatibility checks", FishNetCompatibility.LogPreflight);
+        InitializeSafely("Mycelium transport recovery", MyceliumTransportRecovery.Initialize);
         InitializeSafely("weapon service", WeaponService.Initialize);
         InitializeSafely("game mode manager", GameModeManager.Initialize);
 
@@ -134,6 +135,7 @@ public partial class Plugin : BaseUnityPlugin
             + $"round={GameModeManager.RoundId} scene={SceneManager.GetActiveScene().name} "
             + $"mainMenu={PauseManager.Instance?.inMainMenu.ToString() ?? "missing"} "
             + $"victoryMenu={PauseManager.Instance?.inVictoryMenu.ToString() ?? "missing"}");
+        MyceliumTransportRecovery.Update();
         GameModeManager.PeriodicPushIfHost();
         GameModeManager.PeriodicActiveModePushIfHost();
         GlobalModifiersState.PeriodicPushIfHost();
