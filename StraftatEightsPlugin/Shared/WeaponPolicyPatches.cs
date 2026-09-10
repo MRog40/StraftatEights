@@ -7,6 +7,11 @@ internal static class WeaponPolicy
 {
     internal static bool PrepareItemSpawn(ItemSpawner spawner)
     {
+        if (GameModeManager.IsActive(GameMode.Infidel))
+        {
+            return false;
+        }
+
         if (GameModeManager.ShouldIgnoreGlobalWeaponSettings)
         {
             return true;

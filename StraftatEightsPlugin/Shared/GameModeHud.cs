@@ -107,7 +107,7 @@ internal sealed class GameModeHud : MonoBehaviour
         panelRect.anchorMax = new Vector2(0f, 1f);
         panelRect.pivot = new Vector2(0f, 1f);
         panelRect.sizeDelta = new Vector2(420f, 0f);
-        panelRect.anchoredPosition = new Vector2(18f, -130f);
+        panelRect.anchoredPosition = new Vector2(18f, -238f);
         _panel.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.45f);
 
         VerticalLayoutGroup layout = _panel.AddComponent<VerticalLayoutGroup>();
