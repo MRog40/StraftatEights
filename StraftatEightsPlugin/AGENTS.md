@@ -87,6 +87,10 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
 - A successful `RPC()`/`RPCTarget()` call does not prove delivery. Periodically resend settings and
   live state while hosting. Include the host ID, round ID, and revision, and accept a reset revision
   when the round ID increases.
+- `ReliableType.Reliable` can still fail when the Steam/Mycelium session fails. For latest-value
+  settings and presentation state, register a Steam lobby-data key and publish the host ID, round ID,
+  revision, and payload. Read it on lobby entry and `LobbyDataUpdated`, then use the same validation as
+  the RPC path. Gun Game settings/scores and active mode use this fallback.
 - Reset per-match state on every new round, even when the same mode remains active. Otherwise clients
   can display scores from the previous match.
 - `[ObserversRpc(..., ExcludeOwner = true)]` skips the owning client. If that RPC sets local hand,
@@ -99,6 +103,9 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
 - Client visuals are local. `PlayerSetup.ChangeDress` replaces materials after spawn, so persistent
   outlines and other material changes must be reapplied after cosmetics initialization. Test both
   directions: host target observed by client and client target observed by host.
+- Stock `PlayerSetup.OnStartClient` clears the owner HUD after every respawn, and `OnDisable` clears
+  both ammo displays during every teardown. Restore the owner HUD after start/disable and suppress
+  remote teardown cleanup when it would change the local HUD.
 - Network-spawned objects can arrive before their parent or SyncVars. Use bounded retries on the
   persistent plugin object, and guard temporary drop/repair checks until owner-side setup succeeds.
 - See `MULTIPLAYER_SYNC_NOTES.md` for the full troubleshooting checklist and test matrix.

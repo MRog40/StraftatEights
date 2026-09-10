@@ -10,6 +10,11 @@ repository. Read them before adding a networked game mode or patch.
 - Mycelium `RPC()` and `RPCTarget()` returning without an exception does not prove delivery. Settings
   and live state need periodic host broadcasts, not only a one-shot send during lobby join or a config
   change. Keep a revision and round ID in every snapshot.
+- `ReliableType.Reliable` does not remove the Steam/Mycelium session failure mode. For small latest-value
+  state that controls client presentation, use a registered Steam lobby-data key as a second channel.
+  Publish the host ID, round ID, revision, and payload; read it on lobby entry and on
+  `LobbyDataUpdated`; apply the same host and cursor validation as the RPC path. Gun Game settings,
+  Gun Game scores, and the active game mode use this fallback.
 - Accept snapshots by host identity, round ID, and revision. A newer round must accept a reset
   revision, and client mode state must reset when the round ID advances even if the mode is unchanged.
 - Reset all per-match dictionaries and IDs when the mode, round, lobby, or session changes. Do not
@@ -97,6 +102,9 @@ repository. Read them before adding a networked game mode or patch.
   The game's `RightHandFix()` can then interpret it as dropped. Complete the owner-side attachment
   before allowing that repair/drop check to run, and clear the temporary guard after success or a
   bounded timeout.
+- Stock `PlayerSetup.OnStartClient()` clears the owner ammo text after every respawn, and
+  `PlayerSetup.OnDisable()` clears and moves both ammo displays for every teardown. Reapply the owner
+  HUD after start/disable and suppress remote teardown cleanup when it would modify the local HUD.
 - A destroyed Unity object can pass a C# null-conditional check. Before calling Unity methods on a
   cached object, check both `value == null` and `!value`.
 
@@ -157,7 +165,8 @@ When a result is asymmetric, compare the host and client logs and verify these f
   Selection is keyed by player ID because weapon objects are replaced after respawn.
 - `GameModeManager` has separate settings and active-mode streams. Its active-mode snapshot carries
   the mode, round, phase, and live revision; its global settings snapshot carries respawn and score
-  values. Do not merge these payloads just to reduce RPC count.
+  values. Do not merge these payloads just to reduce RPC count. Active mode also has a Steam lobby-data
+  latest-value fallback because the client HUD visibility depends on this stream.
 - Mode capabilities provide precedence guards at shared patch boundaries. A mode-specific weapon,
   health, movement, or respawn rule must explicitly block or layer the global rule while active.
 - Custom respawns remain host-authoritative and use the shared respawn timing path. They do not add

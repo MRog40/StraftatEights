@@ -1,6 +1,6 @@
 {
   "name": "StraftatEightsPlugin",
-  "version_number": "0.1.1",
+  "version_number": "0.1.2",
   "website_url": "https://github.com/MRog40/StraftatEights",
   "description": "Host-authoritative movement, health, weapon, and game-mode rules for STRAFTAT.",
   "dependencies": [

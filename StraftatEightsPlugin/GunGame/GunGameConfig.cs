@@ -22,22 +22,28 @@ public partial class Plugin
         GunGameEnabled.SettingChanged += (_, _) => { GunGameState.PushSettingsIfHost(); GameModeManager.OnSettingsChanged(); };
         GunGameWeaponOrder.SettingChanged += (_, _) => GunGameState.PushSettingsIfHost();
         MyceliumNetwork.RegisterNetworkObject(this, GunGameModId);
+        MyceliumNetwork.RegisterLobbyDataKey(GunGameState.SettingsLobbyDataKey);
+        MyceliumNetwork.RegisterLobbyDataKey(GunGameState.LiveLobbyDataKey);
         MyceliumNetwork.LobbyCreated += GunGameState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += GunGameState.OnLobbyEntered;
+        MyceliumNetwork.LobbyDataUpdated += GunGameState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += GunGameState.OnPlayerEntered;
     }
 
     [CustomRPC]
     public void SyncGunGameSettings(CSteamID hostId, int roundId, int revision, bool enabled, string weaponOrder)
     {
-        if (!GunGameState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
+        if (!GunGameState.TryAcceptSettingsSnapshot(hostId, roundId, revision, "gun-game-rpc"))
         {
             return;
         }
         GunGameState.ApplySettings(enabled, weaponOrder);
+        Plugin.Logger.LogInfo($"[GunGame] Accepted settings via RPC: round={roundId} revision={revision}");
     }
 
     [CustomRPC]
-    public void SyncGunGameLiveState(CSteamID hostId, string progressData, int roundId, int revision) =>
-        GunGameState.ApplyLiveState(hostId, progressData, roundId, revision);
+    public void SyncGunGameLiveState(CSteamID hostId, string progressData, int roundId, int revision)
+    {
+        GunGameState.ApplyLiveState(hostId, progressData, roundId, revision, "gun-game-rpc");
+    }
 }

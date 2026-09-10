@@ -27,6 +27,9 @@ internal sealed class GameModeHud : MonoBehaviour
     private float _announcementUntil;
     private float _targetAnnouncementUntil;
     private float _scorePopupUntil;
+    private bool _hasLoggedVisibility;
+    private bool _lastVisible;
+    private string _lastVisibilityReason = string.Empty;
 
     private void Awake()
     {
@@ -144,6 +147,16 @@ internal sealed class GameModeHud : MonoBehaviour
 
         if (GameModeManager.IsMatchOver)
         {
+            if (!_hasLoggedVisibility || _lastVisible || _lastVisibilityReason != "match-over")
+            {
+                _hasLoggedVisibility = true;
+                _lastVisible = false;
+                _lastVisibilityReason = "match-over";
+                Plugin.Logger.LogInfo($"[GameModeHud] visible=false reason=match-over "
+                    + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} "
+                    + $"round={GameModeManager.RoundId} players=0 scores={GunGameState.Progress.Count}");
+            }
+
             _announcement.gameObject.SetActive(false);
             _targetAnnouncement.gameObject.SetActive(false);
             _panel.SetActive(false);
@@ -160,10 +173,54 @@ internal sealed class GameModeHud : MonoBehaviour
             return;
         }
         _nextRefreshTime = Time.unscaledTime + RefreshInterval;
-        bool visible = GameModeManager.IsCustomMode && !GameModeManager.ShouldHideCustomHud
-            && !GameModeManager.IsMatchOver
-            && PauseManager.Instance != null && !PauseManager.Instance.inMainMenu
-            && !PauseManager.Instance.inVictoryMenu && PlayerLookup.GetConnectedPlayerIds().Count > 0;
+        bool isCustomMode = GameModeManager.IsCustomMode;
+        bool shouldHideCustomHud = GameModeManager.ShouldHideCustomHud;
+        bool isMatchOver = GameModeManager.IsMatchOver;
+        PauseManager? pauseManager = PauseManager.Instance;
+        int connectedPlayerCount = 0;
+        string visibilityReason;
+        if (!isCustomMode)
+        {
+            visibilityReason = "custom-mode-off";
+        }
+        else if (shouldHideCustomHud)
+        {
+            visibilityReason = "mode-hides-hud";
+        }
+        else if (isMatchOver)
+        {
+            visibilityReason = "match-over";
+        }
+        else if (pauseManager == null)
+        {
+            visibilityReason = "pause-manager-missing";
+        }
+        else if (pauseManager.inMainMenu)
+        {
+            visibilityReason = "main-menu";
+        }
+        else if (pauseManager.inVictoryMenu)
+        {
+            visibilityReason = "victory-menu";
+        }
+        else
+        {
+            connectedPlayerCount = PlayerLookup.GetConnectedPlayerIds().Count;
+            visibilityReason = connectedPlayerCount > 0 ? "visible" : "no-connected-players";
+        }
+
+        bool visible = visibilityReason == "visible";
+        if (!_hasLoggedVisibility || visible != _lastVisible || visibilityReason != _lastVisibilityReason)
+        {
+            _hasLoggedVisibility = true;
+            _lastVisible = visible;
+            _lastVisibilityReason = visibilityReason;
+            Plugin.Logger.LogInfo($"[GameModeHud] visible={visible} reason={visibilityReason} "
+                + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} "
+                + $"round={GameModeManager.RoundId} players={connectedPlayerCount} "
+                + $"scores={GunGameState.Progress.Count}");
+        }
+
         _panel.SetActive(visible);
         if (visible)
         {

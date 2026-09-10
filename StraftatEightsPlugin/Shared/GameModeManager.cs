@@ -46,6 +46,7 @@ internal enum GameModeCapabilities
 internal static class GameModeManager
 {
     internal const uint ModId = 1618033988u;
+    internal const string ActiveModeLobbyDataKey = "StraftatEights_ActiveMode";
     private sealed class ModeDescriptor
     {
         internal readonly string Label;
@@ -178,9 +179,11 @@ internal static class GameModeManager
         PointsToWin.SettingChanged += (_, _) => OnGlobalSettingsChanged();
 
         MyceliumNetwork.RegisterNetworkObject(Plugin.Instance, ModId);
+        MyceliumNetwork.RegisterLobbyDataKey(ActiveModeLobbyDataKey);
         MyceliumNetwork.LobbyCreated += OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += OnLobbyEntered;
         MyceliumNetwork.LobbyLeft += OnLobbyLeft;
+        MyceliumNetwork.LobbyDataUpdated += OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += OnPlayerEntered;
     }
 
@@ -452,6 +455,21 @@ internal static class GameModeManager
             BroadcastGlobalSettings();
             ActivateMode(NextEnabledMode(GameMode.None), true);
         }
+        else
+        {
+            ApplyLobbyActiveModeSnapshot();
+        }
+    }
+
+    private static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || !keys.Contains(ActiveModeLobbyDataKey))
+        {
+            return;
+        }
+
+        ApplyLobbyActiveModeSnapshot();
     }
 
     private static void OnLobbyLeft()
@@ -539,9 +557,10 @@ internal static class GameModeManager
         return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
     }
 
-    internal static bool TryAcceptActiveModeSnapshot(CSteamID hostId, int roundId, int revision)
+    internal static bool TryAcceptActiveModeSnapshot(CSteamID hostId, int roundId, int revision,
+        string source = "unknown")
     {
-        return Sync.TryAcceptLiveSnapshot(hostId, roundId, revision);
+        return Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source);
     }
 
     internal static void ApplyActiveMode(int mode, int roundId, int phase)
@@ -628,8 +647,39 @@ internal static class GameModeManager
 
     private static void BroadcastActiveMode()
     {
+        int revision = Sync.NextLiveRevision();
+        PublishActiveModeSnapshot(revision);
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId, (int)Phase, Sync.NextLiveRevision());
+            MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId, (int)Phase, revision);
+    }
+
+    private static void PublishActiveModeSnapshot(int revision)
+    {
+        string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
+            (int)ActiveMode, RoundId, (int)Phase, revision);
+        MyceliumNetwork.SetLobbyData(ActiveModeLobbyDataKey, payload);
+    }
+
+    private static void ApplyLobbyActiveModeSnapshot()
+    {
+        string payload = MyceliumNetwork.GetLobbyData<string>(ActiveModeLobbyDataKey) ?? string.Empty;
+        string[] parts = payload.Split('|');
+        if (parts.Length != 5 || !ulong.TryParse(parts[0], out ulong hostSteamId)
+            || !int.TryParse(parts[1], out int mode) || !int.TryParse(parts[2], out int roundId)
+            || !int.TryParse(parts[3], out int phase) || !int.TryParse(parts[4], out int revision))
+        {
+            return;
+        }
+
+        CSteamID hostId = new(hostSteamId);
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, "active-mode-lobby-data"))
+        {
+            return;
+        }
+
+        ApplyActiveMode(mode, roundId, phase);
+        Plugin.Logger.LogInfo($"[GameMode] Accepted active mode via lobby data: mode={(GameMode)mode} "
+            + $"round={roundId} phase={(GameModePhase)phase} revision={revision}");
     }
 
     private static readonly HashSet<int> PendingDeaths = new();
@@ -797,11 +847,13 @@ public partial class Plugin
     [CustomRPC]
     public void SyncActiveGameMode(CSteamID hostId, int mode, int roundId, int phase, int revision)
     {
-        if (!GameModeManager.TryAcceptActiveModeSnapshot(hostId, roundId, revision))
+        if (!GameModeManager.TryAcceptActiveModeSnapshot(hostId, roundId, revision, "active-mode-rpc"))
         {
             return;
         }
         GameModeManager.ApplyActiveMode(mode, roundId, phase);
+        Plugin.Logger.LogInfo($"[GameMode] Accepted active mode via RPC: mode={(GameMode)mode} "
+            + $"round={roundId} phase={(GameModePhase)phase} revision={revision}");
     }
 }
 

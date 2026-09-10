@@ -34,16 +34,18 @@ internal sealed class ModeSyncState
         return HostSettingsSync.IsDue(ref _nextLivePushTime, _livePushInterval);
     }
 
-    internal bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    internal bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision,
+        string source = "unknown")
     {
         return SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastSettingsRoundId, ref _lastSettingsRevision);
+            ref _lastSettingsRoundId, ref _lastSettingsRevision, source);
     }
 
-    internal bool TryAcceptLiveSnapshot(CSteamID hostId, int roundId, int revision)
+    internal bool TryAcceptLiveSnapshot(CSteamID hostId, int roundId, int revision,
+        string source = "unknown")
     {
         bool accepted = SessionState.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-            ref _lastLiveRoundId, ref _lastLiveRevision);
+            ref _lastLiveRoundId, ref _lastLiveRevision, source);
         if (accepted)
         {
             LastLiveRoundId = roundId;

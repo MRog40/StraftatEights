@@ -14,6 +14,8 @@ internal static class GunGameState
     internal static readonly Dictionary<int, int> Progress = new();
     internal static List<string> WeaponOrder { get; private set; } = new();
     internal static int ScoreLimit => GameModeManager.EffectivePointsToWin;
+    internal const string SettingsLobbyDataKey = "StraftatEights_GunGame_Settings";
+    internal const string LiveLobbyDataKey = "StraftatEights_GunGame_Live";
     private static float _nextLoadoutCheckTime;
     private static readonly Dictionary<int, float> PendingLoadouts = new();
     private static readonly ModeSyncState Sync = new();
@@ -32,8 +34,10 @@ internal static class GunGameState
     {
         if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost) return;
         ApplyFromConfig();
+        int revision = Sync.NextSettingsRevision();
+        PublishSettingsSnapshot(revision);
         MyceliumNetwork.RPC(Plugin.GunGameModId, nameof(Plugin.SyncGunGameSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
             Plugin.GunGameEnabled.Value, Plugin.GunGameWeaponOrder.Value);
     }
     internal static void PeriodicPushSettingsIfHost() { if (Sync.IsSettingsPushDue()) PushSettingsIfHost(); }
@@ -45,7 +49,34 @@ internal static class GunGameState
     internal static void OnLobbyEntered()
     {
         Sync.ResetForLobby();
-        if (MyceliumNetwork.IsHost) { ApplyFromConfig(); ResetMatchState(); }
+        if (MyceliumNetwork.IsHost)
+        {
+            ApplyFromConfig();
+            ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
+        }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (keys.Contains(SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (keys.Contains(LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
+        }
     }
     internal static void OnPlayerEntered(CSteamID player)
     {
@@ -57,9 +88,10 @@ internal static class GunGameState
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeProgress(), GameModeManager.RoundId,
             Sync.LiveRevision);
     }
-    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision,
+        string source = "unknown")
     {
-        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision, source);
     }
     internal static void ResetMatchState()
     {
@@ -68,9 +100,10 @@ internal static class GunGameState
         PendingLoadouts.Clear();
         Progress.Clear();
     }
-    internal static void ApplyLiveState(CSteamID hostId, string data, int roundId, int revision)
+    internal static void ApplyLiveState(CSteamID hostId, string data, int roundId, int revision,
+        string source = "unknown")
     {
-        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
@@ -79,6 +112,8 @@ internal static class GunGameState
         {
             Progress[entry.Key] = entry.Value;
         }
+        Plugin.Logger.LogInfo($"[GunGame] Accepted live state via {source}: round={roundId} "
+            + $"revision={revision} players={Progress.Count}");
     }
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
@@ -187,9 +222,67 @@ internal static class GunGameState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            int revision = Sync.NextLiveRevision();
+            string progressData = SerializeProgress();
+            PublishLiveSnapshot(revision, progressData);
             MyceliumNetwork.RPC(Plugin.GunGameModId, nameof(Plugin.SyncGunGameLiveState), ReliableType.Reliable,
-                MyceliumNetwork.LobbyHost, SerializeProgress(), GameModeManager.RoundId,
-                Sync.NextLiveRevision());
+                MyceliumNetwork.LobbyHost, progressData, GameModeManager.RoundId, revision);
         }
+    }
+
+    private static void PublishSettingsSnapshot(int revision)
+    {
+        string encodedOrder = Convert.ToBase64String(Encoding.UTF8.GetBytes(Plugin.GunGameWeaponOrder.Value ?? string.Empty));
+        string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
+            GameModeManager.RoundId, revision, Plugin.GunGameEnabled.Value ? "1" : "0", encodedOrder);
+        MyceliumNetwork.SetLobbyData(SettingsLobbyDataKey, payload);
+    }
+
+    private static void PublishLiveSnapshot(int revision, string progressData)
+    {
+        string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
+            GameModeManager.RoundId, revision, progressData ?? string.Empty);
+        MyceliumNetwork.SetLobbyData(LiveLobbyDataKey, payload);
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        string payload = MyceliumNetwork.GetLobbyData<string>(SettingsLobbyDataKey) ?? string.Empty;
+        string[] parts = payload.Split('|');
+        if (parts.Length != 5 || !ulong.TryParse(parts[0], out ulong hostSteamId)
+            || !int.TryParse(parts[1], out int roundId) || !int.TryParse(parts[2], out int revision)
+            || (parts[3] != "0" && parts[3] != "1"))
+        {
+            return;
+        }
+
+        try
+        {
+            string weaponOrder = Encoding.UTF8.GetString(Convert.FromBase64String(parts[4]));
+            if (Sync.TryAcceptSettingsSnapshot(new CSteamID(hostSteamId), roundId, revision,
+                "gun-game-lobby-data"))
+            {
+                ApplySettings(parts[3] == "1", weaponOrder);
+                Plugin.Logger.LogInfo($"[GunGame] Accepted settings via lobby data: round={roundId} "
+                    + $"revision={revision}");
+            }
+        }
+        catch (FormatException)
+        {
+            // Steam lobby data can contain an incomplete update while the value is changing.
+        }
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        string payload = MyceliumNetwork.GetLobbyData<string>(LiveLobbyDataKey) ?? string.Empty;
+        string[] parts = payload.Split(new[] { '|' }, 4);
+        if (parts.Length != 4 || !ulong.TryParse(parts[0], out ulong hostSteamId)
+            || !int.TryParse(parts[1], out int roundId) || !int.TryParse(parts[2], out int revision))
+        {
+            return;
+        }
+
+        ApplyLiveState(new CSteamID(hostSteamId), parts[3], roundId, revision, "lobby-data");
     }
 }
