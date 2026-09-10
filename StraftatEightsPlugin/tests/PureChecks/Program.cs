@@ -91,15 +91,17 @@ Assert(!HotPotatoRules.IsAllowedWeapon("Glock(Clone)", false),
 Assert(HotPotatoRules.ResolvePotato(1, 1, 2) == 2
     && HotPotatoRules.ResolvePotato(1, 3, 2) == 1,
     "Only a kill by the current bat holder may transfer the potato.");
-Assert(InfidelRules.GetKillerAward(false, true, 0) == 10,
-    "The Infidel must receive ten points for each terrorist kill.");
-Assert(InfidelRules.GetKillerAward(false, false, 0) == 0
-    && InfidelRules.GetInfidelBonusAward(false, false) == 10,
-    "A terrorist-on-terrorist kill must award ten points to the Infidel and none to the killer.");
-Assert(InfidelRules.GetKillerAward(true, false, 4) == 40
-    && InfidelRules.GetKillerAward(true, false, 2) == 20
-    && InfidelRules.GetInfidelBonusAward(true, false) == 0,
-    "Killing the Infidel must award ten points per surviving terrorist.");
+Assert(InfidelRules.GetKillerAward(true, false) == 30
+    && InfidelRules.GetKillerAward(true, false) == InfidelRules.PointsForKillingInfidel,
+    "A terrorist must receive thirty points for killing the Infidel.");
+Assert(InfidelRules.GetKillerAward(false, true) == 0
+    && InfidelRules.GetKillerAward(false, false) == 0
+    && InfidelRules.GetKillerAward(true, true) == 0
+    && InfidelRules.GetWinnerAward(false) == 0,
+    "Ordinary kills and non-winning events must award no Infidel points.");
+Assert(InfidelRules.GetWinnerAward(true) == 50
+    && InfidelRules.GetWinnerAward(true) == InfidelRules.PointsForInfidelWin,
+    "The Infidel must receive fifty points for winning the sub-round.");
 
 List<string> modes = new() { "Default", "FFA", "GunGame" };
 Assert(ModeCycle.TrySelectNext(modes, "Default", out string nextMode) && nextMode == "FFA",

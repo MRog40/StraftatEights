@@ -40,7 +40,8 @@ internal enum GameModeCapabilities
     IgnoreGlobalWeapons = 2,
     IgnoreGlobalHealth = 4,
     HideHud = 8,
-    ClearOutlines = 16
+    ClearOutlines = 16,
+    IgnoreGlobalMovement = 32
 }
 
 internal static class GameModeManager
@@ -91,7 +92,8 @@ internal static class GameModeManager
     {
         [GameMode.Default] = new ModeDescriptor("DEFAULT", new Color32(220, 220, 220, 255),
             () => Plugin.DefaultGameModeEnabled.Value, DefaultReset,
-            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalHealth,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.IgnoreGlobalMovement,
             DefaultGameModeState.PeriodicPushIfHost),
         [GameMode.FreeForAll] = new ModeDescriptor("FFA", new Color32(85, 204, 255, 255),
             () => Plugin.FFAEnabled.Value, FfaReset, GameModeCapabilities.CustomRound,
@@ -417,6 +419,9 @@ internal static class GameModeManager
         HasCapability(GameModeCapabilities.IgnoreGlobalWeapons);
 
     internal static bool ShouldIgnoreGlobalHealthSettings => HasCapability(GameModeCapabilities.IgnoreGlobalHealth);
+
+    internal static bool ShouldIgnoreGlobalMovementSettings =>
+        HasCapability(GameModeCapabilities.IgnoreGlobalMovement);
 
     internal static bool IsCustomMode => HasCapability(GameModeCapabilities.CustomRound);
     internal static bool ShouldHideCustomHud => HasCapability(GameModeCapabilities.HideHud);

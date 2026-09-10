@@ -20,6 +20,13 @@ internal static class GlobalModifiersState
     internal static float MomentumPercent = 100f;
     internal static float AirSpeedRatioPercent = MovementTuning.StockAirSpeedRatioPercent;
 
+    internal static float EffectiveMomentumPercent => GameModeManager.ShouldIgnoreGlobalMovementSettings
+        ? 100f
+        : MomentumPercent;
+    internal static float EffectiveAirSpeedRatioPercent => GameModeManager.ShouldIgnoreGlobalMovementSettings
+        ? MovementTuning.StockAirSpeedRatioPercent
+        : AirSpeedRatioPercent;
+
     // Bumped on every Apply so per-frame patches can cheaply detect "nothing changed" and skip
     // re-applying reflection-based tuning
     internal static int TuningVersion;

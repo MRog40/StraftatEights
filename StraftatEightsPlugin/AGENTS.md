@@ -81,6 +81,26 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
   everything to primitive RPC params.
 - Give each feature module its own unique `uint ModId` constant for `RegisterNetworkObject`/RPC calls.
 
+### Permanent Mycelium transport rules
+- Mycelium 1.1.17's `Reliable` flag does not confirm delivery. Its private `SendBytes` method has no
+  acknowledgement or retry queue. The Steam Networking Messages session can fail with
+  `ProblemDetectedLocally` while the RPC caller continues normally.
+- `Shared/MyceliumTransportRecovery.cs` patches that one `SendBytes` funnel for every plugin RPC. It
+  retries only explicit send failures or exceptions, with bounded backoff and a capped queue. It does
+  not resend successful packets, because duplicate weapon grants, respawn commands, and input requests
+  are unsafe.
+- The same helper patches Mycelium's session-failure callback. It closes the affected peer session and
+  uses a targeted probe/ack RPC to re-establish the session. Keep this transport layer shared; do not add
+  a second per-mode retry queue.
+- Latest-value settings and live state still need host ID, round ID, revision, periodic resend, stale
+  cursor rejection, and a lobby-data fallback for important presentation state. Transport retries do not
+  replace state validation. Sniper Battle, Gun Game, and active mode have lobby-data fallbacks.
+- When adding a retryable action, add a command ID and receiver deduplication first. Never periodically
+  replay a gameplay command just because an RPC may have been lost. Use revisioned snapshots for state.
+- Before diagnosing a new sync issue, verify both peers use the same plugin DLL and Mycelium version,
+  verify `IsHost` and `LobbyHost` in both logs, and check for `Session request failed`, `Error sending
+  message`, `Dropped RPC`, and `Error executing RPC` before changing gameplay logic.
+
 ## Multiplayer sync rules learned in this repository
 - Keep rules, scores, health writes, weapon spawning, and ownership host-authoritative. Clients request
   host actions through Mycelium RPCs; they must not spawn or equip network objects locally.

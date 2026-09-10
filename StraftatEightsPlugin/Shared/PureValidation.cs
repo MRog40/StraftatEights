@@ -139,22 +139,17 @@ internal static class HotPotatoRules
 
 internal static class InfidelRules
 {
-    internal const int PointsPerKill = 10;
+    internal const int PointsForKillingInfidel = 30;
+    internal const int PointsForInfidelWin = 50;
 
-    internal static int GetKillerAward(bool deadWasInfidel, bool killerIsInfidel,
-        int aliveTerroristsAfterDeath)
+    internal static int GetKillerAward(bool deadWasInfidel, bool killerIsInfidel)
     {
-        if (deadWasInfidel)
-        {
-            return Math.Max(0, aliveTerroristsAfterDeath) * PointsPerKill;
-        }
-
-        return killerIsInfidel ? PointsPerKill : 0;
+        return deadWasInfidel && !killerIsInfidel ? PointsForKillingInfidel : 0;
     }
 
-    internal static int GetInfidelBonusAward(bool deadWasInfidel, bool killerIsInfidel)
+    internal static int GetWinnerAward(bool infidelWon)
     {
-        return !deadWasInfidel && !killerIsInfidel ? PointsPerKill : 0;
+        return infidelWon ? PointsForInfidelWin : 0;
     }
 }
 

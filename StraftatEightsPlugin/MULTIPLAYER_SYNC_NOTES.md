@@ -3,6 +3,53 @@
 These notes record verified behavior from the STRAFTAT FishNet and MyceliumNetworking paths in this
 repository. Read them before adding a networked game mode or patch.
 
+## Confirmed Mycelium failure and permanent recovery
+
+The long two-machine test on 2026-09-10 completed without a scoreboard desync. The client log had no
+error-level entries, exceptions, dropped RPCs, Mycelium send errors, or failed session messages. It had
+one expected stale-snapshot warning: a Sniper Battle lobby-data revision arrived after the client had
+already accepted the newer RPC revision. The client rejected the old revision and continued accepting
+new score snapshots.
+
+The original failure was a transport-session problem, not a scoreboard-only problem. Mycelium 1.1.17
+sets Steam's reliable and auto-restart flags, but its `SendBytes` method has no delivery acknowledgement
+or retry queue. It logs `ProblemDetectedLocally` when the Steam Networking Messages session fails, while
+the caller can still return as if the RPC was sent. A one-shot state RPC can therefore disappear, and a
+later client can remain on an old or empty state until another mode reset.
+
+The plugin now has a shared transport recovery layer in `Shared/MyceliumTransportRecovery.cs`:
+
+- A Harmony patch covers Mycelium's private `SendBytes` funnel, so all current `RPC()` and `RPCTarget()`
+  calls use the same recovery path.
+- An explicit Steam send failure or send exception is queued for bounded retry at 0.35, 0.75, 1.5, 3,
+  and 6 seconds. The queue has a 128-message limit and identical queued packets are not duplicated.
+- A successful send is never sent again by this layer. This prevents duplicate weapon grants, respawns,
+  input requests, and announcements.
+- A Harmony patch observes the Mycelium session-failure callback, closes only the affected peer session,
+  and sends a targeted probe/ack exchange to make the next send establish a fresh session.
+- The probe and retry queues are cleared when the lobby ends. Recovery is bounded; it cannot repair a
+  Steam outage, a peer that left the lobby, or an incompatible Mycelium version.
+
+Transport recovery is only one part of the contract. Latest-value state must still be safe to resend:
+include the host Steam ID, round ID, and revision; reject stale or foreign snapshots; periodically resend
+host state; and use a Steam lobby-data fallback for important presentation state. The fallback is required
+because it uses a separate Steam lobby metadata path and does not depend on the Mycelium peer session.
+Sniper Battle now follows the same fallback pattern as Gun Game and active-mode state.
+
+When testing a future networking change, verify the following before changing gameplay code:
+
+1. Both peers load the same plugin DLL and the same Mycelium version.
+2. The host and client logs show the expected `IsHost` value and the same lobby host Steam ID.
+3. State snapshots carry the same round and increasing revision on both peers.
+4. A stale snapshot rejection is followed by acceptance of a newer snapshot, not by a state reset.
+5. The log has no `Session request failed`, `Error sending message`, `Dropped RPC`, or `Error executing RPC`
+   entries during the failure window.
+6. Test the same mode across several kills, a respawn, a new round, a mode change, and a late join.
+
+Do not solve a new presentation mismatch by adding an unconditional retry to a gameplay command. Add a
+revisioned latest-value snapshot for state, or add an explicit command ID and receiver deduplication for
+an action that must be retried.
+
 ## Authority and State
 
 - Keep game rules, scores, kills, crowns, health writes, weapon spawning, and weapon ownership on the
@@ -14,7 +61,7 @@ repository. Read them before adding a networked game mode or patch.
   state that controls client presentation, use a registered Steam lobby-data key as a second channel.
   Publish the host ID, round ID, revision, and payload; read it on lobby entry and on
   `LobbyDataUpdated`; apply the same host and cursor validation as the RPC path. Gun Game settings,
-  Gun Game scores, and the active game mode use this fallback.
+  Gun Game scores, Sniper Battle settings/scores, and the active game mode use this fallback.
 - Accept snapshots by host identity, round ID, and revision. A newer round must accept a reset
   revision, and client mode state must reset when the round ID advances even if the mode is unchanged.
 - Reset all per-match dictionaries and IDs when the mode, round, lobby, or session changes. Do not

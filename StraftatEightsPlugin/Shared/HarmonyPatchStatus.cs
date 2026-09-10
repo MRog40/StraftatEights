@@ -22,6 +22,7 @@ internal static class HarmonyPatchStatus
         typeof(PlayerPickup_LeftHandFixPolicy_Patch),
         typeof(PlayerPickup_WeaponHandPolicy_Patch),
         typeof(PlayerManager_RespawnProtection_Patch),
+        typeof(PlayerSetup_RespawnProtection_Patch),
         typeof(PlayerSetup_LocalHudRestore_Patch),
         typeof(Weapon_AmmoInitialization_Patch),
         typeof(FirstPersonController_MovementPolicy_Patch),

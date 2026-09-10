@@ -13,7 +13,7 @@ public partial class Plugin
     {
         const string section = "Game Mode Settings";
         DefaultGameModeEnabled = Config.Bind(section, "Default Game Mode Enabled", false,
-            "Host-controlled: uses map weapon spawners and default health while awarding 50 points to players for each sub-round win.");
+            "Host-controlled: uses map weapon spawners and default movement and health while awarding 50 points to players for each sub-round win.");
 
         DefaultGameModeEnabled.SettingChanged += (_, _) => GameModeManager.OnSettingsChanged();
 
@@ -32,6 +32,6 @@ public partial class Plugin
     [CustomRPC]
     public void DefaultGameModeAnnounce(string text)
     {
-        GameModeHud.AnnounceTarget(text);
+        GameModeHud.AnnounceTarget(ClientInstance.ReplaceAllPlayerNameTags(text));
     }
 }

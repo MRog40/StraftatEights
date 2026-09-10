@@ -15,7 +15,8 @@ internal static class FirstPersonController_SlideBoost_Patch
     // the true peak speed when the boost is disabled, decaying down from there like a normal slide.
     private static void Postfix(FirstPersonController __instance)
     {
-        if (GlobalModifiersState.SlideBoostEnabled || !__instance.isSliding)
+        if (GameModeManager.ShouldIgnoreGlobalMovementSettings
+            || GlobalModifiersState.SlideBoostEnabled || !__instance.isSliding)
         {
             return;
         }
@@ -36,7 +37,8 @@ internal static class FirstPersonController_SlideJumpForce_Patch
 {
     private static void Prefix(FirstPersonController __instance)
     {
-        if (GlobalModifiersState.SlideBoostEnabled || !__instance.isSliding)
+        if (GameModeManager.ShouldIgnoreGlobalMovementSettings
+            || GlobalModifiersState.SlideBoostEnabled || !__instance.isSliding)
         {
             return;
         }
@@ -70,7 +72,8 @@ internal static class FirstPersonController_SlideJumpBoostTrack_Patch
 
     private static void Postfix(FirstPersonController __instance)
     {
-        if (!GlobalModifiersState.SlideBoostEnabled)
+        if (!GameModeManager.ShouldIgnoreGlobalMovementSettings
+            && !GlobalModifiersState.SlideBoostEnabled)
         {
             MovementTuning.SuppressSlideBoost(__instance);
         }
@@ -84,7 +87,8 @@ internal static class FirstPersonController_WallJumpBoost_Patch
     // sprint speed instead of letting the wall-jump kick stack additively on top and exceed it
     private static void Postfix(FirstPersonController __instance)
     {
-        if (GlobalModifiersState.WallJumpBoostEnabled)
+        if (GameModeManager.ShouldIgnoreGlobalMovementSettings
+            || GlobalModifiersState.WallJumpBoostEnabled)
         {
             return;
         }
@@ -101,9 +105,17 @@ internal static class FirstPersonController_Speed_Patch
     // movementFactor is a plain per-client multiplier read every frame for move speed
     private static void Prefix(FirstPersonController __instance)
     {
-        float adsFactor = __instance.isAiming ? GlobalModifiersState.AdsSpeedMultiplier : 1f;
-        __instance.movementFactor = GlobalModifiersState.SpeedMultiplier * adsFactor;
-        __instance.gravityMultiplier = GlobalModifiersState.GravityMultiplier;
+        if (GameModeManager.ShouldIgnoreGlobalMovementSettings)
+        {
+            __instance.movementFactor = 1f;
+            __instance.gravityMultiplier = 1f;
+        }
+        else
+        {
+            float adsFactor = __instance.isAiming ? GlobalModifiersState.AdsSpeedMultiplier : 1f;
+            __instance.movementFactor = GlobalModifiersState.SpeedMultiplier * adsFactor;
+            __instance.gravityMultiplier = GlobalModifiersState.GravityMultiplier;
+        }
 
         // Throttled proof-of-life log for the local player only: confirms what this specific client
         // is actually enforcing every frame, regardless of what was sent/received earlier
@@ -115,7 +127,8 @@ internal static class FirstPersonController_Speed_Patch
 
         // Cheap version check skips the reflection work on every frame where nothing changed,
         // while still applying live edits instantly (no need to wait for a respawn)
-        MovementTuning.ApplyTuningIfChanged(__instance, GlobalModifiersState.MomentumPercent, GlobalModifiersState.AirSpeedRatioPercent, GlobalModifiersState.TuningVersion);
+        MovementTuning.ApplyTuningIfChanged(__instance, GlobalModifiersState.EffectiveMomentumPercent,
+            GlobalModifiersState.EffectiveAirSpeedRatioPercent, GlobalModifiersState.TuningVersion);
     }
 }
 
@@ -135,7 +148,8 @@ internal static class FirstPersonController_Tuning_Patch
     // Initial apply at spawn; Update's version check picks up any later live edits
     private static void Postfix(FirstPersonController __instance)
     {
-        MovementTuning.ApplyTuningIfChanged(__instance, GlobalModifiersState.MomentumPercent, GlobalModifiersState.AirSpeedRatioPercent, GlobalModifiersState.TuningVersion);
+        MovementTuning.ApplyTuningIfChanged(__instance, GlobalModifiersState.EffectiveMomentumPercent,
+            GlobalModifiersState.EffectiveAirSpeedRatioPercent, GlobalModifiersState.TuningVersion);
     }
 }
 
@@ -145,6 +159,11 @@ internal static class FirstPersonController_Momentum_Patch
     // Carries momentum through camera-driven direction changes (e.g. a mouse 180), not just WASD releases
     private static void Postfix(FirstPersonController __instance)
     {
+        if (GameModeManager.ShouldIgnoreGlobalMovementSettings)
+        {
+            return;
+        }
+
         MovementTuning.BlendHorizontalVelocity(__instance, GlobalModifiersState.MomentumPercent);
     }
 }

@@ -189,18 +189,19 @@ internal static class InfidelState
         if (killerId >= 0 && killerId != deadPlayerId)
         {
             bool killerIsInfidel = killerId == InfidelPlayerId;
-            int killerAward = InfidelRules.GetKillerAward(deadWasInfidel, killerIsInfidel,
-                deadWasInfidel ? AlivePlayers.Count : 0);
+            int killerAward = InfidelRules.GetKillerAward(deadWasInfidel, killerIsInfidel);
             if (killerAward > 0)
             {
                 AwardScore(killerId, killerAward);
             }
+        }
 
-            int infidelBonusAward = InfidelRules.GetInfidelBonusAward(deadWasInfidel, killerIsInfidel);
-            if (infidelBonusAward > 0)
-            {
-                AwardScore(InfidelPlayerId, infidelBonusAward);
-            }
+        bool infidelWon = !deadWasInfidel && AlivePlayers.Count == 1
+            && AlivePlayers.Contains(InfidelPlayerId);
+        int winnerAward = InfidelRules.GetWinnerAward(infidelWon);
+        if (winnerAward > 0)
+        {
+            AwardScore(InfidelPlayerId, winnerAward);
         }
 
         BroadcastLiveState();

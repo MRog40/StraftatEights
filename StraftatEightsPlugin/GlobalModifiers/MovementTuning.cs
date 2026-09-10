@@ -71,17 +71,30 @@ internal static class MovementTuning
 
     // Tracks the tuning version last written to each controller so Update can skip the reflection
     // work entirely on the (vast majority of) frames where nothing has changed
-    private static readonly ConditionalWeakTable<FirstPersonController, StrongBox<int>> LastAppliedVersion = new();
+    private sealed class TuningMemory
+    {
+        public int Version;
+        public float MomentumPercent;
+        public float AirSpeedRatioPercent;
+        public bool Initialized;
+    }
+
+    private static readonly ConditionalWeakTable<FirstPersonController, TuningMemory> LastApplied = new();
 
     internal static void ApplyTuningIfChanged(FirstPersonController controller, float momentumPercent, float airSpeedRatioPercent, int version)
     {
-        StrongBox<int> box = LastAppliedVersion.GetOrCreateValue(controller);
-        if (box.Value == version)
+        TuningMemory memory = LastApplied.GetOrCreateValue(controller);
+        if (memory.Initialized && memory.Version == version
+            && Mathf.Approximately(memory.MomentumPercent, momentumPercent)
+            && Mathf.Approximately(memory.AirSpeedRatioPercent, airSpeedRatioPercent))
         {
             return;
         }
         ApplyTuning(controller, momentumPercent, airSpeedRatioPercent);
-        box.Value = version;
+        memory.Version = version;
+        memory.MomentumPercent = momentumPercent;
+        memory.AirSpeedRatioPercent = airSpeedRatioPercent;
+        memory.Initialized = true;
     }
 
     internal static float GetSprintSpeed(FirstPersonController controller)

@@ -23,7 +23,7 @@ internal static class MovementPolicy
     internal static bool CanSlide(FirstPersonController controller)
     {
         return !JuggernautState.IsCurrentJuggernaut(controller)
-            && GlobalModifiersState.SlidingEnabled;
+            && (GameModeManager.ShouldIgnoreGlobalMovementSettings || GlobalModifiersState.SlidingEnabled);
     }
 
     internal static bool CanRunJump(FirstPersonController controller)
@@ -96,7 +96,7 @@ internal static class FirstPersonController_WallJumpPolicy_Patch
 {
     private static void Postfix(FirstPersonController __instance)
     {
-        if (!GlobalModifiersState.WallJumpEnabled
+        if ((!GameModeManager.ShouldIgnoreGlobalMovementSettings && !GlobalModifiersState.WallJumpEnabled)
             || GameModeManager.IsActive(GameMode.MichaelMeyers)
             || GameModeManager.IsActive(GameMode.Infidel))
         {

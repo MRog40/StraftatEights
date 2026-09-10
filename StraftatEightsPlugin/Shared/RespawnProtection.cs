@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 
@@ -177,6 +178,33 @@ internal static class PlayerManager_RespawnProtection_Patch
     private static void Postfix(PlayerManager __instance)
     {
         PlayerHealth? player = __instance.player?.GetComponent<PlayerHealth>();
+        if (player != null)
+        {
+            RespawnProtection.Begin(player);
+        }
+    }
+}
+
+[HarmonyPatch]
+internal static class PlayerSetup_RespawnProtection_Patch
+{
+    private static MethodBase? TargetMethod()
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        return typeof(PlayerSetup).GetMethod("OnStartClient___UserLogic", flags)
+            ?? typeof(PlayerSetup).GetMethod("OnStartClient", flags);
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
+    private static void Postfix(PlayerSetup __instance)
+    {
+        if (__instance == null)
+        {
+            return;
+        }
+
+        PlayerHealth? player = __instance.GetComponent<PlayerHealth>();
         if (player != null)
         {
             RespawnProtection.Begin(player);
