@@ -9,7 +9,7 @@ namespace StraftatEightsPlugin;
 // runtime values/logic and JuggernautPatches for where it's actually enforced/observed.
 public partial class Plugin
 {
-    internal const uint JuggernautModId = 3141592653u;
+    internal const uint JuggernautModId = 3141592656u;
 
     internal static ConfigEntry<bool> JuggernautEnabled = null!;
 

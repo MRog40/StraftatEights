@@ -86,6 +86,10 @@ internal static class PlayerSetup_LocalHudRestore_Patch
     {
         if (__instance != null && __instance.IsOwner)
         {
+            if (!GameModeManager.ShouldHideCustomHud)
+            {
+                __instance.HideHUD(false);
+            }
             WeaponAmmoTuning.ScheduleLocalAmmoHudRefresh();
         }
     }

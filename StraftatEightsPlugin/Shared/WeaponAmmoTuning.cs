@@ -112,6 +112,16 @@ internal static class WeaponAmmoTuning
             memory.Initialized = true;
         }
         memory.UnlimitedAmmo = true;
+
+        bool shouldRestoreAmmo = weapon.currentAmmo <= 0
+            && (weapon.reloadWeapon || weapon.gameObject.layer != 8);
+        if (shouldRestoreAmmo)
+        {
+            weapon.CancelInvoke("DespawnObject");
+            weapon.currentAmmo = memory.MagazineSize;
+            weapon.cantTakeSafeBool = false;
+            weapon.noAmmoClicks = 0;
+        }
     }
 
     internal static void InitializeSingleShot(Weapon weapon, int spareRounds)
@@ -287,11 +297,26 @@ internal static class WeaponAmmoTuning
         }
 
         int localPlayerId = ClientInstance.Instance.PlayerId;
-        PlayerHealth? health = PlayerLookup.FindPlayerHealthById(localPlayerId);
+        PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(localPlayerId);
         PlayerSetup? setup = health?.GetComponent<PlayerSetup>();
+        if (setup == null)
+        {
+            foreach (PlayerSetup candidate in UnityEngine.Object.FindObjectsOfType<PlayerSetup>())
+            {
+                if (candidate != null && candidate.IsOwner)
+                {
+                    setup = candidate;
+                    health = candidate.GetComponent<PlayerHealth>();
+                    break;
+                }
+            }
+        }
         if (setup != null && setup.IsOwner)
         {
-            setup.HideHUD(false);
+            if (!GameModeManager.ShouldHideCustomHud)
+            {
+                setup.HideHUD(false);
+            }
         }
 
         PlayerPickup? pickup = health?.controller?.playerPickupScript;
@@ -318,10 +343,37 @@ internal static class WeaponAmmoTuning
         }
         int currentAmmo = Mathf.Max(0, weapon.currentAmmo);
         PauseManager.Instance.MoveAmmoDisplay(true, rightHand);
-        string reloadText = weapon.reloadWeapon
-            ? weapon.chargedBullets + " / "
-            : WeaponSettingsState.Enabled ? GetSpareRounds(weapon) + " / " : "";
-        PauseManager.Instance.ChangeAmmoText(currentAmmo.ToString(), reloadText, rightHand);
+        string text;
+        string reloadText;
+        if (weapon.reloadWeapon)
+        {
+            text = currentAmmo.ToString();
+            reloadText = Mathf.Max(0, weapon.chargedBullets) + " / ";
+        }
+        else if (WeaponSettingsState.Enabled)
+        {
+            text = GetSpareRounds(weapon).ToString();
+            reloadText = currentAmmo + " / ";
+        }
+        else
+        {
+            text = currentAmmo.ToString();
+            reloadText = "";
+        }
+        PauseManager.Instance.ChangeAmmoText(text, reloadText, rightHand);
+    }
+
+    internal static void UpdateUnlimitedAmmoHud(Weapon weapon)
+    {
+        if (PauseManager.Instance == null || weapon == null || !weapon.IsOwner
+            || !weapon.needsAmmo || weapon.reloadWeapon || weapon.gameObject.layer != 8)
+        {
+            return;
+        }
+
+        int currentAmmo = IsReloading(weapon) ? 0 : Mathf.Max(0, weapon.currentAmmo);
+        PauseManager.Instance.MoveAmmoDisplay(true, weapon.inRightHand);
+        PauseManager.Instance.ChangeAmmoText("∞", currentAmmo + " / ", weapon.inRightHand);
     }
 
     internal static void TryStartManualReload(Weapon weapon, bool enabled, int spareMagazines)

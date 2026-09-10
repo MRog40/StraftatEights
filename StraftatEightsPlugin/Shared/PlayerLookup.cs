@@ -105,6 +105,24 @@ internal static class PlayerLookup
         return null;
     }
 
+    internal static PlayerHealth? FindActivePlayerHealthById(int playerId)
+    {
+        if (playerId < 0)
+        {
+            return null;
+        }
+
+        foreach (PlayerHealth health in Object.FindObjectsOfType<PlayerHealth>())
+        {
+            if (IsPlayerHealthForId(health, playerId))
+            {
+                return health;
+            }
+        }
+
+        return null;
+    }
+
     private static bool IsPlayerHealthForId(PlayerHealth? health, int playerId)
     {
         return health != null && health.playerValues?.playerClient?.PlayerId == playerId;

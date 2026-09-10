@@ -14,6 +14,18 @@ internal static class Weapon_UpdatePolicy_Patch
                 WeaponSettingsState.SpareMagazines);
         }
 
+        if (GameModeManager.IsActive(GameMode.GunGame))
+        {
+            WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
+            WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
+        }
+        else if (GameModeManager.IsActive(GameMode.KillTheRat)
+            && KillTheRatState.IsHumanWeapon(__instance))
+        {
+            WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
+            WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
+        }
+
         if (GameModeManager.IsActive(GameMode.SniperBattle)
             && __instance != null
             && SniperBattleState.IsSniperWeapon(__instance)
@@ -29,16 +41,14 @@ internal static class Weapon_UpdatePolicy_Patch
 
     private static void Postfix(Weapon __instance)
     {
-        if (GameModeManager.IsActive(GameMode.GunGame) && GunGameState.Enabled)
+        if (GameModeManager.IsActive(GameMode.GunGame))
         {
-            WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
-            WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
+            WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }
         else if (GameModeManager.IsActive(GameMode.KillTheRat)
             && KillTheRatState.IsHumanWeapon(__instance))
         {
-            WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
-            WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
+            WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }
         else if (GameModeManager.IsActive(GameMode.OneInTheChamber)
             && OneInTheChamberState.IsPistol(__instance))

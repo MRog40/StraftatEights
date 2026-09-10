@@ -25,7 +25,7 @@ public partial class Plugin : BaseUnityPlugin
     // config/RPC) plus its own state/patch classes - see GlobalModifiers/ for the reference layout.
     // Shared/ holds cross-mode helpers (player lookups, team/weapon utilities) so future modes don't
     // duplicate them.
-    private void Awake()  
+    private void Awake()
     {
         Instance = this;
         Logger = base.Logger;

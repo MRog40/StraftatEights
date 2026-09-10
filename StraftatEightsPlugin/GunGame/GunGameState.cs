@@ -132,8 +132,16 @@ internal static class GunGameState
             Weapon? heldWeapon = heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
             if (heldWeapon != null && heldWeapon.name.StartsWith(expectedWeapon, StringComparison.Ordinal))
             {
-                PendingLoadouts.Remove(client.PlayerId);
-                continue;
+                WeaponAmmoTuning.ApplyUnlimitedToWeapon(heldWeapon);
+                bool ammoReady = !heldWeapon.needsAmmo
+                    || heldWeapon.currentAmmo > 0
+                    || WeaponAmmoTuning.IsReloading(heldWeapon)
+                    || (heldWeapon.reloadWeapon && heldWeapon.chargedBullets > 0);
+                if (ammoReady)
+                {
+                    PendingLoadouts.Remove(client.PlayerId);
+                    continue;
+                }
             }
 
             if (!PendingLoadouts.TryGetValue(client.PlayerId, out float retryTime)
