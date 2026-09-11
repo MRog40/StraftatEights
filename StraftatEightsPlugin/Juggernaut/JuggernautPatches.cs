@@ -36,20 +36,27 @@ internal static class Minigun_JuggernautAmmo_Patch
             return;
         }
 
+        __instance.reloadWeapon = false;
         __instance.ammoCharge = MagazineSize;
         WeaponAmmoTuning.PreventAutoDespawn(__instance);
         if (!ConfiguredMiniguns.TryGetValue(__instance, out _))
         {
-            __instance.chargedBullets = MagazineSize;
             __instance.currentAmmo = MagazineSize;
+            __instance.chargedBullets = 0f;
             ConfiguredMiniguns.Add(__instance, new object());
-            return;
         }
 
-        if (!__instance.isReloading && __instance.chargedBullets >= MagazineSize
-            && __instance.currentAmmo <= 0)
+        WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance, MagazineSize);
+        WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
+    }
+
+    private static void Postfix(Minigun __instance)
+    {
+        if (GameModeManager.IsActive(GameMode.Juggernaut)
+            && __instance != null
+            && JuggernautState.IsCurrentJuggernautWeapon(__instance))
         {
-            __instance.currentAmmo = MagazineSize;
+            WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }
     }
 }

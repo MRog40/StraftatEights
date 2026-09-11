@@ -8,7 +8,7 @@ namespace StraftatEightsPlugin;
 internal static class RespawnProtection
 {
     private const float DurationSeconds = 2f;
-    private const float ProtectedHealth = 1000f;
+    private const float ProtectedHealth = 999f / 25f;
     private const float OutlineWidth = 0.15f;
     private static readonly Color OutlineColor = new(0.5f, 0.5f, 0.5f);
     private static readonly List<Protection> ActiveProtections = new();

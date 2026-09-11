@@ -97,7 +97,7 @@ internal static class WeaponAmmoTuning
         }
     }
 
-    internal static void InitializeUnlimited(Weapon weapon)
+    internal static void InitializeUnlimited(Weapon weapon, int magazineSizeOverride = 0)
     {
         if (weapon == null || !weapon.needsAmmo)
         {
@@ -109,6 +109,11 @@ internal static class WeaponAmmoTuning
         if (!memory.Initialized)
         {
             memory.MagazineSize = Mathf.Max(1, weapon.currentAmmo);
+            memory.Initialized = true;
+        }
+        if (magazineSizeOverride > 0)
+        {
+            memory.MagazineSize = magazineSizeOverride;
             memory.Initialized = true;
         }
         memory.UnlimitedAmmo = true;
@@ -426,14 +431,14 @@ internal static class WeaponAmmoTuning
         }
     }
 
-    internal static void ApplyUnlimitedToWeapon(Weapon weapon)
+    internal static void ApplyUnlimitedToWeapon(Weapon weapon, int magazineSizeOverride = 0)
     {
         if (weapon == null || !weapon.needsAmmo)
         {
             return;
         }
 
-        InitializeUnlimited(weapon);
+        InitializeUnlimited(weapon, magazineSizeOverride);
         if (weapon.gameObject.layer == 8)
         {
             ReloadIfEmpty(weapon, 0);
