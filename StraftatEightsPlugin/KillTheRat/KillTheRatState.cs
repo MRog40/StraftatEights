@@ -13,7 +13,6 @@ internal static class KillTheRatState
     internal const string HumanWeaponName = "Glock";
     internal const string RatWeaponName = "Taser";
     internal const string RatOffhandWeaponName = "Impetus";
-    internal const float RatHealthMultiplier = 0.5f;
     internal const float VoidDeathY = -300f;
     internal static bool Enabled;
     internal static int CurrentRatPlayerId = -1;
@@ -269,32 +268,6 @@ internal static class KillTheRatState
         return weapon != null && weapon.name.StartsWith(HumanWeaponName, StringComparison.Ordinal);
     }
 
-    internal static void ApplyHealth(PlayerHealth controller, float baselineFullHealth)
-    {
-        float ratFullHealth = baselineFullHealth * RatHealthMultiplier;
-        controller.fullHealth = ratFullHealth;
-        if (!controller.IsServer)
-        {
-            return;
-        }
-
-        float healthToRemove = controller.sync___get_value_health() - ratFullHealth;
-        if (healthToRemove <= 0f)
-        {
-            return;
-        }
-
-        HealthSettingsTuning.ApplyingPassiveHealth = true;
-        try
-        {
-            FishNetCompatibility.TryRemoveHealth(controller, healthToRemove);
-        }
-        finally
-        {
-            HealthSettingsTuning.ApplyingPassiveHealth = false;
-        }
-    }
-
     internal static void EnsureLoadouts()
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.KillTheRat)
@@ -376,7 +349,7 @@ internal static class KillTheRatState
         {
             WinnerId = playerId;
             Announce(PlayerLookup.GetPlayerNameTag(playerId) + " reached " + PointsToWin
-                + " points and won the KILL THE RAT round!");
+                + " points and won the EXTERMINATORS round!");
             BroadcastLiveState();
             GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(playerId));
             return false;

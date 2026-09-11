@@ -121,7 +121,7 @@ internal static class GameModeManager
             | GameModeCapabilities.HideHud,
             MichaelMeyersPeriodicPush, MichaelMeyersState.EnsureLoadouts,
             MichaelMeyersState.PeriodicPushSettingsIfHost),
-        [GameMode.KillTheRat] = new ModeDescriptor("KILL THE RAT", new Color32(170, 170, 170, 255),
+        [GameMode.KillTheRat] = new ModeDescriptor("EXTERMINATORS", new Color32(170, 170, 170, 255),
             () => Plugin.KillTheRatEnabled.Value, KillTheRatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons,
             KillTheRatState.PeriodicPushIfHost, KillTheRatState.EnsureLoadouts,

@@ -69,15 +69,15 @@ an action that must be retried.
 - Mycelium serializers support primitives and selected arrays only. Flatten dictionaries into a
   string such as `id:score;id:score`, then validate IDs and score limits when parsing.
 
-## Kill the Rat
+## Exterminators
 
 - The host owns the current Rat, points, and role transfers. A valid player kill awards 10 points
   to the killer; the Rat earns 1 point per second while active, up to the shared 100-point target.
 - A death with no valid killer clears the Rat role instead of selecting the dead player as a new Rat.
   The host announces that humans must kill each other to choose the next Rat.
 - The mode ignores global weapon cycling so the host can enforce an unlimited Glock for humans and a
-  Taser for the Rat. It keeps global movement and human health settings; the Rat layers 2x movement
-  and a fixed 50% baseline health on top of the shared rules.
+  Taser plus an Impetus knife for the Rat. The Rat uses the same global movement and health settings
+  as the other players.
 - Rat loadouts are retried after every respawn because player and weapon objects are recreated. Role
   state is keyed by `ClientInstance.PlayerId`, not by a cached player object.
 

@@ -66,13 +66,6 @@ internal static class HealthSettingsTuning
             memory.LastAppliedVersion = version;
             return;
         }
-        if (GameModeManager.IsActive(GameMode.KillTheRat) && KillTheRatState.IsRat(controller))
-        {
-            KillTheRatState.ApplyHealth(controller, memory.BaselineFullHealth);
-            memory.LastModeSpecificHealth = true;
-            memory.LastAppliedVersion = version;
-            return;
-        }
         if (GameModeManager.IsActive(GameMode.SniperBattle))
         {
             SniperBattleState.ApplyHealth(controller);

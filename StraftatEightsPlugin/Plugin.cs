@@ -48,7 +48,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("global weapons", InitializeGlobalWeapons);
         InitializeSafely("default game mode", InitializeDefaultGameMode);
         InitializeSafely("Michael Meyers", InitializeMichaelMeyers);
-        InitializeSafely("Kill the Rat", InitializeKillTheRat);
+        InitializeSafely("Exterminators", InitializeKillTheRat);
         InitializeSafely("HVT", InitializeHVT);
         InitializeSafely("One in the Chamber", InitializeOneInTheChamber);
         InitializeSafely("Hot Potato", InitializeHotPotato);

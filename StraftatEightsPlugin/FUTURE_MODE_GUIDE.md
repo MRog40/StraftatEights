@@ -125,7 +125,7 @@ Private state uses targeted RPCs. For example, a private role assignment must se
 
 Examples:
 
-- Gun Game, Sniper Battle, One in the Chamber, Hot Potato, Michael Meyers, Kill the Rat, and Infidel can ignore global weapons when their loadouts require it.
+- Gun Game, Sniper Battle, One in the Chamber, Hot Potato, Michael Meyers, Exterminators, and Infidel can ignore global weapons when their loadouts require it.
 - Sniper Battle, One in the Chamber, and Infidel can ignore global health when their health rules require it.
 - A Rat, Infidel, or Juggernaut movement multiplier layers on top of or replaces global movement only when the mode's precedence rule says so.
 - A mode that owns respawn timing must use the shared respawn helper and prevent the normal path from fighting it.
