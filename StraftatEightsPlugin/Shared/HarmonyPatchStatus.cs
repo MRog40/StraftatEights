@@ -62,6 +62,10 @@ internal static class HarmonyPatchStatus
         [GameMode.Infidel] = new[]
         {
             typeof(PlayerManager_InfidelSpawn_Patch),
+        },
+        [GameMode.HVT] = new[]
+        {
+            typeof(GameManager_HVTTick_Patch)
         }
     };
 

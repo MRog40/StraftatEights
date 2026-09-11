@@ -16,7 +16,7 @@ public partial class Plugin
         GunGameEnabled = Config.Bind(section, "Gun Game Enabled", false,
             "Host-controlled: players advance through the weapon list with each kill.");
         GunGameWeaponOrder = Config.Bind(section, "Gun Game Weapon Order",
-            "Glock, Webley, SMG, Bukanee, SawedOff, Shotgun, Yangtse, Kusma, AR15, AK-K, QCW05, FG42, HK_G11, SmithCarbine, M2000, BaseballBat",
+            "Glock, Webley, SMG, Bukanee, Shotgun, AR15, QCW05, HK_G11, M2000, Couperet",
             "Host-controlled: exact prefab IDs in progression order.");
 
         GunGameEnabled.SettingChanged += (_, _) => { GunGameState.PushSettingsIfHost(); GameModeManager.OnSettingsChanged(); };

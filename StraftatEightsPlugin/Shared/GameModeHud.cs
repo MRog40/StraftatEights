@@ -107,7 +107,7 @@ internal sealed class GameModeHud : MonoBehaviour
         panelRect.anchorMax = new Vector2(0f, 1f);
         panelRect.pivot = new Vector2(0f, 1f);
         panelRect.sizeDelta = new Vector2(420f, 0f);
-        panelRect.anchoredPosition = new Vector2(18f, -188f);
+        panelRect.anchoredPosition = new Vector2(18f, -148f);
         _panel.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.45f);
 
         VerticalLayoutGroup layout = _panel.AddComponent<VerticalLayoutGroup>();
@@ -342,6 +342,12 @@ internal sealed class GameModeHud : MonoBehaviour
             scores = JuggernautState.Points;
             crownFirst = true;
         }
+        else if (GameModeManager.IsActive(GameMode.HVT))
+        {
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + HVTState.PointsToWin;
+            scores = HVTState.Points;
+            crownFirst = true;
+        }
         else if (GameModeManager.IsActive(GameMode.SniperBattle))
         {
             header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + SniperBattleState.PointsToWin;
@@ -390,10 +396,14 @@ internal sealed class GameModeHud : MonoBehaviour
         }
 
         List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
+        int crownPlayerId = GameModeManager.IsActive(GameMode.Juggernaut)
+            ? JuggernautState.CurrentJuggernautPlayerId
+            : HVTState.CurrentHVTPlayerId;
+        bool hvtCrown = GameModeManager.IsActive(GameMode.HVT);
         playerIds.Sort((left, right) =>
         {
-            bool leftIsCrown = crownFirst && left == JuggernautState.CurrentJuggernautPlayerId;
-            bool rightIsCrown = crownFirst && right == JuggernautState.CurrentJuggernautPlayerId;
+            bool leftIsCrown = crownFirst && left == crownPlayerId;
+            bool rightIsCrown = crownFirst && right == crownPlayerId;
             if (leftIsCrown != rightIsCrown)
             {
                 return leftIsCrown ? -1 : 1;
@@ -414,12 +424,13 @@ internal sealed class GameModeHud : MonoBehaviour
                 playerName = playerName.Substring(0, MaxDisplayedNameLength);
             }
 
-            bool isJuggernaut = crownFirst && playerId == JuggernautState.CurrentJuggernautPlayerId;
-            text.Append('\n').Append(isJuggernaut ? "<color=#FF6A00><b>" : "<color=#DDDDDD>")
+            bool isCrown = crownFirst && playerId == crownPlayerId;
+            string crownColor = hvtCrown ? "#FFD700" : "#FF6A00";
+            text.Append('\n').Append(isCrown ? "<color=" + crownColor + "><b>" : "<color=#DDDDDD>")
                 .Append(playerName).Append("  ").Append(score);
-            if (isJuggernaut)
+            if (isCrown)
             {
-                text.Append("  JUG</b>");
+                text.Append(hvtCrown ? "  HVT</b>" : "  JUG</b>");
             }
             text.Append("</color>");
         }

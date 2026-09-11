@@ -58,8 +58,16 @@ Assert(filteredScores.Count == 2 && filteredScores[1] == 4 && filteredScores[2] 
     "Score parsing must reject malformed/out-of-range entries and keep the last duplicate.");
 Assert(ScoreRules.PointsToWin == 100 && ScoreRules.PointsPerRoundWin == 50
     && ScoreRules.PointsPerKill == 10
-    && ScoreRules.PointsPerJuggernautCrown == 20 && ScoreRules.PointsPerRatSurvivalSecond == 3,
+    && ScoreRules.PointsPerJuggernautCrown == 20 && ScoreRules.PointsPerRatSurvivalSecond == 3
+    && ScoreRules.PointsPerHVTSurvivalSecond == 3,
     "Shared score rules must use the 100-point target and mode award values.");
+List<string> defaultGunGameWeapons = WeaponListParser.Parse(
+    "Glock, Webley, SMG, Bukanee, Shotgun, AR15, QCW05, HK_G11, M2000, Couperet",
+    new[] { "Glock", "Webley", "SMG", "Bukanee", "Shotgun", "AR15", "QCW05", "HK_G11", "M2000", "Couperet" });
+Assert(defaultGunGameWeapons.Count == 10,
+    "Default Gun Game weapon list must contain exactly ten validated weapons.");
+Assert(defaultGunGameWeapons.Count * 10 == 100,
+    "Gun Game score limit must equal ten times the validated weapon count.");
 Dictionary<int, int> maximumScores = ScoreCodec.Parse("1:100;2:101", ScoreRules.PointsToWin);
 Assert(maximumScores.Count == 1 && maximumScores[1] == ScoreRules.PointsToWin,
     "Score parsing must accept the shared maximum and reject values above it.");

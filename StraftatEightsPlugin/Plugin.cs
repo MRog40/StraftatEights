@@ -48,6 +48,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("default game mode", InitializeDefaultGameMode);
         InitializeSafely("Michael Meyers", InitializeMichaelMeyers);
         InitializeSafely("Kill the Rat", InitializeKillTheRat);
+        InitializeSafely("HVT", InitializeHVT);
         InitializeSafely("One in the Chamber", InitializeOneInTheChamber);
         InitializeSafely("Hot Potato", InitializeHotPotato);
         InitializeSafely("Infidel", InitializeInfidel);
@@ -148,6 +149,7 @@ public partial class Plugin : BaseUnityPlugin
         JuggernautOutline.EnforceOutline();
         MichaelMeyersOutline.EnforceOutline();
         KillTheRatOutline.EnforceOutline();
+        HVTOutline.EnforceOutline();
         RespawnProtection.Update();
     }
-} 
+}

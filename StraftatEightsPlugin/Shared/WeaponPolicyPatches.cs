@@ -7,7 +7,8 @@ internal static class WeaponPolicy
 {
     internal static bool PrepareItemSpawn(ItemSpawner spawner)
     {
-        if (GameModeManager.IsActive(GameMode.Infidel))
+        if (GameModeManager.IsActive(GameMode.Infidel)
+            || GameModeManager.IsActive(GameMode.GunGame))
         {
             return false;
         }
@@ -79,6 +80,8 @@ internal static class WeaponPolicy
                     || (OneInTheChamberState.IsCouperet(weapon) && !rightHand);
             case GameMode.SniperBattle:
                 return SniperBattleState.IsSniperWeapon(weapon);
+            case GameMode.GunGame:
+                return false;
             default:
                 return true;
         }
