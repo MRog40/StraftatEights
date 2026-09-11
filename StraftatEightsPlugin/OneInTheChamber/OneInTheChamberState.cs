@@ -326,22 +326,22 @@ internal static class OneInTheChamberState
                 ReserveBullets.TryGetValue(playerId, out int spareRounds);
                 WeaponAmmoTuning.InitializeSingleShot(rightWeapon, spareRounds);
                 PendingRightLoadouts.Remove(playerId);
+
+                if (leftWeapon != null && IsCouperet(leftWeapon))
+                {
+                    PendingLeftLoadouts.Remove(playerId);
+                }
+                else if (!PendingLeftLoadouts.TryGetValue(playerId, out float leftRetry)
+                    || Time.unscaledTime >= leftRetry)
+                {
+                    PendingLeftLoadouts[playerId] = Time.unscaledTime + 2f;
+                    WeaponService.GiveWeaponToLeftHand(playerId, CouperetWeaponName);
+                }
             }
             else if (!PendingRightLoadouts.TryGetValue(playerId, out float rightRetry)
                 || Time.unscaledTime >= rightRetry)
             {
                 RequestRightLoadout(playerId);
-            }
-
-            if (leftWeapon != null && IsCouperet(leftWeapon))
-            {
-                PendingLeftLoadouts.Remove(playerId);
-            }
-            else if (!PendingLeftLoadouts.TryGetValue(playerId, out float leftRetry)
-                || Time.unscaledTime >= leftRetry)
-            {
-                PendingLeftLoadouts[playerId] = Time.unscaledTime + 2f;
-                WeaponService.GiveWeaponToLeftHand(playerId, CouperetWeaponName);
             }
         }
     }

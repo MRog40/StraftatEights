@@ -165,8 +165,6 @@ internal static class WeaponService
             yield break;
         }
 
-        NotifyOwnerWeaponAttached(playerId);
-
         Weapon? weaponComponent = weapon.GetComponent<Weapon>();
         if (item == null || weaponComponent == null)
         {
@@ -212,6 +210,7 @@ internal static class WeaponService
         pickup.UpdateIKPoistion();
         item.InstantComeBackOnFire();
         if (item != null) item.dispenserStart = false;
+        NotifyOwnerWeaponAttached(playerId);
     }
 
     internal static void AttachUnparentedWeapon(PlayerPickup pickup)
