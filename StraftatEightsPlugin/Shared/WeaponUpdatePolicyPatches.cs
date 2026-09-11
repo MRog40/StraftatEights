@@ -25,6 +25,11 @@ internal static class Weapon_UpdatePolicy_Patch
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
+        else if (GameModeManager.IsActive(GameMode.Infidel) && InfidelState.WeaponsUnlocked)
+        {
+            WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
+            WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
+        }
 
         if (GameModeManager.IsActive(GameMode.SniperBattle)
             && __instance != null
@@ -47,6 +52,10 @@ internal static class Weapon_UpdatePolicy_Patch
         }
         else if (GameModeManager.IsActive(GameMode.KillTheRat)
             && KillTheRatState.IsHumanWeapon(__instance))
+        {
+            WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
+        }
+        else if (GameModeManager.IsActive(GameMode.Infidel) && InfidelState.WeaponsUnlocked)
         {
             WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }

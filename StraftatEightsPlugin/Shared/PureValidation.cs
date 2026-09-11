@@ -113,7 +113,7 @@ internal static class OneInTheChamberRules
 
     internal static bool IsAllowedWeapon(string weaponName)
     {
-        return weaponName.StartsWith("Silenzzio", StringComparison.Ordinal)
+        return weaponName.StartsWith("Revolver", StringComparison.Ordinal)
             || weaponName.StartsWith("Couperet", StringComparison.Ordinal);
     }
 
@@ -139,12 +139,17 @@ internal static class HotPotatoRules
 {
     internal static bool IsAllowedWeapon(string weaponName, bool hasPotato)
     {
-        string expected = hasPotato ? "BaseballBat" : "Shotgun";
+        string expected = hasPotato ? "HandGrenade" : "Shotgun";
         return weaponName.StartsWith(expected, StringComparison.Ordinal);
     }
 
     internal static int ResolvePotato(int potatoPlayerId, int killerId, int deadPlayerId)
     {
+        if (potatoPlayerId < 0 && deadPlayerId >= 0)
+        {
+            return deadPlayerId;
+        }
+
         return killerId == potatoPlayerId && killerId != deadPlayerId
             ? deadPlayerId
             : potatoPlayerId;

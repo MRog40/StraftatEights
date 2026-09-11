@@ -36,8 +36,7 @@ internal static class WeaponPolicy
 
     private static bool IsExclusiveLoadoutMode(GameMode mode)
     {
-        return mode == GameMode.Juggernaut
-            || mode == GameMode.GunGame
+        return mode == GameMode.GunGame
             || mode == GameMode.SniperBattle
             || mode == GameMode.MichaelMeyers
             || mode == GameMode.KillTheRat
@@ -158,6 +157,11 @@ internal static class PlayerPickup_LeftHandFixPolicy_Patch
 {
     private static bool Prefix(PlayerPickup __instance)
     {
+        if (WeaponService.IsOwnerHandObjectPending(__instance, false))
+        {
+            return false;
+        }
+
         if (WeaponService.IsOwnerAttachmentPending(__instance))
         {
             WeaponService.AttachUnparentedLeftWeapon(__instance);

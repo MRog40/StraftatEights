@@ -97,8 +97,8 @@ Dictionary<int, int> maximumScores = ScoreCodec.Parse("1:100;2:101", ScoreRules.
 Assert(maximumScores.Count == 1 && maximumScores[1] == ScoreRules.PointsToWin,
     "Score parsing must accept the shared maximum and reject values above it.");
 
-Assert(OneInTheChamberRules.IsAllowedWeapon("Silenzzio(Clone)"),
-    "One in the Chamber must allow the exact Silenzzio prefab.");
+Assert(OneInTheChamberRules.IsAllowedWeapon("Revolver(Clone)"),
+    "One in the Chamber must allow the exact Revolver prefab.");
 Assert(OneInTheChamberRules.IsAllowedWeapon("Couperet(Clone)"),
     "One in the Chamber must allow the Couperet prefab.");
 Assert(!OneInTheChamberRules.IsAllowedWeapon("Webley(Clone)")
@@ -116,14 +116,16 @@ Assert(alivePlayers.Count == 1 && alivePlayers.Contains(1),
     "The last remaining player must be the round winner.");
 Assert(Math.Abs(OneInTheChamberRules.PlayerHealth - 0.4f) < 0.001f,
     "One in the Chamber must use ten displayed health for every player.");
-Assert(HotPotatoRules.IsAllowedWeapon("BaseballBat(Clone)", true)
+Assert(HotPotatoRules.IsAllowedWeapon("HandGrenade(Clone)", true)
     && HotPotatoRules.IsAllowedWeapon("Shotgun(Clone)", false),
-    "Hot Potato must use the BaseballBat and Shotgun prefabs.");
+    "Hot Potato must use the HandGrenade and Shotgun prefabs.");
 Assert(!HotPotatoRules.IsAllowedWeapon("Glock(Clone)", false),
     "Hot Potato must reject unrelated weapons.");
+Assert(HotPotatoRules.ResolvePotato(-1, 5, 2) == 2,
+    "The first player to die must become the Hot Potato.");
 Assert(HotPotatoRules.ResolvePotato(1, 1, 2) == 2
     && HotPotatoRules.ResolvePotato(1, 3, 2) == 1,
-    "Only a kill by the current bat holder may transfer the potato.");
+    "Only a kill by the current grenade holder may transfer the potato.");
 Assert(InfidelRules.GetKillerAward(true, false) == 30
     && InfidelRules.GetKillerAward(true, false) == InfidelRules.PointsForKillingInfidel,
     "A terrorist must receive thirty points for killing the Infidel.");

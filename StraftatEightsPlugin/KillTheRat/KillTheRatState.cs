@@ -13,7 +13,7 @@ internal static class KillTheRatState
     internal const string HumanWeaponName = "Glock";
     internal const string RatWeaponName = "Taser";
     internal const float RatHealthMultiplier = 0.5f;
-    internal const float RatMovementMultiplier = 2f;
+    internal const float RatMovementMultiplier = 1.3f;
     internal const float VoidDeathY = -300f;
     internal static bool Enabled;
     internal static int CurrentRatPlayerId = -1;

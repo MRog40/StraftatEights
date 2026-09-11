@@ -10,7 +10,7 @@ internal static class HotPotatoState
 {
     internal const string SettingsLobbyDataKey = "StraftatEights_HotPotato_Settings";
     internal const string LiveLobbyDataKey = "StraftatEights_HotPotato_Live";
-    internal const string BatWeaponName = "BaseballBat";
+    internal const string PotatoWeaponName = "HandGrenade";
     internal const string ShotgunWeaponName = "Shotgun";
     internal static bool Enabled;
     internal static int PotatoPlayerId { get; private set; } = -1;
@@ -172,10 +172,8 @@ internal static class HotPotatoState
             return;
         }
 
-        PotatoPlayerId = players[UnityEngine.Random.Range(0, players.Count)];
         PendingLoadouts.Clear();
         ClearCurrentWeapons();
-        Announce(PlayerLookup.GetPlayerNameTag(PotatoPlayerId) + " has the <b>HOT POTATO</b>!");
         foreach (int playerId in players)
         {
             GiveExpectedWeapon(playerId);
@@ -186,18 +184,27 @@ internal static class HotPotatoState
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.HotPotato)
-            || WinnerId >= 0 || killerId < 0 || killerId == deadPlayerId)
+            || WinnerId >= 0 || deadPlayerId < 0)
         {
             return;
         }
 
-        Kills.TryGetValue(killerId, out int currentKills);
-        int totalKills = currentKills + ScoreRules.PointsPerKill;
-        Kills[killerId] = totalKills;
-        GameModeHud.ShowScorePopupForPlayer(killerId, ScoreRules.PointsPerKill);
+        bool validKiller = killerId >= 0 && killerId != deadPlayerId;
+        int totalKills = -1;
+        if (validKiller)
+        {
+            Kills.TryGetValue(killerId, out int currentKills);
+            totalKills = currentKills + ScoreRules.PointsPerKill;
+            Kills[killerId] = totalKills;
+            GameModeHud.ShowScorePopupForPlayer(killerId, ScoreRules.PointsPerKill);
+        }
 
-        bool passedPotato = killerId == PotatoPlayerId;
-        if (passedPotato)
+        if (PotatoPlayerId < 0)
+        {
+            PotatoPlayerId = deadPlayerId;
+            Announce(PlayerLookup.GetPlayerNameTag(deadPlayerId) + " got the <b>HOT POTATO</b>!");
+        }
+        else if (validKiller && killerId == PotatoPlayerId)
         {
             PotatoPlayerId = deadPlayerId;
             PendingLoadouts.Remove(killerId);
@@ -205,7 +212,7 @@ internal static class HotPotatoState
             Announce(PlayerLookup.GetPlayerNameTag(deadPlayerId) + " got the <b>HOT POTATO</b>!");
         }
 
-        if (totalKills >= KillsToWin)
+        if (validKiller && totalKills >= KillsToWin)
         {
             WinnerId = killerId;
             Announce(PlayerLookup.GetPlayerNameTag(killerId) + " reached " + KillsToWin
@@ -234,13 +241,13 @@ internal static class HotPotatoState
             return true;
         }
 
-        string expectedWeapon = playerId == PotatoPlayerId ? BatWeaponName : ShotgunWeaponName;
+        string expectedWeapon = playerId == PotatoPlayerId ? PotatoWeaponName : ShotgunWeaponName;
         return weapon.name.StartsWith(expectedWeapon, StringComparison.Ordinal);
     }
 
     internal static string GetExpectedWeapon(int playerId)
     {
-        return playerId == PotatoPlayerId ? BatWeaponName : ShotgunWeaponName;
+        return playerId == PotatoPlayerId ? PotatoWeaponName : ShotgunWeaponName;
     }
 
     internal static void EnsureLoadouts()

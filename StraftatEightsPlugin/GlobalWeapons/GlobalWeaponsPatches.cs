@@ -29,6 +29,11 @@ internal static class PlayerPickup_WeaponHandPolicy_Patch
 {
     private static bool Prefix(PlayerPickup __instance)
     {
+        if (WeaponService.IsOwnerHandObjectPending(__instance, true))
+        {
+            return false;
+        }
+
         if (WeaponService.IsOwnerAttachmentPending(__instance))
         {
             WeaponService.AttachUnparentedWeapon(__instance);

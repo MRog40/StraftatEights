@@ -82,7 +82,7 @@ internal static class InfidelState
         }
 
         BroadcastLiveState();
-        SendRoleStates(false);
+        SendRoleStates(true);
     }
 
     internal static void OnLobbyEntered()

@@ -322,6 +322,18 @@ internal static class WeaponService
             && PendingOwnerAttachments.Contains(ClientInstance.Instance.PlayerId);
     }
 
+    internal static bool IsOwnerHandObjectPending(PlayerPickup pickup, bool rightHand)
+    {
+        if (!pickup.IsOwner)
+        {
+            return false;
+        }
+
+        bool hasObject = rightHand ? pickup.hasObjectInHand : pickup.hasObjectInLeftHand;
+        GameObject? objectInHand = rightHand ? pickup.objInHand : pickup.objInLeftHand;
+        return hasObject && (objectInHand == null || !objectInHand);
+    }
+
     private static IEnumerator AttachGrantedWeaponAfterSync(int playerId, int sessionGeneration)
     {
         for (int attempt = 0; attempt < 20; attempt++)

@@ -13,7 +13,7 @@ internal static class OneInTheChamberState
     internal const string LiveLobbyDataKey = "StraftatEights_OneInTheChamber_Live";
     internal const float PlayerHealth = 0.4f;
     internal const int PointsPerRoundWin = ScoreRules.PointsPerRoundWin;
-    internal const string PistolWeaponName = "Silenzzio";
+    internal const string PistolWeaponName = "Revolver";
     internal const string CouperetWeaponName = "Couperet";
     internal static bool Enabled;
     internal static int AliveCount => AlivePlayers.Count;

@@ -98,11 +98,12 @@ an action that must be retried.
 
 ## Hot Potato
 
-- The host owns the score and current bat holder. Every valid kill awards the shared 10-point kill
+- The host owns the score and current grenade holder. Every valid kill awards the shared 10-point kill
   score; the first player to the global 100-point target wins.
-- The exact `BaseballBat` and `Shotgun` prefabs are enforced. The bat holder keeps the bat until that
-  player gets a kill, then the victim becomes the bat holder after respawning and the former holder
-  receives a Shotgun.
+- The exact `HandGrenade` and `Shotgun` prefabs are enforced. The grenade holder receives another
+  grenade when the current one is thrown. When the holder kills a player, the victim becomes the
+  grenade holder after respawning and the former holder receives a Shotgun. The host uses the normal
+  `PlayerHealth.killer` attribution path, so grenade explosions need no special mode tracking.
 - Hot Potato uses the normal custom-mode respawn path. Loadouts are retried after each respawn because
   the game creates new player and weapon objects.
 

@@ -56,8 +56,7 @@ internal static class HarmonyPatchStatus
         },
         [GameMode.HotPotato] = new[]
         {
-            typeof(PlayerManager_HotPotatoSpawn_Patch),
-            typeof(MeleeWeapon_HotPotatoBatDamage_Patch)
+            typeof(PlayerManager_HotPotatoSpawn_Patch)
         },
         [GameMode.Infidel] = new[]
         {

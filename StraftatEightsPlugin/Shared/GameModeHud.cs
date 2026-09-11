@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using MyceliumNetworking;
@@ -15,7 +16,11 @@ internal sealed class GameModeHud : MonoBehaviour
     private const float AnnouncementDuration = 2f;
     private const float AnnouncementVerticalOffset = 260f;
     private const float TargetAnnouncementVerticalOffset = 110f;
-    private const float ScorePopupDuration = 1f;
+    private const float ScorePopupDuration = 0.65f;
+    private const float ScorePopupImpactDuration = 0.12f;
+    private const float ScorePopupStartScale = 1.18f;
+    private const float ScorePopupEndScale = 0.72f;
+    private const float ScorePopupRise = 18f;
     private const float ScorePopupVerticalOffset = -70f;
     private const int MaxDisplayedNameLength = 14;
     private static GameModeHud? _instance;
@@ -24,10 +29,14 @@ internal sealed class GameModeHud : MonoBehaviour
     private TextMeshProUGUI _targetAnnouncement = null!;
     private TextMeshProUGUI _scorePopup = null!;
     private TextMeshProUGUI _scoreboard = null!;
+    private RectTransform _scorePopupRect = null!;
+    private CanvasGroup _scorePopupCanvas = null!;
+    private Vector2 _scorePopupBasePosition;
     private float _nextRefreshTime;
     private float _announcementUntil;
     private float _targetAnnouncementUntil;
     private float _scorePopupUntil;
+    private float _scorePopupStartedAt;
     private bool _hasLoggedVisibility;
     private bool _lastVisible;
     private string _lastVisibilityReason = string.Empty;
@@ -88,16 +97,25 @@ internal sealed class GameModeHud : MonoBehaviour
         scorePopupRect.pivot = new Vector2(0.5f, 0.5f);
         scorePopupRect.sizeDelta = new Vector2(400f, 80f);
         scorePopupRect.anchoredPosition = new Vector2(0f, ScorePopupVerticalOffset);
+        _scorePopupRect = scorePopupRect;
+        _scorePopupBasePosition = scorePopupRect.anchoredPosition;
         _scorePopup = scorePopupObject.AddComponent<TextMeshProUGUI>();
-        _scorePopup.fontSize = 44f;
-        _scorePopup.fontStyle = FontStyles.Bold;
-        _scorePopup.color = new Color32(130, 255, 150, 255);
+        TMP_FontAsset? scorePopupFont = ResolveScorePopupFont();
+        if (scorePopupFont != null)
+        {
+            _scorePopup.font = scorePopupFont;
+        }
+        _scorePopup.fontSize = 48f;
+        _scorePopup.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+        _scorePopup.color = new Color32(255, 190, 55, 255);
         _scorePopup.richText = true;
         _scorePopup.alignment = TextAlignmentOptions.Center;
         _scorePopup.enableWordWrapping = false;
-        _scorePopup.outlineWidth = 0.2f;
-        _scorePopup.outlineColor = new Color(0f, 0f, 0f, 0.9f);
+        _scorePopup.characterSpacing = 2f;
+        _scorePopup.outlineWidth = 0.28f;
+        _scorePopup.outlineColor = new Color32(16, 18, 24, 255);
         _scorePopup.raycastTarget = false;
+        _scorePopupCanvas = scorePopupObject.AddComponent<CanvasGroup>();
         scorePopupObject.SetActive(false);
 
         _panel = new GameObject("GameModePanel");
@@ -135,9 +153,9 @@ internal sealed class GameModeHud : MonoBehaviour
 
     private void Update()
     {
-        if (_scorePopup.gameObject.activeSelf && Time.unscaledTime >= _scorePopupUntil)
+        if (_scorePopup.gameObject.activeSelf)
         {
-            _scorePopup.gameObject.SetActive(false);
+            UpdateScorePopupAnimation();
         }
 
         PauseManager? pauseManager = PauseManager.Instance;
@@ -315,8 +333,90 @@ internal sealed class GameModeHud : MonoBehaviour
         }
 
         _instance._scorePopup.text = "+" + amount;
-        _instance._scorePopupUntil = Time.unscaledTime + ScorePopupDuration;
+        _instance._scorePopupStartedAt = Time.unscaledTime;
+        _instance._scorePopupUntil = _instance._scorePopupStartedAt + ScorePopupDuration;
+        _instance._scorePopupRect.localScale = Vector3.one * ScorePopupStartScale;
+        _instance._scorePopupRect.anchoredPosition = _instance._scorePopupBasePosition;
+        _instance._scorePopupCanvas.alpha = 1f;
         _instance._scorePopup.gameObject.SetActive(true);
+    }
+
+    private void UpdateScorePopupAnimation()
+    {
+        float now = Time.unscaledTime;
+        if (now >= _scorePopupUntil)
+        {
+            _scorePopup.gameObject.SetActive(false);
+            _scorePopupRect.localScale = Vector3.one;
+            _scorePopupRect.anchoredPosition = _scorePopupBasePosition;
+            _scorePopupCanvas.alpha = 1f;
+            return;
+        }
+
+        float elapsed = now - _scorePopupStartedAt;
+        float scale;
+        float alpha;
+        float rise;
+        if (elapsed < ScorePopupImpactDuration)
+        {
+            float impactProgress = Mathf.Clamp01(elapsed / ScorePopupImpactDuration);
+            float easedImpact = 1f - Mathf.Pow(1f - impactProgress, 3f);
+            scale = Mathf.Lerp(ScorePopupStartScale, 1f, easedImpact);
+            alpha = 1f;
+            rise = 0f;
+        }
+        else
+        {
+            float shrinkProgress = Mathf.Clamp01((elapsed - ScorePopupImpactDuration)
+                / (ScorePopupDuration - ScorePopupImpactDuration));
+            float easedShrink = Mathf.SmoothStep(0f, 1f, shrinkProgress);
+            scale = Mathf.Lerp(1f, ScorePopupEndScale, easedShrink);
+            alpha = 1f - easedShrink;
+            rise = ScorePopupRise * easedShrink;
+        }
+
+        _scorePopupRect.localScale = Vector3.one * scale;
+        _scorePopupRect.anchoredPosition = _scorePopupBasePosition + Vector2.up * rise;
+        _scorePopupCanvas.alpha = alpha;
+    }
+
+    private static TMP_FontAsset? ResolveScorePopupFont()
+    {
+        string[] resourceNames =
+        {
+            "Fonts & Materials/Anton SDF",
+            "Fonts & Materials/Bebas Neue SDF",
+            "Fonts & Materials/Oswald SDF",
+            "Fonts & Materials/RobotoCondensed SDF"
+        };
+        foreach (string resourceName in resourceNames)
+        {
+            TMP_FontAsset? font = Resources.Load<TMP_FontAsset>(resourceName);
+            if (font != null)
+            {
+                return font;
+            }
+        }
+
+        TMP_FontAsset? defaultFont = TMP_Settings.defaultFontAsset;
+        foreach (TMP_FontAsset font in Resources.FindObjectsOfTypeAll<TMP_FontAsset>())
+        {
+            if (font == defaultFont)
+            {
+                continue;
+            }
+
+            string fontName = font.name;
+            if (fontName.IndexOf("Anton", StringComparison.OrdinalIgnoreCase) >= 0
+                || fontName.IndexOf("Bebas", StringComparison.OrdinalIgnoreCase) >= 0
+                || fontName.IndexOf("Oswald", StringComparison.OrdinalIgnoreCase) >= 0
+                || fontName.IndexOf("RobotoCondensed", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return font;
+            }
+        }
+
+        return defaultFont;
     }
 
     private void RefreshScoreboard()
