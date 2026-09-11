@@ -12,8 +12,8 @@ internal static class KillTheRatState
     internal const string LiveLobbyDataKey = "StraftatEights_KillTheRat_Live";
     internal const string HumanWeaponName = "Glock";
     internal const string RatWeaponName = "Taser";
+    internal const string RatOffhandWeaponName = "Impetus";
     internal const float RatHealthMultiplier = 0.5f;
-    internal const float RatMovementMultiplier = 1.3f;
     internal const float VoidDeathY = -300f;
     internal static bool Enabled;
     internal static int CurrentRatPlayerId = -1;
@@ -319,13 +319,18 @@ internal static class KillTheRatState
             }
 
             bool isRat = client.PlayerId == CurrentRatPlayerId;
-            string weaponName = isRat ? RatWeaponName : HumanWeaponName;
-            Weapon? heldWeapon = GetWeapon(pickup.objInHand) ?? GetWeapon(pickup.objInLeftHand);
-            if (heldWeapon != null && heldWeapon.name.StartsWith(weaponName, StringComparison.Ordinal))
+            Weapon? rightWeapon = GetWeapon(pickup.objInHand);
+            Weapon? leftWeapon = GetWeapon(pickup.objInLeftHand);
+            bool rightLoadoutReady = rightWeapon != null
+                && rightWeapon.name.StartsWith(isRat ? RatWeaponName : HumanWeaponName,
+                    StringComparison.Ordinal);
+            bool leftLoadoutReady = !isRat || (leftWeapon != null
+                && leftWeapon.name.StartsWith(RatOffhandWeaponName, StringComparison.Ordinal));
+            if (rightLoadoutReady && leftLoadoutReady)
             {
                 if (!isRat)
                 {
-                    WeaponAmmoTuning.InitializeUnlimited(heldWeapon);
+                    WeaponAmmoTuning.InitializeUnlimited(rightWeapon!);
                 }
                 PendingLoadouts.Remove(client.PlayerId);
                 continue;
@@ -335,7 +340,15 @@ internal static class KillTheRatState
                 || Time.unscaledTime >= retryTime)
             {
                 PendingLoadouts[client.PlayerId] = Time.unscaledTime + 2f;
-                WeaponService.GiveWeapon(client.PlayerId, weaponName, unlimitedAmmo: !isRat);
+                if (!rightLoadoutReady)
+                {
+                    WeaponService.GiveWeapon(client.PlayerId, isRat ? RatWeaponName : HumanWeaponName,
+                        unlimitedAmmo: !isRat);
+                }
+                else if (isRat)
+                {
+                    WeaponService.GiveWeaponToLeftHand(client.PlayerId, RatOffhandWeaponName);
+                }
             }
         }
     }

@@ -5,17 +5,6 @@ namespace StraftatEightsPlugin;
 
 internal static class MovementPolicy
 {
-    private static float GetBaselineMovementFactor(FirstPersonController controller)
-    {
-        if (GameModeManager.ShouldIgnoreGlobalMovementSettings)
-        {
-            return 1f;
-        }
-
-        float adsFactor = controller.isAiming ? GlobalModifiersState.AdsSpeedMultiplier : 1f;
-        return GlobalModifiersState.SpeedMultiplier * adsFactor;
-    }
-
     private static bool IsJuggernautMinigunFiring(FirstPersonController controller)
     {
         PlayerPickup? pickup = controller.playerPickupScript;
@@ -63,9 +52,6 @@ internal static class MovementPolicy
                         : 1f;
                 }
                 break;
-            case GameMode.KillTheRat:
-                ApplyRatMovement(controller);
-                break;
             case GameMode.MichaelMeyers:
                 controller.movementFactor = MichaelMeyersState.IsMichael(controller)
                     ? MichaelMeyersState.MovementMultiplier
@@ -74,26 +60,6 @@ internal static class MovementPolicy
             case GameMode.Infidel:
                 controller.movementFactor = InfidelState.MovementMultiplier;
                 break;
-        }
-    }
-
-    internal static void ApplyRatMovement(FirstPersonController controller)
-    {
-        if (!KillTheRatState.IsRat(controller))
-        {
-            return;
-        }
-
-        float baselineMovementFactor = GetBaselineMovementFactor(controller);
-        controller.movementFactor = controller.isSprinting
-            ? baselineMovementFactor * KillTheRatState.RatMovementMultiplier
-            : baselineMovementFactor;
-
-        if (controller.IsOwner)
-        {
-            DebugLog.Every("kill-the-rat-movement", 5f,
-                $"KillTheRat local rat speed applied rat={KillTheRatState.CurrentRatPlayerId} "
-                + $"sprinting={controller.isSprinting} movementFactor={controller.movementFactor:0.00}");
         }
     }
 }
@@ -144,11 +110,6 @@ internal static class FirstPersonController_MovementPolicy_Patch
         if (JuggernautState.IsCurrentJuggernaut(__instance))
         {
             __instance.isSprinting = false;
-        }
-
-        if (GameModeManager.IsActive(GameMode.KillTheRat))
-        {
-            MovementPolicy.ApplyRatMovement(__instance);
         }
     }
 
