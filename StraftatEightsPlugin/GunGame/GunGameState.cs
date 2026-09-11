@@ -135,16 +135,6 @@ internal static class GunGameState
         BroadcastLiveState();
     }
 
-    private static int GetWeaponIndex(int progress)
-    {
-        if (WeaponOrder.Count <= 1 || ScoreLimit <= 1)
-        {
-            return 0;
-        }
-
-        long scaledIndex = (long)progress * (WeaponOrder.Count - 1) / (ScoreLimit - 1);
-        return (int)System.Math.Min(scaledIndex, WeaponOrder.Count - 1);
-    }
     internal static void EnsureLoadouts()
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.GunGame) || !MyceliumNetwork.InLobby
@@ -220,7 +210,7 @@ internal static class GunGameState
 
     private static string? GetWeaponForProgress(int progress)
     {
-        return WeaponOrder.Count == 0 ? null : WeaponOrder[GetWeaponIndex(progress)];
+        return WeaponOrder.Count == 0 ? null : WeaponOrder[GunGameRules.GetWeaponIndex(progress, WeaponOrder.Count)];
     }
     internal static string SerializeProgress()
     {

@@ -19,20 +19,9 @@ internal static class KillTheRatOutline
             _outlinedPlayer = null;
         }
 
-        if (GameModeManager.ShouldClearPlayerOutlines)
+        if (GameModeManager.ShouldClearPlayerOutlines
+            || !GameModeManager.IsActive(GameMode.KillTheRat))
         {
-            return;
-        }
-
-        if (!GameModeManager.IsActive(GameMode.KillTheRat))
-        {
-            if (!GameModeManager.IsActive(GameMode.Juggernaut)
-                && !GameModeManager.IsActive(GameMode.MichaelMeyers)
-                && _outlinedPlayer != null)
-            {
-                PlayerOutline.ClearTarget(ref _outlinedPlayer);
-            }
-            _outlinedPlayer = null;
             return;
         }
 

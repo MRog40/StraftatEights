@@ -22,8 +22,11 @@ public partial class Plugin
         };
 
         MyceliumNetwork.RegisterNetworkObject(this, HVTModId);
+        MyceliumNetwork.RegisterLobbyDataKey(HVTState.SettingsLobbyDataKey);
+        MyceliumNetwork.RegisterLobbyDataKey(HVTState.LiveLobbyDataKey);
         MyceliumNetwork.LobbyCreated += HVTState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += HVTState.OnLobbyEntered;
+        MyceliumNetwork.LobbyDataUpdated += HVTState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += HVTState.OnPlayerEntered;
     }
 

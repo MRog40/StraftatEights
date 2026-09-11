@@ -11,7 +11,7 @@ internal static class OneInTheChamberState
 {
     internal const float PlayerHealth = 10f;
     internal const int PointsPerRoundWin = ScoreRules.PointsPerRoundWin;
-    internal const string PistolWeaponName = "Pistol";
+    internal const string PistolWeaponName = "Silenzzio";
     internal const string CouperetWeaponName = "Couperet";
     internal static bool Enabled;
     internal static int AliveCount => AlivePlayers.Count;

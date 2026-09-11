@@ -66,7 +66,11 @@ internal static class HarmonyPatchStatus
         [GameMode.HVT] = new[]
         {
             typeof(GameManager_HVTTick_Patch)
-        }
+        },
+        [GameMode.MichaelMeyers] = new[]
+        {
+            typeof(PlayerManager_MichaelMeyersSpawn_Patch),
+        },
     };
 
     internal static void RecordFailure(Type patchType, string reason)

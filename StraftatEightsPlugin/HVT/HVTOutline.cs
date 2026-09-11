@@ -21,7 +21,6 @@ internal static class HVTOutline
         if (GameModeManager.ShouldClearPlayerOutlines
             || !GameModeManager.IsActive(GameMode.HVT))
         {
-            PlayerOutline.ClearTarget(ref _outlinedPlayer);
             return;
         }
 

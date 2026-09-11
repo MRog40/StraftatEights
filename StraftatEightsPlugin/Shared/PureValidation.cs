@@ -68,6 +68,20 @@ internal static class WeaponListParser
     }
 }
 
+internal static class GunGameRules
+{
+    internal static int GetWeaponIndex(int progress, int weaponCount)
+    {
+        if (weaponCount <= 1 || progress <= 0)
+        {
+            return 0;
+        }
+
+        int kills = progress / ScoreRules.PointsPerKill;
+        return Math.Min(kills, weaponCount - 1);
+    }
+}
+
 internal static class ScoreCodec
 {
     internal static string Serialize(IReadOnlyDictionary<int, int> scores)
@@ -99,7 +113,7 @@ internal static class OneInTheChamberRules
 
     internal static bool IsAllowedWeapon(string weaponName)
     {
-        return weaponName.StartsWith("Pistol", StringComparison.Ordinal)
+        return weaponName.StartsWith("Silenzzio", StringComparison.Ordinal)
             || weaponName.StartsWith("Couperet", StringComparison.Ordinal);
     }
 

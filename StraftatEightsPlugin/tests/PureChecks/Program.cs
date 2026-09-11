@@ -68,17 +68,22 @@ Assert(defaultGunGameWeapons.Count == 10,
     "Default Gun Game weapon list must contain exactly ten validated weapons.");
 Assert(defaultGunGameWeapons.Count * 10 == 100,
     "Gun Game score limit must equal ten times the validated weapon count.");
+Assert(GunGameRules.GetWeaponIndex(0, 10) == 0
+    && GunGameRules.GetWeaponIndex(10, 10) == 1
+    && GunGameRules.GetWeaponIndex(90, 10) == 9
+    && GunGameRules.GetWeaponIndex(100, 10) == 9,
+    "Gun Game must advance one weapon per kill and require a final-gun kill to win.");
 Dictionary<int, int> maximumScores = ScoreCodec.Parse("1:100;2:101", ScoreRules.PointsToWin);
 Assert(maximumScores.Count == 1 && maximumScores[1] == ScoreRules.PointsToWin,
     "Score parsing must accept the shared maximum and reject values above it.");
 
-Assert(OneInTheChamberRules.IsAllowedWeapon("Pistol(Clone)"),
-    "One in the Chamber must allow the exact Pistol prefab.");
+Assert(OneInTheChamberRules.IsAllowedWeapon("Silenzzio(Clone)"),
+    "One in the Chamber must allow the exact Silenzzio prefab.");
 Assert(OneInTheChamberRules.IsAllowedWeapon("Couperet(Clone)"),
     "One in the Chamber must allow the Couperet prefab.");
-Assert(!OneInTheChamberRules.IsAllowedWeapon("Glock(Clone)")
-    && !OneInTheChamberRules.IsAllowedWeapon("Webley(Clone)"),
-    "One in the Chamber must reject Glock and Webley substitutions.");
+Assert(!OneInTheChamberRules.IsAllowedWeapon("Webley(Clone)")
+    && !OneInTheChamberRules.IsAllowedWeapon("SMG(Clone)"),
+    "One in the Chamber must reject unrelated weapon substitutions.");
 HashSet<int> alivePlayers = new() { 1, 2, 3 };
 Dictionary<int, int> reserveBullets = new() { [1] = 0, [2] = 2 };
 Assert(OneInTheChamberRules.ApplyDeath(alivePlayers, reserveBullets, 3, 1)

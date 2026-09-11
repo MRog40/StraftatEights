@@ -21,14 +21,9 @@ internal static class MichaelMeyersOutline
             OutlinedPlayers.Clear();
         }
 
-        if (!GameModeManager.IsActive(GameMode.MichaelMeyers))
+        if (GameModeManager.ShouldClearPlayerOutlines
+            || !GameModeManager.IsActive(GameMode.MichaelMeyers))
         {
-            // Juggernaut owns the shared outline registry while that mode is active.
-            if (!GameModeManager.IsActive(GameMode.Juggernaut) && PlayerOutline.HasAppliedRenderers)
-            {
-                PlayerOutline.ClearApplied();
-                OutlinedPlayers.Clear();
-            }
             return;
         }
 

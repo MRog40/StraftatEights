@@ -241,6 +241,29 @@ internal static class MichaelMeyersState
         }
     }
 
+    internal static void RequestLoadout(int playerId)
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.MichaelMeyers)
+            || !MyceliumNetwork.IsHost || WeaponService.IsFinalGameScreen)
+        {
+            return;
+        }
+
+        if (CanHoldCouperet(playerId) || CanHoldSurvivorWeapon(playerId))
+        {
+            PendingLoadouts[playerId] = Time.unscaledTime + 2f;
+            WeaponService.GiveWeapon(playerId, WeaponName);
+            return;
+        }
+
+        PendingLoadouts.Remove(playerId);
+        PlayerPickup? pickup = FindPickup(playerId);
+        if (pickup != null && HasHeldObject(pickup))
+        {
+            WeaponService.ClearHeldWeapons(pickup);
+        }
+    }
+
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.MichaelMeyers) || _winnerId >= 0)
@@ -384,13 +407,7 @@ internal static class MichaelMeyersState
 
     internal static void GiveStartingWeapon(int playerId)
     {
-        bool canHoldCouperet = playerId == CurrentMichaelPlayerId
-            || (OneVsOne && AlivePlayers.Contains(playerId));
-        if (Enabled && GameModeManager.IsActive(GameMode.MichaelMeyers) && canHoldCouperet)
-        {
-            PendingLoadouts[playerId] = Time.unscaledTime + 2f;
-            WeaponService.GiveWeapon(playerId, WeaponName);
-        }
+        RequestLoadout(playerId);
     }
 
     private static void PrepareOneVsOneSurvivor()

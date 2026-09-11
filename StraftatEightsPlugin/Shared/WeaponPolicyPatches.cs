@@ -7,8 +7,7 @@ internal static class WeaponPolicy
 {
     internal static bool PrepareItemSpawn(ItemSpawner spawner)
     {
-        if (GameModeManager.IsActive(GameMode.Infidel)
-            || GameModeManager.IsActive(GameMode.GunGame))
+        if (IsExclusiveLoadoutMode(GameModeManager.ActiveMode))
         {
             return false;
         }
@@ -33,6 +32,18 @@ internal static class WeaponPolicy
             spawner.itemToSpawn = prefab;
         }
         return true;
+    }
+
+    private static bool IsExclusiveLoadoutMode(GameMode mode)
+    {
+        return mode == GameMode.Juggernaut
+            || mode == GameMode.GunGame
+            || mode == GameMode.SniperBattle
+            || mode == GameMode.MichaelMeyers
+            || mode == GameMode.KillTheRat
+            || mode == GameMode.OneInTheChamber
+            || mode == GameMode.HotPotato
+            || mode == GameMode.Infidel;
     }
 
     internal static bool CanEquip(PlayerPickup pickup, GameObject obj, bool rightHand)

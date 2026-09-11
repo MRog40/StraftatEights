@@ -100,9 +100,15 @@ internal static class WeaponService
     {
         NetworkManager? networkManager = FishNet.InstanceFinder.NetworkManager;
         GameObject? prefab = FindPrefab(weaponName);
+        if (prefab == null)
+        {
+            Plugin.Logger.LogWarning($"Weapon prefab '{weaponName}' was not found in Resources/RandomWeapons.");
+            yield break;
+        }
+
         if (!requestVersions.IsCurrent(playerId, requestVersion) || !SessionState.IsCurrent(sessionGeneration)
             || GameModeManager.RoundId != roundId
-            || networkManager == null || !networkManager.IsServer || prefab == null
+            || networkManager == null || !networkManager.IsServer
             || !ResolveAttachmentMethods()) yield break;
 
         PlayerPickup? pickup = null;

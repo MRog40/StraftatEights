@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using MyceliumNetworking;
 using Steamworks;
@@ -12,6 +13,8 @@ internal static class HVTState
     internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
     internal static int WinnerId = -1;
     internal static readonly Dictionary<int, int> Points = new();
+    internal const string SettingsLobbyDataKey = "StraftatEights_HVT_Settings";
+    internal const string LiveLobbyDataKey = "StraftatEights_HVT_Live";
 
     private static float _survivalAccumulator;
     private static readonly ModeSyncState Sync = new();
@@ -36,8 +39,10 @@ internal static class HVTState
         }
 
         ApplySettingsFromHostConfig();
+        int revision = Sync.NextSettingsRevision();
+        PublishSettingsSnapshot(revision);
         MyceliumNetwork.RPC(Plugin.HVTModId, nameof(Plugin.SyncHVTSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
             Plugin.HVTEnabled.Value);
     }
 
@@ -65,6 +70,30 @@ internal static class HVTState
         {
             ApplySettingsFromHostConfig();
             ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
+        }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (keys.Contains(SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (keys.Contains(LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
         }
     }
 
@@ -103,13 +132,16 @@ internal static class HVTState
     }
 
     internal static void ApplyLiveState(CSteamID hostId, int hvtPlayerId, string pointsData,
-        int winnerId, int roundId, int revision)
+        int winnerId, int roundId, int revision, string source = "rpc")
     {
         if (hvtPlayerId < -1 || winnerId < -1
             || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
         {
             return;
         }
+
+        DebugLog.Info($"HVT live state accepted source={source} host={hostId.m_SteamID} "
+            + $"round={roundId} revision={revision} hvt={hvtPlayerId} points={Points.Count}");
 
         CurrentHVTPlayerId = hvtPlayerId;
         WinnerId = winnerId;
@@ -217,10 +249,60 @@ internal static class HVTState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            int revision = Sync.NextLiveRevision();
+            PublishLiveSnapshot(revision);
             MyceliumNetwork.RPC(Plugin.HVTModId, nameof(Plugin.SyncHVTLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, CurrentHVTPlayerId, SerializePoints(), WinnerId,
-                GameModeManager.RoundId, Sync.NextLiveRevision());
+                GameModeManager.RoundId, revision);
         }
+    }
+
+    private static void PublishSettingsSnapshot(int revision)
+    {
+        string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
+            GameModeManager.RoundId, revision, Plugin.HVTEnabled.Value ? "1" : "0");
+        MyceliumNetwork.SetLobbyData(SettingsLobbyDataKey, payload);
+    }
+
+    private static void PublishLiveSnapshot(int revision)
+    {
+        string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
+            GameModeManager.RoundId, revision, CurrentHVTPlayerId, WinnerId, SerializePoints());
+        MyceliumNetwork.SetLobbyData(LiveLobbyDataKey, payload);
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        string payload = MyceliumNetwork.GetLobbyData<string>(SettingsLobbyDataKey) ?? string.Empty;
+        string[] parts = payload.Split('|');
+        if (parts.Length != 4 || !ulong.TryParse(parts[0], out ulong hostSteamId)
+            || !int.TryParse(parts[1], out int roundId) || !int.TryParse(parts[2], out int revision)
+            || (parts[3] != "0" && parts[3] != "1"))
+        {
+            return;
+        }
+
+        if (Sync.TryAcceptSettingsSnapshot(new CSteamID(hostSteamId), roundId, revision,
+            "hvt-lobby-data"))
+        {
+            ApplySettings(parts[3] == "1");
+            Plugin.Logger.LogInfo($"[HVT] Accepted settings via lobby data: round={roundId} revision={revision}");
+        }
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        string payload = MyceliumNetwork.GetLobbyData<string>(LiveLobbyDataKey) ?? string.Empty;
+        string[] parts = payload.Split(new[] { '|' }, 6);
+        if (parts.Length != 6 || !ulong.TryParse(parts[0], out ulong hostSteamId)
+            || !int.TryParse(parts[1], out int roundId) || !int.TryParse(parts[2], out int revision)
+            || !int.TryParse(parts[3], out int hvtPlayerId) || !int.TryParse(parts[4], out int winnerId))
+        {
+            return;
+        }
+
+        ApplyLiveState(new CSteamID(hostSteamId), hvtPlayerId, parts[5], winnerId,
+            roundId, revision, "lobby-data");
     }
 
     private static void Announce(string text)

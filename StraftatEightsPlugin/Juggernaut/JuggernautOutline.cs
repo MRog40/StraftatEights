@@ -22,14 +22,9 @@ internal static class JuggernautOutline
             _outlinedPlayer = null;
         }
 
-        if (GameModeManager.ShouldClearPlayerOutlines)
+        if (GameModeManager.ShouldClearPlayerOutlines
+            || !GameModeManager.IsActive(GameMode.Juggernaut))
         {
-            return;
-        }
-
-        if (!GameModeManager.IsActive(GameMode.Juggernaut))
-        {
-            PlayerOutline.ClearTarget(ref _outlinedPlayer);
             return;
         }
 

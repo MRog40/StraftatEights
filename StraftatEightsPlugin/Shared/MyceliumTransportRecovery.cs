@@ -18,6 +18,8 @@ internal static class MyceliumTransportRecovery
     private static readonly float[] RetryDelays = { 0.35f, 0.75f, 1.5f, 3f, 6f };
     private static readonly List<PendingMessage> PendingMessages = new();
     private static readonly Dictionary<ulong, ProbeState> Probes = new();
+    private static readonly Dictionary<ulong, int> ProbeSendDepth = new();
+    private static readonly Dictionary<ulong, float> NextSessionCloseTimes = new();
     private static int _nextProbeId;
 
     internal static void Initialize()
@@ -52,9 +54,15 @@ internal static class MyceliumTransportRecovery
             return;
         }
 
-        SteamNetworkingIdentity identity = default;
-        identity.SetSteamID(remote);
-        SteamNetworkingMessages.CloseSessionWithUser(ref identity);
+        if (!NextSessionCloseTimes.TryGetValue(remote.m_SteamID, out float nextClose)
+            || Time.unscaledTime >= nextClose)
+        {
+            SteamNetworkingIdentity identity = default;
+            identity.SetSteamID(remote);
+            SteamNetworkingMessages.CloseSessionWithUser(ref identity);
+            NextSessionCloseTimes[remote.m_SteamID] = Time.unscaledTime + 1.5f;
+        }
+
         QueueProbe(remote, callback.m_info.m_eState.ToString());
     }
 
@@ -65,8 +73,7 @@ internal static class MyceliumTransportRecovery
             return;
         }
 
-        MyceliumNetwork.RPCTarget(Plugin.MyceliumTransportModId,
-            nameof(Plugin.MyceliumSessionProbeAck), sender, ReliableType.Reliable, probeId);
+        SendProbeRpc(sender, nameof(Plugin.MyceliumSessionProbeAck), probeId);
     }
 
     internal static void OnProbeAck(CSteamID sender, int probeId)
@@ -78,6 +85,7 @@ internal static class MyceliumTransportRecovery
         }
 
         Probes.Remove(sender.m_SteamID);
+        NextSessionCloseTimes.Remove(sender.m_SteamID);
         DebugLog.Info($"Mycelium session probe acknowledged peer={sender.m_SteamID} probe={probeId}");
     }
 
@@ -95,7 +103,15 @@ internal static class MyceliumTransportRecovery
         }
         catch (Exception exception)
         {
-            Enqueue(data, target, reliable, exception.GetBaseException().Message);
+            if (IsProbeSend(target))
+            {
+                DebugLog.Info($"Mycelium probe send exception peer={target.m_SteamID} "
+                    + $"error={exception.GetBaseException().Message}");
+            }
+            else
+            {
+                Enqueue(data, target, reliable, exception.GetBaseException().Message);
+            }
             return true;
         }
         if (result == EResult.k_EResultOK)
@@ -103,8 +119,20 @@ internal static class MyceliumTransportRecovery
             return true;
         }
 
-        Enqueue(data, target, reliable, result.ToString());
+        if (IsProbeSend(target))
+        {
+            DebugLog.Info($"Mycelium probe send failed peer={target.m_SteamID} result={result}");
+        }
+        else
+        {
+            Enqueue(data, target, reliable, result.ToString());
+        }
         return true;
+    }
+
+    private static bool IsProbeSend(CSteamID target)
+    {
+        return ProbeSendDepth.ContainsKey(target.m_SteamID);
     }
 
     private static void ProcessPendingMessages()
@@ -176,9 +204,7 @@ internal static class MyceliumTransportRecovery
 
             probe.Attempt++;
             probe.NextAttempt = now + RetryDelays[Math.Min(probe.Attempt - 1, RetryDelays.Length - 1)];
-            MyceliumNetwork.RPCTarget(Plugin.MyceliumTransportModId,
-                nameof(Plugin.MyceliumSessionProbe), entry.Value.Target,
-                ReliableType.Reliable, probe.ProbeId);
+            SendProbeRpc(probe.Target, nameof(Plugin.MyceliumSessionProbe), probe.ProbeId);
         }
     }
 
@@ -186,15 +212,37 @@ internal static class MyceliumTransportRecovery
     {
         if (Probes.TryGetValue(target.m_SteamID, out ProbeState? existing))
         {
-            existing.NextAttempt = Math.Min(existing.NextAttempt, Time.unscaledTime + 0.25f);
             DebugLog.Info($"Mycelium session reset peer={target.m_SteamID} reason={reason} "
                 + $"probe={existing.ProbeId}");
             return;
         }
 
         int probeId = ++_nextProbeId;
-        Probes[target.m_SteamID] = new ProbeState(target, probeId, Time.unscaledTime + 0.25f);
+        Probes[target.m_SteamID] = new ProbeState(target, probeId, Time.unscaledTime + RetryDelays[1]);
         DebugLog.Info($"Mycelium session reset peer={target.m_SteamID} reason={reason} probe={probeId}");
+    }
+
+    private static void SendProbeRpc(CSteamID target, string methodName, int probeId)
+    {
+        ulong steamId = target.m_SteamID;
+        ProbeSendDepth.TryGetValue(steamId, out int depth);
+        ProbeSendDepth[steamId] = depth + 1;
+        try
+        {
+            MyceliumNetwork.RPCTarget(Plugin.MyceliumTransportModId, methodName, target,
+                ReliableType.Reliable, probeId);
+        }
+        finally
+        {
+            if (depth == 0)
+            {
+                ProbeSendDepth.Remove(steamId);
+            }
+            else
+            {
+                ProbeSendDepth[steamId] = depth;
+            }
+        }
     }
 
     private static void Enqueue(byte[] data, CSteamID target, ReliableType reliable, string reason)
@@ -243,6 +291,8 @@ internal static class MyceliumTransportRecovery
     {
         PendingMessages.Clear();
         Probes.Clear();
+        ProbeSendDepth.Clear();
+        NextSessionCloseTimes.Clear();
     }
 
     private sealed class PendingMessage

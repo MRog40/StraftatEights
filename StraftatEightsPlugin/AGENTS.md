@@ -111,6 +111,10 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
   settings and presentation state, register a Steam lobby-data key and publish the host ID, round ID,
   revision, and payload. Read it on lobby entry and `LobbyDataUpdated`, then use the same validation as
   the RPC path. Gun Game settings/scores and active mode use this fallback.
+- Every outline, HUD marker, and other networked visual must use a host-authoritative role/player ID
+  received through the revisioned live-state path on every peer, then resolve that ID against the
+  peer's own live player objects. Never derive a networked visual target from host-only state or a
+  one-shot RPC. Add periodic latest-value resend and client-side acceptance logging when needed.
 - Reset per-match state on every new round, even when the same mode remains active. Otherwise clients
   can display scores from the previous match.
 - `[ObserversRpc(..., ExcludeOwner = true)]` skips the owning client. If that RPC sets local hand,

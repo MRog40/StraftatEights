@@ -118,7 +118,7 @@ internal static class GameModeManager
         [GameMode.MichaelMeyers] = new ModeDescriptor("MICHAEL MEYERS", new Color32(204, 34, 34, 255),
             () => Plugin.MichaelMeyersEnabled.Value, MichaelMeyersReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
-            | GameModeCapabilities.HideHud | GameModeCapabilities.ClearOutlines,
+            | GameModeCapabilities.HideHud,
             MichaelMeyersPeriodicPush, MichaelMeyersState.EnsureLoadouts,
             MichaelMeyersState.PeriodicPushSettingsIfHost),
         [GameMode.KillTheRat] = new ModeDescriptor("KILL THE RAT", new Color32(170, 170, 170, 255),
@@ -904,6 +904,7 @@ internal static class GameManager_GameModeReset_Patch
         JuggernautOutline.ResetState();
         MichaelMeyersOutline.ResetState();
         KillTheRatOutline.ResetState();
+        HVTOutline.ResetState();
     }
 }
 
