@@ -5,6 +5,17 @@ namespace StraftatEightsPlugin;
 
 internal static class MovementPolicy
 {
+    private static float GetBaselineMovementFactor(FirstPersonController controller)
+    {
+        if (GameModeManager.ShouldIgnoreGlobalMovementSettings)
+        {
+            return 1f;
+        }
+
+        float adsFactor = controller.isAiming ? GlobalModifiersState.AdsSpeedMultiplier : 1f;
+        return GlobalModifiersState.SpeedMultiplier * adsFactor;
+    }
+
     private static bool IsJuggernautMinigunFiring(FirstPersonController controller)
     {
         PlayerPickup? pickup = controller.playerPickupScript;
@@ -38,6 +49,17 @@ internal static class MovementPolicy
             controller.CanWallJump = false;
         }
         return true;
+    }
+
+    internal static void ApplyRatMovement(FirstPersonController controller)
+    {
+        if (!KillTheRatState.IsRat(controller))
+        {
+            return;
+        }
+
+        controller.movementFactor = GetBaselineMovementFactor(controller)
+            * KillTheRatState.RatMovementMultiplier;
     }
 
     internal static void Apply(FirstPersonController controller)
@@ -110,6 +132,11 @@ internal static class FirstPersonController_MovementPolicy_Patch
         if (JuggernautState.IsCurrentJuggernaut(__instance))
         {
             __instance.isSprinting = false;
+        }
+
+        if (GameModeManager.IsActive(GameMode.KillTheRat))
+        {
+            MovementPolicy.ApplyRatMovement(__instance);
         }
     }
 

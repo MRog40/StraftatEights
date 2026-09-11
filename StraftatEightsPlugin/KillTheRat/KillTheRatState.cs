@@ -12,7 +12,7 @@ internal static class KillTheRatState
     internal const string LiveLobbyDataKey = "StraftatEights_KillTheRat_Live";
     internal const string HumanWeaponName = "Glock";
     internal const string RatWeaponName = "Taser";
-    internal const string RatOffhandWeaponName = "Impetus";
+    internal const float RatMovementMultiplier = 1.3f;
     internal const float VoidDeathY = -300f;
     internal static bool Enabled;
     internal static int CurrentRatPlayerId = -1;
@@ -293,13 +293,10 @@ internal static class KillTheRatState
 
             bool isRat = client.PlayerId == CurrentRatPlayerId;
             Weapon? rightWeapon = GetWeapon(pickup.objInHand);
-            Weapon? leftWeapon = GetWeapon(pickup.objInLeftHand);
             bool rightLoadoutReady = rightWeapon != null
                 && rightWeapon.name.StartsWith(isRat ? RatWeaponName : HumanWeaponName,
                     StringComparison.Ordinal);
-            bool leftLoadoutReady = !isRat || (leftWeapon != null
-                && leftWeapon.name.StartsWith(RatOffhandWeaponName, StringComparison.Ordinal));
-            if (rightLoadoutReady && leftLoadoutReady)
+            if (rightLoadoutReady)
             {
                 if (!isRat)
                 {
@@ -317,10 +314,6 @@ internal static class KillTheRatState
                 {
                     WeaponService.GiveWeapon(client.PlayerId, isRat ? RatWeaponName : HumanWeaponName,
                         unlimitedAmmo: !isRat);
-                }
-                else if (isRat)
-                {
-                    WeaponService.GiveWeaponToLeftHand(client.PlayerId, RatOffhandWeaponName);
                 }
             }
         }
