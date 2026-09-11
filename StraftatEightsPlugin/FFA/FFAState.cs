@@ -8,6 +8,8 @@ namespace StraftatEightsPlugin;
 
 internal static class FFAState
 {
+    internal const string SettingsLobbyDataKey = "StraftatEights_FFA_Settings";
+    internal const string LiveLobbyDataKey = "StraftatEights_FFA_Live";
     internal static bool Enabled;
     internal static int KillsToWin => GameModeManager.EffectivePointsToWin;
     internal static int WinnerId = -1;
@@ -34,8 +36,11 @@ internal static class FFAState
             return;
         }
         ApplySettingsFromHostConfig();
+        int revision = Sync.NextSettingsRevision();
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, Plugin.FFAEnabled.Value ? "1" : "0");
         MyceliumNetwork.RPC(Plugin.FFAModId, nameof(Plugin.SyncFFASettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(), Plugin.FFAEnabled.Value);
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision, Plugin.FFAEnabled.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -64,6 +69,28 @@ internal static class FFAState
             ApplySettingsFromHostConfig();
             ResetMatchState();
         }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
+        }
     }
 
     internal static void OnPlayerEntered(CSteamID player)
@@ -90,13 +117,14 @@ internal static class FFAState
         Kills.Clear();
     }
 
-    internal static void ApplyLiveState(CSteamID hostId, string killsData, int winnerId, int roundId, int revision)
+    internal static void ApplyLiveState(CSteamID hostId, string killsData, int winnerId, int roundId,
+        int revision, string source = "rpc")
     {
         if (winnerId < -1)
         {
             return;
         }
-        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
@@ -137,10 +165,40 @@ internal static class FFAState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            int revision = Sync.NextLiveRevision();
+            ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+                GameModeManager.RoundId, revision, SerializeKills(), WinnerId.ToString());
             MyceliumNetwork.RPC(Plugin.FFAModId, nameof(Plugin.SyncFFALiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, SerializeKills(), WinnerId, GameModeManager.RoundId,
-                Sync.NextLiveRevision());
+                revision);
         }
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("ffa", "settings")))
+        {
+            return;
+        }
+
+        ApplySettings(enabled);
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 2, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !int.TryParse(fields[1], out int winnerId))
+        {
+            return;
+        }
+
+        ApplyLiveState(hostId, fields[0], winnerId, roundId, revision,
+            ModeLobbyDataSync.Source("ffa", "live"));
     }
 
     private static void Announce(string text)

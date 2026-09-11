@@ -73,11 +73,11 @@ internal static class GunGameState
             return;
         }
 
-        if (keys.Contains(SettingsLobbyDataKey))
+        if (ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
         {
             ApplyLobbySettingsSnapshot();
         }
-        if (keys.Contains(LiveLobbyDataKey))
+        if (ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
         {
             ApplyLobbyLiveSnapshot();
         }
@@ -234,36 +234,32 @@ internal static class GunGameState
     private static void PublishSettingsSnapshot(int revision)
     {
         string encodedOrder = Convert.ToBase64String(Encoding.UTF8.GetBytes(Plugin.GunGameWeaponOrder.Value ?? string.Empty));
-        string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
             GameModeManager.RoundId, revision, Plugin.GunGameEnabled.Value ? "1" : "0", encodedOrder);
-        MyceliumNetwork.SetLobbyData(SettingsLobbyDataKey, payload);
     }
 
     private static void PublishLiveSnapshot(int revision, string progressData)
     {
-        string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
+        ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
             GameModeManager.RoundId, revision, progressData ?? string.Empty);
-        MyceliumNetwork.SetLobbyData(LiveLobbyDataKey, payload);
     }
 
     private static void ApplyLobbySettingsSnapshot()
     {
-        string payload = MyceliumNetwork.GetLobbyData<string>(SettingsLobbyDataKey) ?? string.Empty;
-        string[] parts = payload.Split('|');
-        if (parts.Length != 5 || !ulong.TryParse(parts[0], out ulong hostSteamId)
-            || !int.TryParse(parts[1], out int roundId) || !int.TryParse(parts[2], out int revision)
-            || (parts[3] != "0" && parts[3] != "1"))
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 2, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled))
         {
             return;
         }
 
         try
         {
-            string weaponOrder = Encoding.UTF8.GetString(Convert.FromBase64String(parts[4]));
-            if (Sync.TryAcceptSettingsSnapshot(new CSteamID(hostSteamId), roundId, revision,
-                "gun-game-lobby-data"))
+            string weaponOrder = Encoding.UTF8.GetString(Convert.FromBase64String(fields[1]));
+            if (Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("gun-game", "settings")))
             {
-                ApplySettings(parts[3] == "1", weaponOrder);
+                ApplySettings(enabled, weaponOrder);
                 Plugin.Logger.LogInfo($"[GunGame] Accepted settings via lobby data: round={roundId} "
                     + $"revision={revision}");
             }
@@ -276,14 +272,13 @@ internal static class GunGameState
 
     private static void ApplyLobbyLiveSnapshot()
     {
-        string payload = MyceliumNetwork.GetLobbyData<string>(LiveLobbyDataKey) ?? string.Empty;
-        string[] parts = payload.Split(new[] { '|' }, 4);
-        if (parts.Length != 4 || !ulong.TryParse(parts[0], out ulong hostSteamId)
-            || !int.TryParse(parts[1], out int roundId) || !int.TryParse(parts[2], out int revision))
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 1, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields))
         {
             return;
         }
 
-        ApplyLiveState(new CSteamID(hostSteamId), parts[3], roundId, revision, "lobby-data");
+        ApplyLiveState(hostId, fields[0], roundId, revision,
+            ModeLobbyDataSync.Source("gun-game", "live"));
     }
 }

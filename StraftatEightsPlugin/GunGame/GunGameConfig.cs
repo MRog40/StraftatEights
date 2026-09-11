@@ -22,8 +22,7 @@ public partial class Plugin
         GunGameEnabled.SettingChanged += (_, _) => { GunGameState.PushSettingsIfHost(); GameModeManager.OnSettingsChanged(); };
         GunGameWeaponOrder.SettingChanged += (_, _) => GunGameState.PushSettingsIfHost();
         MyceliumNetwork.RegisterNetworkObject(this, GunGameModId);
-        MyceliumNetwork.RegisterLobbyDataKey(GunGameState.SettingsLobbyDataKey);
-        MyceliumNetwork.RegisterLobbyDataKey(GunGameState.LiveLobbyDataKey);
+        ModeLobbyDataSync.RegisterKeys(GunGameState.SettingsLobbyDataKey, GunGameState.LiveLobbyDataKey);
         MyceliumNetwork.LobbyCreated += GunGameState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += GunGameState.OnLobbyEntered;
         MyceliumNetwork.LobbyDataUpdated += GunGameState.OnLobbyDataUpdated;
@@ -31,8 +30,13 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncGunGameSettings(CSteamID hostId, int roundId, int revision, bool enabled, string? weaponOrder)
+    public void SyncGunGameSettings(CSteamID hostId, int roundId, int revision, bool enabled, string? weaponOrder,
+        RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         DebugLog.Info($"GunGame settings received source=rpc host={hostId.m_SteamID} round={roundId} "
             + $"revision={revision} enabled={enabled} orderLength={weaponOrder?.Length ?? 0}");
         if (!GunGameState.TryAcceptSettingsSnapshot(hostId, roundId, revision, "gun-game-rpc"))
@@ -44,8 +48,16 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncGunGameLiveState(CSteamID hostId, string? progressData, int roundId, int revision)
+    public void SyncGunGameLiveState(CSteamID hostId, string? progressData, int roundId, int revision, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
+        if (!GameModeManager.IsActive(GameMode.GunGame))
+        {
+            return;
+        }
         DebugLog.Info($"GunGame live state received source=rpc host={hostId.m_SteamID} round={roundId} "
             + $"revision={revision} payloadLength={progressData?.Length ?? 0}");
         GunGameState.ApplyLiveState(hostId, progressData ?? string.Empty, roundId, revision, "gun-game-rpc");

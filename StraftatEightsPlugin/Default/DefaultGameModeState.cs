@@ -9,6 +9,7 @@ namespace StraftatEightsPlugin;
 
 internal static class DefaultGameModeState
 {
+    internal const string LiveLobbyDataKey = "StraftatEights_Default_Live";
     internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
     internal static int AliveCount => AlivePlayers.Count;
     internal static int SubRoundId { get; private set; }
@@ -27,6 +28,26 @@ internal static class DefaultGameModeState
         {
             BroadcastLiveState();
         }
+    }
+
+    internal static void OnLobbyEntered()
+    {
+        Sync.ResetForLobby();
+        if (!MyceliumNetwork.IsHost)
+        {
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || !ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
+        {
+            return;
+        }
+
+        ApplyLobbyLiveSnapshot();
     }
 
     internal static void ResetMatchState()
@@ -79,10 +100,11 @@ internal static class DefaultGameModeState
     }
 
     internal static void ApplyLiveState(CSteamID hostId, string scoresData, string aliveData,
-        int subRoundId, int winnerId, int roundId, int revision)
+        int subRoundId, int winnerId, int roundId, int revision, string source = "rpc")
     {
         int previousRoundId = Sync.LastLiveRoundId;
-        if (subRoundId < 0 || winnerId < -1 || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
+        if (subRoundId < 0 || winnerId < -1
+            || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
@@ -326,11 +348,29 @@ internal static class DefaultGameModeState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            int revision = Sync.NextLiveRevision();
+            ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+                GameModeManager.RoundId, revision, SerializeScores(), SerializeAlive(),
+                SubRoundId.ToString(), WinnerId.ToString());
             MyceliumNetwork.RPC(Plugin.DefaultGameModeModId,
                 nameof(Plugin.SyncDefaultGameModeLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, SerializeScores(), SerializeAlive(), SubRoundId,
-                WinnerId, GameModeManager.RoundId, Sync.NextLiveRevision());
+                WinnerId, GameModeManager.RoundId, revision);
         }
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 4, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !int.TryParse(fields[2], out int subRoundId)
+            || !int.TryParse(fields[3], out int winnerId))
+        {
+            return;
+        }
+
+        ApplyLiveState(hostId, fields[0], fields[1], subRoundId, winnerId, roundId, revision,
+            ModeLobbyDataSync.Source("default", "live"));
     }
 
     private static void Announce(string text)

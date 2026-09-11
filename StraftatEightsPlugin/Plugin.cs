@@ -41,6 +41,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("Mycelium transport recovery", MyceliumTransportRecovery.Initialize);
         InitializeSafely("weapon service", WeaponService.Initialize);
         InitializeSafely("game mode manager", GameModeManager.Initialize);
+        InitializeSafely("shared player outline", PlayerOutline.Initialize);
 
         InitializeSafely("global modifiers", InitializeGlobalModifiers);
         InitializeSafely("health settings", InitializeHealthSettings);
@@ -146,10 +147,7 @@ public partial class Plugin : BaseUnityPlugin
         WeaponSettingsState.PeriodicPushIfHost();
         WeaponSettingsState.EnsureCycleLoadouts();
         GameModeManager.EnsureActiveModeLoadouts();
-        JuggernautOutline.EnforceOutline();
-        MichaelMeyersOutline.EnforceOutline();
-        KillTheRatOutline.EnforceOutline();
-        HVTOutline.EnforceOutline();
+        PlayerOutline.EnforceOutline();
         RespawnProtection.Update();
     }
 }

@@ -9,6 +9,8 @@ namespace StraftatEightsPlugin;
 
 internal static class MichaelMeyersState
 {
+    internal const string SettingsLobbyDataKey = "StraftatEights_MichaelMeyers_Settings";
+    internal const string LiveLobbyDataKey = "StraftatEights_MichaelMeyers_Live";
     internal const string WeaponName = "Couperet";
     internal const string SurvivorWeaponName = WeaponName;
     private const float SurvivorWeaponDelaySeconds = 3f;
@@ -49,8 +51,10 @@ internal static class MichaelMeyersState
         }
 
         ApplyFromConfig();
+        int revision = Sync.NextSettingsRevision();
+        PublishSettingsSnapshot(revision);
         MyceliumNetwork.RPC(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
             Plugin.MichaelMeyersEnabled.Value);
     }
 
@@ -77,6 +81,28 @@ internal static class MichaelMeyersState
         {
             ApplyFromConfig();
             ResetMatchState();
+        }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
         }
     }
 
@@ -116,13 +142,13 @@ internal static class MichaelMeyersState
     }
 
     internal static void ApplyLiveState(CSteamID hostId, int michaelPlayerId, int survivorCount, bool oneVsOne,
-        int roundId, int revision)
+        int roundId, int revision, string source = "rpc")
     {
         if (michaelPlayerId < -1 || survivorCount < 0)
         {
             return;
         }
-        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
@@ -436,10 +462,49 @@ internal static class MichaelMeyersState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            int revision = Sync.NextLiveRevision();
+            ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+                GameModeManager.RoundId, revision, CurrentMichaelPlayerId.ToString(),
+                SurvivorCount.ToString(), OneVsOne ? "1" : "0");
             MyceliumNetwork.RPC(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersLiveState),
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, SurvivorCount, OneVsOne,
-                GameModeManager.RoundId, Sync.NextLiveRevision());
+                GameModeManager.RoundId, revision);
         }
+    }
+
+    private static void PublishSettingsSnapshot(int revision)
+    {
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, Plugin.MichaelMeyersEnabled.Value ? "1" : "0");
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("michael-meyers", "settings")))
+        {
+            return;
+        }
+
+        ApplySettings(enabled);
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 3, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !int.TryParse(fields[0], out int michaelPlayerId)
+            || !int.TryParse(fields[1], out int survivorCount)
+            || !LobbySnapshotCodec.TryParseBool(fields[2], out bool oneVsOne))
+        {
+            return;
+        }
+
+        ApplyLiveState(hostId, michaelPlayerId, survivorCount, oneVsOne, roundId, revision,
+            ModeLobbyDataSync.Source("michael-meyers", "live"));
     }
 
     private static void Announce(string text)

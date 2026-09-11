@@ -22,8 +22,7 @@ public partial class Plugin
         };
 
         MyceliumNetwork.RegisterNetworkObject(this, HVTModId);
-        MyceliumNetwork.RegisterLobbyDataKey(HVTState.SettingsLobbyDataKey);
-        MyceliumNetwork.RegisterLobbyDataKey(HVTState.LiveLobbyDataKey);
+        ModeLobbyDataSync.RegisterKeys(HVTState.SettingsLobbyDataKey, HVTState.LiveLobbyDataKey);
         MyceliumNetwork.LobbyCreated += HVTState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += HVTState.OnLobbyEntered;
         MyceliumNetwork.LobbyDataUpdated += HVTState.OnLobbyDataUpdated;
@@ -31,8 +30,12 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncHVTSettings(CSteamID hostId, int roundId, int revision, bool enabled)
+    public void SyncHVTSettings(CSteamID hostId, int roundId, int revision, bool enabled, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (!HVTState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
         {
             return;
@@ -42,14 +45,26 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncHVTLiveState(CSteamID hostId, int hvtPlayerId, string pointsData,
-        int winnerId, int roundId, int revision)
+        int winnerId, int roundId, int revision, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
+        if (!GameModeManager.IsActive(GameMode.HVT))
+        {
+            return;
+        }
         HVTState.ApplyLiveState(hostId, hvtPlayerId, pointsData, winnerId, roundId, revision);
     }
 
     [CustomRPC]
-    public void HVTAnnounce(string text)
+    public void HVTAnnounce(string text, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (PauseManager.Instance != null)
         {
             PauseManager.Instance.WriteLog(ClientInstance.ReplaceAllPlayerNameTags(text));

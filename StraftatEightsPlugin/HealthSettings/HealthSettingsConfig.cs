@@ -46,8 +46,12 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncHealthSettings(CSteamID hostId, int roundId, int revision, bool enabled,
-        int maxHealthPercent, bool regenEnabled, int regenDelaySeconds, int regenRate)
+        int maxHealthPercent, bool regenEnabled, int regenDelaySeconds, int regenRate, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (!HealthSettingsState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
         {
             return;

@@ -22,14 +22,22 @@ public partial class Plugin
         };
 
         MyceliumNetwork.RegisterNetworkObject(this, OneInTheChamberModId);
+        ModeLobbyDataSync.RegisterKeys(OneInTheChamberState.SettingsLobbyDataKey,
+            OneInTheChamberState.LiveLobbyDataKey);
         MyceliumNetwork.LobbyCreated += OneInTheChamberState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += OneInTheChamberState.OnLobbyEntered;
+        MyceliumNetwork.LobbyDataUpdated += OneInTheChamberState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += OneInTheChamberState.OnPlayerEntered;
     }
 
     [CustomRPC]
-    public void SyncOneInTheChamberSettings(CSteamID hostId, int roundId, int revision, bool enabled)
+    public void SyncOneInTheChamberSettings(CSteamID hostId, int roundId, int revision, bool enabled,
+        RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (!OneInTheChamberState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
         {
             return;
@@ -39,15 +47,27 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncOneInTheChamberLiveState(CSteamID hostId, string aliveData, string bulletsData,
-        string scoresData, int subRoundId, int winnerId, int roundId, int revision)
+        string scoresData, int subRoundId, int winnerId, int roundId, int revision, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
+        if (!GameModeManager.IsActive(GameMode.OneInTheChamber))
+        {
+            return;
+        }
         OneInTheChamberState.ApplyLiveState(hostId, aliveData, bulletsData, scoresData,
             subRoundId, winnerId, roundId, revision);
     }
 
     [CustomRPC]
-    public void OneInTheChamberAnnounce(string text)
+    public void OneInTheChamberAnnounce(string text, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (PauseManager.Instance != null)
         {
             PauseManager.Instance.WriteLog(ClientInstance.ReplaceAllPlayerNameTags(text));

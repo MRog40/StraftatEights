@@ -26,6 +26,26 @@ Assert(!SnapshotValidation.TryAccept(-1, 0, ref lastRound, ref lastRevision),
 Assert(!SnapshotValidation.TryAccept(3, -1, ref lastRound, ref lastRevision),
     "A negative revision must be rejected.");
 
+string lobbyPayload = LobbySnapshotCodec.Build(76561198000000001UL, 7, 12, "1", "points:4", "");
+Assert(LobbySnapshotCodec.TryParse(lobbyPayload, 3, out ulong lobbyHostId,
+        out int lobbyRoundId, out int lobbyRevision, out string[] lobbyFields)
+    && lobbyHostId == 76561198000000001UL && lobbyRoundId == 7 && lobbyRevision == 12
+    && lobbyFields.SequenceEqual(new[] { "1", "points:4", "" }),
+    "Lobby snapshots must round-trip the common envelope and empty fields.");
+Assert(!LobbySnapshotCodec.TryParse("76561198000000001|7|12|1", 2,
+        out _, out _, out _, out _),
+    "Lobby snapshots with missing mode fields must be rejected.");
+Assert(LobbySnapshotCodec.TryParseBool("0", out bool falseValue) && !falseValue
+    && LobbySnapshotCodec.TryParseBool("1", out bool trueValue) && trueValue
+    && !LobbySnapshotCodec.TryParseBool("true", out _),
+    "Lobby boolean fields must use the explicit 0/1 wire format.");
+Assert(LobbySnapshotCodec.TryParseOrdered("76561198000000001|11|7|2|19", 5, 0, 2, 4,
+        out ulong orderedHostId, out int orderedRoundId, out int orderedRevision,
+        out string[] orderedParts)
+    && orderedHostId == 76561198000000001UL && orderedRoundId == 7
+    && orderedRevision == 19 && orderedParts[1] == "11" && orderedParts[3] == "2",
+    "Ordered lobby snapshots must validate cursors at explicit indexes.");
+
 ModeSyncValidation sync = new();
 Assert(sync.NextSettingsRevision() == 1 && sync.NextLiveRevision() == 1,
     "Settings and live revisions must start as independent streams.");
@@ -94,8 +114,8 @@ Assert(OneInTheChamberRules.ApplyDeath(alivePlayers, reserveBullets, 2, -1)
     "A non-kill death must eliminate the victim without awarding a bullet.");
 Assert(alivePlayers.Count == 1 && alivePlayers.Contains(1),
     "The last remaining player must be the round winner.");
-Assert(OneInTheChamberRules.PlayerHealth == 10,
-    "One in the Chamber must use ten health for every player.");
+Assert(Math.Abs(OneInTheChamberRules.PlayerHealth - 0.4f) < 0.001f,
+    "One in the Chamber must use ten displayed health for every player.");
 Assert(HotPotatoRules.IsAllowedWeapon("BaseballBat(Clone)", true)
     && HotPotatoRules.IsAllowedWeapon("Shotgun(Clone)", false),
     "Hot Potato must use the BaseballBat and Shotgun prefabs.");

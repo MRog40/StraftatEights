@@ -9,6 +9,8 @@ namespace StraftatEightsPlugin;
 
 internal static class InfidelState
 {
+    internal const string SettingsLobbyDataKey = "StraftatEights_Infidel_Settings";
+    internal const string LiveLobbyDataKey = "StraftatEights_Infidel_Live";
     internal const string WeaponName = "AK-K";
     internal const int SpareMagazines = 2;
     internal const float InfidelHealth = 200f / 25f;
@@ -56,8 +58,11 @@ internal static class InfidelState
         }
 
         ApplySettingsFromHostConfig();
+        int revision = Sync.NextSettingsRevision();
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, Plugin.InfidelEnabled.Value ? "1" : "0");
         MyceliumNetwork.RPC(Plugin.InfidelModId, nameof(Plugin.SyncInfidelSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
             Plugin.InfidelEnabled.Value);
     }
 
@@ -87,6 +92,28 @@ internal static class InfidelState
         {
             ApplySettingsFromHostConfig();
             ResetMatchState();
+        }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
         }
     }
 
@@ -143,10 +170,10 @@ internal static class InfidelState
     }
 
     internal static void ApplyLiveState(CSteamID hostId, string scoresData, int winnerId,
-        int subRoundId, bool weaponsUnlocked, int roundId, int revision)
+        int subRoundId, bool weaponsUnlocked, int roundId, int revision, string source = "rpc")
     {
         int previousRoundId = Sync.LastLiveRoundId;
-        if (winnerId < -1 || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
+        if (winnerId < -1 || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
@@ -603,10 +630,43 @@ internal static class InfidelState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            int revision = Sync.NextLiveRevision();
+            ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+                GameModeManager.RoundId, revision, SerializeScores(), WinnerId.ToString(),
+                _subRoundId.ToString(), WeaponsUnlocked ? "1" : "0");
             MyceliumNetwork.RPC(Plugin.InfidelModId, nameof(Plugin.SyncInfidelLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, SerializeScores(), WinnerId, _subRoundId,
-                WeaponsUnlocked, GameModeManager.RoundId, Sync.NextLiveRevision());
+                WeaponsUnlocked, GameModeManager.RoundId, revision);
         }
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("infidel", "settings")))
+        {
+            return;
+        }
+
+        ApplySettings(enabled);
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 4, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !int.TryParse(fields[1], out int winnerId)
+            || !int.TryParse(fields[2], out int subRoundId)
+            || !LobbySnapshotCodec.TryParseBool(fields[3], out bool weaponsUnlocked))
+        {
+            return;
+        }
+
+        ApplyLiveState(hostId, fields[0], winnerId, subRoundId, weaponsUnlocked,
+            roundId, revision, ModeLobbyDataSync.Source("infidel", "live"));
     }
 
     private static void Announce(string text)

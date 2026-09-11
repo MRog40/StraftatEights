@@ -11,6 +11,8 @@ namespace StraftatEightsPlugin;
 // RPC entry points, and JuggernautPatches for where this actually gets enforced/observed via Harmony.
 internal static class JuggernautState
 {
+    internal const string SettingsLobbyDataKey = "StraftatEights_Juggernaut_Settings";
+    internal const string LiveLobbyDataKey = "StraftatEights_Juggernaut_Live";
     internal const string WeaponName = "Minigun";
     internal const float BaseHealth = 200f / 25f;
     internal const float HealthPerKill = 50f / 25f;
@@ -61,8 +63,10 @@ internal static class JuggernautState
         }
         ApplySettingsFromHostConfig();
         Plugin.Logger.LogInfo($"[Juggernaut] Host broadcasting settings to {MyceliumNetwork.PlayerCount} player(s)");
+        int revision = Sync.NextSettingsRevision();
+        PublishSettingsSnapshot(revision);
         MyceliumNetwork.RPC(Plugin.JuggernautModId, nameof(Plugin.SyncJuggernautSettings), ReliableType.Reliable,
-            SettingsRpcArgs(Sync.NextSettingsRevision()));
+            SettingsRpcArgs(revision));
     }
 
     // Same reasoning as GlobalModifiersState.PeriodicPushIfHost: a single one-shot settings broadcast
@@ -95,6 +99,28 @@ internal static class JuggernautState
         {
             ApplySettingsFromHostConfig();
             ResetMatchState();
+        }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
         }
     }
 
@@ -131,13 +157,13 @@ internal static class JuggernautState
     }
 
     internal static void ApplyLiveState(CSteamID hostId, int juggernautPlayerId, int juggernautKills,
-        string pointsData, int roundId, int revision)
+        string pointsData, int roundId, int revision, string source = "rpc")
     {
         if (juggernautPlayerId < -1 || juggernautKills < 0)
         {
             return;
         }
-        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
@@ -379,9 +405,47 @@ internal static class JuggernautState
         {
             return;
         }
+        int revision = Sync.NextLiveRevision();
+        ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, CurrentJuggernautPlayerId.ToString(),
+            CurrentJuggernautKills.ToString(), SerializePoints());
         MyceliumNetwork.RPC(Plugin.JuggernautModId, nameof(Plugin.SyncJuggernautLiveState), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, CurrentJuggernautPlayerId, CurrentJuggernautKills, SerializePoints(),
-            GameModeManager.RoundId, Sync.NextLiveRevision());
+            GameModeManager.RoundId, revision);
+    }
+
+    private static void PublishSettingsSnapshot(int revision)
+    {
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, Plugin.JuggernautEnabled.Value ? "1" : "0");
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("juggernaut", "settings")))
+        {
+            return;
+        }
+
+        ApplySettings(enabled);
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 3, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !int.TryParse(fields[0], out int juggernautPlayerId)
+            || !int.TryParse(fields[1], out int juggernautKills))
+        {
+            return;
+        }
+
+        ApplyLiveState(hostId, juggernautPlayerId, juggernautKills, fields[2], roundId, revision,
+            ModeLobbyDataSync.Source("juggernaut", "live"));
     }
 
     private static void Announce(string text)

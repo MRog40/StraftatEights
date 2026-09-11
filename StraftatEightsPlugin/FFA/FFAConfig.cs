@@ -19,14 +19,20 @@ public partial class Plugin
         FFAEnabled.SettingChanged += (_, _) => { FFAState.PushSettingsIfHost(); GameModeManager.OnSettingsChanged(); };
 
         MyceliumNetwork.RegisterNetworkObject(this, FFAModId);
+        ModeLobbyDataSync.RegisterKeys(FFAState.SettingsLobbyDataKey, FFAState.LiveLobbyDataKey);
         MyceliumNetwork.LobbyCreated += FFAState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += FFAState.OnLobbyEntered;
+        MyceliumNetwork.LobbyDataUpdated += FFAState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += FFAState.OnPlayerEntered;
     }
 
     [CustomRPC]
-    public void SyncFFASettings(CSteamID hostId, int roundId, int revision, bool enabled)
+    public void SyncFFASettings(CSteamID hostId, int roundId, int revision, bool enabled, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (!FFAState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
         {
             return;
@@ -35,14 +41,27 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncFFALiveState(CSteamID hostId, string killsData, int winnerId, int roundId, int revision)
+    public void SyncFFALiveState(CSteamID hostId, string killsData, int winnerId, int roundId, int revision,
+        RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
+        if (!GameModeManager.IsActive(GameMode.FreeForAll))
+        {
+            return;
+        }
         FFAState.ApplyLiveState(hostId, killsData, winnerId, roundId, revision);
     }
 
     [CustomRPC]
-    public void FFAAnnounce(string text)
+    public void FFAAnnounce(string text, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (PauseManager.Instance != null)
         {
             PauseManager.Instance.WriteLog(ClientInstance.ReplaceAllPlayerNameTags(text));

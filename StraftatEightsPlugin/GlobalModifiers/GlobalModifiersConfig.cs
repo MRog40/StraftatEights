@@ -76,8 +76,12 @@ public partial class Plugin
     [CustomRPC]
     public void SyncMovementSettings(CSteamID hostId, int roundId, int revision, bool enabled, bool wallJump,
         bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent,
-        int gravityPercent, int momentumPercent, int airSpeedRatioPercent)
+        int gravityPercent, int momentumPercent, int airSpeedRatioPercent, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (!GlobalModifiersState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
         {
             return;

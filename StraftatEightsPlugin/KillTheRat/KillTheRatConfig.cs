@@ -22,14 +22,20 @@ public partial class Plugin
         };
 
         MyceliumNetwork.RegisterNetworkObject(this, KillTheRatModId);
+        ModeLobbyDataSync.RegisterKeys(KillTheRatState.SettingsLobbyDataKey, KillTheRatState.LiveLobbyDataKey);
         MyceliumNetwork.LobbyCreated += KillTheRatState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += KillTheRatState.OnLobbyEntered;
+        MyceliumNetwork.LobbyDataUpdated += KillTheRatState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += KillTheRatState.OnPlayerEntered;
     }
 
     [CustomRPC]
-    public void SyncKillTheRatSettings(CSteamID hostId, int roundId, int revision, bool enabled)
+    public void SyncKillTheRatSettings(CSteamID hostId, int roundId, int revision, bool enabled, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (!KillTheRatState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
         {
             return;
@@ -39,14 +45,26 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncKillTheRatLiveState(CSteamID hostId, int ratPlayerId, string pointsData,
-        int winnerId, int roundId, int revision)
+        int winnerId, int roundId, int revision, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
+        if (!GameModeManager.IsActive(GameMode.KillTheRat))
+        {
+            return;
+        }
         KillTheRatState.ApplyLiveState(hostId, ratPlayerId, pointsData, winnerId, roundId, revision);
     }
 
     [CustomRPC]
-    public void KillTheRatAnnounce(string text)
+    public void KillTheRatAnnounce(string text, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (PauseManager.Instance != null)
         {
             PauseManager.Instance.WriteLog(ClientInstance.ReplaceAllPlayerNameTags(text));

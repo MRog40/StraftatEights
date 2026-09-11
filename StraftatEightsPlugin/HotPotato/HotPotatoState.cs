@@ -8,6 +8,8 @@ namespace StraftatEightsPlugin;
 
 internal static class HotPotatoState
 {
+    internal const string SettingsLobbyDataKey = "StraftatEights_HotPotato_Settings";
+    internal const string LiveLobbyDataKey = "StraftatEights_HotPotato_Live";
     internal const string BatWeaponName = "BaseballBat";
     internal const string ShotgunWeaponName = "Shotgun";
     internal static bool Enabled;
@@ -40,8 +42,11 @@ internal static class HotPotatoState
         }
 
         ApplySettingsFromHostConfig();
+        int revision = Sync.NextSettingsRevision();
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, Plugin.HotPotatoEnabled.Value ? "1" : "0");
         MyceliumNetwork.RPC(Plugin.HotPotatoModId, nameof(Plugin.SyncHotPotatoSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
             Plugin.HotPotatoEnabled.Value);
     }
 
@@ -68,6 +73,28 @@ internal static class HotPotatoState
         {
             ApplySettingsFromHostConfig();
             ResetMatchState();
+        }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
         }
     }
 
@@ -102,13 +129,13 @@ internal static class HotPotatoState
     }
 
     internal static void ApplyLiveState(CSteamID hostId, string killsData, int potatoPlayerId,
-        int winnerId, int roundId, int revision)
+        int winnerId, int roundId, int revision, string source = "rpc")
     {
         if (potatoPlayerId < -1 || winnerId < -1)
         {
             return;
         }
-        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
@@ -291,10 +318,42 @@ internal static class HotPotatoState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            int revision = Sync.NextLiveRevision();
+            ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+                GameModeManager.RoundId, revision, SerializeKills(), PotatoPlayerId.ToString(),
+                WinnerId.ToString());
             MyceliumNetwork.RPC(Plugin.HotPotatoModId, nameof(Plugin.SyncHotPotatoLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, SerializeKills(), PotatoPlayerId, WinnerId,
-                GameModeManager.RoundId, Sync.NextLiveRevision());
+                GameModeManager.RoundId, revision);
         }
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("hot-potato", "settings")))
+        {
+            return;
+        }
+
+        ApplySettings(enabled);
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 3, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !int.TryParse(fields[1], out int potatoPlayerId)
+            || !int.TryParse(fields[2], out int winnerId))
+        {
+            return;
+        }
+
+        ApplyLiveState(hostId, fields[0], potatoPlayerId, winnerId, roundId, revision,
+            ModeLobbyDataSync.Source("hot-potato", "live"));
     }
 
     private static void Announce(string text)

@@ -109,7 +109,7 @@ internal static class ScoreCodec
 
 internal static class OneInTheChamberRules
 {
-    internal const int PlayerHealth = 10;
+    internal const float PlayerHealth = 0.4f;
 
     internal static bool IsAllowedWeapon(string weaponName)
     {

@@ -158,7 +158,12 @@ internal static class PlayerPickup_LeftHandFixPolicy_Patch
 {
     private static bool Prefix(PlayerPickup __instance)
     {
-        return !WeaponService.IsOwnerAttachmentPending(__instance)
-            && !WeaponDropPolicy.IsDropBlocked(__instance, false);
+        if (WeaponService.IsOwnerAttachmentPending(__instance))
+        {
+            WeaponService.AttachUnparentedLeftWeapon(__instance);
+            return false;
+        }
+
+        return !WeaponDropPolicy.IsDropBlocked(__instance, false);
     }
 }

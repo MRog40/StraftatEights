@@ -18,20 +18,36 @@ public partial class Plugin
         DefaultGameModeEnabled.SettingChanged += (_, _) => GameModeManager.OnSettingsChanged();
 
         MyceliumNetwork.RegisterNetworkObject(this, DefaultGameModeModId);
+        ModeLobbyDataSync.RegisterKeys(DefaultGameModeState.LiveLobbyDataKey);
+        MyceliumNetwork.LobbyCreated += DefaultGameModeState.OnLobbyEntered;
+        MyceliumNetwork.LobbyEntered += DefaultGameModeState.OnLobbyEntered;
+        MyceliumNetwork.LobbyDataUpdated += DefaultGameModeState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += DefaultGameModeState.OnPlayerEntered;
     }
 
     [CustomRPC]
     public void SyncDefaultGameModeLiveState(CSteamID hostId, string scoresData,
-        string aliveData, int subRoundId, int winnerId, int roundId, int revision)
+        string aliveData, int subRoundId, int winnerId, int roundId, int revision, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
+        if (!GameModeManager.IsActive(GameMode.Default))
+        {
+            return;
+        }
         DefaultGameModeState.ApplyLiveState(hostId, scoresData, aliveData,
             subRoundId, winnerId, roundId, revision);
     }
 
     [CustomRPC]
-    public void DefaultGameModeAnnounce(string text)
+    public void DefaultGameModeAnnounce(string text, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         GameModeHud.AnnounceTarget(ClientInstance.ReplaceAllPlayerNameTags(text));
     }
 }

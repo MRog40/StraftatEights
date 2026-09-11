@@ -15,7 +15,9 @@ internal static class WeaponSettingsState
     internal static List<string> Allowed = new();
     private static readonly Dictionary<int, string> SelectedWeapons = new();
     private static readonly Dictionary<int, float> PendingLoadouts = new();
+    private static readonly NetworkCommandTracker CycleRequests = new();
     private static float _nextLoadoutCheckTime;
+    private static int _nextCycleRequestId;
     private static readonly ModeSyncState Sync = new();
     internal static void Apply(bool enabled, string allowedWeapons, int spareMagazines, bool cycleWeapons)
     {
@@ -58,6 +60,8 @@ internal static class WeaponSettingsState
         Sync.ResetForLobby();
         SelectedWeapons.Clear();
         PendingLoadouts.Clear();
+        CycleRequests.Clear();
+        _nextCycleRequestId = 0;
         if (MyceliumNetwork.IsHost) ApplyFromConfig();
     }
 
@@ -65,11 +69,14 @@ internal static class WeaponSettingsState
     {
         SelectedWeapons.Clear();
         PendingLoadouts.Clear();
+        CycleRequests.Clear();
+        _nextCycleRequestId = 0;
         Sync.ResetForLobby();
         Apply(false, string.Empty, 5, false);
     }
     internal static void OnPlayerEntered(CSteamID player)
     {
+        CycleRequests.Remove(player);
         if (MyceliumNetwork.IsHost) MyceliumNetwork.RPCTarget(Plugin.GlobalWeaponsModId, nameof(Plugin.SyncWeaponSettings), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
             Plugin.WeaponTweaksEnabled.Value, Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value,
@@ -79,6 +86,11 @@ internal static class WeaponSettingsState
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
         return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
+    }
+
+    internal static bool TryAcceptCycleRequest(CSteamID sender, int requestId)
+    {
+        return CycleRequests.TryAccept(sender, requestId);
     }
 
     internal static void UpdateLocalCycle()
@@ -93,7 +105,8 @@ internal static class WeaponSettingsState
         }
         else if (MyceliumNetwork.InLobby)
         {
-            MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId, nameof(Plugin.RequestWeaponCycle), ReliableType.Reliable, ClientInstance.Instance.PlayerId);
+            MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId, nameof(Plugin.RequestWeaponCycle), ReliableType.Reliable,
+                ClientInstance.Instance.PlayerId, ++_nextCycleRequestId);
         }
     }
 

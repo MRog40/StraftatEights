@@ -22,14 +22,20 @@ public partial class Plugin
         };
 
         MyceliumNetwork.RegisterNetworkObject(this, MichaelMeyersModId);
+        ModeLobbyDataSync.RegisterKeys(MichaelMeyersState.SettingsLobbyDataKey, MichaelMeyersState.LiveLobbyDataKey);
         MyceliumNetwork.LobbyCreated += MichaelMeyersState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += MichaelMeyersState.OnLobbyEntered;
+        MyceliumNetwork.LobbyDataUpdated += MichaelMeyersState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += MichaelMeyersState.OnPlayerEntered;
     }
 
     [CustomRPC]
-    public void SyncMichaelMeyersSettings(CSteamID hostId, int roundId, int revision, bool enabled)
+    public void SyncMichaelMeyersSettings(CSteamID hostId, int roundId, int revision, bool enabled, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (!MichaelMeyersState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
         {
             return;
@@ -39,14 +45,26 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncMichaelMeyersLiveState(CSteamID hostId, int michaelPlayerId, int survivorCount, bool oneVsOne,
-        int roundId, int revision)
+        int roundId, int revision, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
+        if (!GameModeManager.IsActive(GameMode.MichaelMeyers))
+        {
+            return;
+        }
         MichaelMeyersState.ApplyLiveState(hostId, michaelPlayerId, survivorCount, oneVsOne, roundId, revision);
     }
 
     [CustomRPC]
-    public void MichaelMeyersAnnounce(string text)
+    public void MichaelMeyersAnnounce(string text, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (PauseManager.Instance != null)
         {
             PauseManager.Instance.WriteLog(ClientInstance.ReplaceAllPlayerNameTags(text));

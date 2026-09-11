@@ -22,14 +22,20 @@ public partial class Plugin
         };
 
         MyceliumNetwork.RegisterNetworkObject(this, InfidelModId);
+        ModeLobbyDataSync.RegisterKeys(InfidelState.SettingsLobbyDataKey, InfidelState.LiveLobbyDataKey);
         MyceliumNetwork.LobbyCreated += InfidelState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += InfidelState.OnLobbyEntered;
+        MyceliumNetwork.LobbyDataUpdated += InfidelState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += InfidelState.OnPlayerEntered;
     }
 
     [CustomRPC]
-    public void SyncInfidelSettings(CSteamID hostId, int roundId, int revision, bool enabled)
+    public void SyncInfidelSettings(CSteamID hostId, int roundId, int revision, bool enabled, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (!InfidelState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
         {
             return;
@@ -39,21 +45,37 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncInfidelLiveState(CSteamID hostId, string scoresData, int winnerId,
-        int subRoundId, bool weaponsUnlocked, int roundId, int revision)
+        int subRoundId, bool weaponsUnlocked, int roundId, int revision, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
+        if (!GameModeManager.IsActive(GameMode.Infidel))
+        {
+            return;
+        }
         InfidelState.ApplyLiveState(hostId, scoresData, winnerId, subRoundId,
             weaponsUnlocked, roundId, revision);
     }
 
     [CustomRPC]
-    public void SyncInfidelRole(CSteamID hostId, int subRoundId, bool isInfidel, bool announce)
+    public void SyncInfidelRole(CSteamID hostId, int subRoundId, bool isInfidel, bool announce, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         InfidelState.ApplyLocalRole(hostId, subRoundId, isInfidel, announce);
     }
 
     [CustomRPC]
-    public void InfidelAnnounce(string text)
+    public void InfidelAnnounce(string text, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (PauseManager.Instance != null)
         {
             PauseManager.Instance.WriteLog(ClientInstance.ReplaceAllPlayerNameTags(text));

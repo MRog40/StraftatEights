@@ -87,11 +87,11 @@ internal static class HVTState
             return;
         }
 
-        if (keys.Contains(SettingsLobbyDataKey))
+        if (ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
         {
             ApplyLobbySettingsSnapshot();
         }
-        if (keys.Contains(LiveLobbyDataKey))
+        if (ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
         {
             ApplyLobbyLiveSnapshot();
         }
@@ -119,23 +119,18 @@ internal static class HVTState
 
     internal static void ResetMatchState()
     {
-        bool preserveNewerRemoteState = !MyceliumNetwork.IsHost
-            && Sync.LastLiveRoundId >= GameModeManager.RoundId;
         Sync.ResetLiveState();
         _survivalAccumulator = 0f;
-        if (!preserveNewerRemoteState)
-        {
-            CurrentHVTPlayerId = -1;
-            WinnerId = -1;
-            Points.Clear();
-        }
+        CurrentHVTPlayerId = -1;
+        WinnerId = -1;
+        Points.Clear();
     }
 
     internal static void ApplyLiveState(CSteamID hostId, int hvtPlayerId, string pointsData,
         int winnerId, int roundId, int revision, string source = "rpc")
     {
         if (hvtPlayerId < -1 || winnerId < -1
-            || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
+            || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
@@ -259,50 +254,46 @@ internal static class HVTState
 
     private static void PublishSettingsSnapshot(int revision)
     {
-        string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
             GameModeManager.RoundId, revision, Plugin.HVTEnabled.Value ? "1" : "0");
-        MyceliumNetwork.SetLobbyData(SettingsLobbyDataKey, payload);
     }
 
     private static void PublishLiveSnapshot(int revision)
     {
-        string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
-            GameModeManager.RoundId, revision, CurrentHVTPlayerId, WinnerId, SerializePoints());
-        MyceliumNetwork.SetLobbyData(LiveLobbyDataKey, payload);
+        ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, CurrentHVTPlayerId.ToString(), WinnerId.ToString(),
+            SerializePoints());
     }
 
     private static void ApplyLobbySettingsSnapshot()
     {
-        string payload = MyceliumNetwork.GetLobbyData<string>(SettingsLobbyDataKey) ?? string.Empty;
-        string[] parts = payload.Split('|');
-        if (parts.Length != 4 || !ulong.TryParse(parts[0], out ulong hostSteamId)
-            || !int.TryParse(parts[1], out int roundId) || !int.TryParse(parts[2], out int revision)
-            || (parts[3] != "0" && parts[3] != "1"))
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled))
         {
             return;
         }
 
-        if (Sync.TryAcceptSettingsSnapshot(new CSteamID(hostSteamId), roundId, revision,
-            "hvt-lobby-data"))
+        if (Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+            ModeLobbyDataSync.Source("hvt", "settings")))
         {
-            ApplySettings(parts[3] == "1");
+            ApplySettings(enabled);
             Plugin.Logger.LogInfo($"[HVT] Accepted settings via lobby data: round={roundId} revision={revision}");
         }
     }
 
     private static void ApplyLobbyLiveSnapshot()
     {
-        string payload = MyceliumNetwork.GetLobbyData<string>(LiveLobbyDataKey) ?? string.Empty;
-        string[] parts = payload.Split(new[] { '|' }, 6);
-        if (parts.Length != 6 || !ulong.TryParse(parts[0], out ulong hostSteamId)
-            || !int.TryParse(parts[1], out int roundId) || !int.TryParse(parts[2], out int revision)
-            || !int.TryParse(parts[3], out int hvtPlayerId) || !int.TryParse(parts[4], out int winnerId))
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 3, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !int.TryParse(fields[0], out int hvtPlayerId)
+            || !int.TryParse(fields[1], out int winnerId))
         {
             return;
         }
 
-        ApplyLiveState(new CSteamID(hostSteamId), hvtPlayerId, parts[5], winnerId,
-            roundId, revision, "lobby-data");
+        ApplyLiveState(hostId, hvtPlayerId, fields[2], winnerId, roundId, revision,
+            ModeLobbyDataSync.Source("hvt", "live"));
     }
 
     private static void Announce(string text)

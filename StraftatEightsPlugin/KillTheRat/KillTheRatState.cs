@@ -8,6 +8,8 @@ namespace StraftatEightsPlugin;
 
 internal static class KillTheRatState
 {
+    internal const string SettingsLobbyDataKey = "StraftatEights_KillTheRat_Settings";
+    internal const string LiveLobbyDataKey = "StraftatEights_KillTheRat_Live";
     internal const string HumanWeaponName = "Glock";
     internal const string RatWeaponName = "Taser";
     internal const float RatHealthMultiplier = 0.5f;
@@ -44,9 +46,11 @@ internal static class KillTheRatState
         }
 
         ApplySettingsFromHostConfig();
+        int revision = Sync.NextSettingsRevision();
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, Plugin.KillTheRatEnabled.Value ? "1" : "0");
         MyceliumNetwork.RPC(Plugin.KillTheRatModId, nameof(Plugin.SyncKillTheRatSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
-            Plugin.KillTheRatEnabled.Value);
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision, Plugin.KillTheRatEnabled.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -73,6 +77,28 @@ internal static class KillTheRatState
             ApplySettingsFromHostConfig();
             ResetMatchState();
         }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
+        }
     }
 
     internal static void OnPlayerEntered(CSteamID player)
@@ -97,28 +123,23 @@ internal static class KillTheRatState
 
     internal static void ResetMatchState()
     {
-        bool preserveNewerRemoteState = !MyceliumNetwork.IsHost
-            && Sync.LastLiveRoundId >= GameModeManager.RoundId;
         Sync.ResetLiveState();
         _survivalAccumulator = 0f;
         _nextLoadoutCheckTime = 0f;
-        if (!preserveNewerRemoteState)
-        {
-            CurrentRatPlayerId = -1;
-            WinnerId = -1;
-            Points.Clear();
-        }
+        CurrentRatPlayerId = -1;
+        WinnerId = -1;
+        Points.Clear();
         PendingLoadouts.Clear();
     }
 
     internal static void ApplyLiveState(CSteamID hostId, int ratPlayerId, string pointsData,
-        int winnerId, int roundId, int revision)
+        int winnerId, int roundId, int revision, string source = "rpc")
     {
         if (ratPlayerId < -1 || winnerId < -1)
         {
             return;
         }
-        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
@@ -384,10 +405,42 @@ internal static class KillTheRatState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            int revision = Sync.NextLiveRevision();
+            ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+                GameModeManager.RoundId, revision, CurrentRatPlayerId.ToString(),
+                WinnerId.ToString(), SerializePoints());
             MyceliumNetwork.RPC(Plugin.KillTheRatModId, nameof(Plugin.SyncKillTheRatLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, CurrentRatPlayerId, SerializePoints(), WinnerId,
-                GameModeManager.RoundId, Sync.NextLiveRevision());
+                GameModeManager.RoundId, revision);
         }
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("kill-the-rat", "settings")))
+        {
+            return;
+        }
+
+        ApplySettings(enabled);
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 3, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !int.TryParse(fields[0], out int ratPlayerId)
+            || !int.TryParse(fields[1], out int winnerId))
+        {
+            return;
+        }
+
+        ApplyLiveState(hostId, ratPlayerId, fields[2], winnerId, roundId, revision,
+            ModeLobbyDataSync.Source("kill-the-rat", "live"));
     }
 
     private static void Announce(string text)

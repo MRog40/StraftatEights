@@ -19,8 +19,8 @@ public partial class Plugin
         SniperBattleEnabled.SettingChanged += (_, _) => { SniperBattleState.PushSettingsIfHost(); GameModeManager.OnSettingsChanged(); };
 
         MyceliumNetwork.RegisterNetworkObject(this, SniperBattleModId);
-        MyceliumNetwork.RegisterLobbyDataKey(SniperBattleState.SettingsLobbyDataKey);
-        MyceliumNetwork.RegisterLobbyDataKey(SniperBattleState.LiveLobbyDataKey);
+        ModeLobbyDataSync.RegisterKeys(SniperBattleState.SettingsLobbyDataKey,
+            SniperBattleState.LiveLobbyDataKey);
         MyceliumNetwork.LobbyCreated += SniperBattleState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += SniperBattleState.OnLobbyEntered;
         MyceliumNetwork.LobbyDataUpdated += SniperBattleState.OnLobbyDataUpdated;
@@ -28,8 +28,12 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncSniperBattleSettings(CSteamID hostId, int roundId, int revision, bool enabled)
+    public void SyncSniperBattleSettings(CSteamID hostId, int roundId, int revision, bool enabled, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         DebugLog.Info($"SniperBattle settings received source=rpc host={hostId.m_SteamID} "
             + $"round={roundId} revision={revision} enabled={enabled}");
         if (!SniperBattleState.TryAcceptSettingsSnapshot(hostId, roundId, revision, "sniper-battle-rpc"))
@@ -41,14 +45,27 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncSniperBattleLiveState(CSteamID hostId, string pointsData, int winnerId, int roundId, int revision)
+    public void SyncSniperBattleLiveState(CSteamID hostId, string pointsData, int winnerId, int roundId,
+        int revision, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
+        if (!GameModeManager.IsActive(GameMode.SniperBattle))
+        {
+            return;
+        }
         SniperBattleState.ApplyLiveState(hostId, pointsData, winnerId, roundId, revision, "rpc");
     }
 
     [CustomRPC]
-    public void SniperBattleAnnounce(string text)
+    public void SniperBattleAnnounce(string text, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (PauseManager.Instance != null)
         {
             PauseManager.Instance.WriteLog(ClientInstance.ReplaceAllPlayerNameTags(text));

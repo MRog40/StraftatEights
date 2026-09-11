@@ -32,8 +32,12 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncWeaponSettings(CSteamID hostId, int roundId, int revision, bool enabled,
-        string allowedWeapons, int spareMagazines, bool cycleWeapons)
+        string allowedWeapons, int spareMagazines, bool cycleWeapons, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (!WeaponSettingsState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
         {
             return;
@@ -42,17 +46,22 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void RequestWeaponCycle(int playerId)
+    public void RequestWeaponCycle(int playerId, int requestId, RPCInfo info)
     {
-        if (MyceliumNetwork.IsHost && WeaponSettingsState.Enabled && WeaponSettingsState.Cycle)
+        if (MyceliumNetwork.IsHost && NetworkAuthority.IsPlayerSender(info, playerId)
+            && WeaponSettingsState.TryAcceptCycleRequest(info.SenderSteamID, requestId)
+            && WeaponSettingsState.Enabled && WeaponSettingsState.Cycle)
         {
             WeaponSettingsState.GiveCycledWeapon(playerId);
         }
     }
 
     [CustomRPC]
-    public void AttachServerGrantedWeapon(int playerId)
+    public void AttachServerGrantedWeapon(int playerId, RPCInfo info)
     {
-        WeaponService.AttachGrantedWeaponForOwner(playerId);
+        if (NetworkAuthority.IsHostSender(info) && NetworkAuthority.IsLocalPlayer(playerId))
+        {
+            WeaponService.AttachGrantedWeaponForOwner(playerId);
+        }
     }
 }

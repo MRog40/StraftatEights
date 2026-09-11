@@ -9,7 +9,9 @@ namespace StraftatEightsPlugin;
 
 internal static class OneInTheChamberState
 {
-    internal const float PlayerHealth = 10f;
+    internal const string SettingsLobbyDataKey = "StraftatEights_OneInTheChamber_Settings";
+    internal const string LiveLobbyDataKey = "StraftatEights_OneInTheChamber_Live";
+    internal const float PlayerHealth = 0.4f;
     internal const int PointsPerRoundWin = ScoreRules.PointsPerRoundWin;
     internal const string PistolWeaponName = "Silenzzio";
     internal const string CouperetWeaponName = "Couperet";
@@ -50,8 +52,11 @@ internal static class OneInTheChamberState
         }
 
         ApplySettingsFromHostConfig();
+        int revision = Sync.NextSettingsRevision();
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, Plugin.OneInTheChamberEnabled.Value ? "1" : "0");
         MyceliumNetwork.RPC(Plugin.OneInTheChamberModId, nameof(Plugin.SyncOneInTheChamberSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
             Plugin.OneInTheChamberEnabled.Value);
     }
 
@@ -79,6 +84,28 @@ internal static class OneInTheChamberState
         {
             ApplySettingsFromHostConfig();
             ResetMatchState();
+        }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
         }
     }
 
@@ -132,11 +159,12 @@ internal static class OneInTheChamberState
     }
 
     internal static void ApplyLiveState(CSteamID hostId, string aliveData, string bulletsData,
-        string scoresData, int subRoundId, int winnerId, int roundId, int revision)
+        string scoresData, int subRoundId, int winnerId, int roundId, int revision,
+        string source = "rpc")
     {
         int previousRoundId = Sync.LastLiveRoundId;
         if (subRoundId < 0 || winnerId < -1
-            || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision))
+            || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
@@ -636,10 +664,42 @@ internal static class OneInTheChamberState
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            int revision = Sync.NextLiveRevision();
+            ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+                GameModeManager.RoundId, revision, SerializeAlive(), SerializeBullets(),
+                SerializeScores(), SubRoundId.ToString(), WinnerId.ToString());
             MyceliumNetwork.RPC(Plugin.OneInTheChamberModId, nameof(Plugin.SyncOneInTheChamberLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, SerializeAlive(), SerializeBullets(), SerializeScores(),
-                SubRoundId, WinnerId, GameModeManager.RoundId, Sync.NextLiveRevision());
+                SubRoundId, WinnerId, GameModeManager.RoundId, revision);
         }
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("one-in-the-chamber", "settings")))
+        {
+            return;
+        }
+
+        ApplySettings(enabled);
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 5, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !int.TryParse(fields[3], out int subRoundId)
+            || !int.TryParse(fields[4], out int winnerId))
+        {
+            return;
+        }
+
+        ApplyLiveState(hostId, fields[0], fields[1], fields[2], subRoundId, winnerId,
+            roundId, revision, ModeLobbyDataSync.Source("one-in-the-chamber", "live"));
     }
 
     private static void Announce(string text)

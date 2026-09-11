@@ -187,7 +187,7 @@ internal static class GameModeManager
         PointsToWin.SettingChanged += (_, _) => OnGlobalSettingsChanged();
 
         MyceliumNetwork.RegisterNetworkObject(Plugin.Instance, ModId);
-        MyceliumNetwork.RegisterLobbyDataKey(ActiveModeLobbyDataKey);
+        ModeLobbyDataSync.RegisterKeys(ActiveModeLobbyDataKey);
         MyceliumNetwork.LobbyCreated += OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += OnLobbyEntered;
         MyceliumNetwork.LobbyLeft += OnLobbyLeft;
@@ -483,7 +483,7 @@ internal static class GameModeManager
     private static void OnLobbyDataUpdated(List<string> keys)
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
-            || !keys.Contains(ActiveModeLobbyDataKey))
+            || !ModeLobbyDataSync.ContainsKey(keys, ActiveModeLobbyDataKey))
         {
             return;
         }
@@ -638,6 +638,13 @@ internal static class GameModeManager
     internal static void ResetGameState()
     {
         DebugLog.Info($"ResetGameState host={MyceliumNetwork.IsHost} mode={ActiveMode} phase={Phase} round={RoundId}");
+        if (Phase == GameModePhase.EndingRound)
+        {
+            PendingDeaths.Clear();
+            GameModeRespawn.ResetForMatch();
+            return;
+        }
+
         ResetMatchState();
         if (MyceliumNetwork.IsHost)
         {
@@ -687,21 +694,19 @@ internal static class GameModeManager
     {
         string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
             (int)ActiveMode, RoundId, (int)Phase, revision);
-        MyceliumNetwork.SetLobbyData(ActiveModeLobbyDataKey, payload);
+        ModeLobbyDataSync.PublishRaw(ActiveModeLobbyDataKey, payload);
     }
 
     private static void ApplyLobbyActiveModeSnapshot()
     {
-        string payload = MyceliumNetwork.GetLobbyData<string>(ActiveModeLobbyDataKey) ?? string.Empty;
-        string[] parts = payload.Split('|');
-        if (parts.Length != 5 || !ulong.TryParse(parts[0], out ulong hostSteamId)
-            || !int.TryParse(parts[1], out int mode) || !int.TryParse(parts[2], out int roundId)
-            || !int.TryParse(parts[3], out int phase) || !int.TryParse(parts[4], out int revision))
+        if (!ModeLobbyDataSync.TryReadOrdered(ActiveModeLobbyDataKey, 5, 0, 2, 4,
+            out CSteamID hostId, out int roundId, out int revision, out string[] parts)
+            || !int.TryParse(parts[1], out int mode)
+            || !int.TryParse(parts[3], out int phase))
         {
             return;
         }
 
-        CSteamID hostId = new(hostSteamId);
         if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, "active-mode-lobby-data"))
         {
             return;
@@ -857,9 +862,10 @@ internal static class GameManager_GameModeDeath_Patch
 public partial class Plugin
 {
     [CustomRPC]
-    public void SyncScorePopup(int amount)
+    public void SyncScorePopup(int amount, RPCInfo info)
     {
-        if (amount <= 0 || amount > ScoreRules.PointsToWin)
+        if (!NetworkAuthority.IsHostSender(info)
+            || amount <= 0 || amount > ScoreRules.PointsToWin)
         {
             return;
         }
@@ -869,8 +875,12 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncGlobalSettings(CSteamID hostId, int roundId, int revision, float respawnDelaySeconds,
-        int pointsToWin)
+        int pointsToWin, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (!GameModeManager.TryAcceptGlobalSettingsSnapshot(hostId, roundId, revision))
         {
             return;
@@ -879,8 +889,12 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncActiveGameMode(CSteamID hostId, int mode, int roundId, int phase, int revision)
+    public void SyncActiveGameMode(CSteamID hostId, int mode, int roundId, int phase, int revision, RPCInfo info)
     {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
         if (!GameModeManager.TryAcceptActiveModeSnapshot(hostId, roundId, revision, "active-mode-rpc"))
         {
             return;
@@ -901,10 +915,6 @@ internal static class GameManager_GameModeReset_Patch
         GameModeManager.ResetGameState();
         PlayerOutline.ResetState();
         RespawnProtection.ResetState();
-        JuggernautOutline.ResetState();
-        MichaelMeyersOutline.ResetState();
-        KillTheRatOutline.ResetState();
-        HVTOutline.ResetState();
     }
 }
 

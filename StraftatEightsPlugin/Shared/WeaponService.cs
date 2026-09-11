@@ -221,12 +221,23 @@ internal static class WeaponService
 
     internal static void AttachUnparentedWeapon(PlayerPickup pickup)
     {
-        if (!pickup.IsOwner || !pickup.hasObjectInHand || pickup.objInHand == null)
+        AttachUnparentedWeapon(pickup, true);
+    }
+
+    internal static void AttachUnparentedLeftWeapon(PlayerPickup pickup)
+    {
+        AttachUnparentedWeapon(pickup, false);
+    }
+
+    private static void AttachUnparentedWeapon(PlayerPickup pickup, bool rightHand)
+    {
+        bool hasWeapon = rightHand ? pickup.hasObjectInHand : pickup.hasObjectInLeftHand;
+        GameObject? weapon = rightHand ? pickup.objInHand : pickup.objInLeftHand;
+        if (!pickup.IsOwner || !hasWeapon || weapon == null)
         {
             return;
         }
 
-        GameObject weapon = pickup.objInHand;
         ItemBehaviour? item = weapon.GetComponent<ItemBehaviour>();
         Weapon? weaponComponent = weapon.GetComponent<Weapon>();
         if (item == null || weaponComponent == null)
@@ -234,15 +245,18 @@ internal static class WeaponService
             return;
         }
 
-        Transform? expectedParent = weaponComponent.requireBothHands
-            ? pickup.pickupPositionBothHand[item.camChildIndex]
-            : pickup.pickupPositionRightHand[item.camChildIndex];
+        Transform? expectedParent = rightHand
+            ? (weaponComponent.requireBothHands
+                ? pickup.pickupPositionBothHand[item.camChildIndex]
+                : pickup.pickupPositionRightHand[item.camChildIndex])
+            : pickup.pickupPositionLeftHand[item.camChildIndexLeftHand];
         if (expectedParent == null)
         {
             return;
         }
 
-        if (weapon.transform.parent == expectedParent && weaponComponent.inRightHand &&
+        bool isInExpectedHand = rightHand ? weaponComponent.inRightHand : weaponComponent.inLeftHand;
+        if (weapon.transform.parent == expectedParent && isInExpectedHand &&
             item.playerPickup == pickup && item.rootObject == pickup.gameObject)
         {
             return;
@@ -252,11 +266,18 @@ internal static class WeaponService
         {
             return;
         }
-        object[] args = { weapon, expectedParent.position, expectedParent.rotation, pickup.gameObject, true };
+        object[] args = { weapon, expectedParent.position, expectedParent.rotation, pickup.gameObject, rightHand };
         SetObjectInHandObserverLogic!.Invoke(pickup, args);
         pickup.HandsReconstruct();
-        pickup.SetRightIKTarget(item.gripRight);
-        if (weaponComponent.requireBothHands)
+        if (rightHand)
+        {
+            pickup.SetRightIKTarget(item.gripRight);
+            if (weaponComponent.requireBothHands)
+            {
+                pickup.SetLeftIKTarget(item.gripLeft);
+            }
+        }
+        else
         {
             pickup.SetLeftIKTarget(item.gripLeft);
         }
