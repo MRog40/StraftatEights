@@ -77,7 +77,7 @@ internal static class InfidelState
         }
 
         BroadcastLiveState();
-        SendRoleStates(true);
+        SendRoleStates(false);
     }
 
     internal static void OnLobbyEntered()
@@ -299,7 +299,9 @@ internal static class InfidelState
 
         _localRoleSubRoundId = subRoundId;
         LocalIsInfidel = isInfidel;
-        if (announce && _localRoleAnnouncedSubRoundId != subRoundId)
+        if (announce && GameModeManager.IsActive(GameMode.Infidel)
+            && GameModeManager.Phase == GameModePhase.ActiveRound
+            && !GameModeManager.IsMatchOver && _localRoleAnnouncedSubRoundId != subRoundId)
         {
             _localRoleAnnouncedSubRoundId = subRoundId;
             GameModeHud.AnnounceTarget(isInfidel

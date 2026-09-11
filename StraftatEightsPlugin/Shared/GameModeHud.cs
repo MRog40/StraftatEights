@@ -107,7 +107,7 @@ internal sealed class GameModeHud : MonoBehaviour
         panelRect.anchorMax = new Vector2(0f, 1f);
         panelRect.pivot = new Vector2(0f, 1f);
         panelRect.sizeDelta = new Vector2(420f, 0f);
-        panelRect.anchoredPosition = new Vector2(18f, -238f);
+        panelRect.anchoredPosition = new Vector2(18f, -188f);
         _panel.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.45f);
 
         VerticalLayoutGroup layout = _panel.AddComponent<VerticalLayoutGroup>();
@@ -140,7 +140,17 @@ internal sealed class GameModeHud : MonoBehaviour
             _scorePopup.gameObject.SetActive(false);
         }
 
-        if (_targetAnnouncement.gameObject.activeSelf
+        PauseManager? pauseManager = PauseManager.Instance;
+        bool hideTargetAnnouncement = !GameModeManager.IsCustomMode
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || GameModeManager.IsMatchOver
+            || pauseManager?.inMainMenu == true
+            || pauseManager?.inVictoryMenu == true;
+        if (hideTargetAnnouncement)
+        {
+            _targetAnnouncement.gameObject.SetActive(false);
+        }
+        else if (_targetAnnouncement.gameObject.activeSelf
             && Time.unscaledTime >= _targetAnnouncementUntil)
         {
             _targetAnnouncement.gameObject.SetActive(false);
@@ -179,7 +189,6 @@ internal sealed class GameModeHud : MonoBehaviour
         bool isCustomMode = GameModeManager.IsCustomMode;
         bool shouldHideCustomHud = GameModeManager.ShouldHideCustomHud;
         bool isMatchOver = GameModeManager.IsMatchOver;
-        PauseManager? pauseManager = PauseManager.Instance;
         int connectedPlayerCount = 0;
         string visibilityReason;
         if (!isCustomMode)
@@ -263,7 +272,11 @@ internal sealed class GameModeHud : MonoBehaviour
 
     internal static void AnnounceTarget(string text, float durationSeconds)
     {
-        if (_instance == null || GameModeManager.IsMatchOver)
+        PauseManager? pauseManager = PauseManager.Instance;
+        if (_instance == null || !GameModeManager.IsCustomMode
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || GameModeManager.IsMatchOver || pauseManager?.inMainMenu == true
+            || pauseManager?.inVictoryMenu == true)
         {
             return;
         }
