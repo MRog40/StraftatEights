@@ -143,7 +143,7 @@ internal static class GameModeManager
             | GameModeCapabilities.IgnoreGlobalHealth,
             InfidelState.PeriodicPushIfHost, InfidelState.EnsureLoadouts,
             InfidelState.PeriodicPushSettingsIfHost),
-        [GameMode.HVT] = new ModeDescriptor("HVT", new Color32(255, 215, 0, 255),
+        [GameMode.HVT] = new ModeDescriptor("HVT", new Color32(0, 0, 255, 255),
             () => Plugin.HVTEnabled.Value, HVTReset, GameModeCapabilities.CustomRound,
             HVTState.PeriodicPushIfHost, periodicSettingsPush: HVTState.PeriodicPushSettingsIfHost)
     };

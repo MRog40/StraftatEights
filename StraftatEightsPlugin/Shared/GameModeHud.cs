@@ -525,7 +525,7 @@ internal sealed class GameModeHud : MonoBehaviour
             }
 
             bool isCrown = crownFirst && playerId == crownPlayerId;
-            string crownColor = hvtCrown ? "#FFD700" : "#FF6A00";
+            string crownColor = hvtCrown ? "#0000FF" : "#FF6A00";
             text.Append('\n').Append(isCrown ? "<color=" + crownColor + "><b>" : "<color=#DDDDDD>")
                 .Append(playerName).Append("  ").Append(score);
             if (isCrown)

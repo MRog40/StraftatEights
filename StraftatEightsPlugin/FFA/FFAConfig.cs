@@ -62,9 +62,9 @@ public partial class Plugin
         {
             return;
         }
-        if (PauseManager.Instance != null)
+        if (MatchLogs.Instance != null)
         {
-            PauseManager.Instance.WriteLog(ClientInstance.ReplaceAllPlayerNameTags(text));
+            MatchLogs.Instance.WriteLocalLog(ClientInstance.ReplaceAllPlayerNameTags(text));
         }
     }
 }

@@ -44,8 +44,7 @@ internal static class MovementPolicy
             return false;
         }
 
-        if (GameModeManager.IsActive(GameMode.MichaelMeyers)
-            || GameModeManager.IsActive(GameMode.Infidel))
+        if (GameModeManager.IsActive(GameMode.MichaelMeyers))
         {
             controller.CanWallJump = false;
         }
@@ -65,13 +64,7 @@ internal static class MovementPolicy
                 }
                 break;
             case GameMode.KillTheRat:
-                if (KillTheRatState.IsRat(controller))
-                {
-                    float baselineMovementFactor = GetBaselineMovementFactor(controller);
-                    controller.movementFactor = controller.isSprinting
-                        ? baselineMovementFactor * KillTheRatState.RatMovementMultiplier
-                        : baselineMovementFactor;
-                }
+                ApplyRatMovement(controller);
                 break;
             case GameMode.MichaelMeyers:
                 controller.movementFactor = MichaelMeyersState.IsMichael(controller)
@@ -80,8 +73,27 @@ internal static class MovementPolicy
                 break;
             case GameMode.Infidel:
                 controller.movementFactor = InfidelState.MovementMultiplier;
-                controller.CanWallJump = false;
                 break;
+        }
+    }
+
+    internal static void ApplyRatMovement(FirstPersonController controller)
+    {
+        if (!KillTheRatState.IsRat(controller))
+        {
+            return;
+        }
+
+        float baselineMovementFactor = GetBaselineMovementFactor(controller);
+        controller.movementFactor = controller.isSprinting
+            ? baselineMovementFactor * KillTheRatState.RatMovementMultiplier
+            : baselineMovementFactor;
+
+        if (controller.IsOwner)
+        {
+            DebugLog.Every("kill-the-rat-movement", 5f,
+                $"KillTheRat local rat speed applied rat={KillTheRatState.CurrentRatPlayerId} "
+                + $"sprinting={controller.isSprinting} movementFactor={controller.movementFactor:0.00}");
         }
     }
 }
@@ -111,8 +123,7 @@ internal static class FirstPersonController_WallJumpPolicy_Patch
     private static void Postfix(FirstPersonController __instance)
     {
         if ((!GameModeManager.ShouldIgnoreGlobalMovementSettings && !GlobalModifiersState.WallJumpEnabled)
-            || GameModeManager.IsActive(GameMode.MichaelMeyers)
-            || GameModeManager.IsActive(GameMode.Infidel))
+            || GameModeManager.IsActive(GameMode.MichaelMeyers))
         {
             __instance.CanWallJump = false;
         }
@@ -133,6 +144,11 @@ internal static class FirstPersonController_MovementPolicy_Patch
         if (JuggernautState.IsCurrentJuggernaut(__instance))
         {
             __instance.isSprinting = false;
+        }
+
+        if (GameModeManager.IsActive(GameMode.KillTheRat))
+        {
+            MovementPolicy.ApplyRatMovement(__instance);
         }
     }
 

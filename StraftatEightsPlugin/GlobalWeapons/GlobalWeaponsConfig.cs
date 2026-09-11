@@ -57,11 +57,11 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void AttachServerGrantedWeapon(int playerId, RPCInfo info)
+    public void AttachServerGrantedWeapon(int playerId, bool rightHand, RPCInfo info)
     {
         if (NetworkAuthority.IsHostSender(info) && NetworkAuthority.IsLocalPlayer(playerId))
         {
-            WeaponService.AttachGrantedWeaponForOwner(playerId);
+            WeaponService.AttachGrantedWeaponForOwner(playerId, rightHand);
         }
     }
 }

@@ -21,7 +21,9 @@ internal static class WeaponService
     private static bool _attachmentMethodsAvailable;
     private static readonly RequestVersionTracker RequestVersions = new();
     private static readonly RequestVersionTracker LeftHandRequestVersions = new();
-    private static readonly HashSet<int> PendingOwnerAttachments = new();
+    private const byte RightHandAttachmentMask = 1;
+    private const byte LeftHandAttachmentMask = 2;
+    private static readonly Dictionary<int, byte> PendingOwnerAttachments = new();
 
     internal static bool IsFinalGameScreen
     {
@@ -102,7 +104,8 @@ internal static class WeaponService
         GameObject? prefab = FindPrefab(weaponName);
         if (prefab == null)
         {
-            Plugin.Logger.LogWarning($"Weapon prefab '{weaponName}' was not found in Resources/RandomWeapons.");
+            Plugin.Logger.LogWarning($"Weapon prefab '{weaponName}' was not found in Resources/RandomWeapons "
+                + $"for playerId={playerId} hand={(rightHand ? "right" : "left")}.");
             yield break;
         }
 
@@ -216,7 +219,7 @@ internal static class WeaponService
         pickup.UpdateIKPoistion();
         item.InstantComeBackOnFire();
         if (item != null) item.dispenserStart = false;
-        NotifyOwnerWeaponAttached(playerId);
+        NotifyOwnerWeaponAttached(playerId, rightHand);
     }
 
     internal static void AttachUnparentedWeapon(PlayerPickup pickup)
@@ -302,24 +305,30 @@ internal static class WeaponService
         pickup.sync___set_value_objInLeftHand(null, true);
     }
 
-    internal static void AttachGrantedWeaponForOwner(int playerId)
+    internal static void AttachGrantedWeaponForOwner(int playerId, bool rightHand)
     {
         if (Plugin.Instance == null)
         {
             return;
         }
 
-        if (!PendingOwnerAttachments.Add(playerId))
+        byte handMask = rightHand ? RightHandAttachmentMask : LeftHandAttachmentMask;
+        PendingOwnerAttachments.TryGetValue(playerId, out byte pendingMask);
+        if ((pendingMask & handMask) != 0)
         {
             return;
         }
-        Plugin.Instance.StartCoroutine(AttachGrantedWeaponAfterSync(playerId, SessionState.Generation));
+
+        PendingOwnerAttachments[playerId] = (byte)(pendingMask | handMask);
+        DebugLog.Info($"Weapon owner attachment queued player={playerId} hand={(rightHand ? "right" : "left")}");
+        Plugin.Instance.StartCoroutine(AttachGrantedWeaponAfterSync(playerId, rightHand,
+            SessionState.Generation));
     }
 
     internal static bool IsOwnerAttachmentPending(PlayerPickup pickup)
     {
         return pickup.IsOwner && ClientInstance.Instance != null
-            && PendingOwnerAttachments.Contains(ClientInstance.Instance.PlayerId);
+            && PendingOwnerAttachments.ContainsKey(ClientInstance.Instance.PlayerId);
     }
 
     internal static bool IsOwnerHandObjectPending(PlayerPickup pickup, bool rightHand)
@@ -334,13 +343,14 @@ internal static class WeaponService
         return hasObject && (objectInHand == null || !objectInHand);
     }
 
-    private static IEnumerator AttachGrantedWeaponAfterSync(int playerId, int sessionGeneration)
+    private static IEnumerator AttachGrantedWeaponAfterSync(int playerId, bool rightHand,
+        int sessionGeneration)
     {
         for (int attempt = 0; attempt < 20; attempt++)
         {
             if (!SessionState.IsCurrent(sessionGeneration))
             {
-                PendingOwnerAttachments.Remove(playerId);
+                ClearPendingOwnerAttachment(playerId, rightHand);
                 yield break;
             }
 
@@ -354,23 +364,54 @@ internal static class WeaponService
             PlayerPickup? pickup = manager?.player?.playerPickupScript;
             GameObject? rightObject = pickup?.objInHand;
             GameObject? leftObject = pickup?.objInLeftHand;
-            if (pickup != null && ((rightObject != null && rightObject) || (leftObject != null && leftObject)))
+            GameObject? expectedObject = rightHand ? rightObject : leftObject;
+            if (pickup != null && expectedObject != null && expectedObject)
             {
-                pickup.hasObjectInHand = rightObject != null && rightObject;
-                pickup.hasObjectInLeftHand = leftObject != null && leftObject;
-                bool rightAttached = rightObject == null || !rightObject || AttachWeaponLocally(pickup, rightObject, true);
-                bool leftAttached = leftObject == null || !leftObject || AttachWeaponLocally(pickup, leftObject, false);
-                if (rightAttached && leftAttached)
+                bool hasRightObject = rightObject != null && rightObject;
+                bool hasLeftObject = leftObject != null && leftObject;
+                pickup.hasObjectInHand = hasRightObject;
+                pickup.hasObjectInLeftHand = hasLeftObject;
+
+                bool attached = AttachWeaponLocally(pickup, expectedObject, rightHand);
+                if (attached)
                 {
-                    PendingOwnerAttachments.Remove(playerId);
+                    ClearPendingOwnerAttachment(playerId, rightHand);
+                    DebugLog.Info($"Weapon owner attachment completed player={playerId} "
+                        + $"hand={(rightHand ? "right" : "left")} attempt={attempt + 1}");
                     yield break;
                 }
             }
 
+            DebugLog.Every($"weapon-attachment-wait-{playerId}-{rightHand}", 1f,
+                $"Weapon owner attachment waiting player={playerId} "
+                + $"hand={(rightHand ? "right" : "left")} attempt={attempt + 1} "
+                + $"object={(expectedObject != null && expectedObject ? "ready" : "missing")}");
+
             yield return new WaitForSeconds(0.1f);
         }
 
-        PendingOwnerAttachments.Remove(playerId);
+        ClearPendingOwnerAttachment(playerId, rightHand);
+        DebugLog.Info($"Weapon owner attachment timed out player={playerId} "
+            + $"hand={(rightHand ? "right" : "left")}");
+    }
+
+    private static void ClearPendingOwnerAttachment(int playerId, bool rightHand)
+    {
+        if (!PendingOwnerAttachments.TryGetValue(playerId, out byte pendingMask))
+        {
+            return;
+        }
+
+        byte handMask = rightHand ? RightHandAttachmentMask : LeftHandAttachmentMask;
+        pendingMask = (byte)(pendingMask & ~handMask);
+        if (pendingMask == 0)
+        {
+            PendingOwnerAttachments.Remove(playerId);
+        }
+        else
+        {
+            PendingOwnerAttachments[playerId] = pendingMask;
+        }
     }
 
     private static bool AttachWeaponLocally(PlayerPickup pickup, GameObject weapon, bool rightHand)
@@ -408,20 +449,21 @@ internal static class WeaponService
         }
     }
 
-    internal static void NotifyOwnerWeaponAttached(int playerId)
+    internal static void NotifyOwnerWeaponAttached(int playerId, bool rightHand)
     {
         if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
         {
             return;
         }
 
+        DebugLog.Info($"Weapon grant completed player={playerId} hand={(rightHand ? "right" : "left")}");
         if (ClientInstance.Instance != null && ClientInstance.Instance.PlayerId == playerId)
         {
-            AttachGrantedWeaponForOwner(playerId);
+            AttachGrantedWeaponForOwner(playerId, rightHand);
         }
 
         MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId, nameof(Plugin.AttachServerGrantedWeapon),
-            ReliableType.Reliable, playerId);
+            ReliableType.Reliable, playerId, rightHand);
     }
 
     private static void DespawnHeldWeapon(NetworkManager networkManager, GameObject? heldWeapon)
