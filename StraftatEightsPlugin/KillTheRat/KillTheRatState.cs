@@ -215,14 +215,13 @@ internal static class KillTheRatState
 
     internal static bool IsRat(FirstPersonController controller)
     {
-        if (controller == null || !GameModeManager.IsActive(GameMode.KillTheRat))
+        if (controller == null)
         {
             return false;
         }
 
-        PlayerValues? values = controller.GetComponent<PlayerValues>();
-        return values?.playerClient?.PlayerId == CurrentRatPlayerId
-            || IsRat(controller.GetComponent<PlayerHealth>());
+        PlayerHealth? health = controller.GetComponent<PlayerHealth>();
+        return health != null && IsRat(health);
     }
 
     internal static bool HandleHumanVoidFall(FirstPersonController controller)

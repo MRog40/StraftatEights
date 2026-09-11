@@ -32,8 +32,6 @@ public partial class Plugin : BaseUnityPlugin
     {
         Instance = this;
         Logger = base.Logger;
-        DebugLogging = Config.Bind("Diagnostics", "Debug Logging", false,
-            "Enable detailed multiplayer, scene, HUD, and snapshot diagnostics.");
         DebugLog.Reset();
         DebugLog.Info($"Startup: version={MyPluginInfo.PLUGIN_VERSION} scene={SceneManager.GetActiveScene().name}");
 

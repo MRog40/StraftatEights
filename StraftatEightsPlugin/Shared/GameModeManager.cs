@@ -177,6 +177,8 @@ internal static class GameModeManager
 
     internal static void Initialize()
     {
+        Plugin.DebugLogging = Plugin.Instance.Config.Bind("Global Settings", "Debug Logging", false,
+            "Enable detailed multiplayer, scene, HUD, and snapshot diagnostics.");
         RespawnDelaySeconds = Plugin.Instance.Config.Bind("Global Settings", "Respawn Delay (seconds)", 3f,
             new ConfigDescription("Host-controlled: how long a killed player waits before respawning.",
                 new AcceptableValueRange<float>(0f, 10f)));
