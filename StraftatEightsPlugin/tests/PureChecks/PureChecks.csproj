@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\..\Maps\MapPlaylist.cs" Link="MapPlaylist.cs" />
     <Compile Include="..\..\Shared\PureValidation.cs" Link="PureValidation.cs" />
     <Compile Include="..\..\Shared\LobbySnapshotCodec.cs" Link="LobbySnapshotCodec.cs" />
     <Compile Include="..\..\Shared\ScoreRules.cs" Link="ScoreRules.cs" />

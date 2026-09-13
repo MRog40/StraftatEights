@@ -293,6 +293,11 @@ internal static class GameModeRespawn
 
     internal static Vector3 ChooseSpawnPosition(Vector3 currentPosition)
     {
+        if (TryChooseMapSpawnPosition(out Vector3 mapPosition))
+        {
+            return mapPosition;
+        }
+
         if (!AnyModeEnabled)
         {
             return currentPosition;
@@ -328,6 +333,19 @@ internal static class GameModeRespawn
         }
 
         return bestPosition;
+    }
+
+    internal static bool TryChooseMapSpawnPosition(out Vector3 position)
+    {
+        position = default;
+        if (!GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition)
+            || definition.SpawnPoints.Count == 0)
+        {
+            return false;
+        }
+
+        position = definition.SpawnPoints[UnityEngine.Random.Range(0, definition.SpawnPoints.Count)];
+        return true;
     }
 
     private static bool IsBetterCandidate(bool candidateCrowded, float candidateDistance, bool bestCrowded, float bestDistance)
@@ -406,7 +424,12 @@ internal static class PlayerManager_CustomRespawnSpawn_Patch
         ref Vector3 position)
     {
         GameModeRespawn.ApplyRespawnCosmetics(__instance, ref suitIndex, ref cigIndex);
-        if (GameModeRespawn.ConsumeSpawnAdjustment(__instance))
+        bool hasPendingSpawnAdjustment = GameModeRespawn.ConsumeSpawnAdjustment(__instance);
+        if (GameModeRespawn.TryChooseMapSpawnPosition(out Vector3 mapPosition))
+        {
+            position = mapPosition;
+        }
+        else if (hasPendingSpawnAdjustment)
         {
             position = GameModeRespawn.ChooseSpawnPosition(position);
         }

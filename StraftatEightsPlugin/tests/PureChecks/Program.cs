@@ -68,6 +68,36 @@ Assert(parsed.SequenceEqual(new[] { "Glock", "SMG" }),
 Assert(WeaponListParser.Parse(null!, new[] { "Glock" }).Count == 0,
     "A null weapon list must produce an empty result.");
 
+Dictionary<string, IReadOnlyList<string>> playlistMaps = new()
+{
+    ["FFA"] = new[] { "Barren_01_Alt" },
+    ["MichaelMeyers"] = new[] { "Map_A", "Map_B" },
+    ["Unsupported"] = Array.Empty<string>()
+};
+List<MapPlaylistEntry<string>> playlist = MapPlaylist.Build(
+    new[] { "FFA", "MichaelMeyers", "Unsupported", "FFA" },
+    mode => playlistMaps.TryGetValue(mode, out IReadOnlyList<string>? maps)
+        ? maps
+        : Array.Empty<string>(),
+    new Random(17));
+Assert(playlist.Count == 2 && playlist.Any(entry => entry.Mode == "FFA")
+    && playlist.Any(entry => entry.Mode == "MichaelMeyers"),
+    "Map playlists must keep supported modes once and skip unsupported modes.");
+Random mapCycleRandom = new(23);
+string firstMap = MapPlaylist.SelectNextMap(new[] { "Map_A", "Map_B" }, string.Empty,
+    mapCycleRandom);
+string secondMap = MapPlaylist.SelectNextMap(new[] { "Map_A", "Map_B" }, firstMap,
+    mapCycleRandom);
+Assert(firstMap != secondMap, "A repeated mode must rotate to a different supported map.");
+List<MapPlaylistEntry<string>> firstOrdering = MapPlaylist.Build(
+    new[] { "FFA", "MichaelMeyers" }, mode => playlistMaps[mode], new Random(31));
+List<MapPlaylistEntry<string>> secondOrdering = MapPlaylist.Build(
+    new[] { "FFA", "MichaelMeyers" }, mode => playlistMaps[mode], new Random(31));
+Assert(firstOrdering.Count == secondOrdering.Count
+    && firstOrdering[0].Mode == secondOrdering[0].Mode
+    && firstOrdering[0].MapName == secondOrdering[0].MapName,
+    "A seeded map playlist must be reproducible.");
+
 Dictionary<int, int> scores = new() { [4] = 2, [9] = 7 };
 string scoreData = ScoreCodec.Serialize(scores);
 Dictionary<int, int> parsedScores = ScoreCodec.Parse(scoreData, 7);
