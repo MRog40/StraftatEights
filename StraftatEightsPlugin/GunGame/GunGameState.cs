@@ -118,7 +118,7 @@ internal static class GunGameState
         {
             Progress[entry.Key] = entry.Value;
         }
-        Plugin.Logger.LogInfo($"[GunGame] Accepted live state via {source}: round={roundId} "
+        DebugLog.Info($"[GunGame] Accepted live state via {source}: round={roundId} "
             + $"revision={revision} players={Progress.Count}");
     }
     internal static void OnServerKill(int deadPlayerId, int killerId)
@@ -260,7 +260,7 @@ internal static class GunGameState
                 ModeLobbyDataSync.Source("gun-game", "settings")))
             {
                 ApplySettings(enabled, weaponOrder);
-                Plugin.Logger.LogInfo($"[GunGame] Accepted settings via lobby data: round={roundId} "
+                DebugLog.Info($"[GunGame] Accepted settings via lobby data: round={roundId} "
                     + $"revision={revision}");
             }
         }

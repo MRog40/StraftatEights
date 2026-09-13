@@ -86,7 +86,7 @@ public partial class Plugin
         {
             return;
         }
-        Logger.LogInfo($"[MovementSettings] Received sync: enabled={enabled} wallJump={wallJump} sliding={sliding} slideBoost={slideBoost} wallJumpBoost={wallJumpBoost} moveSpeed%={moveSpeedPercent} adsSpeed%={adsSpeedPercent} gravity%={gravityPercent} momentum%={momentumPercent} airSpeed%={airSpeedRatioPercent}");
+        DebugLog.Info($"[MovementSettings] Received sync: enabled={enabled} wallJump={wallJump} sliding={sliding} slideBoost={slideBoost} wallJumpBoost={wallJumpBoost} moveSpeed%={moveSpeedPercent} adsSpeed%={adsSpeedPercent} gravity%={gravityPercent} momentum%={momentumPercent} airSpeed%={airSpeedRatioPercent}");
         GlobalModifiersState.Apply(enabled, wallJump, sliding, slideBoost, wallJumpBoost, moveSpeedPercent, adsSpeedPercent, gravityPercent, momentumPercent, airSpeedRatioPercent);
     }
 }

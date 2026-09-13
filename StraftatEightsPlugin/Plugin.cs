@@ -67,7 +67,7 @@ public partial class Plugin : BaseUnityPlugin
         }
 
         PatchAllSafely(new Harmony(MyPluginInfo.PLUGIN_GUID));
-        Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
+        DebugLog.Info($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
     }
 
     private static void InitializeSafely(string featureName, Action initialize)
@@ -113,7 +113,7 @@ public partial class Plugin : BaseUnityPlugin
                     continue;
                 }
 
-                Logger.LogInfo($"[Harmony] Patched {patchType.FullName} ({patchedCount} method(s)).");
+                DebugLog.Info($"[Harmony] Patched {patchType.FullName} ({patchedCount} method(s)).");
             }
             catch (Exception exception)
             {

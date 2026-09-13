@@ -147,7 +147,7 @@ internal static class SniperBattleState
         {
             Points[entry.Key] = entry.Value;
         }
-        Plugin.Logger.LogInfo($"[SniperBattle] Accepted live state via {source}: round={roundId} "
+        DebugLog.Info($"[SniperBattle] Accepted live state via {source}: round={roundId} "
             + $"revision={revision} players={Points.Count}");
     }
 

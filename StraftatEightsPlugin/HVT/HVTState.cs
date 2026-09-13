@@ -278,7 +278,7 @@ internal static class HVTState
             ModeLobbyDataSync.Source("hvt", "settings")))
         {
             ApplySettings(enabled);
-            Plugin.Logger.LogInfo($"[HVT] Accepted settings via lobby data: round={roundId} revision={revision}");
+            DebugLog.Info($"[HVT] Accepted settings via lobby data: round={roundId} revision={revision}");
         }
     }
 

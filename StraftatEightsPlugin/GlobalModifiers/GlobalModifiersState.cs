@@ -51,7 +51,7 @@ internal static class GlobalModifiersState
             MomentumPercent = 100f;
             AirSpeedRatioPercent = MovementTuning.StockAirSpeedRatioPercent;
             TuningVersion++;
-            Plugin.Logger.LogInfo("[GlobalModifiers] Apply: disabled - all values reset to stock");
+            DebugLog.Info("[GlobalModifiers] Apply: disabled - all values reset to stock");
             return;
         }
 
@@ -70,7 +70,7 @@ internal static class GlobalModifiersState
         MomentumPercent = momentumPercent;
         AirSpeedRatioPercent = airSpeedRatioPercent;
         TuningVersion++;
-        Plugin.Logger.LogInfo($"[MovementSettings] Apply: SpeedMultiplier={SpeedMultiplier:0.00} AdsSpeedMultiplier={AdsSpeedMultiplier:0.00} GravityMultiplier={GravityMultiplier:0.00} MomentumPercent={MomentumPercent} AirSpeedRatioPercent={AirSpeedRatioPercent} TuningVersion={TuningVersion}");
+        DebugLog.Info($"[MovementSettings] Apply: SpeedMultiplier={SpeedMultiplier:0.00} AdsSpeedMultiplier={AdsSpeedMultiplier:0.00} GravityMultiplier={GravityMultiplier:0.00} MomentumPercent={MomentumPercent} AirSpeedRatioPercent={AirSpeedRatioPercent} TuningVersion={TuningVersion}");
     }
 
     private static void ApplyFromHostConfig()
@@ -82,11 +82,11 @@ internal static class GlobalModifiersState
     {
         if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
         {
-            Plugin.Logger.LogInfo($"[GlobalModifiers] PushIfHost skipped: InLobby={MyceliumNetwork.InLobby} IsHost={MyceliumNetwork.IsHost}");
+            DebugLog.Info($"[GlobalModifiers] PushIfHost skipped: InLobby={MyceliumNetwork.InLobby} IsHost={MyceliumNetwork.IsHost}");
             return;
         }
         ApplyFromHostConfig();
-        Plugin.Logger.LogInfo($"[MovementSettings] Host broadcasting movement settings to {MyceliumNetwork.PlayerCount} player(s)");
+        DebugLog.Info($"[MovementSettings] Host broadcasting movement settings to {MyceliumNetwork.PlayerCount} player(s)");
         MyceliumNetwork.RPC(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), ReliableType.Reliable,
             RpcArgs(Sync.NextSettingsRevision()));
     }
@@ -107,7 +107,7 @@ internal static class GlobalModifiersState
 
     internal static void OnLobbyEntered()
     {
-        Plugin.Logger.LogInfo($"[GlobalModifiers] Lobby session started, IsHost={MyceliumNetwork.IsHost}");
+        DebugLog.Info($"[GlobalModifiers] Lobby session started, IsHost={MyceliumNetwork.IsHost}");
         Sync.ResetForLobby();
         if (MyceliumNetwork.IsHost)
         {
@@ -128,7 +128,7 @@ internal static class GlobalModifiersState
         {
             return;
         }
-        Plugin.Logger.LogInfo($"[MovementSettings] Sending catch-up movement settings to newly joined player {player}");
+            DebugLog.Info($"[MovementSettings] Sending catch-up movement settings to newly joined player {player}");
         MyceliumNetwork.RPCTarget(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), player,
             ReliableType.Reliable, RpcArgs(Sync.SettingsRevision));
     }

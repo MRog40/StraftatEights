@@ -69,7 +69,7 @@ internal static class PlayerSetup_WeaponAmmoHudReset_Patch
         if (isOwner)
         {
             DebugLog.Info("PlayerSetup disable owner HUD refresh scheduled.");
-            Plugin.Logger.LogInfo("[HUD] Local PlayerSetup disabled; scheduling owner HUD refresh.");
+            DebugLog.Info("[HUD] Local PlayerSetup disabled; scheduling owner HUD refresh.");
             WeaponAmmoTuning.ScheduleLocalAmmoHudRefresh();
         }
     }
@@ -98,7 +98,7 @@ internal static class PlayerSetup_LocalHudRestore_Patch
                 __instance.HideHUD(false);
             }
             WeaponAmmoTuning.ScheduleLocalAmmoHudRefresh();
-            Plugin.Logger.LogInfo("[HUD] Local PlayerSetup started; restored owner HUD and scheduled ammo refresh.");
+            DebugLog.Info("[HUD] Local PlayerSetup started; restored owner HUD and scheduled ammo refresh.");
         }
     }
 }

@@ -104,7 +104,7 @@ internal static class PlayerOutline
 
         GameMode mode = (GameMode)modeValue;
         SetRoleState(mode, playerId);
-        Plugin.Logger.LogInfo($"[Outline] Accepted role state source={source} mode={mode} "
+        DebugLog.Info($"[Outline] Accepted role state source={source} mode={mode} "
             + $"host={hostId.m_SteamID} round={roundId} revision={revision} target={playerId}");
     }
 

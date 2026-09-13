@@ -634,7 +634,7 @@ internal static class GameModeManager
         Phase = (GameModePhase)phase;
         if (modeChanged || phaseChanged)
         {
-            Plugin.Logger.LogInfo($"[GameMode] Applied host state: mode={nextMode} round={roundId} phase={(GameModePhase)phase}");
+            DebugLog.Info($"[GameMode] Applied host state: mode={nextMode} round={roundId} phase={(GameModePhase)phase}");
         }
     }
 
@@ -727,7 +727,7 @@ internal static class GameModeManager
         }
 
         ApplyActiveMode(mode, roundId, phase);
-        Plugin.Logger.LogInfo($"[GameMode] Accepted active mode via lobby data: mode={(GameMode)mode} "
+        DebugLog.Info($"[GameMode] Accepted active mode via lobby data: mode={(GameMode)mode} "
             + $"round={roundId} phase={(GameModePhase)phase} revision={revision}");
     }
 
@@ -801,7 +801,7 @@ internal static class GameModeManager
 
         PlayerHealth? deadHealth = PlayerLookup.FindPlayerHealthById(playerId);
         int killerId = PlayerLookup.FindKillerId(deadHealth);
-        Plugin.Logger.LogInfo($"[GameMode] Server death: mode={mode} deadPlayer={playerId} killer={killerId}");
+        DebugLog.Info($"[GameMode] Server death: mode={mode} deadPlayer={playerId} killer={killerId}");
 
         switch (mode)
         {
@@ -917,7 +917,7 @@ public partial class Plugin
             return;
         }
         GameModeManager.ApplyActiveMode(mode, roundId, phase);
-        Plugin.Logger.LogInfo($"[GameMode] Accepted active mode via RPC: mode={(GameMode)mode} "
+        DebugLog.Info($"[GameMode] Accepted active mode via RPC: mode={(GameMode)mode} "
             + $"round={roundId} phase={(GameModePhase)phase} revision={revision}");
     }
 }

@@ -44,7 +44,7 @@ public partial class Plugin
             return;
         }
         GunGameState.ApplySettings(enabled, weaponOrder ?? string.Empty);
-        Plugin.Logger.LogInfo($"[GunGame] Accepted settings via RPC: round={roundId} revision={revision}");
+        DebugLog.Info($"[GunGame] Accepted settings via RPC: round={roundId} revision={revision}");
     }
 
     [CustomRPC]

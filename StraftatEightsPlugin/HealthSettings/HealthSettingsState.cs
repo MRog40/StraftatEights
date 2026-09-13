@@ -26,7 +26,7 @@ internal static class HealthSettingsState
             RegenDelaySeconds = 5f;
             RegenRate = 25f;
             TuningVersion++;
-            Plugin.Logger.LogInfo("[HealthSettings] Apply: disabled - all values reset to stock");
+            DebugLog.Info("[HealthSettings] Apply: disabled - all values reset to stock");
             return;
         }
         MaxHealthMultiplier = Mathf.Clamp(maxHealthPercent, 10, 400) / 100f;
@@ -34,7 +34,7 @@ internal static class HealthSettingsState
         RegenDelaySeconds = Mathf.Clamp(regenDelaySeconds, 2f, 15f);
         RegenRate = NormalizeRegenRate(regenRate);
         TuningVersion++;
-        Plugin.Logger.LogInfo($"[HealthSettings] Apply: maxHealthMultiplier={MaxHealthMultiplier:0.##} enabled={RegenEnabled} delay={RegenDelaySeconds:0.##} rate={RegenRate:0.##} version={TuningVersion}");
+        DebugLog.Info($"[HealthSettings] Apply: maxHealthMultiplier={MaxHealthMultiplier:0.##} enabled={RegenEnabled} delay={RegenDelaySeconds:0.##} rate={RegenRate:0.##} version={TuningVersion}");
     }
 
     private static void ApplyFromHostConfig()

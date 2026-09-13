@@ -183,7 +183,7 @@ internal sealed class GameModeHud : MonoBehaviour
                 _hasLoggedVisibility = true;
                 _lastVisible = false;
                 _lastVisibilityReason = "match-over";
-                Plugin.Logger.LogInfo($"[GameModeHud] visible=false reason=match-over "
+                DebugLog.Info($"[GameModeHud] visible=false reason=match-over "
                     + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} "
                     + $"round={GameModeManager.RoundId} players=0 scores={GunGameState.Progress.Count}");
             }
@@ -258,7 +258,7 @@ internal sealed class GameModeHud : MonoBehaviour
             _hasLoggedVisibility = true;
             _lastVisible = visible;
             _lastVisibilityReason = visibilityReason;
-            Plugin.Logger.LogInfo($"[GameModeHud] visible={visible} reason={visibilityReason} "
+            DebugLog.Info($"[GameModeHud] visible={visible} reason={visibilityReason} "
                 + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} "
                 + $"round={GameModeManager.RoundId} players={connectedPlayerCount} "
                 + $"scores={GunGameState.Progress.Count}");

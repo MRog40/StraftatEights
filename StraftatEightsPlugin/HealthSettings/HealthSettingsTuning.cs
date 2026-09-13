@@ -95,7 +95,7 @@ internal static class HealthSettingsTuning
         float previousFullHealth = controller.fullHealth;
         controller.fullHealth = scaledFullHealth;
 
-        Plugin.Logger.LogInfo($"[HealthSettings] Health apply: owner={controller.IsOwner} server={controller.IsServer} baseline={memory.BaselineFullHealth:0.##} fullHealth={previousFullHealth:0.##}->{scaledFullHealth:0.##} healthBefore={controller.health:0.##} multiplier={healthMultiplier:0.##} version={version}");
+        DebugLog.Info($"[HealthSettings] Health apply: owner={controller.IsOwner} server={controller.IsServer} baseline={memory.BaselineFullHealth:0.##} fullHealth={previousFullHealth:0.##}->{scaledFullHealth:0.##} healthBefore={controller.health:0.##} multiplier={healthMultiplier:0.##} version={version}");
 
         if (controller.IsServer)
         {
@@ -111,7 +111,7 @@ internal static class HealthSettingsTuning
                 {
                     ApplyingPassiveHealth = false;
                 }
-                Plugin.Logger.LogInfo($"[HealthSettings] Health server write: owner={controller.IsOwner} healthAfter={controller.health:0.##} bonus={bonus:0.##}");
+                DebugLog.Info($"[HealthSettings] Health server write: owner={controller.IsOwner} healthAfter={controller.health:0.##} bonus={bonus:0.##}");
             }
         }
     }
@@ -181,7 +181,7 @@ internal static class HealthSettingsTuning
             return;
         }
 
-        Plugin.Logger.LogInfo($"[HealthSettings] Health observed: owner={controller.IsOwner} server={controller.IsServer} health={health:0.###} fullHealth={controller.fullHealth:0.###}");
+        DebugLog.Info($"[HealthSettings] Health observed: owner={controller.IsOwner} server={controller.IsServer} health={health:0.###} fullHealth={controller.fullHealth:0.###}");
         memory.LastLoggedHealth = health;
     }
 

@@ -41,7 +41,7 @@ public partial class Plugin
             return;
         }
         SniperBattleState.ApplySettings(enabled);
-        Plugin.Logger.LogInfo($"[SniperBattle] Accepted settings via RPC: round={roundId} revision={revision}");
+        DebugLog.Info($"[SniperBattle] Accepted settings via RPC: round={roundId} revision={revision}");
     }
 
     [CustomRPC]
