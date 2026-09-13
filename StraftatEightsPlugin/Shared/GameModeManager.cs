@@ -649,7 +649,7 @@ internal static class GameModeManager
         }
 
         if (string.IsNullOrEmpty(mapName)
-            || !ModeMapCatalog.TryGetDefinition(entry.Mode, mapName, out _))
+            || !ModeMapCatalog.IsSupported(entry.Mode, mapName))
         {
             entry = default;
             return false;
@@ -669,7 +669,7 @@ internal static class GameModeManager
         SelectedMapName = string.Empty;
         foreach (string mapName in ModeMapCatalog.GetMapNames(mode))
         {
-            if (ModeMapCatalog.TryGetDefinition(mode, mapName, out _))
+            if (ModeMapCatalog.IsSupported(mode, mapName))
             {
                 SelectedMapName = mapName;
                 break;
@@ -681,7 +681,7 @@ internal static class GameModeManager
     {
         if (!MyceliumNetwork.IsHost || SceneMotor.Instance == null
             || string.IsNullOrEmpty(SelectedMapName)
-            || !ModeMapCatalog.TryGetDefinition(ActiveMode, SelectedMapName, out _)
+            || !ModeMapCatalog.IsSupported(ActiveMode, SelectedMapName)
             || InstanceFinder.SceneManager == null)
         {
             return false;
@@ -792,7 +792,7 @@ internal static class GameModeManager
 
         GameMode nextMode = (GameMode)mode;
         if (nextMode != GameMode.None
-            && !ModeMapCatalog.TryGetDefinition(nextMode, mapName, out _))
+            && !ModeMapCatalog.IsSupported(nextMode, mapName))
         {
             DebugLog.Info($"[GameMode] Rejected active map mode={nextMode} map={mapName}");
             return;

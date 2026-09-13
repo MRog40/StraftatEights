@@ -83,4 +83,9 @@ internal static class MapDefinitions
     {
         return Definitions.TryGetValue(mapName, out definition!);
     }
+
+    internal static IReadOnlyCollection<string> GetNames()
+    {
+        return Definitions.Keys.ToArray();
+    }
 }
