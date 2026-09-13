@@ -26,6 +26,9 @@ internal static class PauseManager_RoundLifecycle_Patch
             case GameMode.Infidel:
                 InfidelState.OnRoundStarted();
                 break;
+            case GameMode.Assassin:
+                AssassinState.OnRoundStarted();
+                break;
         }
 
         if (!GameModeManager.ShouldIgnoreGlobalWeaponSettings)

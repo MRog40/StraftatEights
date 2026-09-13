@@ -472,6 +472,12 @@ internal sealed class GameModeHud : MonoBehaviour
             scores = InfidelState.Scores;
             crownFirst = false;
         }
+        else if (GameModeManager.IsActive(GameMode.Assassin))
+        {
+            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + AssassinState.PointsToWin;
+            scores = AssassinState.Scores;
+            crownFirst = false;
+        }
         else if (GameModeManager.IsActive(GameMode.OneInTheChamber))
         {
             header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - "

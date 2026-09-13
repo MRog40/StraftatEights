@@ -22,7 +22,8 @@ internal enum GameMode
     OneInTheChamber = 8,
     HotPotato = 9,
     Infidel = 10,
-    HVT = 11
+    HVT = 11,
+    Assassin = 12
 }
 
 internal enum GameModePhase
@@ -87,7 +88,8 @@ internal static class GameModeManager
         GameMode.OneInTheChamber,
         GameMode.HotPotato,
         GameMode.Infidel,
-        GameMode.HVT
+        GameMode.HVT,
+        GameMode.Assassin
     };
 
     private static readonly Dictionary<GameMode, ModeDescriptor> Modes = new()
@@ -145,7 +147,12 @@ internal static class GameModeManager
             InfidelState.PeriodicPushSettingsIfHost),
         [GameMode.HVT] = new ModeDescriptor("HVT", new Color32(0, 0, 255, 255),
             () => Plugin.HVTEnabled.Value, HVTReset, GameModeCapabilities.CustomRound,
-            HVTState.PeriodicPushIfHost, periodicSettingsPush: HVTState.PeriodicPushSettingsIfHost)
+            HVTState.PeriodicPushIfHost, periodicSettingsPush: HVTState.PeriodicPushSettingsIfHost),
+        [GameMode.Assassin] = new ModeDescriptor("ASSASSIN", new Color32(53, 208, 95, 255),
+            () => Plugin.AssassinEnabled.Value, AssassinReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons,
+            AssassinState.PeriodicPushIfHost, AssassinState.EnsureLoadouts,
+            AssassinState.PeriodicPushSettingsIfHost)
     };
 
     private static void DefaultReset() => DefaultGameModeState.ResetMatchState();
@@ -165,6 +172,7 @@ internal static class GameModeManager
     private static void HotPotatoReset() => HotPotatoState.ResetMatchState();
     private static void InfidelReset() => InfidelState.ResetMatchState();
     private static void HVTReset() => HVTState.ResetMatchState();
+    private static void AssassinReset() => AssassinState.ResetMatchState();
 
     internal static GameMode ActiveMode { get; private set; }
     internal static GameModePhase Phase { get; private set; } = GameModePhase.Inactive;
@@ -230,6 +238,7 @@ internal static class GameModeManager
         GunGameState.ResetMatchState();
         SniperBattleState.ResetMatchState();
         HVTState.ResetMatchState();
+        AssassinState.ResetMatchState();
     }
 
     private static void BroadcastGlobalSettings()
@@ -296,6 +305,9 @@ internal static class GameModeManager
                 break;
             case GameMode.Infidel:
                 InfidelState.OnRoundStarted();
+                break;
+            case GameMode.Assassin:
+                AssassinState.OnRoundStarted();
                 break;
         }
     }
@@ -828,6 +840,9 @@ internal static class GameModeManager
                 break;
             case GameMode.Infidel:
                 InfidelState.OnServerKill(playerId, killerId);
+                break;
+            case GameMode.Assassin:
+                AssassinState.OnServerKill(playerId, killerId);
                 break;
             case GameMode.HVT:
                 HVTState.OnServerKill(playerId, killerId);

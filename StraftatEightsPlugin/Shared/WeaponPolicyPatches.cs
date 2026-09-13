@@ -42,7 +42,8 @@ internal static class WeaponPolicy
             || mode == GameMode.KillTheRat
             || mode == GameMode.OneInTheChamber
             || mode == GameMode.HotPotato
-            || mode == GameMode.Infidel;
+            || mode == GameMode.Infidel
+            || mode == GameMode.Assassin;
     }
 
     internal static bool CanEquip(PlayerPickup pickup, GameObject obj, bool rightHand)
@@ -82,6 +83,9 @@ internal static class WeaponPolicy
             case GameMode.Infidel:
                 int infidelPlayerId = health?.playerValues?.playerClient?.PlayerId ?? -1;
                 return infidelPlayerId < 0 || InfidelState.IsAllowedWeapon(weapon, infidelPlayerId);
+            case GameMode.Assassin:
+                int assassinPlayerId = health?.playerValues?.playerClient?.PlayerId ?? -1;
+                return assassinPlayerId < 0 || AssassinState.IsAllowedWeapon(weapon, assassinPlayerId);
             case GameMode.HotPotato:
                 int potatoPlayerId = health?.playerValues?.playerClient?.PlayerId ?? -1;
                 return potatoPlayerId < 0 || HotPotatoState.IsAllowedWeapon(weapon, potatoPlayerId);

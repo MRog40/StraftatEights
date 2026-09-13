@@ -38,6 +38,16 @@ Add the mode to `GameModeManager` with one descriptor containing:
 
 Do not grow one existing mode into a shared miscellaneous file. Put reusable behavior in `Shared/` only when at least two features need the same behavior.
 
+### Assassin mode contract
+
+Assassin uses a host-authoritative sub-round state. One player is the private Assassin, one player is the public King, and all remaining players are Bodyguards. Each player receives only their own private role announcement. The King ID is public through the shared green outline state; the Assassin ID is never included in public live snapshots.
+
+The King receives `Taser` immediately. After 15 seconds, the Assassin receives `Silenzzio` and Bodyguards receive `Glock`. The role weapons use the shared authoritative weapon service and unlimited-ammo path. Other weapons are blocked while the mode is active.
+
+The Assassin receives 50 points when the King dies, including a friendly-fire King death. When the Assassin dies, the King receives 30 points, every Bodyguard receives 10 points, and the Bodyguard who made the kill receives an additional 20 points. Other deaths do not end the sub-round. Scores persist between sub-rounds and use the shared `Points To Win` setting. The Assassin identity is announced publicly only after the sub-round resolves.
+
+Assassin does not override global health or movement settings. Its custom behavior is limited to roles, weapons, scoring, public King presentation, and sub-round respawns.
+
 ## 3. Keep the plugin bootstrap complete
 
 `Plugin.Awake()` must bind every config entry even if an optional subsystem fails. Startup modules use the safe initializer in `Plugin.cs`, which logs the failed feature and continues with later config bindings.

@@ -48,6 +48,8 @@ internal static class WeaponDropPolicy
             case GameMode.Infidel:
                 return playerId >= 0
                     && weapon.name.StartsWith(InfidelState.WeaponName, StringComparison.Ordinal);
+            case GameMode.Assassin:
+                return playerId >= 0 && AssassinState.IsAllowedWeapon(weapon, playerId);
             case GameMode.SniperBattle:
                 return SniperBattleState.IsSniperWeapon(weapon);
             default:

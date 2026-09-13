@@ -137,6 +137,27 @@ Assert(InfidelRules.GetKillerAward(false, true) == 0
 Assert(InfidelRules.GetWinnerAward(true) == 50
     && InfidelRules.GetWinnerAward(true) == InfidelRules.PointsForInfidelWin,
     "The Infidel must receive fifty points for winning the sub-round.");
+Assert(AssassinRules.IsTerminalDeath(true, false)
+    && AssassinRules.IsTerminalDeath(false, true)
+    && !AssassinRules.IsTerminalDeath(false, false),
+    "Only King and Assassin deaths must end an Assassin sub-round.");
+Assert(AssassinRules.GetAssassinAward(true) == 50
+    && AssassinRules.GetAssassinAward(false) == 0
+    && AssassinRules.GetAssassinAward(true) == AssassinRules.PointsForAssassinWin,
+    "The Assassin must receive fifty points for a King death.");
+Assert(AssassinRules.GetKingAward(true) == 30
+    && AssassinRules.GetKingAward(false) == 0
+    && AssassinRules.GetKingAward(true) == AssassinRules.PointsForKingSurvival,
+    "The King must receive thirty points when the Assassin dies.");
+Assert(AssassinRules.GetBodyguardAward(true) == 10
+    && AssassinRules.GetBodyguardAward(false) == 0
+    && AssassinRules.GetBodyguardAward(true) == AssassinRules.PointsForBodyguardSurvival,
+    "Each Bodyguard must receive ten points when the Assassin dies.");
+Assert(AssassinRules.GetBodyguardKillerAward(true, true, false) == 20
+    && AssassinRules.GetBodyguardKillerAward(true, false, false) == 0
+    && AssassinRules.GetBodyguardKillerAward(true, true, true) == 0
+    && AssassinRules.GetBodyguardKillerAward(false, true, false) == 0,
+    "Only a non-self Bodyguard kill of the Assassin must receive the twenty-point bonus.");
 
 List<string> modes = new() { "Default", "FFA", "GunGame" };
 Assert(ModeCycle.TrySelectNext(modes, "Default", out string nextMode) && nextMode == "FFA",

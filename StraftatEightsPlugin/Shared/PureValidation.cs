@@ -172,6 +172,42 @@ internal static class InfidelRules
     }
 }
 
+internal static class AssassinRules
+{
+    internal const int PointsForAssassinWin = 50;
+    internal const int PointsForKingSurvival = 30;
+    internal const int PointsForBodyguardSurvival = 10;
+    internal const int PointsForBodyguardKill = 20;
+
+    internal static bool IsTerminalDeath(bool deadWasKing, bool deadWasAssassin)
+    {
+        return deadWasKing || deadWasAssassin;
+    }
+
+    internal static int GetAssassinAward(bool deadWasKing)
+    {
+        return deadWasKing ? PointsForAssassinWin : 0;
+    }
+
+    internal static int GetKingAward(bool deadWasAssassin)
+    {
+        return deadWasAssassin ? PointsForKingSurvival : 0;
+    }
+
+    internal static int GetBodyguardAward(bool deadWasAssassin)
+    {
+        return deadWasAssassin ? PointsForBodyguardSurvival : 0;
+    }
+
+    internal static int GetBodyguardKillerAward(bool deadWasAssassin, bool killerIsBodyguard,
+        bool killerIsVictim)
+    {
+        return deadWasAssassin && killerIsBodyguard && !killerIsVictim
+            ? PointsForBodyguardKill
+            : 0;
+    }
+}
+
 internal static class ModeCycle
 {
     internal static bool TrySelectNext<T>(IReadOnlyList<T> modes, T current, out T next)

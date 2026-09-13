@@ -16,6 +16,7 @@ internal static class PlayerOutline
     private static readonly Color JuggernautColor = new(1f, 0.42f, 0f);
     private static readonly Color KillTheRatColor = Color.yellow;
     private static readonly Color MichaelMeyersColor = Color.red;
+    private static readonly Color AssassinKingColor = new(0.2f, 0.82f, 0.37f);
     private static GameMode _lastMode = GameMode.None;
     private static GameMode _roleMode = GameMode.None;
     private static int _rolePlayerId = -1;
@@ -139,7 +140,8 @@ internal static class PlayerOutline
         return mode == GameMode.HVT
             || mode == GameMode.Juggernaut
             || mode == GameMode.KillTheRat
-            || mode == GameMode.MichaelMeyers;
+            || mode == GameMode.MichaelMeyers
+            || mode == GameMode.Assassin;
     }
 
     private static Color GetColor(GameMode mode)
@@ -149,6 +151,7 @@ internal static class PlayerOutline
             GameMode.HVT => HvtColor,
             GameMode.Juggernaut => JuggernautColor,
             GameMode.KillTheRat => KillTheRatColor,
+            GameMode.Assassin => AssassinKingColor,
             _ => MichaelMeyersColor
         };
     }
@@ -315,6 +318,7 @@ internal static class PlayerOutline
             GameMode.Juggernaut => JuggernautState.CurrentJuggernautPlayerId,
             GameMode.KillTheRat => KillTheRatState.CurrentRatPlayerId,
             GameMode.MichaelMeyers => MichaelMeyersState.CurrentMichaelPlayerId,
+            GameMode.Assassin => AssassinState.KingPlayerId,
             _ => -1
         };
     }

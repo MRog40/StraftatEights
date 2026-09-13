@@ -51,6 +51,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("One in the Chamber", InitializeOneInTheChamber);
         InitializeSafely("Hot Potato", InitializeHotPotato);
         InitializeSafely("Infidel", InitializeInfidel);
+        InitializeSafely("Assassin", InitializeAssassin);
         InitializeSafely("Free For All", InitializeFFA);
         InitializeSafely("Juggernaut", InitializeJuggernaut);
         InitializeSafely("Gun Game", InitializeGunGame);
