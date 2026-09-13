@@ -82,7 +82,13 @@ The host owns:
 
 Clients may display state and request an action through a registered Mycelium RPC. A client must not locally grant a weapon, award points, select a winner, or write authoritative health.
 
-Every feature gets a unique `uint ModId`. Register the persistent `Plugin.Instance` once for that feature and put the feature's `[CustomRPC]` methods on the `Plugin` partial class.
+Every feature gets a unique `uint ModId` in the plugin's one global ModId namespace. This includes
+game modes, shared systems, and transport helpers. Before adding a mode, search all source files
+for existing `ModId` constants and choose a value that is not already used. Do not reuse an old
+value, even when the old feature is currently disabled: Mycelium uses the ModId to find RPC
+handlers, and a collision can route packets to the wrong registration and break deserialization.
+Register the persistent `Plugin.Instance` once for that feature and put the feature's `[CustomRPC]`
+methods on the `Plugin` partial class.
 
 Mycelium RPC parameters must be primitives supported by the installed serializer. Flatten dictionaries into strings such as `id:value;id:value`, then validate every parsed ID and value.
 

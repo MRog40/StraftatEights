@@ -6,7 +6,7 @@ namespace StraftatEightsPlugin;
 
 public partial class Plugin
 {
-    internal const uint AssassinModId = 3141592653u;
+    internal const uint AssassinModId = 3141592658u;
     internal static ConfigEntry<bool> AssassinEnabled = null!;
 
     private void InitializeAssassin()

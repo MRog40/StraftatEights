@@ -126,6 +126,7 @@ public partial class Plugin : BaseUnityPlugin
 
     private void Update()
     {
+        PositionMarkerDebug.Update();
         DebugLog.Every("plugin-heartbeat", 2f,
             $"Heartbeat: lobby={MyceliumNetworking.MyceliumNetwork.InLobby} "
             + $"host={MyceliumNetworking.MyceliumNetwork.IsHost} "
