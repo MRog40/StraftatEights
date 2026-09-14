@@ -6,7 +6,7 @@ namespace StraftatEightsPlugin;
 internal static class HardpointMarker
 {
     private const int RingSegments = 64;
-    private const float InnerRadiusRatio = 0.86f;
+    private const float InnerRadiusRatio = 0.75f;
     private const float RingVerticalOffset = 1.02f;
     private const float ActiveAlpha = 0.65f;
     private static GameObject? _activeMarker;
