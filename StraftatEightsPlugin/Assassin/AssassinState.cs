@@ -35,6 +35,7 @@ internal static class AssassinState
     private static readonly Dictionary<int, float> PendingLoadouts = new();
     private static readonly ModeSyncState Sync = new();
     private static float _nextLoadoutCheckTime;
+    private static float _nextClientLivePollTime;
     private static int _subRoundId;
     private static int _localRoleSubRoundId = -1;
     private static int _localRoleAnnouncedSubRoundId = -1;
@@ -87,9 +88,23 @@ internal static class AssassinState
         SendRoleStates(false);
     }
 
+    internal static void PollLiveStateIfClient()
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || !GameModeManager.IsActive(GameMode.Assassin)
+            || Time.unscaledTime < _nextClientLivePollTime)
+        {
+            return;
+        }
+
+        _nextClientLivePollTime = Time.unscaledTime + 1f;
+        ApplyLobbyLiveSnapshot();
+    }
+
     internal static void OnLobbyEntered()
     {
         Sync.ResetForLobby();
+        _nextClientLivePollTime = 0f;
         if (MyceliumNetwork.IsHost)
         {
             ApplySettingsFromHostConfig();
@@ -107,6 +122,7 @@ internal static class AssassinState
     internal static void OnLobbyLeft()
     {
         Sync.ResetForLobby();
+        _nextClientLivePollTime = 0f;
         ResetMatchState();
     }
 

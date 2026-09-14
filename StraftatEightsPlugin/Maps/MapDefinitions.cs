@@ -39,9 +39,13 @@ internal sealed class MapDefinition
             throw new ArgumentException("A map must have a name.", nameof(name));
         }
 
-        if (teamOrigins.Count != 3)
+        if (teamOrigins.Count < 2 || teamOrigins.Count > 3)
         {
-            throw new ArgumentException("A map must define exactly three team origins.", nameof(teamOrigins));
+            throw new ArgumentException("A map must define two or three team origins.", nameof(teamOrigins));
+        }
+        if (teamOrigins[0] == Vector3.zero || teamOrigins[1] == Vector3.zero)
+        {
+            throw new ArgumentException("The first two team origins must be authored positions.", nameof(teamOrigins));
         }
 
         Name = name;
@@ -76,7 +80,11 @@ internal static class MapDefinitions
                 {
                     new HardpointObjective(new Vector3(12.447f, 7.007f, 8.975f), 5f)
                 },
-                new[] { Vector3.zero, Vector3.zero, Vector3.zero })
+                new[]
+                {
+                    new Vector3(31.686f, 13.02f, 21.609f),
+                    new Vector3(-5.385f, 13.517f, -4.458f)
+                })
         };
 
     internal static bool TryGet(string mapName, out MapDefinition definition)

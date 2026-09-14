@@ -29,6 +29,9 @@ internal static class PauseManager_RoundLifecycle_Patch
             case GameMode.Assassin:
                 AssassinState.OnRoundStarted();
                 break;
+            case GameMode.Hardpoint:
+                HardpointState.OnRoundStarted();
+                break;
         }
 
         if (!GameModeManager.ShouldIgnoreGlobalWeaponSettings)

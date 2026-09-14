@@ -120,6 +120,22 @@ an action that must be retried.
   the Infidel awards the killer 10 points for each Terrorist still alive after the kill. All players
   then respawn for a new sub-round, and scores persist until a player reaches 100 points.
 
+## Hardpoint
+
+- The host assigns teams at each official round start. Three teams are used only when the current
+  player count is divisible by three; otherwise two teams are used. Assignments stay stable through
+  sub-rounds, and an active-round late joiner is added to the smallest existing team.
+- Team origins come from the map definition. With three teams, the third origin is selected from the
+  map spawn candidates farthest from the first two origins. Respawn candidates are then selected by
+  maximum distance from active enemies on the host.
+- Hardpoints use map-list order and rotate every 30 seconds. The host awards one point per uncontested
+  second inside the horizontal radius and the vertical range `y - 1` through `y + 1`. The point warns
+  five seconds before rotation. A contested or empty point drains the contest clock; a tied clock
+  expiry enters sudden death.
+- All players receive `Dispenser` through the shared host-authoritative weapon service after each
+  spawn. Team colors, outlines, markers, and the scoreboard are local visuals driven by the revisioned
+  team and live-state snapshots.
+
 ## FishNet RPCs and Ownership
 
 - Always inspect the shipped, FishNet-weaved DLL when patching a network method. The open-source
@@ -219,6 +235,11 @@ When a result is asymmetric, compare the host and client logs and verify these f
   health, movement, or respawn rule must explicitly block or layer the global rule while active.
 - Custom respawns remain host-authoritative and use the shared respawn timing path. They do not add
   temporary invincibility or a special player outline.
+- Modes with the `SafeRespawn` capability select spawn positions on the FishNet server through the shared safe-spawn
+  scorer. It ranks candidates by nearest-enemy distance, line-of-sight cover, teammate proximity,
+  and optional objective proximity. FFA and Gun Game classify every other active player as an enemy;
+  team modes use the authoritative team assignment to separate enemies from teammates. LOS is a
+  strong penalty, not a universal rejection, so open maps fall back to deterministic distance choice.
 
 ## Startup and ModMenu
 

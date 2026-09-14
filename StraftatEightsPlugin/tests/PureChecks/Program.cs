@@ -111,6 +111,99 @@ Assert(ScoreRules.PointsToWin == 100 && ScoreRules.PointsPerRoundWin == 50
     && ScoreRules.PointsPerJuggernautCrown == 20 && ScoreRules.PointsPerRatSurvivalSecond == 3
     && ScoreRules.PointsPerHVTSurvivalSecond == 3,
     "Shared score rules must use the 100-point target and mode award values.");
+Assert(TeamRules.GetTeamCount(2) == 2 && TeamRules.GetTeamCount(3) == 3
+    && TeamRules.GetTeamCount(4) == 2 && TeamRules.GetTeamCount(6) == 3,
+    "Team count must use three teams only for player counts divisible by three.");
+Dictionary<int, int> teamAssignments = TeamRules.AssignBalanced(new[] { 7, 2, 5, 1, 3, 4 });
+Assert(teamAssignments.Count == 6 && teamAssignments[1] == 0 && teamAssignments[2] == 1
+    && teamAssignments[3] == 2 && teamAssignments[4] == 0 && teamAssignments[5] == 1
+    && teamAssignments[7] == 2,
+    "Team assignment must be deterministic and balanced by sorted player ID.");
+Assert(TeamRules.GetColor(TeamRules.BlueTeamId).Equals(new TeamColorData(0, 114, 178))
+    && TeamRules.GetColor(TeamRules.VermillionTeamId).Equals(new TeamColorData(213, 94, 0))
+    && TeamRules.GetColor(TeamRules.GreenTeamId).Equals(new TeamColorData(0, 158, 115)),
+    "Team colors must use the color-distinct palette.");
+string assignmentData = TeamRules.SerializeAssignments(teamAssignments);
+Dictionary<int, int> parsedAssignments = TeamRules.ParseAssignments(assignmentData, 3);
+Assert(parsedAssignments.Count == teamAssignments.Count
+    && parsedAssignments[7] == 2,
+    "Team assignments must round-trip through the network format.");
+Dictionary<int, int> filteredAssignments = TeamRules.ParseAssignments("1:0;2:9;bad;1:2", 3);
+Assert(filteredAssignments.Count == 1 && filteredAssignments[1] == 2,
+    "Team assignment parsing must reject invalid teams and keep the last duplicate.");
+Assert(TeamRules.ResolveController(Array.Empty<int>()) == -1
+    && TeamRules.ResolveController(new[] { 1, 1 }) == 1
+    && TeamRules.ResolveController(new[] { 1, 2 }) == -2,
+    "Point control must distinguish empty, sole-team, and contested states.");
+TeamPoint thirdTeamSpawn = TeamRules.SelectFarthestFromOrigins(
+    new[] { new TeamPoint(0f, 0f, 10f), new TeamPoint(10f, 0f, 0f), new TeamPoint(-10f, 0f, -10f) },
+    new[] { new TeamPoint(0f, 0f, 0f), new TeamPoint(10f, 0f, 10f) });
+Assert(thirdTeamSpawn.X == -10f && thirdTeamSpawn.Z == -10f,
+    "The third team origin must be farthest from both authored origins.");
+TeamPoint respawn = TeamRules.SelectFarthestFromEnemies(
+    new[] { new TeamPoint(0f, 0f, 0f), new TeamPoint(10f, 0f, 0f), new TeamPoint(20f, 0f, 0f) },
+    new[] { new TeamPoint(2f, 0f, 0f), new TeamPoint(4f, 0f, 0f) });
+Assert(respawn.X == 20f, "Respawn selection must maximize distance from the nearest enemy.");
+List<SpawnCandidate> coveredSpawnCandidates = new()
+{
+    new SpawnCandidate(new TeamPoint(10f, 0f, 0f),
+        new[] { new SpawnThreat(new TeamPoint(0f, 0f, 0f), false) }),
+    new SpawnCandidate(new TeamPoint(20f, 0f, 0f),
+        new[] { new SpawnThreat(new TeamPoint(0f, 0f, 0f), true) })
+};
+TeamPoint coveredSpawn = SafeSpawnRules.SelectBest(coveredSpawnCandidates,
+    Array.Empty<TeamPoint>(), null, out _);
+Assert(coveredSpawn.X == 10f,
+    "A covered spawn should beat a slightly farther spawn visible to an enemy.");
+List<SpawnCandidate> teammateSpawnCandidates = new()
+{
+    new SpawnCandidate(new TeamPoint(5f, 0f, 0f), Array.Empty<SpawnThreat>()),
+    new SpawnCandidate(new TeamPoint(25f, 0f, 0f), Array.Empty<SpawnThreat>())
+};
+TeamPoint teammateSpawn = SafeSpawnRules.SelectBest(teammateSpawnCandidates,
+    new[] { new TeamPoint(6f, 0f, 0f) }, null, out _);
+Assert(teammateSpawn.X == 5f,
+    "A spawn close to a teammate should beat a distant spawn when threat safety is equal.");
+TeamPoint objectiveSpawn = SafeSpawnRules.SelectBest(teammateSpawnCandidates,
+    Array.Empty<TeamPoint>(), new TeamPoint(24f, 0f, 0f), out _);
+Assert(objectiveSpawn.X == 25f,
+    "A spawn close to the objective should beat a distant spawn without threats.");
+TeamPoint noContextSpawn = SafeSpawnRules.SelectBest(teammateSpawnCandidates,
+    Array.Empty<TeamPoint>(), null, out _);
+Assert(noContextSpawn.X == 5f,
+    "Spawn selection without threats, teammates, or an objective must be deterministic.");
+List<SpawnCandidate> visibleSpawnCandidates = new()
+{
+    new SpawnCandidate(new TeamPoint(5f, 0f, 0f),
+        new[] { new SpawnThreat(new TeamPoint(0f, 0f, 0f), true) }),
+    new SpawnCandidate(new TeamPoint(30f, 0f, 0f),
+        new[] { new SpawnThreat(new TeamPoint(0f, 0f, 0f), true) })
+};
+TeamPoint farVisibleSpawn = SafeSpawnRules.SelectBest(visibleSpawnCandidates,
+    Array.Empty<TeamPoint>(), null, out _);
+Assert(farVisibleSpawn.X == 30f,
+    "When all candidates are visible, enemy distance must remain the fallback priority.");
+Assert(HardpointRules.GetContestTimeLimit(100) == 50
+    && HardpointRules.GetContestTimeLimit(1) == 1,
+    "The Hardpoint contest clock must be half the score limit with a one-second minimum.");
+Assert(HardpointRules.GetNextObjectiveIndex(0, 3) == 1
+    && HardpointRules.GetNextObjectiveIndex(2, 3) == 0
+    && HardpointRules.IsWarningActive(25f, 30f, 5f),
+    "Hardpoint objectives must rotate in order and warn five seconds before rotation.");
+Dictionary<int, int> hardpointScores = new() { [0] = 99, [1] = 20 };
+Assert(HardpointRules.TryAwardPoint(hardpointScores, 0, 100, false, out int scoreWinner)
+    && scoreWinner == 0 && hardpointScores[0] == 100,
+    "An uncontested point must win when it reaches the score limit.");
+Assert(HardpointRules.TryAwardPoint(hardpointScores, 1, 100, true, out int suddenDeathWinner)
+    && suddenDeathWinner == 1,
+    "The first uncontested point must win sudden death immediately.");
+Dictionary<int, int> tiedScores = new() { [0] = 20, [1] = 20 };
+Assert(!HardpointRules.TryResolveTimerWinner(tiedScores, out _),
+    "A tied contest-clock expiry must enter sudden death.");
+Dictionary<int, int> leadingScores = new() { [0] = 21, [1] = 20 };
+Assert(HardpointRules.TryResolveTimerWinner(leadingScores, out int timerWinner)
+    && timerWinner == 0,
+    "The leading team must win when the contest clock expires.");
 List<string> defaultGunGameWeapons = WeaponListParser.Parse(
     "Glock, Webley, SMG, Bukanee, Shotgun, AR15, QCW05, HK_G11, M2000, Couperet",
     new[] { "Glock", "Webley", "SMG", "Bukanee", "Shotgun", "AR15", "QCW05", "HK_G11", "M2000", "Couperet" });

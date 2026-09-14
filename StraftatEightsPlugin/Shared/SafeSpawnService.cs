@@ -1,0 +1,146 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace StraftatEightsPlugin;
+
+internal static class SafeSpawnService
+{
+    private const float EyeHeight = 1.4f;
+    private const int DroppedWeaponLayer = 7;
+    private const int SuppressionLayer = 17;
+
+    internal static bool TryChoose(int playerId, IReadOnlyList<Vector3> candidatePositions,
+        out Vector3 position)
+    {
+        position = default;
+        if (playerId < 0 || candidatePositions.Count == 0
+            || GameManager.Instance == null || !GameManager.Instance.IsServer)
+        {
+            return false;
+        }
+
+        bool isHardpoint = GameModeManager.IsActive(GameMode.Hardpoint);
+        int teamId = -1;
+        bool hasTeam = GameModeManager.IsTeamBased
+            && TeamAssignment.TryGetTeamId(playerId, out teamId);
+        List<TeamPoint> candidates = ToTeamPoints(candidatePositions);
+        List<TeamPoint> teammates = new();
+        List<PlayerHealth> enemies = new();
+
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client == null || !client || client.PlayerId == playerId)
+            {
+                continue;
+            }
+
+            PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(client.PlayerId);
+            if (health == null || !health.gameObject.activeInHierarchy || health.health <= 0f)
+            {
+                continue;
+            }
+
+            TeamPoint playerPosition = ToTeamPoint(health.transform.position);
+            bool isTeammate = hasTeam
+                && TeamAssignment.TryGetTeamId(client.PlayerId, out int otherTeamId)
+                && otherTeamId == teamId;
+            if (isTeammate)
+            {
+                teammates.Add(playerPosition);
+            }
+            else
+            {
+                enemies.Add(health);
+            }
+        }
+
+        TeamPoint? objective = null;
+        if (isHardpoint && HardpointState.TryGetCurrentObjective(out HardpointObjective point))
+        {
+            objective = ToTeamPoint(point.Position);
+        }
+
+        if (hasTeam && teamId >= 2 && enemies.Count == 0
+            && GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition))
+        {
+            List<TeamPoint> origins = new();
+            for (int originIndex = 0; originIndex < 2
+                && originIndex < definition.TeamOrigins.Count; originIndex++)
+            {
+                origins.Add(ToTeamPoint(definition.TeamOrigins[originIndex]));
+            }
+
+            if (origins.Count > 0)
+            {
+                TeamPoint fallback = TeamRules.SelectFarthestFromOrigins(candidates, origins);
+                position = new Vector3(fallback.X, fallback.Y, fallback.Z);
+                return true;
+            }
+        }
+
+        List<SpawnCandidate> scoredCandidates = new(candidates.Count);
+        foreach (TeamPoint candidate in candidates)
+        {
+            List<SpawnThreat> threats = new(enemies.Count);
+            foreach (PlayerHealth enemy in enemies)
+            {
+                threats.Add(new SpawnThreat(ToTeamPoint(enemy.transform.position),
+                    HasLineOfSight(new Vector3(candidate.X, candidate.Y, candidate.Z), enemy)));
+            }
+
+            scoredCandidates.Add(new SpawnCandidate(candidate, threats));
+        }
+
+        TeamPoint selected = SafeSpawnRules.SelectBest(scoredCandidates, teammates,
+            objective, out _);
+        position = new Vector3(selected.X, selected.Y, selected.Z);
+        return true;
+    }
+
+    private static bool HasLineOfSight(Vector3 candidate, PlayerHealth enemy)
+    {
+        Vector3 origin = candidate + Vector3.up * EyeHeight;
+        Vector3 target = enemy.transform.position + Vector3.up * EyeHeight;
+        Vector3 delta = target - origin;
+        float distance = delta.magnitude;
+        if (distance <= 0.01f)
+        {
+            return true;
+        }
+
+        int mask = Physics.DefaultRaycastLayers
+            & ~(1 << DroppedWeaponLayer)
+            & ~(1 << SuppressionLayer);
+        RaycastHit[] hits = Physics.RaycastAll(origin, delta / distance, distance, mask,
+            QueryTriggerInteraction.Ignore);
+        Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
+        foreach (RaycastHit hit in hits)
+        {
+            if (hit.collider == null)
+            {
+                continue;
+            }
+
+            return hit.collider.transform.root == enemy.transform.root;
+        }
+
+        return true;
+    }
+
+    private static List<TeamPoint> ToTeamPoints(IReadOnlyList<Vector3> positions)
+    {
+        List<TeamPoint> points = new(positions.Count);
+        foreach (Vector3 position in positions)
+        {
+            points.Add(ToTeamPoint(position));
+        }
+
+        return points;
+    }
+
+    private static TeamPoint ToTeamPoint(Vector3 position)
+    {
+        return new TeamPoint(position.x, position.y, position.z);
+    }
+}

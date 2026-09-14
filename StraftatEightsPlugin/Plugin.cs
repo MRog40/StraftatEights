@@ -56,6 +56,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("Juggernaut", InitializeJuggernaut);
         InitializeSafely("Gun Game", InitializeGunGame);
         InitializeSafely("Sniper Battle", InitializeSniperBattle);
+        InitializeSafely("Hardpoint", InitializeHardpoint);
 
         try
         {
@@ -140,6 +141,9 @@ public partial class Plugin : BaseUnityPlugin
         MyceliumTransportRecovery.Update();
         GameModeManager.PeriodicPushIfHost();
         GameModeManager.PeriodicActiveModePushIfHost();
+        GameModeManager.PollLobbyStateIfClient();
+        AssassinState.PollLiveStateIfClient();
+        HardpointState.PollLiveStateIfClient();
         GlobalModifiersState.PeriodicPushIfHost();
         HealthSettingsState.PeriodicPushIfHost();
         HealthSettingsState.ServerTick();
@@ -148,6 +152,8 @@ public partial class Plugin : BaseUnityPlugin
         WeaponSettingsState.EnsureCycleLoadouts();
         GameModeManager.EnsureActiveModeLoadouts();
         PlayerOutline.EnforceOutline();
+        HardpointOutline.Enforce();
+        HardpointMarker.Update();
         RespawnProtection.Update();
     }
 }

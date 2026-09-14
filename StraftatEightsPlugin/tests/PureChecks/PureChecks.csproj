@@ -10,5 +10,8 @@
     <Compile Include="..\..\Shared\PureValidation.cs" Link="PureValidation.cs" />
     <Compile Include="..\..\Shared\LobbySnapshotCodec.cs" Link="LobbySnapshotCodec.cs" />
     <Compile Include="..\..\Shared\ScoreRules.cs" Link="ScoreRules.cs" />
+    <Compile Include="..\..\Shared\TeamRules.cs" Link="TeamRules.cs" />
+    <Compile Include="..\..\Shared\SafeSpawnRules.cs" Link="SafeSpawnRules.cs" />
+    <Compile Include="..\..\Shared\HardpointRules.cs" Link="HardpointRules.cs" />
   </ItemGroup>
 </Project>

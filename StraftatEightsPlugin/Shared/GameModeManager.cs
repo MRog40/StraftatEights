@@ -26,7 +26,8 @@ internal enum GameMode
     HotPotato = 9,
     Infidel = 10,
     HVT = 11,
-    Assassin = 12
+    Assassin = 12,
+    Hardpoint = 13
 }
 
 internal enum GameModePhase
@@ -46,7 +47,9 @@ internal enum GameModeCapabilities
     IgnoreGlobalHealth = 4,
     HideHud = 8,
     ClearOutlines = 16,
-    IgnoreGlobalMovement = 32
+    IgnoreGlobalMovement = 32,
+    SafeRespawn = 64,
+    TeamBased = 128
 }
 
 internal static class GameModeManager
@@ -92,7 +95,8 @@ internal static class GameModeManager
         GameMode.HotPotato,
         GameMode.Infidel,
         GameMode.HVT,
-        GameMode.Assassin
+        GameMode.Assassin,
+        GameMode.Hardpoint
     };
 
     private static readonly Dictionary<GameMode, ModeDescriptor> Modes = new()
@@ -100,24 +104,29 @@ internal static class GameModeManager
         [GameMode.Default] = new ModeDescriptor("DEFAULT", new Color32(220, 220, 220, 255),
             () => Plugin.DefaultGameModeEnabled.Value, DefaultReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
-            | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.IgnoreGlobalMovement,
+            | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.IgnoreGlobalMovement
+            | GameModeCapabilities.SafeRespawn,
             DefaultGameModeState.PeriodicPushIfHost),
         [GameMode.FreeForAll] = new ModeDescriptor("FFA", new Color32(85, 204, 255, 255),
-            () => Plugin.FFAEnabled.Value, FfaReset, GameModeCapabilities.CustomRound,
+            () => Plugin.FFAEnabled.Value, FfaReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
                FFAState.PeriodicPushIfHost, periodicSettingsPush: FFAState.PeriodicPushSettingsIfHost),
         [GameMode.Juggernaut] = new ModeDescriptor("JUGGERNAUT", new Color32(255, 106, 0, 255),
-            () => Plugin.JuggernautEnabled.Value, JuggernautReset, GameModeCapabilities.CustomRound,
+            () => Plugin.JuggernautEnabled.Value, JuggernautReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
             JuggernautState.PeriodicPushIfHost, JuggernautState.EnsureLoadout,
             JuggernautState.PeriodicPushSettingsIfHost),
         [GameMode.GunGame] = new ModeDescriptor("GUN GAME", new Color32(255, 221, 85, 255),
             () => Plugin.GunGameEnabled.Value, GunGameReset,
-            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.SafeRespawn,
                GunGameState.PeriodicPushIfHost, GunGameState.EnsureLoadouts,
                periodicSettingsPush: GunGameState.PeriodicPushSettingsIfHost),
         [GameMode.SniperBattle] = new ModeDescriptor("SNIPER BATTLE", new Color32(255, 96, 128, 255),
             () => Plugin.SniperBattleEnabled.Value, SniperBattleReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
-            | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.ClearOutlines,
+            | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.ClearOutlines
+            | GameModeCapabilities.SafeRespawn,
                SniperBattleState.PeriodicPushIfHost, SniperBattleState.EnsureLoadouts,
                SniperBattleState.PeriodicPushSettingsIfHost),
         [GameMode.MichaelMeyers] = new ModeDescriptor("MICHAEL MEYERS", new Color32(204, 34, 34, 255),
@@ -128,34 +137,44 @@ internal static class GameModeManager
             MichaelMeyersState.PeriodicPushSettingsIfHost),
         [GameMode.KillTheRat] = new ModeDescriptor("EXTERMINATORS", new Color32(170, 170, 170, 255),
             () => Plugin.KillTheRatEnabled.Value, KillTheRatReset,
-            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.SafeRespawn,
             KillTheRatState.PeriodicPushIfHost, KillTheRatState.EnsureLoadouts,
             KillTheRatState.PeriodicPushSettingsIfHost),
         [GameMode.OneInTheChamber] = new ModeDescriptor("ONE IN THE CHAMBER", new Color32(180, 180, 180, 255),
             () => Plugin.OneInTheChamberEnabled.Value, OneInTheChamberReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
-            | GameModeCapabilities.IgnoreGlobalHealth,
+            | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.SafeRespawn,
             OneInTheChamberState.PeriodicPushIfHost, OneInTheChamberState.EnsureLoadouts,
             OneInTheChamberState.PeriodicPushSettingsIfHost),
         [GameMode.HotPotato] = new ModeDescriptor("HOT POTATO", new Color32(255, 170, 70, 255),
             () => Plugin.HotPotatoEnabled.Value, HotPotatoReset,
-            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.SafeRespawn,
             HotPotatoState.PeriodicPushIfHost, HotPotatoState.EnsureLoadouts,
             HotPotatoState.PeriodicPushSettingsIfHost),
         [GameMode.Infidel] = new ModeDescriptor("INFIDEL", new Color32(204, 64, 64, 255),
             () => Plugin.InfidelEnabled.Value, InfidelReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
-            | GameModeCapabilities.IgnoreGlobalHealth,
+            | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.SafeRespawn,
             InfidelState.PeriodicPushIfHost, InfidelState.EnsureLoadouts,
             InfidelState.PeriodicPushSettingsIfHost),
         [GameMode.HVT] = new ModeDescriptor("HVT", new Color32(0, 0, 255, 255),
-            () => Plugin.HVTEnabled.Value, HVTReset, GameModeCapabilities.CustomRound,
+            () => Plugin.HVTEnabled.Value, HVTReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
             HVTState.PeriodicPushIfHost, periodicSettingsPush: HVTState.PeriodicPushSettingsIfHost),
         [GameMode.Assassin] = new ModeDescriptor("ASSASSIN", new Color32(53, 208, 95, 255),
             () => Plugin.AssassinEnabled.Value, AssassinReset,
-            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.SafeRespawn,
             AssassinState.PeriodicPushIfHost, AssassinState.EnsureLoadouts,
-            AssassinState.PeriodicPushSettingsIfHost)
+            AssassinState.PeriodicPushSettingsIfHost),
+        [GameMode.Hardpoint] = new ModeDescriptor("HARDPOINT", new Color32(0, 114, 178, 255),
+            () => Plugin.HardpointEnabled.Value, HardpointReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            HardpointState.PeriodicPushIfHost, HardpointState.EnsureLoadouts,
+            HardpointState.PeriodicPushSettingsIfHost)
     };
 
     private static void DefaultReset() => DefaultGameModeState.ResetMatchState();
@@ -176,6 +195,7 @@ internal static class GameModeManager
     private static void InfidelReset() => InfidelState.ResetMatchState();
     private static void HVTReset() => HVTState.ResetMatchState();
     private static void AssassinReset() => AssassinState.ResetMatchState();
+    private static void HardpointReset() => HardpointState.ResetMatchState();
 
     internal static GameMode ActiveMode { get; private set; }
     internal static GameModePhase Phase { get; private set; } = GameModePhase.Inactive;
@@ -191,6 +211,7 @@ internal static class GameModeManager
     private static System.Random? _mapPlaylistRandom;
     private static int _mapPlaylistIndex = -1;
     private static bool _mapPlaylistPrepared;
+    private static float _nextClientLobbyPollTime;
 
     internal static void Initialize()
     {
@@ -248,6 +269,7 @@ internal static class GameModeManager
         SniperBattleState.ResetMatchState();
         HVTState.ResetMatchState();
         AssassinState.ResetMatchState();
+        HardpointState.ResetMatchState();
     }
 
     private static void BroadcastGlobalSettings()
@@ -318,6 +340,9 @@ internal static class GameModeManager
             case GameMode.Assassin:
                 AssassinState.OnRoundStarted();
                 break;
+            case GameMode.Hardpoint:
+                HardpointState.OnRoundStarted();
+                break;
         }
     }
 
@@ -347,6 +372,18 @@ internal static class GameModeManager
         {
             descriptor.PeriodicPush();
         }
+    }
+
+    internal static void PollLobbyStateIfClient()
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || Time.unscaledTime < _nextClientLobbyPollTime)
+        {
+            return;
+        }
+
+        _nextClientLobbyPollTime = Time.unscaledTime + 1f;
+        ApplyLobbyActiveModeSnapshot();
     }
 
     internal static void EnsureActiveModeLoadouts()
@@ -476,6 +513,8 @@ internal static class GameModeManager
         HasCapability(GameModeCapabilities.IgnoreGlobalMovement);
 
     internal static bool IsCustomMode => HasCapability(GameModeCapabilities.CustomRound);
+    internal static bool UsesSafeRespawn => HasCapability(GameModeCapabilities.SafeRespawn);
+    internal static bool IsTeamBased => HasCapability(GameModeCapabilities.TeamBased);
     internal static bool ShouldHideCustomHud => HasCapability(GameModeCapabilities.HideHud);
     internal static bool ShouldClearPlayerOutlines => HasCapability(GameModeCapabilities.ClearOutlines);
     internal static bool IsMatchOver => (PauseManager.Instance != null && PauseManager.Instance.inVictoryMenu)
@@ -513,6 +552,7 @@ internal static class GameModeManager
             + $"lobbyHost={MyceliumNetwork.LobbyHost.m_SteamID} mode={ActiveMode} phase={Phase} round={RoundId}");
         Sync.ResetForLobby();
         SessionState.BeginLobby();
+        _nextClientLobbyPollTime = 0f;
         if (MyceliumNetwork.IsHost)
         {
             ApplyGlobalSettingsFromHostConfig();
@@ -548,6 +588,7 @@ internal static class GameModeManager
         Phase = GameModePhase.Inactive;
         RoundId++;
         ResetMapPlaylist();
+        _nextClientLobbyPollTime = 0f;
         EffectiveRespawnDelaySeconds = 3f;
         EffectivePointsToWin = ScoreRules.PointsToWin;
         GlobalModifiersState.ResetForLobbyLeft();
@@ -1033,6 +1074,10 @@ internal static class GameModeManager
                 break;
             case GameMode.Assassin:
                 AssassinState.OnServerKill(playerId, killerId);
+                break;
+            case GameMode.Hardpoint:
+                HardpointState.OnServerKill(playerId, killerId);
+                GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
             case GameMode.HVT:
                 HVTState.OnServerKill(playerId, killerId);

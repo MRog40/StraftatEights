@@ -26,8 +26,6 @@ internal static class GameModeRespawn
         internal int CigaretteIndex { get; }
     }
 
-    internal static bool AnyModeEnabled => GameModeManager.IsCustomMode;
-
     internal static void ResetForLobbyLeft()
     {
         PendingManagers.Clear();
@@ -259,7 +257,7 @@ internal static class GameModeRespawn
 
     internal static Transform ChooseDistantSpawn(Transform currentResult)
     {
-        if (!AnyModeEnabled)
+        if (!GameModeManager.UsesSafeRespawn)
         {
             return currentResult;
         }
@@ -298,7 +296,7 @@ internal static class GameModeRespawn
             return mapPosition;
         }
 
-        if (!AnyModeEnabled)
+        if (!GameModeManager.UsesSafeRespawn)
         {
             return currentPosition;
         }
@@ -333,6 +331,58 @@ internal static class GameModeRespawn
         }
 
         return bestPosition;
+    }
+
+    internal static bool TryChooseSafeSpawnPosition(PlayerManager manager, out Vector3 position)
+    {
+        position = default;
+        if (!GameModeManager.UsesSafeRespawn || GameManager.Instance == null
+            || !GameManager.Instance.IsServer)
+        {
+            return false;
+        }
+
+        int playerId = FindPlayerId(manager);
+        if (playerId < 0)
+        {
+            return false;
+        }
+
+        List<Vector3> candidates;
+        if (GameModeManager.IsTeamBased)
+        {
+            TeamAssignment.EnsureAssignedForActiveRound();
+            if (!TeamAssignment.TryGetSpawnCandidates(playerId, out candidates))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            candidates = GetAvailableSpawnPositions();
+        }
+
+        return SafeSpawnService.TryChoose(playerId, candidates, out position);
+    }
+
+    private static List<Vector3> GetAvailableSpawnPositions()
+    {
+        List<Vector3> positions = new();
+        foreach (SpawnPoint spawnPoint in FindFreeForAllSpawnPoints())
+        {
+            if (spawnPoint != null && spawnPoint.gameObject.activeInHierarchy)
+            {
+                positions.Add(spawnPoint.transform.position);
+            }
+        }
+
+        if (positions.Count == 0
+            && GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition))
+        {
+            positions.AddRange(definition.SpawnPoints);
+        }
+
+        return positions;
     }
 
     internal static bool TryChooseMapSpawnPosition(out Vector3 position)
@@ -425,7 +475,11 @@ internal static class PlayerManager_CustomRespawnSpawn_Patch
     {
         GameModeRespawn.ApplyRespawnCosmetics(__instance, ref suitIndex, ref cigIndex);
         bool hasPendingSpawnAdjustment = GameModeRespawn.ConsumeSpawnAdjustment(__instance);
-        if (GameModeRespawn.TryChooseMapSpawnPosition(out Vector3 mapPosition))
+        if (GameModeRespawn.TryChooseSafeSpawnPosition(__instance, out Vector3 safePosition))
+        {
+            position = safePosition;
+        }
+        else if (GameModeRespawn.TryChooseMapSpawnPosition(out Vector3 mapPosition))
         {
             position = mapPosition;
         }

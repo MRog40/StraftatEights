@@ -25,6 +25,7 @@ internal static class ModeMapCatalog
             [GameMode.Infidel] = Barren01AltOnly,
             [GameMode.HVT] = Barren01AltOnly,
             [GameMode.Assassin] = Barren01AltOnly
+            ,[GameMode.Hardpoint] = Barren01AltOnly
         };
 
     internal static IReadOnlyList<string> GetMapNames(GameMode mode)

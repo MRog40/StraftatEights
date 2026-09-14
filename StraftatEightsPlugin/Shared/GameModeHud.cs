@@ -207,6 +207,10 @@ internal sealed class GameModeHud : MonoBehaviour
         bool isCustomMode = GameModeManager.IsCustomMode;
         bool shouldHideCustomHud = GameModeManager.ShouldHideCustomHud;
         bool isMatchOver = GameModeManager.IsMatchOver;
+        string activeSceneName = SceneManager.GetActiveScene().name;
+        bool inMainMenu = pauseManager?.inMainMenu == true || activeSceneName == "MainMenu";
+        bool inVictoryMenu = pauseManager?.inVictoryMenu == true
+            || activeSceneName == "VictoryScene" || activeSceneName == "EndGame";
         int connectedPlayerCount = 0;
         string visibilityReason;
         if (!isCustomMode)
@@ -217,36 +221,31 @@ internal sealed class GameModeHud : MonoBehaviour
         {
             visibilityReason = "mode-hides-hud";
         }
-        else if (isMatchOver)
+        else if (isMatchOver || inVictoryMenu)
         {
             visibilityReason = "match-over";
-        }
-        else if (pauseManager == null)
-        {
-            visibilityReason = "pause-manager-missing";
         }
         else
         {
             connectedPlayerCount = PlayerLookup.GetConnectedPlayerIds().Count;
             bool activeRoundWithPlayers = GameModeManager.Phase == GameModePhase.ActiveRound
                 && connectedPlayerCount > 0;
-            if (pauseManager.inVictoryMenu)
-            {
-                visibilityReason = "victory-menu";
-            }
-            else if (pauseManager.inMainMenu && !activeRoundWithPlayers)
+            if (inMainMenu && !activeRoundWithPlayers)
             {
                 visibilityReason = "main-menu";
             }
+            else if (connectedPlayerCount > 0 || GameModeManager.Phase == GameModePhase.ActiveRound
+                || (!inMainMenu && !inVictoryMenu))
+            {
+                visibilityReason = "visible";
+            }
             else
             {
-                visibilityReason = connectedPlayerCount > 0 ? "visible" : "no-connected-players";
+                visibilityReason = "no-connected-players";
             }
         }
 
         bool visible = visibilityReason == "visible";
-        bool inMainMenu = pauseManager?.inMainMenu == true;
-        bool inVictoryMenu = pauseManager?.inVictoryMenu == true;
         DebugLog.Every("hud-heartbeat", 1f,
             $"HUD state visible={visible} reason={visibilityReason} panel={_panel.activeSelf} "
             + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} round={GameModeManager.RoundId} "
@@ -421,6 +420,12 @@ internal sealed class GameModeHud : MonoBehaviour
 
     private void RefreshScoreboard()
     {
+        if (GameModeManager.IsActive(GameMode.Hardpoint))
+        {
+            _scoreboard.text = HardpointHud.BuildScoreboard();
+            return;
+        }
+
         if (GameModeManager.IsActive(GameMode.MichaelMeyers))
         {
             _scoreboard.text = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode)

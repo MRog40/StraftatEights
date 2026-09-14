@@ -62,6 +62,11 @@ internal static class PlayerOutline
             MultiTargets.Clear();
         }
 
+        if (activeMode == GameMode.Hardpoint)
+        {
+            return;
+        }
+
         if (GameModeManager.ShouldClearPlayerOutlines
             || !IsOutlineMode(activeMode) || _roleMode != activeMode)
         {

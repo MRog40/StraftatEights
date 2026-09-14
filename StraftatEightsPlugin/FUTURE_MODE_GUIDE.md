@@ -48,6 +48,24 @@ The Assassin receives 50 points when the King dies, including a friendly-fire Ki
 
 Assassin does not override global health or movement settings. Its custom behavior is limited to roles, weapons, scoring, public King presentation, and sub-round respawns.
 
+### Hardpoint mode contract
+
+Hardpoint assigns teams once at the official round start. It uses three balanced teams when the
+player count is divisible by three; all other non-empty player counts use two teams. Team IDs and
+scores are host-authoritative and are sent in revisioned live snapshots with a lobby-data fallback.
+
+The first two team origins come from the map definition. If three teams are needed, the third origin
+is selected from the map spawn candidates to maximize its distance from the authored origins. Respawn
+selection then chooses the farthest valid team candidate from active enemies. Team assignments remain
+stable through sub-rounds and are rebuilt for each official map or mode round.
+
+Hardpoints use the map definition order, rotate every 30 seconds, and warn five seconds before the
+next point. A team scores one point per uncontested second inside the two-unit vertical zone from
+`y - 1` through `y + 1`. A contested or empty point drains the contest clock; a tied expiry enters
+sudden death. Every player receives the `Dispenser` loadout, and respawns use the shared configured
+delay. Team-colored outlines, the local scoreboard, and ground markers are presentation-only and
+are reapplied on every peer.
+
 ## 3. Keep the plugin bootstrap complete
 
 `Plugin.Awake()` must bind every config entry even if an optional subsystem fails. Startup modules use the safe initializer in `Plugin.cs`, which logs the failed feature and continues with later config bindings.
@@ -157,6 +175,14 @@ Use `WeaponService.GiveWeapon(playerId, weaponName, spareMagazines)` for server-
 Use `WeaponService.GiveWeaponToLeftHand(...)` for off-hand grants and `AttachUnparentedWeapon(...)` for repair of an existing hand SyncVar whose transform is not attached.
 
 Use `WeaponAmmoTuning` for magazine, reserve, reload, and HUD behavior. Native reload weapons keep their native reload path. Do not add a second ammo counter or temporarily alter the native reload flag.
+
+Use the shared safe-spawn path for modes that respawn players. The mode descriptor must opt into the
+`SafeRespawn` capability. It scores scene or mode-provided
+candidates by nearest-enemy distance, host-side line of sight, teammate proximity, and optional
+objective proximity. FFA, Gun Game, and other non-team modes treat every other active player as an
+enemy. Team modes provide team candidates and classify same-team players as teammates. Line of sight
+is a strong penalty rather than a hard rejection so open maps and incomplete collider timing retain a
+deterministic distance-based fallback.
 
 Persistent choices belong in dictionaries keyed by `ClientInstance.PlayerId`. Player and weapon GameObjects are recreated on every spawn and respawn. Loadout reconciliation must retry for a bounded time because settings, player objects, parent objects, and SyncVars can arrive in different orders.
 
