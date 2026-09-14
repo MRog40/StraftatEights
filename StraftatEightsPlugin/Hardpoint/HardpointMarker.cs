@@ -13,9 +13,12 @@ internal static class HardpointMarker
     private const float GroundProbeStartOffset = 4f;
     private const float GroundProbeDistance = 8f;
     private const float ActiveAlpha = 0.8f;
+    private const float OverheadMarkerHeight = 2f;
+    private const float OverheadMarkerSize = 0.35f;
     private const int GeometryProbeSegments = 32;
     private const float GeometryProbeMargin = 0.02f;
     private static GameObject? _activeMarker;
+    private static GameObject? _activeOverheadMarker;
     private static GameObject? _nextMarker;
     private static Renderer? _nextRenderer;
     private static bool _activePositionCached;
@@ -45,6 +48,11 @@ internal static class HardpointMarker
             _activeMarker = CreateMarker("HardpointActiveMarker", activeColor);
         }
         PositionMarker(_activeMarker, current, activeColor, false);
+        if (_activeOverheadMarker == null || !_activeOverheadMarker)
+        {
+            _activeOverheadMarker = CreateOverheadMarker(activeColor);
+        }
+        PositionOverheadMarker(_activeOverheadMarker, current, activeColor);
 
         if (HardpointState.IsWarningActive
             && HardpointState.TryGetNextObjective(out HardpointObjective next))
@@ -115,6 +123,82 @@ internal static class HardpointMarker
         renderer.receiveShadows = false;
 
         return marker;
+    }
+
+    private static GameObject CreateOverheadMarker(Color color)
+    {
+        GameObject marker = new("HardpointOverheadMarker");
+        MeshFilter meshFilter = marker.AddComponent<MeshFilter>();
+        meshFilter.sharedMesh = CreateOverheadMarkerMesh();
+        MeshRenderer meshRenderer = marker.AddComponent<MeshRenderer>();
+        Shader? shader = Shader.Find("Hidden/Internal-Colored")
+            ?? Shader.Find("Unlit/Color")
+            ?? Shader.Find("Sprites/Default");
+        if (shader != null)
+        {
+            Material material = new(shader);
+            ConfigureOverlayMaterial(material);
+            material.color = color;
+            meshRenderer.material = material;
+        }
+
+        meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+        meshRenderer.receiveShadows = false;
+        return marker;
+    }
+
+    private static Mesh CreateOverheadMarkerMesh()
+    {
+        Mesh mesh = new()
+        {
+            name = "HardpointOverheadMarkerMesh",
+            vertices = new[]
+            {
+                new Vector3(0f, 1f, 0f),
+                new Vector3(0f, -1f, 0f),
+                new Vector3(1f, 0f, 0f),
+                new Vector3(0f, 0f, 1f),
+                new Vector3(-1f, 0f, 0f),
+                new Vector3(0f, 0f, -1f)
+            },
+            triangles = new[]
+            {
+                0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 2,
+                1, 3, 2, 1, 4, 3, 1, 5, 4, 1, 2, 5
+            }
+        };
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
+    private static void ConfigureOverlayMaterial(Material material)
+    {
+        material.SetOverrideTag("RenderType", "Transparent");
+        material.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+        material.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+        material.SetInt("_ZWrite", 0);
+        material.SetInt("_ZTest", (int)CompareFunction.Always);
+        material.SetInt("unity_GUIZTestMode", (int)CompareFunction.Always);
+        material.SetInt("_Cull", (int)CullMode.Off);
+        material.EnableKeyword("_ALPHABLEND_ON");
+        material.renderQueue = (int)RenderQueue.Overlay;
+    }
+
+    private static void PositionOverheadMarker(GameObject marker,
+        HardpointObjective objective, Color color)
+    {
+        marker.SetActive(true);
+        Vector3 groundCenter = GetMarkerPosition(objective, false)
+            - Vector3.up * RingGroundClearance;
+        marker.transform.SetPositionAndRotation(groundCenter
+            + Vector3.up * OverheadMarkerHeight, Quaternion.identity);
+        marker.transform.localScale = Vector3.one * OverheadMarkerSize;
+        Renderer? renderer = marker.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            renderer.material.color = color;
+        }
     }
 
     private static Mesh CreateRingMesh()
@@ -409,6 +493,12 @@ internal static class HardpointMarker
             Object.Destroy(_activeMarker);
         }
         _activeMarker = null;
+
+        if (_activeOverheadMarker != null && _activeOverheadMarker)
+        {
+            Object.Destroy(_activeOverheadMarker);
+        }
+        _activeOverheadMarker = null;
 
         if (_nextMarker != null && _nextMarker)
         {

@@ -450,7 +450,7 @@ internal static class HardpointState
             }
 
             Vector3 delta = health.transform.position - objective.Position;
-            if (delta.y >= -1f && delta.y <= 1f
+            if (delta.y >= -1f && delta.y <= 2f
                 && delta.x * delta.x + delta.z * delta.z <= radiusSquared)
             {
                 teams.Add(assignment.Value);
