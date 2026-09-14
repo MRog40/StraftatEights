@@ -8,6 +8,10 @@ internal static class HardpointHud
     internal static string BuildScoreboard()
     {
         StringBuilder text = new();
+        float rotationRemaining = Mathf.Max(0f, HardpointState.ObjectiveDurationSeconds
+            - HardpointState.ObjectiveElapsedSeconds);
+        text.Append("HP rotates in ").Append(Mathf.CeilToInt(rotationRemaining))
+            .AppendLine("s");
         text.Append("Timer ").Append(Mathf.CeilToInt(HardpointState.ContestTimeRemaining))
             .AppendLine("s");
         for (int teamId = 0; teamId < HardpointState.TeamCount; teamId++)

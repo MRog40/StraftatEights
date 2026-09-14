@@ -10,6 +10,10 @@ internal static class PositionMarkerDebug
     {
         if (!Input.GetKeyDown(KeyCode.F9) && !Input.GetKeyDown(KeyCode.F10))
         {
+            if (Input.GetKeyDown(KeyCode.F11))
+            {
+                HardpointMarker.LogGeometryProbe();
+            }
             return;
         }
 
