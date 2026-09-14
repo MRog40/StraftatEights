@@ -680,7 +680,22 @@ internal static class GameModeManager
             return false;
         }
 
-        int nextIndex = (_mapPlaylistIndex + 1) % _mapPlaylist.Count;
+        int nextIndex = _mapPlaylistIndex;
+        for (int offset = 0; offset < _mapPlaylist.Count; offset++)
+        {
+            nextIndex = (nextIndex + 1) % _mapPlaylist.Count;
+            if (IsEnabled(_mapPlaylist[nextIndex].Mode))
+            {
+                break;
+            }
+        }
+
+        if (!IsEnabled(_mapPlaylist[nextIndex].Mode))
+        {
+            entry = default;
+            return false;
+        }
+
         entry = _mapPlaylist[nextIndex];
         string mapName = entry.MapName;
         if (_mapPlaylistIndex >= 0 && LastMapByMode.TryGetValue(entry.Mode, out string? previousMap))

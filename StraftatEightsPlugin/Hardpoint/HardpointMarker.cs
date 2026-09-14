@@ -6,8 +6,9 @@ namespace StraftatEightsPlugin;
 internal static class HardpointMarker
 {
     private const int RingSegments = 64;
-    private const float InnerRadiusRatio = 0.97f;
-    private const float RingVerticalOffset = 0.06f;
+    private const float InnerRadiusRatio = 0.86f;
+    private const float RingVerticalOffset = 1.02f;
+    private const float ActiveAlpha = 0.65f;
     private static GameObject? _activeMarker;
     private static GameObject? _nextMarker;
     private static Renderer? _nextRenderer;
@@ -150,12 +151,12 @@ internal static class HardpointMarker
         int controller = HardpointState.CurrentController;
         if (controller < 0)
         {
-            return new Color(1f, 1f, 1f, 0.2f);
+            return new Color(1f, 1f, 1f, ActiveAlpha);
         }
 
         TeamColorData teamColor = TeamRules.GetColor(controller);
         return new Color(teamColor.Red / 255f, teamColor.Green / 255f,
-            teamColor.Blue / 255f, 0.2f);
+            teamColor.Blue / 255f, ActiveAlpha);
     }
 
     private static void Clear()
