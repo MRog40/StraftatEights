@@ -7,8 +7,6 @@ namespace StraftatEightsPlugin;
 
 internal static class GameModeRespawn
 {
-    private const float MinimumPlayerSeparation = 1.25f;
-    private static readonly Vector3[] SpawnOffsets = { Vector3.zero };
     private static readonly HashSet<int> PendingManagers = new();
     private static readonly HashSet<int> SuppressedRoundStarts = new();
     private static readonly HashSet<int> PendingSpawnAdjustments = new();
@@ -257,36 +255,7 @@ internal static class GameModeRespawn
 
     internal static Transform ChooseDistantSpawn(Transform currentResult)
     {
-        if (!GameModeManager.UsesSafeRespawn)
-        {
-            return currentResult;
-        }
-
-        SpawnPoint[] spawnPoints = FindFreeForAllSpawnPoints();
-        Transform? best = null;
-        float bestDistance = float.MinValue;
-        List<Vector3> activePlayerPositions = GetActivePlayerPositions();
-        if (activePlayerPositions.Count == 0)
-        {
-            return currentResult;
-        }
-
-        foreach (SpawnPoint spawnPoint in spawnPoints)
-        {
-            if (spawnPoint == null || !spawnPoint.gameObject.activeInHierarchy)
-            {
-                continue;
-            }
-
-            float nearestPlayerDistance = GetNearestPlayerDistance(spawnPoint.transform.position, activePlayerPositions);
-            if (nearestPlayerDistance > bestDistance)
-            {
-                bestDistance = nearestPlayerDistance;
-                best = spawnPoint.transform;
-            }
-        }
-
-        return best ?? currentResult!;
+        return currentResult;
     }
 
     internal static Vector3 ChooseSpawnPosition(Vector3 currentPosition)
@@ -296,41 +265,7 @@ internal static class GameModeRespawn
             return mapPosition;
         }
 
-        if (!GameModeManager.UsesSafeRespawn)
-        {
-            return currentPosition;
-        }
-
-        List<Vector3> activePlayerPositions = GetActivePlayerPositions();
-        SpawnPoint[] spawnPoints = FindFreeForAllSpawnPoints();
-        Vector3 bestPosition = currentPosition;
-        float bestDistance = float.MinValue;
-        bool bestPositionCrowded = true;
-        bool foundCandidate = false;
-
-        foreach (SpawnPoint spawnPoint in spawnPoints)
-        {
-            if (spawnPoint == null || !spawnPoint.gameObject.activeInHierarchy)
-            {
-                continue;
-            }
-
-            foreach (Vector3 offset in SpawnOffsets)
-            {
-                Vector3 candidate = spawnPoint.transform.position + offset;
-                float nearestPlayerDistance = GetNearestPlayerDistance(candidate, activePlayerPositions);
-                bool candidateCrowded = nearestPlayerDistance < MinimumPlayerSeparation;
-                if (!foundCandidate || IsBetterCandidate(candidateCrowded, nearestPlayerDistance, bestPositionCrowded, bestDistance))
-                {
-                    bestPosition = candidate;
-                    bestDistance = nearestPlayerDistance;
-                    bestPositionCrowded = candidateCrowded;
-                    foundCandidate = true;
-                }
-            }
-        }
-
-        return bestPosition;
+        return currentPosition;
     }
 
     internal static bool TryChooseSafeSpawnPosition(PlayerManager manager, out Vector3 position)
@@ -367,22 +302,9 @@ internal static class GameModeRespawn
 
     private static List<Vector3> GetAvailableSpawnPositions()
     {
-        List<Vector3> positions = new();
-        foreach (SpawnPoint spawnPoint in FindFreeForAllSpawnPoints())
-        {
-            if (spawnPoint != null && spawnPoint.gameObject.activeInHierarchy)
-            {
-                positions.Add(spawnPoint.transform.position);
-            }
-        }
-
-        if (positions.Count == 0
-            && GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition))
-        {
-            positions.AddRange(definition.SpawnPoints);
-        }
-
-        return positions;
+        return GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition)
+            ? new List<Vector3>(definition.SpawnPoints)
+            : new List<Vector3>();
     }
 
     internal static bool TryChooseMapSpawnPosition(out Vector3 position)
@@ -396,60 +318,6 @@ internal static class GameModeRespawn
 
         position = definition.SpawnPoints[UnityEngine.Random.Range(0, definition.SpawnPoints.Count)];
         return true;
-    }
-
-    private static bool IsBetterCandidate(bool candidateCrowded, float candidateDistance, bool bestCrowded, float bestDistance)
-    {
-        if (candidateCrowded != bestCrowded)
-        {
-            return !candidateCrowded;
-        }
-        return candidateDistance > bestDistance;
-    }
-
-    private static List<Vector3> GetActivePlayerPositions()
-    {
-        List<Vector3> positions = new();
-        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
-        {
-            PlayerHealth? health = client == null ? null : PlayerLookup.FindPlayerHealthById(client.PlayerId);
-            if (health == null || !health.gameObject.activeInHierarchy || health.health <= 0f)
-            {
-                continue;
-            }
-            positions.Add(health.transform.position);
-        }
-        return positions;
-    }
-
-    private static float GetNearestPlayerDistance(Vector3 position, List<Vector3> playerPositions)
-    {
-        if (playerPositions.Count == 0)
-        {
-            return float.MaxValue;
-        }
-
-        float nearestDistance = float.MaxValue;
-        foreach (Vector3 playerPosition in playerPositions)
-        {
-            Vector3 horizontalDelta = position - playerPosition;
-            horizontalDelta.y = 0f;
-            nearestDistance = Mathf.Min(nearestDistance, horizontalDelta.magnitude);
-        }
-        return nearestDistance;
-    }
-
-    private static SpawnPoint[] FindFreeForAllSpawnPoints()
-    {
-        GameObject? group = GameObject.FindGameObjectWithTag("Spawnpoints4Player");
-        if (group == null)
-        {
-            group = GameObject.FindGameObjectWithTag("Spawnpoints");
-        }
-        SpawnPoint[] spawnPoints = group == null
-            ? Object.FindObjectsOfType<SpawnPoint>()
-            : group.GetComponentsInChildren<SpawnPoint>(true);
-        return spawnPoints;
     }
 
     internal static PlayerManager? FindManager(PlayerHealth health)

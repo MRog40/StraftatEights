@@ -19,8 +19,9 @@ internal static class HardpointMarker
             return;
         }
 
-        _activeMarker ??= CreateMarker("HardpointActiveMarker", new Color(0f, 0.75f, 0.95f, 0.14f));
-        PositionMarker(_activeMarker, current, 0.14f);
+        Color activeColor = GetActiveColor();
+        _activeMarker ??= CreateMarker("HardpointActiveMarker", activeColor);
+        PositionMarker(_activeMarker, current, activeColor);
 
         if (HardpointState.IsWarningActive
             && HardpointState.TryGetNextObjective(out HardpointObjective next))
@@ -28,7 +29,7 @@ internal static class HardpointMarker
             _nextMarker ??= CreateMarker("HardpointNextMarker", new Color(1f, 0.75f, 0.1f, 0.08f));
             _nextRenderer ??= _nextMarker.GetComponent<Renderer>();
             float pulse = 0.04f + (Mathf.Sin(Time.unscaledTime * 7f) + 1f) * 0.03f;
-            PositionMarker(_nextMarker, next, pulse);
+            PositionMarker(_nextMarker, next, new Color(1f, 0.75f, 0.1f, pulse));
             if (_nextRenderer != null)
             {
                 Color color = _nextRenderer.material.color;
@@ -58,12 +59,16 @@ internal static class HardpointMarker
         }
 
         Renderer renderer = marker.GetComponent<Renderer>();
-        Shader? shader = Shader.Find("Unlit/Transparent") ?? Shader.Find("Standard");
+        Shader? shader = Shader.Find("Unlit/Transparent")
+            ?? Shader.Find("Legacy Shaders/Transparent/Diffuse")
+            ?? Shader.Find("Sprites/Default")
+            ?? Shader.Find("Standard");
         if (shader != null)
         {
             Material material = new(shader);
             if (shader.name == "Standard")
             {
+                material.SetOverrideTag("RenderType", "Transparent");
                 material.SetFloat("_Mode", 3f);
                 material.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
                 material.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
@@ -78,10 +83,13 @@ internal static class HardpointMarker
             renderer.material = material;
         }
 
+        renderer.shadowCastingMode = ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+
         return marker;
     }
 
-    private static void PositionMarker(GameObject marker, HardpointObjective objective, float alpha)
+    private static void PositionMarker(GameObject marker, HardpointObjective objective, Color color)
     {
         marker.SetActive(true);
         marker.transform.SetPositionAndRotation(objective.Position, Quaternion.identity);
@@ -90,10 +98,21 @@ internal static class HardpointMarker
         Renderer? renderer = marker.GetComponent<Renderer>();
         if (renderer != null)
         {
-            Color color = renderer.material.color;
-            color.a = alpha;
             renderer.material.color = color;
         }
+    }
+
+    private static Color GetActiveColor()
+    {
+        int controller = HardpointState.CurrentController;
+        if (controller < 0)
+        {
+            return new Color(1f, 1f, 1f, 0.2f);
+        }
+
+        TeamColorData teamColor = TeamRules.GetColor(controller);
+        return new Color(teamColor.Red / 255f, teamColor.Green / 255f,
+            teamColor.Blue / 255f, 0.2f);
     }
 
     private static void Clear()

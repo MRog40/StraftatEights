@@ -128,7 +128,7 @@ internal static class TeamAssignment
         if (teamId < 2 && teamId < definition.TeamOrigins.Count)
         {
             Vector3 origin = definition.TeamOrigins[teamId];
-            List<Vector3> available = GetActiveMapSpawnPositions();
+            List<Vector3> available = new(definition.SpawnPoints);
             List<Vector3> teamCandidates = new() { origin };
             Vector3 otherOrigin = definition.TeamOrigins[teamId == 0 ? 1 : 0];
             foreach (Vector3 candidate in available)
@@ -144,23 +144,7 @@ internal static class TeamAssignment
             return teamCandidates;
         }
 
-        List<Vector3> candidates = GetActiveMapSpawnPositions();
-        return candidates.Count > 0 ? candidates : new List<Vector3>(definition.SpawnPoints);
-    }
-
-    private static List<Vector3> GetActiveMapSpawnPositions()
-    {
-        SpawnPoint[] spawnPoints = FindMapSpawnPoints();
-        List<Vector3> candidates = new();
-        foreach (SpawnPoint spawnPoint in spawnPoints)
-        {
-            if (spawnPoint != null && spawnPoint.gameObject.activeInHierarchy)
-            {
-                candidates.Add(spawnPoint.transform.position);
-            }
-        }
-
-        return candidates;
+        return new List<Vector3>(definition.SpawnPoints);
     }
 
     private static float HorizontalDistanceSquared(Vector3 first, Vector3 second)
@@ -185,16 +169,4 @@ internal static class TeamAssignment
         }
     }
 
-    private static SpawnPoint[] FindMapSpawnPoints()
-    {
-        GameObject? group = GameObject.FindGameObjectWithTag("Spawnpoints4Player");
-        if (group == null)
-        {
-            group = GameObject.FindGameObjectWithTag("Spawnpoints");
-        }
-
-        return group == null
-            ? Object.FindObjectsOfType<SpawnPoint>()
-            : group.GetComponentsInChildren<SpawnPoint>(true);
-    }
 }
