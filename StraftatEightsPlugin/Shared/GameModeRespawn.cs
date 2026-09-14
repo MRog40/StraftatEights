@@ -10,6 +10,7 @@ internal static class GameModeRespawn
     private static readonly HashSet<int> PendingManagers = new();
     private static readonly HashSet<int> SuppressedRoundStarts = new();
     private static readonly HashSet<int> PendingSpawnAdjustments = new();
+    private static readonly HashSet<int> InitialTeamSpawnsApplied = new();
     private static readonly Dictionary<int, CosmeticIndices> PendingRespawnCosmetics = new();
 
     private readonly struct CosmeticIndices
@@ -29,6 +30,7 @@ internal static class GameModeRespawn
         PendingManagers.Clear();
         SuppressedRoundStarts.Clear();
         PendingSpawnAdjustments.Clear();
+        InitialTeamSpawnsApplied.Clear();
         PendingRespawnCosmetics.Clear();
     }
 
@@ -37,6 +39,7 @@ internal static class GameModeRespawn
         PendingManagers.Clear();
         SuppressedRoundStarts.Clear();
         PendingSpawnAdjustments.Clear();
+        InitialTeamSpawnsApplied.Clear();
         PendingRespawnCosmetics.Clear();
     }
 
@@ -300,6 +303,27 @@ internal static class GameModeRespawn
         return SafeSpawnService.TryChoose(playerId, candidates, out position);
     }
 
+    internal static bool TryChooseInitialTeamSpawnPosition(PlayerManager manager,
+        out Vector3 position)
+    {
+        position = default;
+        if (!GameModeManager.IsTeamBased || GameManager.Instance == null
+            || !GameManager.Instance.IsServer)
+        {
+            return false;
+        }
+
+        int playerId = FindPlayerId(manager);
+        if (playerId < 0 || InitialTeamSpawnsApplied.Contains(playerId)
+            || !TeamAssignment.TryGetInitialSpawnPosition(playerId, out position))
+        {
+            return false;
+        }
+
+        InitialTeamSpawnsApplied.Add(playerId);
+        return true;
+    }
+
     private static List<Vector3> GetAvailableSpawnPositions()
     {
         return GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition)
@@ -343,7 +367,13 @@ internal static class PlayerManager_CustomRespawnSpawn_Patch
     {
         GameModeRespawn.ApplyRespawnCosmetics(__instance, ref suitIndex, ref cigIndex);
         bool hasPendingSpawnAdjustment = GameModeRespawn.ConsumeSpawnAdjustment(__instance);
-        if (GameModeRespawn.TryChooseSafeSpawnPosition(__instance, out Vector3 safePosition))
+        if (!hasPendingSpawnAdjustment
+            && GameModeRespawn.TryChooseInitialTeamSpawnPosition(__instance,
+            out Vector3 initialTeamPosition))
+        {
+            position = initialTeamPosition;
+        }
+        else if (GameModeRespawn.TryChooseSafeSpawnPosition(__instance, out Vector3 safePosition))
         {
             position = safePosition;
         }

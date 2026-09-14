@@ -30,6 +30,24 @@ internal static class ModeMapCatalog
 
     internal static IReadOnlyList<string> GetMapNames(GameMode mode)
     {
+        return GetMapNames(mode, true);
+    }
+
+    internal static IReadOnlyList<string> GetMapNames(GameMode mode, bool mapOverridesEnabled)
+    {
+        if (!mapOverridesEnabled)
+        {
+            IReadOnlyList<string> mapNames = GetNormalLobbyMapNames();
+            return RequiresMapDefinition(mode)
+                ? GetMapsWithRequiredDefinition(mode, mapNames)
+                : mapNames;
+        }
+
+        return GetOverrideMapNames(mode);
+    }
+
+    private static IReadOnlyList<string> GetOverrideMapNames(GameMode mode)
+    {
         if (mode == GameMode.Default)
         {
             return GetDefaultMapNames();
@@ -38,6 +56,88 @@ internal static class ModeMapCatalog
         return MapsByMode.TryGetValue(mode, out IReadOnlyList<string>? mapNames)
             ? mapNames
             : Array.Empty<string>();
+    }
+
+    private static IReadOnlyList<string> GetNormalLobbyMapNames()
+    {
+        if (SceneMotor.Instance != null && SceneMotor.Instance.PlayListMaps.Count > 0)
+        {
+            return GetDistinctMapNames(SceneMotor.Instance.PlayListMaps);
+        }
+
+        if (MapsManager.Instance == null || MapsManager.Instance.allMaps == null
+            || MapsManager.Instance.unlockedMaps == null)
+        {
+            return Array.Empty<string>();
+        }
+
+        List<string> mapNames = new();
+        foreach (int mapIndex in MapsManager.Instance.unlockedMaps)
+        {
+            if (mapIndex < 0 || mapIndex >= MapsManager.Instance.allMaps.Length)
+            {
+                continue;
+            }
+
+            Map map = MapsManager.Instance.allMaps[mapIndex];
+            if (map != null && !string.IsNullOrWhiteSpace(map.mapName)
+                && !mapNames.Contains(map.mapName, StringComparer.Ordinal))
+            {
+                mapNames.Add(map.mapName);
+            }
+        }
+
+        return mapNames;
+    }
+
+    private static IReadOnlyList<string> GetMapsWithRequiredDefinition(GameMode mode,
+        IReadOnlyList<string> mapNames)
+    {
+        List<string> supportedMaps = new();
+        foreach (string mapName in mapNames)
+        {
+            if (HasRequiredDefinition(mode, mapName))
+            {
+                supportedMaps.Add(mapName);
+            }
+        }
+
+        return supportedMaps;
+    }
+
+    private static List<string> GetDistinctMapNames(IReadOnlyList<string> mapNames)
+    {
+        List<string> distinctMapNames = new();
+        foreach (string mapName in mapNames)
+        {
+            if (!string.IsNullOrWhiteSpace(mapName)
+                && !distinctMapNames.Contains(mapName, StringComparer.Ordinal))
+            {
+                distinctMapNames.Add(mapName);
+            }
+        }
+
+        return distinctMapNames;
+    }
+
+    private static bool RequiresMapDefinition(GameMode mode)
+    {
+        return mode == GameMode.Hardpoint;
+    }
+
+    private static bool HasRequiredDefinition(GameMode mode, string mapName)
+    {
+        if (!RequiresMapDefinition(mode)
+            || !MapDefinitions.TryGet(mapName, out MapDefinition definition))
+        {
+            return !RequiresMapDefinition(mode);
+        }
+
+        return mode switch
+        {
+            GameMode.Hardpoint => definition.HardpointObjectives.Count > 0,
+            _ => true
+        };
     }
 
         private static IReadOnlyList<string> GetDefaultMapNames()
@@ -97,14 +197,31 @@ internal static class ModeMapCatalog
 
         internal static bool IsSupported(GameMode mode, string mapName)
         {
-            return !string.IsNullOrWhiteSpace(mapName)
-                && GetMapNames(mode).Contains(mapName, StringComparer.Ordinal);
+            return IsSupported(mode, mapName, true);
+        }
+
+        internal static bool IsSupported(GameMode mode, string mapName, bool mapOverridesEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(mapName))
+            {
+                return false;
+            }
+
+            return mapOverridesEnabled
+                ? GetOverrideMapNames(mode).Contains(mapName, StringComparer.Ordinal)
+                : !RequiresMapDefinition(mode) || HasRequiredDefinition(mode, mapName);
         }
 
     internal static bool TryGetDefinition(GameMode mode, string mapName,
         out MapDefinition definition)
+        {
+            return TryGetDefinition(mode, mapName, true, out definition);
+        }
+
+        internal static bool TryGetDefinition(GameMode mode, string mapName,
+            bool mapOverridesEnabled, out MapDefinition definition)
     {
-            if (!IsSupported(mode, mapName))
+            if (!IsSupported(mode, mapName, mapOverridesEnabled))
         {
             definition = null!;
             return false;

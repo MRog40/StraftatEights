@@ -6,3 +6,7 @@ Ping @MRog40 in the STRAFTAT Discord with any issues.
 Hardpoint is available as a host-controlled team mode. It assigns balanced teams, rotates map-defined
 hardpoints every 30 seconds, awards uncontested objective time, gives players `Dispenser`, and shows
 team-colored outlines and a scoreboard.
+
+The host can disable `Enable Map Overrides` under `Global Settings` to use the
+normal STRAFTAT lobby map selection. Hardpoint then runs only on maps with authored
+Hardpoint objectives; other modes can run on every selected map.

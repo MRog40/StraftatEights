@@ -7,8 +7,9 @@ internal static class HardpointMarker
 {
     private const int RingSegments = 64;
     private const float InnerRadiusRatio = 0.75f;
+    private const float RingThicknessRatio = 1f - InnerRadiusRatio;
     private const float RingVerticalOffset = 1.02f;
-    private const float ActiveAlpha = 0.65f;
+    private const float ActiveAlpha = 0.8f;
     private static GameObject? _activeMarker;
     private static GameObject? _nextMarker;
     private static Renderer? _nextRenderer;
@@ -90,29 +91,57 @@ internal static class HardpointMarker
         {
             name = "HardpointRingMesh"
         };
-        Vector3[] vertices = new Vector3[RingSegments * 2];
-        int[] triangles = new int[RingSegments * 6];
+        Vector3[] vertices = new Vector3[RingSegments * 4];
+        int[] triangles = new int[RingSegments * 24];
         for (int index = 0; index < RingSegments; index++)
         {
             float angle = index * Mathf.PI * 2f / RingSegments;
             float x = Mathf.Cos(angle);
             float z = Mathf.Sin(angle);
-            vertices[index * 2] = new Vector3(x, 0f, z);
-            vertices[index * 2 + 1] = new Vector3(x * InnerRadiusRatio, 0f,
+            int vertexOffset = index * 4;
+            vertices[vertexOffset] = new Vector3(x, 0f, z);
+            vertices[vertexOffset + 1] = new Vector3(x * InnerRadiusRatio, 0f,
                 z * InnerRadiusRatio);
+            vertices[vertexOffset + 2] = new Vector3(x, RingThicknessRatio, z);
+            vertices[vertexOffset + 3] = new Vector3(x * InnerRadiusRatio,
+                RingThicknessRatio, z * InnerRadiusRatio);
 
             int nextIndex = (index + 1) % RingSegments;
-            int triangleOffset = index * 6;
-            triangles[triangleOffset] = index * 2;
-            triangles[triangleOffset + 1] = nextIndex * 2 + 1;
-            triangles[triangleOffset + 2] = nextIndex * 2;
-            triangles[triangleOffset + 3] = index * 2;
-            triangles[triangleOffset + 4] = index * 2 + 1;
-            triangles[triangleOffset + 5] = nextIndex * 2 + 1;
+            int nextVertexOffset = nextIndex * 4;
+            int triangleOffset = index * 24;
+
+            triangles[triangleOffset] = vertexOffset + 2;
+            triangles[triangleOffset + 1] = nextVertexOffset + 3;
+            triangles[triangleOffset + 2] = nextVertexOffset + 2;
+            triangles[triangleOffset + 3] = vertexOffset + 2;
+            triangles[triangleOffset + 4] = vertexOffset + 3;
+            triangles[triangleOffset + 5] = nextVertexOffset + 3;
+
+            triangles[triangleOffset + 6] = vertexOffset;
+            triangles[triangleOffset + 7] = nextVertexOffset;
+            triangles[triangleOffset + 8] = nextVertexOffset + 1;
+            triangles[triangleOffset + 9] = vertexOffset;
+            triangles[triangleOffset + 10] = nextVertexOffset + 1;
+            triangles[triangleOffset + 11] = vertexOffset + 1;
+
+            triangles[triangleOffset + 12] = vertexOffset;
+            triangles[triangleOffset + 13] = nextVertexOffset + 2;
+            triangles[triangleOffset + 14] = nextVertexOffset;
+            triangles[triangleOffset + 15] = vertexOffset;
+            triangles[triangleOffset + 16] = vertexOffset + 2;
+            triangles[triangleOffset + 17] = nextVertexOffset + 2;
+
+            triangles[triangleOffset + 18] = vertexOffset + 1;
+            triangles[triangleOffset + 19] = nextVertexOffset + 1;
+            triangles[triangleOffset + 20] = nextVertexOffset + 3;
+            triangles[triangleOffset + 21] = vertexOffset + 1;
+            triangles[triangleOffset + 22] = nextVertexOffset + 3;
+            triangles[triangleOffset + 23] = vertexOffset + 3;
         }
 
         mesh.vertices = vertices;
         mesh.triangles = triangles;
+        mesh.RecalculateNormals();
         mesh.RecalculateBounds();
         return mesh;
     }
@@ -138,7 +167,8 @@ internal static class HardpointMarker
         marker.SetActive(true);
         marker.transform.SetPositionAndRotation(objective.Position
             + Vector3.up * RingVerticalOffset, Quaternion.identity);
-        marker.transform.localScale = new Vector3(objective.Radius, 1f, objective.Radius);
+        marker.transform.localScale = new Vector3(objective.Radius, objective.Radius,
+            objective.Radius);
         Renderer? renderer = marker.GetComponent<Renderer>();
         if (renderer != null)
         {

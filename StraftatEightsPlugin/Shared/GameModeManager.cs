@@ -203,8 +203,10 @@ internal static class GameModeManager
     internal static string SelectedMapName { get; private set; } = string.Empty;
     internal static ConfigEntry<float> RespawnDelaySeconds = null!;
     internal static ConfigEntry<int> PointsToWin = null!;
+    internal static ConfigEntry<bool> EnableMapOverrides = null!;
     internal static float EffectiveRespawnDelaySeconds { get; set; } = 3f;
     internal static int EffectivePointsToWin { get; private set; } = ScoreRules.PointsToWin;
+    internal static bool EffectiveMapOverrides { get; private set; } = true;
     private static readonly ModeSyncState Sync = new();
     private static readonly Dictionary<GameMode, string> LastMapByMode = new();
     private static List<MapPlaylistEntry<GameMode>> _mapPlaylist = new();
@@ -212,11 +214,15 @@ internal static class GameModeManager
     private static int _mapPlaylistIndex = -1;
     private static bool _mapPlaylistPrepared;
     private static float _nextClientLobbyPollTime;
+    private static string _pendingNormalMapName = string.Empty;
 
     internal static void Initialize()
     {
         Plugin.DebugLogging = Plugin.Instance.Config.Bind("Global Settings", "Debug Logging", false,
             "Enable detailed multiplayer, scene, HUD, and snapshot diagnostics.");
+        EnableMapOverrides = Plugin.Instance.Config.Bind("Global Settings", "Enable Map Overrides", true,
+            "Host-controlled: use the plugin's mode-specific map overrides instead of the normal lobby map playlist.");
+        EnableMapOverrides.SettingChanged += (_, _) => OnGlobalSettingsChanged();
         RespawnDelaySeconds = Plugin.Instance.Config.Bind("Global Settings", "Respawn Delay (seconds)", 3f,
             new ConfigDescription("Host-controlled: how long a killed player waits before respawning.",
                 new AcceptableValueRange<float>(0f, 10f)));
@@ -239,19 +245,37 @@ internal static class GameModeManager
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            bool previousMapOverrides = EffectiveMapOverrides;
             ApplyGlobalSettingsFromHostConfig();
+            if (previousMapOverrides != EffectiveMapOverrides)
+            {
+                string currentMapName = SelectedMapName;
+                bool preserveCurrentMap = Phase == GameModePhase.ActiveRound
+                    || Phase == GameModePhase.EndingRound;
+                ResetMapPlaylist();
+                if (preserveCurrentMap)
+                {
+                    SelectedMapName = currentMapName;
+                }
+                if (!EffectiveMapOverrides && Phase == GameModePhase.Lobby)
+                {
+                    ActivateMode(GameMode.None, true);
+                }
+            }
             BroadcastGlobalSettings();
         }
     }
 
     private static void ApplyGlobalSettingsFromHostConfig()
     {
-        ApplyGlobalSettings(RespawnDelaySeconds.Value, PointsToWin.Value);
+        ApplyGlobalSettings(RespawnDelaySeconds.Value, PointsToWin.Value, EnableMapOverrides.Value);
     }
 
-    internal static void ApplyGlobalSettings(float respawnDelaySeconds, int pointsToWin)
+    internal static void ApplyGlobalSettings(float respawnDelaySeconds, int pointsToWin,
+        bool enableMapOverrides)
     {
         EffectiveRespawnDelaySeconds = Mathf.Clamp(respawnDelaySeconds, 0f, 10f);
+        EffectiveMapOverrides = enableMapOverrides;
         int nextPointsToWin = pointsToWin;
         if (EffectivePointsToWin != nextPointsToWin)
         {
@@ -276,7 +300,7 @@ internal static class GameModeManager
     {
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncGlobalSettings), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, RoundId, Sync.NextSettingsRevision(),
-            EffectiveRespawnDelaySeconds, EffectivePointsToWin);
+            EffectiveRespawnDelaySeconds, EffectivePointsToWin, EffectiveMapOverrides);
     }
 
     internal static void OnSettingsChanged()
@@ -402,6 +426,11 @@ internal static class GameModeManager
         }
         _customRoundTransitionPending = false;
 
+        if (!EffectiveMapOverrides)
+        {
+            return false;
+        }
+
         if (!TrySelectNextPlaylistEntry(out MapPlaylistEntry<GameMode> entry))
         {
             GameMode nextMode = NextEnabledMode(ActiveMode);
@@ -439,6 +468,16 @@ internal static class GameModeManager
         if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
             || (ActiveMode != GameMode.None && Phase != GameModePhase.Lobby && !IsMatchOver))
         {
+            return;
+        }
+
+        if (!EffectiveMapOverrides)
+        {
+            if (!string.IsNullOrEmpty(_pendingNormalMapName))
+            {
+                SelectModeForNormalMap(_pendingNormalMapName);
+                _pendingNormalMapName = string.Empty;
+            }
             return;
         }
 
@@ -539,6 +578,27 @@ internal static class GameModeManager
 
     internal static void EnsureActiveMode()
     {
+        if (!EffectiveMapOverrides)
+        {
+            if (string.IsNullOrEmpty(SelectedMapName))
+            {
+                if (ActiveMode != GameMode.None)
+                {
+                    ActivateMode(GameMode.None, true);
+                }
+                return;
+            }
+
+            if (IsEnabled(ActiveMode)
+                && ModeMapCatalog.IsSupported(ActiveMode, SelectedMapName, false))
+            {
+                return;
+            }
+
+            SelectModeForNormalMap(SelectedMapName);
+            return;
+        }
+
         if (IsEnabled(ActiveMode))
         {
             return;
@@ -557,10 +617,17 @@ internal static class GameModeManager
         {
             ApplyGlobalSettingsFromHostConfig();
             ResetMapPlaylist();
-            GameMode initialMode = NextEnabledMode(GameMode.None);
-            SetDefaultMapForMode(initialMode);
             BroadcastGlobalSettings();
-            ActivateMode(initialMode, true);
+            if (EffectiveMapOverrides)
+            {
+                GameMode initialMode = NextEnabledMode(GameMode.None);
+                SetDefaultMapForMode(initialMode);
+                ActivateMode(initialMode, true);
+            }
+            else
+            {
+                ActivateMode(GameMode.None, true);
+            }
         }
         else
         {
@@ -591,6 +658,7 @@ internal static class GameModeManager
         _nextClientLobbyPollTime = 0f;
         EffectiveRespawnDelaySeconds = 3f;
         EffectivePointsToWin = ScoreRules.PointsToWin;
+        EffectiveMapOverrides = true;
         GlobalModifiersState.ResetForLobbyLeft();
         HealthSettingsState.ResetForLobbyLeft();
         WeaponSettingsState.ResetForLobbyLeft();
@@ -607,10 +675,10 @@ internal static class GameModeManager
         {
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncGlobalSettings), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, RoundId, Sync.SettingsRevision,
-                EffectiveRespawnDelaySeconds, EffectivePointsToWin);
+                EffectiveRespawnDelaySeconds, EffectivePointsToWin, EffectiveMapOverrides);
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncActiveGameMode), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId,
-                (int)Phase, Sync.LiveRevision, SelectedMapName);
+                (int)Phase, Sync.LiveRevision, SelectedMapName, EffectiveMapOverrides);
         }
     }
 
@@ -625,7 +693,7 @@ internal static class GameModeManager
     internal static bool TryPrepareInitialMap(out string mapName)
     {
         mapName = string.Empty;
-        if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        if (!EffectiveMapOverrides || !MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
         {
             return false;
         }
@@ -644,7 +712,8 @@ internal static class GameModeManager
     {
         if (ActiveMode != GameMode.None && !string.IsNullOrEmpty(SelectedMapName))
         {
-            return ModeMapCatalog.TryGetDefinition(ActiveMode, SelectedMapName, out definition!);
+            return ModeMapCatalog.TryGetDefinition(ActiveMode, SelectedMapName,
+                EffectiveMapOverrides, out definition!);
         }
 
         definition = null!;
@@ -737,7 +806,8 @@ internal static class GameModeManager
     {
         if (!MyceliumNetwork.IsHost || SceneMotor.Instance == null
             || string.IsNullOrEmpty(SelectedMapName)
-            || !ModeMapCatalog.IsSupported(ActiveMode, SelectedMapName)
+            || !EffectiveMapOverrides
+            || !ModeMapCatalog.IsSupported(ActiveMode, SelectedMapName, EffectiveMapOverrides)
             || InstanceFinder.SceneManager == null)
         {
             return false;
@@ -779,6 +849,7 @@ internal static class GameModeManager
         _mapPlaylistPrepared = false;
         LastMapByMode.Clear();
         SelectedMapName = string.Empty;
+        _pendingNormalMapName = string.Empty;
     }
 
     private static List<GameMode> GetConfiguredModes()
@@ -792,6 +863,51 @@ internal static class GameModeManager
             }
         }
         return modes;
+    }
+
+    private static GameMode NextEnabledModeForMap(GameMode current, string mapName)
+    {
+        List<GameMode> compatibleModes = new();
+        foreach (GameMode mode in GetConfiguredModes())
+        {
+            if (ModeMapCatalog.IsSupported(mode, mapName, EffectiveMapOverrides))
+            {
+                compatibleModes.Add(mode);
+            }
+        }
+
+        return ModeCycle.TrySelectRandom(compatibleModes, current,
+            UnityEngine.Random.Range(0, int.MaxValue), out GameMode next)
+            ? next
+            : GameMode.None;
+    }
+
+    private static void SelectModeForNormalMap(string mapName)
+    {
+        if (string.IsNullOrWhiteSpace(mapName))
+        {
+            ActivateMode(GameMode.None, true);
+            return;
+        }
+
+        SelectedMapName = mapName;
+        GameMode nextMode = NextEnabledModeForMap(ActiveMode, mapName);
+        ActivateMode(nextMode, true);
+    }
+
+    internal static void OnNormalMapSelected(string mapName)
+    {
+        if (EffectiveMapOverrides || !MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        _pendingNormalMapName = mapName ?? string.Empty;
+        if (Phase == GameModePhase.EndingRound || ActiveMode != GameMode.None)
+        {
+            SelectModeForNormalMap(_pendingNormalMapName);
+            _pendingNormalMapName = string.Empty;
+        }
     }
 
     private static bool IsEnabled(GameMode mode)
@@ -819,6 +935,10 @@ internal static class GameModeManager
         ActiveMode = mode;
         Phase = MyceliumNetwork.InLobby ? GameModePhase.Lobby : GameModePhase.Inactive;
         RoundId++;
+        if (mode == GameMode.Hardpoint && MyceliumNetwork.IsHost)
+        {
+            TeamAssignment.AssignForRound();
+        }
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
             BroadcastActiveMode();
@@ -836,7 +956,8 @@ internal static class GameModeManager
         return Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source);
     }
 
-    internal static void ApplyActiveMode(int mode, int roundId, int phase, string mapName)
+    internal static void ApplyActiveMode(int mode, int roundId, int phase, string mapName,
+        bool mapOverridesEnabled)
     {
         DebugLog.Info($"ApplyActiveMode input mode={(GameMode)mode} round={roundId} phase={(GameModePhase)phase} "
             + $"map={mapName} currentMode={ActiveMode} currentPhase={Phase} currentRound={RoundId}");
@@ -847,8 +968,9 @@ internal static class GameModeManager
         }
 
         GameMode nextMode = (GameMode)mode;
+        EffectiveMapOverrides = mapOverridesEnabled;
         if (nextMode != GameMode.None
-            && !ModeMapCatalog.IsSupported(nextMode, mapName))
+            && !ModeMapCatalog.IsSupported(nextMode, mapName, EffectiveMapOverrides))
         {
             DebugLog.Info($"[GameMode] Rejected active map mode={nextMode} map={mapName}");
             return;
@@ -901,12 +1023,21 @@ internal static class GameModeManager
         {
             PendingDeaths.Clear();
             GameModeRespawn.ResetForMatch();
+            if (MyceliumNetwork.IsHost && ActiveMode == GameMode.Hardpoint
+                && MyceliumNetwork.InLobby)
+            {
+                TeamAssignment.AssignForRound();
+            }
             return;
         }
 
         ResetMatchState();
         if (MyceliumNetwork.IsHost)
         {
+            if (ActiveMode == GameMode.Hardpoint && MyceliumNetwork.InLobby)
+            {
+                TeamAssignment.AssignForRound();
+            }
             RoundId++;
             Phase = ActiveMode == GameMode.None || !MyceliumNetwork.InLobby
                 ? GameModePhase.Inactive
@@ -947,22 +1078,24 @@ internal static class GameModeManager
         PublishActiveModeSnapshot(revision);
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId, (int)Phase, revision,
-            SelectedMapName);
+            SelectedMapName, EffectiveMapOverrides);
     }
 
     private static void PublishActiveModeSnapshot(int revision)
     {
         string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
-            (int)ActiveMode, RoundId, (int)Phase, revision, SelectedMapName);
+            (int)ActiveMode, RoundId, (int)Phase, revision, SelectedMapName,
+            EffectiveMapOverrides ? "1" : "0");
         ModeLobbyDataSync.PublishRaw(ActiveModeLobbyDataKey, payload);
     }
 
     private static void ApplyLobbyActiveModeSnapshot()
     {
-        if (!ModeLobbyDataSync.TryReadOrdered(ActiveModeLobbyDataKey, 6, 0, 2, 4,
+        if (!ModeLobbyDataSync.TryReadOrdered(ActiveModeLobbyDataKey, 7, 0, 2, 4,
             out CSteamID hostId, out int roundId, out int revision, out string[] parts)
             || !int.TryParse(parts[1], out int mode)
-            || !int.TryParse(parts[3], out int phase))
+            || !int.TryParse(parts[3], out int phase)
+            || !LobbySnapshotCodec.TryParseBool(parts[6], out bool mapOverridesEnabled))
         {
             return;
         }
@@ -972,9 +1105,10 @@ internal static class GameModeManager
             return;
         }
 
-        ApplyActiveMode(mode, roundId, phase, parts[5]);
+        ApplyActiveMode(mode, roundId, phase, parts[5], mapOverridesEnabled);
         DebugLog.Info($"[GameMode] Accepted active mode via lobby data: mode={(GameMode)mode} "
-            + $"map={parts[5]} round={roundId} phase={(GameModePhase)phase} revision={revision}");
+            + $"map={parts[5]} round={roundId} phase={(GameModePhase)phase} "
+            + $"overrides={mapOverridesEnabled} revision={revision}");
     }
 
     private static readonly HashSet<int> PendingDeaths = new();
@@ -1009,7 +1143,6 @@ internal static class GameModeManager
             SceneMotor.Instance.ChangeNetworkScene();
         }
     }
-
     internal static bool HandleServerDeath(int playerId)
     {
         GameMode mode = ActiveMode;
@@ -1142,7 +1275,7 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncGlobalSettings(CSteamID hostId, int roundId, int revision, float respawnDelaySeconds,
-        int pointsToWin, RPCInfo info)
+        int pointsToWin, bool enableMapOverrides, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
@@ -1152,12 +1285,12 @@ public partial class Plugin
         {
             return;
         }
-        GameModeManager.ApplyGlobalSettings(respawnDelaySeconds, pointsToWin);
+        GameModeManager.ApplyGlobalSettings(respawnDelaySeconds, pointsToWin, enableMapOverrides);
     }
 
     [CustomRPC]
     public void SyncActiveGameMode(CSteamID hostId, int mode, int roundId, int phase, int revision,
-        string mapName, RPCInfo info)
+        string mapName, bool mapOverridesEnabled, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
@@ -1167,9 +1300,10 @@ public partial class Plugin
         {
             return;
         }
-        GameModeManager.ApplyActiveMode(mode, roundId, phase, mapName);
+        GameModeManager.ApplyActiveMode(mode, roundId, phase, mapName, mapOverridesEnabled);
         DebugLog.Info($"[GameMode] Accepted active mode via RPC: mode={(GameMode)mode} "
-            + $"map={mapName} round={roundId} phase={(GameModePhase)phase} revision={revision}");
+            + $"map={mapName} round={roundId} phase={(GameModePhase)phase} "
+            + $"overrides={mapOverridesEnabled} revision={revision}");
     }
 }
 
@@ -1210,6 +1344,11 @@ internal static class SceneMotor_GameModeInitialMap_Patch
 
         __result = mapName;
         return false;
+    }
+
+    private static void Postfix(string __result)
+    {
+        GameModeManager.OnNormalMapSelected(__result);
     }
 }
 

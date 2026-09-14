@@ -6,6 +6,7 @@ namespace StraftatEightsPlugin;
 internal static class TeamAssignment
 {
     private static readonly Dictionary<int, int> Assignments = new();
+    private static readonly HashSet<int> InitialSpawnEligiblePlayers = new();
 
     internal static IReadOnlyDictionary<int, int> Current => Assignments;
     internal static int TeamCount { get; private set; }
@@ -13,6 +14,7 @@ internal static class TeamAssignment
     internal static void Reset()
     {
         Assignments.Clear();
+        InitialSpawnEligiblePlayers.Clear();
         TeamCount = 0;
         if (GameManager.Instance != null && GameManager.Instance.IsServer)
         {
@@ -35,9 +37,11 @@ internal static class TeamAssignment
         }
 
         Assignments.Clear();
+        InitialSpawnEligiblePlayers.Clear();
         foreach (KeyValuePair<int, int> assignment in nextAssignments)
         {
             Assignments[assignment.Key] = assignment.Value;
+            InitialSpawnEligiblePlayers.Add(assignment.Key);
         }
 
         TeamCount = TeamRules.GetTeamCount(Assignments.Count);
@@ -108,6 +112,45 @@ internal static class TeamAssignment
     internal static bool TryGetTeamId(int playerId, out int teamId)
     {
         return Assignments.TryGetValue(playerId, out teamId);
+    }
+
+    internal static bool TryGetInitialSpawnPosition(int playerId, out Vector3 position)
+    {
+        position = default;
+        if (!TryGetTeamId(playerId, out int teamId)
+            || !InitialSpawnEligiblePlayers.Contains(playerId)
+            || !GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition)
+            || teamId < 0 || teamId >= 2 || teamId >= definition.TeamOrigins.Count)
+        {
+            return false;
+        }
+
+        List<int> teamPlayers = new();
+        foreach (KeyValuePair<int, int> assignment in Assignments)
+        {
+            if (assignment.Value == teamId)
+            {
+                teamPlayers.Add(assignment.Key);
+            }
+        }
+
+        teamPlayers.Sort();
+        int playerIndex = teamPlayers.IndexOf(playerId);
+        if (playerIndex < 0)
+        {
+            return false;
+        }
+
+        Vector3[] cardinalOffsets =
+        {
+            Vector3.forward * 0.5f,
+            Vector3.right * 0.5f,
+            Vector3.back * 0.5f,
+            Vector3.left * 0.5f
+        };
+        position = definition.TeamOrigins[teamId]
+            + cardinalOffsets[playerIndex % cardinalOffsets.Length];
+        return true;
     }
 
     internal static bool TryGetSpawnCandidates(int playerId, out List<Vector3> candidates)
