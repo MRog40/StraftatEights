@@ -189,16 +189,7 @@ internal static class GameModeRespawn
 
     private static void FinalizeRespawn(PlayerManager manager)
     {
-        manager.SetPlayerMove(true);
-        if (manager.player != null)
-        {
-            manager.player.sync___set_value_canMove(true, true);
-            manager.player.startOfRound = false;
-        }
-        if (PauseManager.Instance != null)
-        {
-            PauseManager.Instance.startRound = false;
-        }
+        SetPlayerMovable(manager);
         if (GameManager.Instance != null && Plugin.Instance != null)
         {
             Plugin.Instance.StartCoroutine(KeepPlayerMovable(manager, 4f,
@@ -216,20 +207,29 @@ internal static class GameModeRespawn
             {
                 yield break;
             }
-            if (manager != null)
+            if (manager == null || !manager || manager.player == null || !manager.player)
             {
-                manager.SetPlayerMove(true);
-                if (manager.player != null)
-                {
-                    manager.player.sync___set_value_canMove(true, true);
-                    manager.player.startOfRound = false;
-                }
-                if (PauseManager.Instance != null)
-                {
-                    PauseManager.Instance.startRound = false;
-                }
+                yield break;
             }
+
+            SetPlayerMovable(manager);
             yield return null;
+        }
+    }
+
+    private static void SetPlayerMovable(PlayerManager manager)
+    {
+        if (manager == null || !manager || manager.player == null || !manager.player)
+        {
+            return;
+        }
+
+        manager.player.canMove = true;
+        manager.player.sync___set_value_canMove(true, true);
+        manager.player.startOfRound = false;
+        if (PauseManager.Instance != null)
+        {
+            PauseManager.Instance.startRound = false;
         }
     }
 

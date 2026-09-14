@@ -13,6 +13,7 @@ internal static class HardpointState
     internal const string LiveLobbyDataKey = "StraftatEights_Hardpoint_Live";
     internal const float ObjectiveDurationSeconds = 30f;
     internal const float WarningDurationSeconds = 5f;
+    internal const float ServerTickIntervalSeconds = 0.1f;
 
     internal static bool Enabled;
     internal static readonly Dictionary<int, int> Scores = new();
@@ -29,6 +30,10 @@ internal static class HardpointState
     private static readonly ModeSyncState Sync = new(livePushInterval: 1f);
     private static readonly Dictionary<int, PlayerHealth> ConfiguredLoadouts = new();
     private static float _scoreAccumulator;
+    private static float _serverTickAccumulator;
+    private static float _serverDiagnosticsAccumulator;
+    private static int _serverFrameHookCount;
+    private static int _serverProcessedTickCount;
     private static bool _roundInitialized;
     private static bool _roundCompletionRequested;
     private static float _nextClientLivePollTime;
@@ -164,6 +169,10 @@ internal static class HardpointState
         CurrentController = -1;
         IsSuddenDeath = false;
         _scoreAccumulator = 0f;
+        _serverTickAccumulator = 0f;
+        _serverDiagnosticsAccumulator = 0f;
+        _serverFrameHookCount = 0;
+        _serverProcessedTickCount = 0;
         _roundInitialized = false;
         _roundCompletionRequested = false;
         ConfiguredLoadouts.Clear();
@@ -247,6 +256,29 @@ internal static class HardpointState
             return;
         }
 
+        float frameElapsed = Mathf.Max(0f, deltaTime);
+        _serverFrameHookCount++;
+        _serverTickAccumulator += frameElapsed;
+        _serverDiagnosticsAccumulator += frameElapsed;
+        if (_serverDiagnosticsAccumulator >= 5f)
+        {
+            DebugLog.Info($"[Hardpoint] server updates={_serverFrameHookCount} "
+                + $"captureTicks={_serverProcessedTickCount} "
+                + $"captureInterval={ServerTickIntervalSeconds:0.00}s");
+            _serverDiagnosticsAccumulator = 0f;
+            _serverFrameHookCount = 0;
+            _serverProcessedTickCount = 0;
+        }
+
+        if (_serverTickAccumulator < ServerTickIntervalSeconds)
+        {
+            return;
+        }
+
+        float elapsed = _serverTickAccumulator;
+        _serverTickAccumulator = 0f;
+        _serverProcessedTickCount++;
+
         if (EnsureTeamsAssigned())
         {
             BroadcastLiveState();
@@ -265,7 +297,6 @@ internal static class HardpointState
         bool stateChanged = controller != CurrentController;
         CurrentController = controller;
 
-        float elapsed = Mathf.Max(0f, deltaTime);
         ObjectiveElapsedSeconds += elapsed;
         if (controller >= 0)
         {
@@ -401,6 +432,7 @@ internal static class HardpointState
         CurrentController = -1;
         IsSuddenDeath = false;
         _scoreAccumulator = 0f;
+        _serverTickAccumulator = 0f;
         _roundCompletionRequested = false;
         ConfiguredLoadouts.Clear();
     }

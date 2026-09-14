@@ -5,11 +5,14 @@ namespace StraftatEightsPlugin;
 
 internal static class HardpointOutline
 {
+    private const float RefreshIntervalSeconds = 0.25f;
     private static readonly Dictionary<int, PlayerHealth> AppliedPlayers = new();
+    private static float _nextRefreshTime;
 
     internal static void ResetState()
     {
         ClearApplied();
+        _nextRefreshTime = 0f;
     }
 
     internal static void Enforce()
@@ -17,9 +20,12 @@ internal static class HardpointOutline
         if (!GameModeManager.IsActive(GameMode.Hardpoint))
         {
             ClearApplied();
+            _nextRefreshTime = 0f;
             return;
         }
 
+        float now = Time.unscaledTime;
+        bool refreshMaterials = now >= _nextRefreshTime;
         HashSet<int> currentPlayerIds = new();
         foreach (KeyValuePair<int, int> assignment in HardpointState.Assignments)
         {
@@ -30,16 +36,20 @@ internal static class HardpointOutline
             }
 
             currentPlayerIds.Add(assignment.Key);
-            if (AppliedPlayers.TryGetValue(assignment.Key, out PlayerHealth? previous)
-                && previous != health)
+            bool playerChanged = !AppliedPlayers.TryGetValue(assignment.Key,
+                out PlayerHealth? previous) || previous != health;
+            if (playerChanged && previous != null && previous)
             {
                 PlayerOutline.Clear(previous);
             }
 
             AppliedPlayers[assignment.Key] = health;
-            TeamColorData teamColor = TeamRules.GetColor(assignment.Value);
-            PlayerOutline.Apply(health, new Color32(teamColor.Red, teamColor.Green,
-                teamColor.Blue, 255));
+            if (playerChanged || refreshMaterials)
+            {
+                TeamColorData teamColor = TeamRules.GetColor(assignment.Value);
+                PlayerOutline.Apply(health, new Color32(teamColor.Red, teamColor.Green,
+                    teamColor.Blue, 255));
+            }
         }
 
         List<int> removedPlayerIds = new();
@@ -56,6 +66,8 @@ internal static class HardpointOutline
         {
             AppliedPlayers.Remove(playerId);
         }
+
+        _nextRefreshTime = now + RefreshIntervalSeconds;
     }
 
     private static void ClearApplied()

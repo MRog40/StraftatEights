@@ -112,6 +112,27 @@ internal static class PlayerLookup
             return null;
         }
 
+        if (ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client)
+            && client != null && client)
+        {
+            if (client.PlayerSpawner != null && client.PlayerSpawner
+                && client.PlayerSpawner.player != null && client.PlayerSpawner.player)
+            {
+                PlayerHealth? health = client.PlayerSpawner.player.GetComponent<PlayerHealth>();
+                if (IsPlayerHealthForId(health, playerId) && health.gameObject.activeInHierarchy)
+                {
+                    return health;
+                }
+            }
+
+            PlayerHealth? clientHealth = client.GetComponent<PlayerHealth>();
+            if (IsPlayerHealthForId(clientHealth, playerId)
+                && clientHealth.gameObject.activeInHierarchy)
+            {
+                return clientHealth;
+            }
+        }
+
         foreach (PlayerHealth health in Object.FindObjectsOfType<PlayerHealth>())
         {
             if (IsPlayerHealthForId(health, playerId))
