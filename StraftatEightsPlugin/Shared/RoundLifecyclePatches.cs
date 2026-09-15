@@ -32,6 +32,12 @@ internal static class PauseManager_RoundLifecycle_Patch
             case GameMode.Hardpoint:
                 HardpointState.OnRoundStarted();
                 break;
+            case GameMode.CaptureTheFlag:
+                CaptureTheFlagState.OnRoundStarted();
+                break;
+            case GameMode.SearchAndDestroy:
+                SearchAndDestroyState.OnRoundStarted();
+                break;
         }
 
         if (!GameModeManager.ShouldIgnoreGlobalWeaponSettings)

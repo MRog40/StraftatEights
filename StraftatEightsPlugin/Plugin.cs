@@ -5,6 +5,7 @@ using HarmonyLib;
 using System;
 using System.Linq;
 using System.Reflection;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 [assembly: ComputerysModdingUtilities.StraftatMod(isVanillaCompatible: false)]
@@ -57,6 +58,8 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("Gun Game", InitializeGunGame);
         InitializeSafely("Sniper Battle", InitializeSniperBattle);
         InitializeSafely("Hardpoint", InitializeHardpoint);
+        InitializeSafely("Capture the Flag", InitializeCaptureTheFlag);
+        InitializeSafely("Search and Destroy", InitializeSearchAndDestroy);
 
         try
         {
@@ -142,6 +145,11 @@ public partial class Plugin : BaseUnityPlugin
         GameModeManager.PeriodicPushIfHost();
         GameModeManager.PeriodicActiveModePushIfHost();
         GameModeManager.PollLobbyStateIfClient();
+        CaptureTheFlagState.ServerTick(Time.unscaledDeltaTime);
+        SearchAndDestroyState.ServerTick(Time.unscaledDeltaTime);
+        SearchAndDestroyState.PollLocalInput();
+        SearchAndDestroyState.PollLiveStateIfClient();
+        SearchAndDestroyState.ApplyLocalMovementLock();
         AssassinState.PollLiveStateIfClient();
         HardpointState.PollLiveStateIfClient();
         GlobalModifiersState.PeriodicPushIfHost();
@@ -154,6 +162,8 @@ public partial class Plugin : BaseUnityPlugin
         PlayerOutline.EnforceOutline();
         HardpointOutline.Enforce();
         HardpointMarker.Update();
+        CaptureTheFlagMarker.Update();
+        SearchAndDestroyMarker.Update();
         RespawnProtection.Update();
     }
 }

@@ -28,11 +28,12 @@ internal sealed class MapDefinition
     internal IReadOnlyList<Vector3> SpawnPoints { get; }
     internal IReadOnlyList<Vector3> SndObjectives { get; }
     internal IReadOnlyList<HardpointObjective> HardpointObjectives { get; }
+    internal IReadOnlyList<Vector3> CaptureTheFlagObjectives { get; }
     internal IReadOnlyList<Vector3> TeamOrigins { get; }
 
     internal MapDefinition(string name, IReadOnlyList<Vector3> spawnPoints,
         IReadOnlyList<Vector3> sndObjectives, IReadOnlyList<HardpointObjective> hardpointObjectives,
-        IReadOnlyList<Vector3> teamOrigins)
+        IReadOnlyList<Vector3> captureTheFlagObjectives, IReadOnlyList<Vector3> teamOrigins)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -52,6 +53,7 @@ internal sealed class MapDefinition
         SpawnPoints = Copy(spawnPoints);
         SndObjectives = Copy(sndObjectives);
         HardpointObjectives = Copy(hardpointObjectives);
+        CaptureTheFlagObjectives = Copy(captureTheFlagObjectives);
         TeamOrigins = Copy(teamOrigins);
     }
 
@@ -104,12 +106,21 @@ internal static class MapDefinitions
                     new Vector3(-0.553f, 8.02f, -27.71f),
                     new Vector3(-5.118f, 7.359f, -19.861f)
                 },
-                Array.Empty<Vector3>(),
+                new[]
+                {
+                    new Vector3(-1.642f, 7.021f, 14.202f),
+                    new Vector3(27.083f, 7.474f, 2.737f)
+                },
                 new[]
                 {
                     new HardpointObjective(new Vector3(12.447f, 7.007f, 8.975f), 5f),
                     new HardpointObjective(new Vector3(40.771f, 7.078f, 26.327f), 5f),
                     new HardpointObjective(new Vector3(15.493f, 6.988f, -9.839f), 5f)
+                },
+                new[]
+                {
+                    new Vector3(26.794f, 7.363f, 22.218f),
+                    new Vector3(-1.008f, 7.032f, -6.947f)
                 },
                 new[]
                 {

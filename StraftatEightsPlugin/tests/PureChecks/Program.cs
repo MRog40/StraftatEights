@@ -131,6 +131,93 @@ Assert(parsedAssignments.Count == teamAssignments.Count
 Dictionary<int, int> filteredAssignments = TeamRules.ParseAssignments("1:0;2:9;bad;1:2", 3);
 Assert(filteredAssignments.Count == 1 && filteredAssignments[1] == 2,
     "Team assignment parsing must reject invalid teams and keep the last duplicate.");
+Dictionary<int, int> captureTheFlagAssignments =
+    CaptureTheFlagRules.AssignStrictTwoTeams(new[] { 7, 2, 5, 2, -1 });
+Assert(captureTheFlagAssignments.Count == 3 && captureTheFlagAssignments[2] == 0
+    && captureTheFlagAssignments[5] == 1 && captureTheFlagAssignments[7] == 0,
+    "Capture The Flag assignment must always use two deterministic teams.");
+Assert(CaptureTheFlagRules.GetSpawnCandidateCount(31) == 10
+    && CaptureTheFlagRules.GetSpawnCandidateCount(2) == 1
+    && CaptureTheFlagRules.GetMatchDuration(100) == 200f,
+    "Capture The Flag must use the closest floor-third spawn pool and a two-second-per-point timer.");
+int nearestFlagTeam = CaptureTheFlagRules.FindNearestTeam(new TeamPoint(9f, 0f, 1f),
+    new[] { new TeamPoint(0f, 0f, 0f), new TeamPoint(20f, 0f, 0f) });
+Assert(nearestFlagTeam == 0, "A flag must belong to its nearest authored team origin.");
+Assert(CaptureTheFlagRules.TryPickup(CaptureTheFlagFlagStatus.Home, true,
+        out CaptureTheFlagFlagStatus carried)
+    && carried == CaptureTheFlagFlagStatus.Carried
+    && !CaptureTheFlagRules.TryPickup(carried, true, out _),
+    "Only an enemy flag can be picked up, and a carried flag cannot be picked up twice.");
+Assert(CaptureTheFlagRules.TryDrop(carried, out CaptureTheFlagFlagStatus dropped)
+    && dropped == CaptureTheFlagFlagStatus.Dropped
+    && CaptureTheFlagRules.TryReturn(dropped, true, out CaptureTheFlagFlagStatus returned)
+    && returned == CaptureTheFlagFlagStatus.Home
+    && !CaptureTheFlagRules.TryReturn(returned, true, out _),
+    "A carried flag must drop on death and a dropped home flag must return on touch.");
+Dictionary<int, int> captureScores = new() { [0] = 75, [1] = 20 };
+Assert(CaptureTheFlagRules.TryAwardCapture(captureScores, 0, 100, true, true,
+        out int captureWinner)
+    && captureWinner == 0 && captureScores[0] == 100
+    && !CaptureTheFlagRules.TryAwardCapture(captureScores, 1, 100, true, false, out _),
+    "A capture must require the enemy flag and home flag, award twenty-five points, and win at target.");
+Assert(!CaptureTheFlagRules.TryResolveTimeoutWinner(
+        new Dictionary<int, int> { [0] = 50, [1] = 50 }, out _)
+    && CaptureTheFlagRules.TryResolveTimeoutWinner(
+        new Dictionary<int, int> { [0] = 60, [1] = 50 }, out int timeoutWinner)
+    && timeoutWinner == 0,
+    "A tied CTF timer must enter sudden death, while a unique leader wins.");
+Dictionary<int, int> searchAndDestroyAssignments =
+    SearchAndDestroyRules.AssignStrictTwoTeams(new[] { 7, 2, 5, 2, -1 });
+Assert(searchAndDestroyAssignments.Count == 3 && searchAndDestroyAssignments[2] == 0
+    && searchAndDestroyAssignments[5] == 1 && searchAndDestroyAssignments[7] == 0,
+    "Search and Destroy assignment must always use two deterministic teams.");
+Assert(SearchAndDestroyRules.GetOffensiveTeamId(1) == 0
+    && SearchAndDestroyRules.GetOffensiveTeamId(2) == 1
+    && SearchAndDestroyRules.GetOtherTeamId(0) == 1
+    && SearchAndDestroyRules.GetOtherTeamId(1) == 0
+    && SearchAndDestroyRules.GetOtherTeamId(2) == -1,
+    "Search and Destroy offense must alternate between sub-rounds.");
+Assert(SearchAndDestroyRules.PointsPerRoundWin == 35
+    && SearchAndDestroyRules.PlantDurationSeconds == 5f
+    && SearchAndDestroyRules.DefuseDurationSeconds == 7.5f
+    && SearchAndDestroyRules.FuseDurationSeconds == 30f
+    && SearchAndDestroyRules.IsMatchWon(4, 4)
+    && !SearchAndDestroyRules.IsMatchWon(3, 4),
+    "Search and Destroy must use the configured round and interaction timings.");
+HashSet<int> searchAndDestroyAlive = new() { 2, 7 };
+Assert(SearchAndDestroyRules.IsTeamWiped(searchAndDestroyAlive,
+        searchAndDestroyAssignments, 1)
+    && !SearchAndDestroyRules.IsTeamWiped(searchAndDestroyAlive,
+        searchAndDestroyAssignments, 0),
+    "Search and Destroy must detect a team wipe from the alive-player set.");
+Assert(SearchAndDestroyRules.TryRecoverBomb(SearchAndDestroyBombStatus.Dropped,
+        true, true, out SearchAndDestroyBombStatus recoveredBomb)
+    && recoveredBomb == SearchAndDestroyBombStatus.Carried
+    && !SearchAndDestroyRules.TryRecoverBomb(SearchAndDestroyBombStatus.Dropped,
+        false, true, out _),
+    "Only an in-range offense player can recover a dropped bomb.");
+Assert(SearchAndDestroyRules.TryStartPlant(SearchAndDestroyBombStatus.Carried,
+        true, true, out SearchAndDestroyBombStatus plantingBomb)
+    && plantingBomb == SearchAndDestroyBombStatus.Carried
+    && !SearchAndDestroyRules.TryStartPlant(SearchAndDestroyBombStatus.Carried,
+        false, true, out _)
+    && !SearchAndDestroyRules.TryCompletePlant(SearchAndDestroyBombStatus.Carried,
+        SearchAndDestroyRules.PlantDurationSeconds - 0.1f, out _)
+    && SearchAndDestroyRules.TryCompletePlant(SearchAndDestroyBombStatus.Carried,
+        SearchAndDestroyRules.PlantDurationSeconds, out SearchAndDestroyBombStatus plantedBomb)
+    && plantedBomb == SearchAndDestroyBombStatus.Planted,
+    "Planting must require the carrier and the full plant duration.");
+Assert(SearchAndDestroyRules.TryStartDefuse(SearchAndDestroyBombStatus.Planted,
+        true, true, out SearchAndDestroyBombStatus defusingBomb)
+    && defusingBomb == SearchAndDestroyBombStatus.Planted
+    && !SearchAndDestroyRules.TryStartDefuse(SearchAndDestroyBombStatus.Planted,
+        false, true, out _)
+    && !SearchAndDestroyRules.TryCompleteDefuse(SearchAndDestroyBombStatus.Planted,
+        SearchAndDestroyRules.DefuseDurationSeconds - 0.1f, out _)
+    && SearchAndDestroyRules.TryCompleteDefuse(SearchAndDestroyBombStatus.Planted,
+        SearchAndDestroyRules.DefuseDurationSeconds, out SearchAndDestroyBombStatus defusedBomb)
+    && defusedBomb == SearchAndDestroyBombStatus.Home,
+    "Defusing must require a defender and the full defuse duration.");
 Assert(TeamRules.ResolveController(Array.Empty<int>()) == -1
     && TeamRules.ResolveController(new[] { 1, 1 }) == 1
     && TeamRules.ResolveController(new[] { 1, 2 }) == -2,

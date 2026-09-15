@@ -27,7 +27,9 @@ internal enum GameMode
     Infidel = 10,
     HVT = 11,
     Assassin = 12,
-    Hardpoint = 13
+    Hardpoint = 13,
+    CaptureTheFlag = 14,
+    SearchAndDestroy = 15
 }
 
 internal enum GameModePhase
@@ -96,7 +98,9 @@ internal static class GameModeManager
         GameMode.Infidel,
         GameMode.HVT,
         GameMode.Assassin,
-        GameMode.Hardpoint
+        GameMode.Hardpoint,
+        GameMode.CaptureTheFlag,
+        GameMode.SearchAndDestroy
     };
 
     private static readonly Dictionary<GameMode, ModeDescriptor> Modes = new()
@@ -174,7 +178,19 @@ internal static class GameModeManager
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
             HardpointState.PeriodicPushIfHost, HardpointState.EnsureLoadouts,
-            HardpointState.PeriodicPushSettingsIfHost)
+            HardpointState.PeriodicPushSettingsIfHost),
+        [GameMode.CaptureTheFlag] = new ModeDescriptor("CAPTURE THE FLAG", new Color32(255, 190, 55, 255),
+            () => Plugin.CaptureTheFlagEnabled.Value, CaptureTheFlagReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn
+            | GameModeCapabilities.TeamBased,
+            CaptureTheFlagState.PeriodicPushIfHost, ensureLoadouts: null,
+            periodicSettingsPush: CaptureTheFlagState.PeriodicPushSettingsIfHost),
+        [GameMode.SearchAndDestroy] = new ModeDescriptor("SEARCH AND DESTROY", new Color32(225, 70, 70, 255),
+            () => Plugin.SearchAndDestroyEnabled.Value, SearchAndDestroyReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            SearchAndDestroyState.PeriodicPushIfHost, ensureLoadouts: null,
+            periodicSettingsPush: SearchAndDestroyState.PeriodicPushSettingsIfHost)
     };
 
     private static void DefaultReset() => DefaultGameModeState.ResetMatchState();
@@ -196,6 +212,8 @@ internal static class GameModeManager
     private static void HVTReset() => HVTState.ResetMatchState();
     private static void AssassinReset() => AssassinState.ResetMatchState();
     private static void HardpointReset() => HardpointState.ResetMatchState();
+    private static void CaptureTheFlagReset() => CaptureTheFlagState.ResetMatchState();
+    private static void SearchAndDestroyReset() => SearchAndDestroyState.ResetMatchState();
 
     internal static GameMode ActiveMode { get; private set; }
     internal static GameModePhase Phase { get; private set; } = GameModePhase.Inactive;
@@ -294,6 +312,8 @@ internal static class GameModeManager
         HVTState.ResetMatchState();
         AssassinState.ResetMatchState();
         HardpointState.ResetMatchState();
+        CaptureTheFlagState.ResetMatchState();
+        SearchAndDestroyState.ResetMatchState();
     }
 
     private static void BroadcastGlobalSettings()
@@ -366,6 +386,12 @@ internal static class GameModeManager
                 break;
             case GameMode.Hardpoint:
                 HardpointState.OnRoundStarted();
+                break;
+            case GameMode.CaptureTheFlag:
+                CaptureTheFlagState.OnRoundStarted();
+                break;
+            case GameMode.SearchAndDestroy:
+                SearchAndDestroyState.OnRoundStarted();
                 break;
         }
     }
@@ -935,9 +961,22 @@ internal static class GameModeManager
         ActiveMode = mode;
         Phase = MyceliumNetwork.InLobby ? GameModePhase.Lobby : GameModePhase.Inactive;
         RoundId++;
-        if (mode == GameMode.Hardpoint && MyceliumNetwork.IsHost)
+        if ((mode == GameMode.Hardpoint || mode == GameMode.CaptureTheFlag
+            || mode == GameMode.SearchAndDestroy)
+            && MyceliumNetwork.IsHost)
         {
-            TeamAssignment.AssignForRound();
+            if (mode == GameMode.Hardpoint)
+            {
+                TeamAssignment.AssignForRound();
+            }
+            else if (mode == GameMode.CaptureTheFlag)
+            {
+                CaptureTheFlagState.PrepareTeamsForRound();
+            }
+            else
+            {
+                SearchAndDestroyState.PrepareTeamsForRound();
+            }
         }
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
@@ -1023,10 +1062,23 @@ internal static class GameModeManager
         {
             PendingDeaths.Clear();
             GameModeRespawn.ResetForMatch();
-            if (MyceliumNetwork.IsHost && ActiveMode == GameMode.Hardpoint
+            if (MyceliumNetwork.IsHost && (ActiveMode == GameMode.Hardpoint
+                || ActiveMode == GameMode.CaptureTheFlag
+                || ActiveMode == GameMode.SearchAndDestroy)
                 && MyceliumNetwork.InLobby)
             {
-                TeamAssignment.AssignForRound();
+                if (ActiveMode == GameMode.Hardpoint)
+                {
+                    TeamAssignment.AssignForRound();
+                }
+                else if (ActiveMode == GameMode.CaptureTheFlag)
+                {
+                    CaptureTheFlagState.PrepareTeamsForRound();
+                }
+                else
+                {
+                    SearchAndDestroyState.PrepareTeamsForRound();
+                }
             }
             return;
         }
@@ -1034,9 +1086,22 @@ internal static class GameModeManager
         ResetMatchState();
         if (MyceliumNetwork.IsHost)
         {
-            if (ActiveMode == GameMode.Hardpoint && MyceliumNetwork.InLobby)
+            if ((ActiveMode == GameMode.Hardpoint || ActiveMode == GameMode.CaptureTheFlag
+                || ActiveMode == GameMode.SearchAndDestroy)
+                && MyceliumNetwork.InLobby)
             {
-                TeamAssignment.AssignForRound();
+                if (ActiveMode == GameMode.Hardpoint)
+                {
+                    TeamAssignment.AssignForRound();
+                }
+                else if (ActiveMode == GameMode.CaptureTheFlag)
+                {
+                    CaptureTheFlagState.PrepareTeamsForRound();
+                }
+                else
+                {
+                    SearchAndDestroyState.PrepareTeamsForRound();
+                }
             }
             RoundId++;
             Phase = ActiveMode == GameMode.None || !MyceliumNetwork.InLobby
@@ -1226,6 +1291,13 @@ internal static class GameModeManager
             case GameMode.Hardpoint:
                 HardpointState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
+                break;
+            case GameMode.CaptureTheFlag:
+                CaptureTheFlagState.OnServerKill(playerId, killerId);
+                GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
+                break;
+            case GameMode.SearchAndDestroy:
+                SearchAndDestroyState.OnServerKill(playerId, killerId);
                 break;
             case GameMode.HVT:
                 HVTState.OnServerKill(playerId, killerId);

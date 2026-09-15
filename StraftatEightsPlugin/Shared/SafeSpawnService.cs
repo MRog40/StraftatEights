@@ -21,6 +21,7 @@ internal static class SafeSpawnService
         }
 
         bool isHardpoint = GameModeManager.IsActive(GameMode.Hardpoint);
+        bool isCaptureTheFlag = GameModeManager.IsActive(GameMode.CaptureTheFlag);
         int teamId = -1;
         bool hasTeam = GameModeManager.IsTeamBased
             && TeamAssignment.TryGetTeamId(playerId, out teamId);
@@ -59,6 +60,11 @@ internal static class SafeSpawnService
         if (isHardpoint && HardpointState.TryGetCurrentObjective(out HardpointObjective point))
         {
             objective = ToTeamPoint(point.Position);
+        }
+        else if (isCaptureTheFlag
+            && CaptureTheFlagState.TryGetEnemyFlagPosition(playerId, out Vector3 flagPosition))
+        {
+            objective = ToTeamPoint(flagPosition);
         }
 
         if (hasTeam && teamId >= 2 && enemies.Count == 0

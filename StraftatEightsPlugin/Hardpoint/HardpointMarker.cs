@@ -13,8 +13,8 @@ internal static class HardpointMarker
     private const float GroundProbeStartOffset = 4f;
     private const float GroundProbeDistance = 8f;
     private const float ActiveAlpha = 0.8f;
-    private const float OverheadMarkerHeight = 2f;
-    private const float OverheadMarkerSize = 0.35f;
+    private const float OverheadMarkerHeight = 3f;
+    private const float OverheadMarkerSize = 0.525f;
     private const int GeometryProbeSegments = 32;
     private const float GeometryProbeMargin = 0.02f;
     private static GameObject? _activeMarker;

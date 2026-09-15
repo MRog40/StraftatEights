@@ -307,7 +307,10 @@ internal static class GameModeRespawn
         out Vector3 position)
     {
         position = default;
-        if (!GameModeManager.IsTeamBased || GameManager.Instance == null
+        if (!GameModeManager.IsTeamBased
+            || GameModeManager.IsActive(GameMode.CaptureTheFlag)
+            || GameModeManager.IsActive(GameMode.SearchAndDestroy)
+            || GameManager.Instance == null
             || !GameManager.Instance.IsServer)
         {
             return false;
@@ -366,6 +369,11 @@ internal static class PlayerManager_CustomRespawnSpawn_Patch
         ref Vector3 position)
     {
         GameModeRespawn.ApplyRespawnCosmetics(__instance, ref suitIndex, ref cigIndex);
+        if (SearchAndDestroyState.TryGetRoleSpawnPosition(__instance, out Vector3 rolePosition))
+        {
+            position = rolePosition;
+            return;
+        }
         bool hasPendingSpawnAdjustment = GameModeRespawn.ConsumeSpawnAdjustment(__instance);
         if (!hasPendingSpawnAdjustment
             && GameModeRespawn.TryChooseInitialTeamSpawnPosition(__instance,
@@ -394,5 +402,19 @@ internal static class PlayerManager_CustomRespawnRoundStart_Patch
     private static bool Prefix(PlayerManager __instance)
     {
         return !GameModeRespawn.ConsumeRoundStartSuppressed(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(PlayerManager), "TryRespawn")]
+internal static class PlayerManager_SearchAndDestroyRespawn_Patch
+{
+    private static bool Prefix(PlayerManager __instance)
+    {
+        if (!SearchAndDestroyState.CanRespawn(__instance))
+        {
+            return false;
+        }
+
+        return true;
     }
 }

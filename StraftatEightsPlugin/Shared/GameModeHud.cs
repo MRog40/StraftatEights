@@ -420,6 +420,18 @@ internal sealed class GameModeHud : MonoBehaviour
 
     private void RefreshScoreboard()
     {
+        if (GameModeManager.IsActive(GameMode.CaptureTheFlag))
+        {
+            _scoreboard.text = CaptureTheFlagHud.BuildScoreboard();
+            return;
+        }
+
+        if (GameModeManager.IsActive(GameMode.SearchAndDestroy))
+        {
+            _scoreboard.text = SearchAndDestroyHud.BuildScoreboard();
+            return;
+        }
+
         if (GameModeManager.IsActive(GameMode.Hardpoint))
         {
             _scoreboard.text = HardpointHud.BuildScoreboard();

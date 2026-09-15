@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace StraftatEightsPlugin;
@@ -49,6 +51,60 @@ internal static class TeamAssignment
         return true;
     }
 
+    internal static bool AssignCaptureTheFlagRound()
+    {
+        if (!MyceliumNetworking.MyceliumNetwork.IsHost)
+        {
+            return false;
+        }
+
+        List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
+        if (playerIds.Count == 0)
+        {
+            return false;
+        }
+
+        Assignments.Clear();
+        InitialSpawnEligiblePlayers.Clear();
+        foreach (KeyValuePair<int, int> assignment
+            in CaptureTheFlagRules.AssignStrictTwoTeams(playerIds))
+        {
+            Assignments[assignment.Key] = assignment.Value;
+            InitialSpawnEligiblePlayers.Add(assignment.Key);
+        }
+
+        TeamCount = 2;
+        ApplyNativeAssignments();
+        return true;
+    }
+
+    internal static bool AssignSearchAndDestroyRound()
+    {
+        if (!MyceliumNetworking.MyceliumNetwork.IsHost)
+        {
+            return false;
+        }
+
+        List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
+        if (playerIds.Count == 0)
+        {
+            return false;
+        }
+
+        Assignments.Clear();
+        InitialSpawnEligiblePlayers.Clear();
+        foreach (KeyValuePair<int, int> assignment
+            in SearchAndDestroyRules.AssignStrictTwoTeams(playerIds))
+        {
+            Assignments[assignment.Key] = assignment.Value;
+            InitialSpawnEligiblePlayers.Add(assignment.Key);
+        }
+
+        TeamCount = 2;
+        ApplyNativeAssignments();
+        return true;
+    }
+
     internal static bool AssignLatePlayer(int playerId)
     {
         if (playerId < 0 || TeamCount < 2 || Assignments.ContainsKey(playerId))
@@ -89,7 +145,18 @@ internal static class TeamAssignment
             return;
         }
 
-        AssignForRound();
+        if (GameModeManager.IsActive(GameMode.CaptureTheFlag))
+        {
+            AssignCaptureTheFlagRound();
+        }
+        else if (GameModeManager.IsActive(GameMode.SearchAndDestroy))
+        {
+            AssignSearchAndDestroyRound();
+        }
+        else
+        {
+            AssignForRound();
+        }
     }
 
     internal static void ApplySnapshot(string data, int teamCount)
@@ -168,6 +235,17 @@ internal static class TeamAssignment
 
     private static List<Vector3> GetCandidates(MapDefinition definition, int teamId)
     {
+        if (GameModeManager.IsActive(GameMode.CaptureTheFlag))
+        {
+            Vector3 origin = definition.TeamOrigins[Mathf.Clamp(teamId, 0, 1)];
+            int candidateCount = CaptureTheFlagRules.GetSpawnCandidateCount(
+                definition.SpawnPoints.Count);
+            return definition.SpawnPoints
+                .OrderBy(position => HorizontalDistanceSquared(position, origin))
+                .Take(candidateCount)
+                .ToList();
+        }
+
         if (teamId < 2 && teamId < definition.TeamOrigins.Count)
         {
             Vector3 origin = definition.TeamOrigins[teamId];
