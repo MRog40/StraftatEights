@@ -34,8 +34,10 @@ internal static class TeamAssignment
         }
 
         List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
+        bool isTeamDeathmatch = GameModeManager.IsActive(GameMode.TeamDeathmatch);
         Dictionary<int, int> nextAssignments = GameModeManager.IsActive(GameMode.Hardpoint)
             ? TeamRules.AssignHardpointBalanced(playerIds)
+            : isTeamDeathmatch ? TeamRules.AssignTwoTeams(playerIds)
             : TeamRules.AssignBalanced(playerIds);
         if (nextAssignments.Count == 0)
         {
@@ -52,7 +54,7 @@ internal static class TeamAssignment
 
         TeamCount = GameModeManager.IsActive(GameMode.Hardpoint)
             ? TeamRules.GetHardpointTeamCount(Assignments.Count)
-            : TeamRules.GetTeamCount(Assignments.Count);
+            : isTeamDeathmatch ? 2 : TeamRules.GetTeamCount(Assignments.Count);
         ApplyNativeAssignments();
         HealthCompensationVersion++;
         return true;

@@ -139,12 +139,12 @@ Assert(teamAssignments.Count == 6 && teamAssignments[1] == 0 && teamAssignments[
     && teamAssignments[7] == 2,
     "Team assignment must be deterministic and balanced by sorted player ID.");
 Dictionary<int, int> teamDeathmatchAssignments =
-    TeamRules.AssignBalanced(new[] { 1, 2, 3, 4, 5, 6 });
-Assert(TeamRules.GetTeamCount(teamDeathmatchAssignments.Count) == 3
-    && teamDeathmatchAssignments.Values.Count(teamId => teamId == 0) == 2
-    && teamDeathmatchAssignments.Values.Count(teamId => teamId == 1) == 2
-    && teamDeathmatchAssignments.Values.Count(teamId => teamId == 2) == 2,
-    "Team Deathmatch must preserve balanced three-team assignment for six players.");
+    TeamRules.AssignTwoTeams(new[] { 1, 2, 3, 4, 5, 6 });
+Assert(teamDeathmatchAssignments.Values.Distinct().Count() == 2
+    && teamDeathmatchAssignments.Values.Count(teamId => teamId == 0) == 3
+    && teamDeathmatchAssignments.Values.Count(teamId => teamId == 1) == 3
+    && !teamDeathmatchAssignments.Values.Contains(2),
+    "Team Deathmatch must use a balanced two-team assignment for six players.");
 Assert(TeamRules.GetHardpointTeamCount(4) == 2
     && TeamRules.GetHardpointTeamCount(5) == 3
     && TeamRules.GetHardpointTeamCount(7) == 3,

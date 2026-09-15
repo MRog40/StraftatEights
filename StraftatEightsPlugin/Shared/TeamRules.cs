@@ -90,6 +90,17 @@ internal static class TeamRules
         return assignments;
     }
 
+    internal static Dictionary<int, int> AssignTwoTeams(IReadOnlyList<int> playerIds)
+    {
+        Dictionary<int, int> assignments = new();
+        foreach (int playerId in playerIds.Where(id => id >= 0).Distinct().OrderBy(id => id))
+        {
+            assignments[playerId] = assignments.Count % 2;
+        }
+
+        return assignments;
+    }
+
     internal static Dictionary<int, int> AssignHardpointBalanced(IReadOnlyList<int> playerIds)
     {
         Dictionary<int, int> assignments = new();

@@ -64,7 +64,10 @@ internal static class PlayerOutline
             MultiTargets.Clear();
         }
 
-        if (activeMode == GameMode.Hardpoint)
+        if (activeMode == GameMode.Hardpoint
+            || activeMode == GameMode.CaptureTheFlag
+            || activeMode == GameMode.TeamDeathmatch
+            || activeMode == GameMode.SearchAndDestroy)
         {
             return;
         }

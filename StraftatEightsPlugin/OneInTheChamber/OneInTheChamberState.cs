@@ -15,6 +15,7 @@ internal static class OneInTheChamberState
     internal const int PointsPerRoundWin = ScoreRules.PointsPerRoundWin;
     internal const string PistolWeaponName = "Revolver";
     internal const string CouperetWeaponName = "Couperet";
+    private const float LoadoutDelaySeconds = 10f;
     internal static bool Enabled;
     internal static int AliveCount => AlivePlayers.Count;
     internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
@@ -25,6 +26,7 @@ internal static class OneInTheChamberState
     internal static readonly Dictionary<int, int> Scores = new();
 
     private static float _nextLoadoutCheckTime;
+    private static float _loadoutsAvailableAt;
     private static readonly ModeSyncState Sync = new();
     private static readonly HashSet<int> RoundPlayers = new();
     private static readonly Dictionary<int, float> PendingRightLoadouts = new();
@@ -147,6 +149,7 @@ internal static class OneInTheChamberState
         StopSubRoundTransition();
         Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
+        _loadoutsAvailableAt = 0f;
         _startRetryPending = false;
         SubRoundId = 0;
         WinnerId = -1;
@@ -248,7 +251,8 @@ internal static class OneInTheChamberState
     internal static void RequestLoadout(int playerId)
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.OneInTheChamber)
-            || !MyceliumNetwork.IsHost || WinnerId >= 0 || _subRoundEnding)
+            || !MyceliumNetwork.IsHost || WinnerId >= 0 || _subRoundEnding
+            || Time.unscaledTime < _loadoutsAvailableAt)
         {
             return;
         }
@@ -327,7 +331,8 @@ internal static class OneInTheChamberState
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.OneInTheChamber)
             || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost || WeaponService.IsFinalGameScreen
-            || WinnerId >= 0 || _subRoundEnding || Time.unscaledTime < _nextLoadoutCheckTime)
+            || WinnerId >= 0 || _subRoundEnding || Time.unscaledTime < _loadoutsAvailableAt
+            || Time.unscaledTime < _nextLoadoutCheckTime)
         {
             return;
         }
@@ -496,6 +501,7 @@ internal static class OneInTheChamberState
         SubRoundId++;
         _subRoundEnding = false;
         _nextLoadoutCheckTime = 0f;
+        _loadoutsAvailableAt = Time.unscaledTime + LoadoutDelaySeconds;
         PendingRightLoadouts.Clear();
         PendingLeftLoadouts.Clear();
         AlivePlayers.Clear();

@@ -27,7 +27,7 @@ internal static class CaptureTheFlagState
     private static readonly CaptureTheFlagFlagStatus[] FlagStatuses =
         new CaptureTheFlagFlagStatus[2];
     private static readonly int[] FlagCarriers = { -1, -1 };
-    private static readonly Vector3[] DroppedFlagPositions = new Vector3[2];
+    private static readonly Vector3[] FlagPositions = new Vector3[2];
     private static readonly int[] FlagTeamIds = { -1, -1 };
     private static float _serverTickAccumulator;
     private static bool _roundCompletionRequested;
@@ -56,29 +56,12 @@ internal static class CaptureTheFlagState
     internal static bool TryGetFlagPosition(int flagIndex, out Vector3 position)
     {
         position = default;
-        if (flagIndex < 0 || flagIndex >= FlagStatuses.Length
-            || !GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition)
-            || definition.CaptureTheFlagObjectives.Count != 2)
+        if (flagIndex < 0 || flagIndex >= FlagStatuses.Length || FlagTeamIds[flagIndex] < 0)
         {
             return false;
         }
 
-        CaptureTheFlagFlagStatus status = FlagStatuses[flagIndex];
-        if (status == CaptureTheFlagFlagStatus.Carried)
-        {
-            PlayerHealth? carrier = PlayerLookup.FindActivePlayerHealthById(FlagCarriers[flagIndex]);
-            if (carrier == null || !carrier)
-            {
-                return false;
-            }
-
-            position = carrier.transform.position;
-            return true;
-        }
-
-        position = status == CaptureTheFlagFlagStatus.Dropped
-            ? DroppedFlagPositions[flagIndex]
-            : definition.CaptureTheFlagObjectives[flagIndex];
+        position = FlagPositions[flagIndex];
         return true;
     }
 
@@ -270,7 +253,7 @@ internal static class CaptureTheFlagState
         {
             FlagStatuses[flagIndex] = CaptureTheFlagFlagStatus.Home;
             FlagCarriers[flagIndex] = -1;
-            DroppedFlagPositions[flagIndex] = default;
+            FlagPositions[flagIndex] = default;
             FlagTeamIds[flagIndex] = -1;
         }
     }
@@ -340,6 +323,7 @@ internal static class CaptureTheFlagState
         EnsureTeamsAssigned();
         bool stateChanged = EnsureFlagOwnership();
         stateChanged |= ProcessFlagInteractions();
+        stateChanged |= UpdateCarriedFlagPositions();
         if (!_roundCompletionRequested && !IsSuddenDeath)
         {
             MatchTimeRemaining = Mathf.Max(0f, MatchTimeRemaining - elapsed);
@@ -389,7 +373,7 @@ internal static class CaptureTheFlagState
                 {
                     FlagStatuses[flagIndex] = droppedStatus;
                     FlagCarriers[flagIndex] = -1;
-                    DroppedFlagPositions[flagIndex] = dropPosition;
+                    FlagPositions[flagIndex] = dropPosition;
                     changed = true;
                 }
             }
@@ -458,7 +442,7 @@ internal static class CaptureTheFlagState
                 ToTeamPoints(definition.TeamOrigins));
             FlagStatuses[flagIndex] = CaptureTheFlagFlagStatus.Home;
             FlagCarriers[flagIndex] = -1;
-            DroppedFlagPositions[flagIndex] = definition.CaptureTheFlagObjectives[flagIndex];
+            FlagPositions[flagIndex] = definition.CaptureTheFlagObjectives[flagIndex];
         }
     }
 
@@ -486,14 +470,15 @@ internal static class CaptureTheFlagState
                 if (ownFlag >= 0 && FlagStatuses[ownFlag] == CaptureTheFlagFlagStatus.Home
                     && IsNear(playerPosition, GetHomePosition(ownFlag)))
                 {
-                        if (!CaptureTheFlagRules.TryAwardCapture(Scores, teamId,
-                            GameModeManager.EffectivePointsToWin, true, true,
-                            out int winningTeamId))
-                        {
-                            continue;
-                        }
+                    if (!CaptureTheFlagRules.TryAwardCapture(Scores, teamId,
+                        GameModeManager.EffectivePointsToWin, true, true,
+                        out int winningTeamId))
+                    {
+                        continue;
+                    }
 
                     ReturnFlagHome(carriedFlag);
+                    ShowCapturePopupForTeam(teamId);
                     changed = true;
                     if (winningTeamId >= 0)
                     {
@@ -508,14 +493,14 @@ internal static class CaptureTheFlagState
             int ownFlagIndex = FindFlagForTeam(teamId);
             if (ownFlagIndex >= 0
                 && FlagStatuses[ownFlagIndex] == CaptureTheFlagFlagStatus.Dropped
-                && IsNear(playerPosition, DroppedFlagPositions[ownFlagIndex]))
+                && IsNear(playerPosition, FlagPositions[ownFlagIndex]))
             {
                 if (CaptureTheFlagRules.TryReturn(FlagStatuses[ownFlagIndex], true,
                     out CaptureTheFlagFlagStatus returnedStatus))
                 {
                     FlagStatuses[ownFlagIndex] = returnedStatus;
                     FlagCarriers[ownFlagIndex] = -1;
-                    DroppedFlagPositions[ownFlagIndex] = GetHomePosition(ownFlagIndex);
+                    FlagPositions[ownFlagIndex] = GetHomePosition(ownFlagIndex);
                     changed = true;
                 }
             }
@@ -530,6 +515,7 @@ internal static class CaptureTheFlagState
                 {
                     FlagStatuses[enemyFlagIndex] = carriedStatus;
                     FlagCarriers[enemyFlagIndex] = playerId;
+                    FlagPositions[enemyFlagIndex] = playerPosition;
                     changed = true;
                 }
             }
@@ -558,6 +544,44 @@ internal static class CaptureTheFlagState
         }
 
         return changed;
+    }
+
+    private static bool UpdateCarriedFlagPositions()
+    {
+        bool changed = false;
+        for (int flagIndex = 0; flagIndex < FlagCarriers.Length; flagIndex++)
+        {
+            if (FlagStatuses[flagIndex] != CaptureTheFlagFlagStatus.Carried)
+            {
+                continue;
+            }
+
+            PlayerHealth? carrier = PlayerLookup.FindActivePlayerHealthById(FlagCarriers[flagIndex]);
+            if (carrier == null || !carrier)
+            {
+                continue;
+            }
+
+            Vector3 position = carrier.transform.position;
+            if ((FlagPositions[flagIndex] - position).sqrMagnitude > 0.0001f)
+            {
+                FlagPositions[flagIndex] = position;
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
+    private static void ShowCapturePopupForTeam(int teamId)
+    {
+        foreach (KeyValuePair<int, int> assignment in TeamAssignment.Current)
+        {
+            if (assignment.Value == teamId)
+            {
+                GameModeHud.ShowScorePopupForPlayer(assignment.Key, CapturePoints);
+            }
+        }
     }
 
     private static int FindCarriedFlag(int playerId)
@@ -605,13 +629,13 @@ internal static class CaptureTheFlagState
         return GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition)
             && definition.CaptureTheFlagObjectives.Count == 2
             ? definition.CaptureTheFlagObjectives[flagIndex]
-            : DroppedFlagPositions[flagIndex];
+            : FlagPositions[flagIndex];
     }
 
     private static Vector3 GetFlagWorldPosition(int flagIndex)
     {
         return FlagStatuses[flagIndex] == CaptureTheFlagFlagStatus.Dropped
-            ? DroppedFlagPositions[flagIndex]
+            ? FlagPositions[flagIndex]
             : GetHomePosition(flagIndex);
     }
 
@@ -619,7 +643,7 @@ internal static class CaptureTheFlagState
     {
         FlagStatuses[flagIndex] = CaptureTheFlagFlagStatus.Home;
         FlagCarriers[flagIndex] = -1;
-        DroppedFlagPositions[flagIndex] = GetHomePosition(flagIndex);
+        FlagPositions[flagIndex] = GetHomePosition(flagIndex);
     }
 
     private static bool IsNear(Vector3 left, Vector3 right)
@@ -693,8 +717,9 @@ internal static class CaptureTheFlagState
 
     private static string SerializeFlag(int flagIndex)
     {
-        Vector3 position = DroppedFlagPositions[flagIndex];
+        Vector3 position = FlagPositions[flagIndex];
         return string.Join(",", (int)FlagStatuses[flagIndex], FlagCarriers[flagIndex],
+            FlagTeamIds[flagIndex],
             position.x.ToString(CultureInfo.InvariantCulture),
             position.y.ToString(CultureInfo.InvariantCulture),
             position.z.ToString(CultureInfo.InvariantCulture));
@@ -706,22 +731,24 @@ internal static class CaptureTheFlagState
         for (int flagIndex = 0; flagIndex < 2 && flagIndex < flags.Length; flagIndex++)
         {
             string[] fields = flags[flagIndex].Split(',');
-            if (fields.Length != 5 || !int.TryParse(fields[0], out int status)
+            if (fields.Length != 6 || !int.TryParse(fields[0], out int status)
                 || !int.TryParse(fields[1], out int carrier)
-                || !float.TryParse(fields[2], NumberStyles.Float, CultureInfo.InvariantCulture,
-                    out float x)
+                || !int.TryParse(fields[2], out int teamId)
                 || !float.TryParse(fields[3], NumberStyles.Float, CultureInfo.InvariantCulture,
-                    out float y)
+                    out float x)
                 || !float.TryParse(fields[4], NumberStyles.Float, CultureInfo.InvariantCulture,
+                    out float y)
+                || !float.TryParse(fields[5], NumberStyles.Float, CultureInfo.InvariantCulture,
                     out float z)
-                || status < 0 || status > 2)
+                || status < 0 || status > 2 || teamId < 0 || teamId > 1)
             {
                 continue;
             }
 
             FlagStatuses[flagIndex] = (CaptureTheFlagFlagStatus)status;
             FlagCarriers[flagIndex] = carrier;
-            DroppedFlagPositions[flagIndex] = new Vector3(x, y, z);
+            FlagTeamIds[flagIndex] = teamId;
+            FlagPositions[flagIndex] = new Vector3(x, y, z);
         }
     }
 

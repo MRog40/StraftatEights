@@ -163,6 +163,7 @@ public partial class Plugin : BaseUnityPlugin
         GameModeManager.EnsureActiveModeLoadouts();
         PlayerOutline.EnforceOutline();
         HardpointOutline.Enforce();
+        TeamOutline.Enforce();
         HardpointMarker.Update();
         CaptureTheFlagMarker.Update();
         SearchAndDestroyMarker.Update();
