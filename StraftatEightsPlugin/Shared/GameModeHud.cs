@@ -432,6 +432,12 @@ internal sealed class GameModeHud : MonoBehaviour
             return;
         }
 
+        if (GameModeManager.IsActive(GameMode.TeamDeathmatch))
+        {
+            _scoreboard.text = TeamDeathmatchHud.BuildScoreboard();
+            return;
+        }
+
         if (GameModeManager.IsActive(GameMode.Hardpoint))
         {
             _scoreboard.text = HardpointHud.BuildScoreboard();

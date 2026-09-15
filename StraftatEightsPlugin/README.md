@@ -12,6 +12,10 @@ It uses two authored bases, awards 25 points per capture, and runs for 200 secon
 default 100-point limit. Flags can be carried, dropped on death, returned, and captured only
 when the carrier's own flag is home.
 
+Team Deathmatch is available as a host-controlled team mode. It uses the same balanced two- or
+three-team assignment and safe spawn logic as Hardpoint, awards 10 points per kill to the killer's
+team, and respawns players after death.
+
 The host can disable `Enable Map Overrides` under `Global Settings` to use the
 normal STRAFTAT lobby map selection. Hardpoint then runs only on maps with authored
 Hardpoint objectives; other modes can run on every selected map.

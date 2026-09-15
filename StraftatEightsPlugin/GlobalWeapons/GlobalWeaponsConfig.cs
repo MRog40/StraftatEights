@@ -16,7 +16,7 @@ public partial class Plugin
     {
         const string section = "Weapon Settings";
         WeaponTweaksEnabled = Config.Bind(section, "Weapon Tweaks Enabled", false, "Host-controlled: enables weapon override rules.");
-        AllowedWeapons = Config.Bind(section, "Allowed Weapons", "AK-K, AR15, Bukanee, Dispenser, HK_G11, Keso, Kusma, M2000, QCW05, Glock, Silenzzio, SMG, SmithCarbine, Warden, Yangtse", "Host-controlled: exact weapon IDs allowed on spawners and for cycling.");
+        AllowedWeapons = Config.Bind(section, "Allowed Weapons", "AK-K, AR15, Dispenser, HK_G11, Keso, Kusma, M2000, QCW05, SMG, Warden", "Host-controlled: exact weapon IDs allowed on spawners and for cycling.");
         SpareMagazines = Config.Bind(section, "Spare Magazines", 5, new ConfigDescription("Host-controlled: spare magazines granted with a weapon pickup.", new AcceptableValueRange<int>(2, 10)));
         CycleWeapons = Config.Bind(section, "F8 Cycle Weapons", false,
             "Host-controlled: F8 cycles through allowed weapons when no active mode owns weapon loadouts, and disables weapon droppers.");

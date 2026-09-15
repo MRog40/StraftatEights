@@ -60,6 +60,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("Hardpoint", InitializeHardpoint);
         InitializeSafely("Capture the Flag", InitializeCaptureTheFlag);
         InitializeSafely("Search and Destroy", InitializeSearchAndDestroy);
+        InitializeSafely("Team Deathmatch", InitializeTeamDeathmatch);
 
         try
         {

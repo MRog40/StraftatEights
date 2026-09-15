@@ -119,6 +119,13 @@ Assert(teamAssignments.Count == 6 && teamAssignments[1] == 0 && teamAssignments[
     && teamAssignments[3] == 2 && teamAssignments[4] == 0 && teamAssignments[5] == 1
     && teamAssignments[7] == 2,
     "Team assignment must be deterministic and balanced by sorted player ID.");
+Dictionary<int, int> teamDeathmatchAssignments =
+    TeamRules.AssignBalanced(new[] { 1, 2, 3, 4, 5, 6 });
+Assert(TeamRules.GetTeamCount(teamDeathmatchAssignments.Count) == 3
+    && teamDeathmatchAssignments.Values.Count(teamId => teamId == 0) == 2
+    && teamDeathmatchAssignments.Values.Count(teamId => teamId == 1) == 2
+    && teamDeathmatchAssignments.Values.Count(teamId => teamId == 2) == 2,
+    "Team Deathmatch must preserve balanced three-team assignment for six players.");
 Assert(TeamRules.GetColor(TeamRules.BlueTeamId).Equals(new TeamColorData(0, 114, 178))
     && TeamRules.GetColor(TeamRules.VermillionTeamId).Equals(new TeamColorData(213, 94, 0))
     && TeamRules.GetColor(TeamRules.GreenTeamId).Equals(new TeamColorData(0, 158, 115)),
@@ -166,6 +173,12 @@ Assert(!CaptureTheFlagRules.TryResolveTimeoutWinner(
         new Dictionary<int, int> { [0] = 60, [1] = 50 }, out int timeoutWinner)
     && timeoutWinner == 0,
     "A tied CTF timer must enter sudden death, while a unique leader wins.");
+Assert(TeamDeathmatchRules.PointsPerKill == 10
+    && TeamDeathmatchRules.AddKillPoints(0, 100) == 10
+    && TeamDeathmatchRules.AddKillPoints(90, 100) == 100
+    && TeamDeathmatchRules.IsMatchWon(100, 100)
+    && !TeamDeathmatchRules.IsMatchWon(90, 100),
+    "Team Deathmatch must award ten points per kill and stop at the team score limit.");
 Dictionary<int, int> searchAndDestroyAssignments =
     SearchAndDestroyRules.AssignStrictTwoTeams(new[] { 7, 2, 5, 2, -1 });
 Assert(searchAndDestroyAssignments.Count == 3 && searchAndDestroyAssignments[2] == 0

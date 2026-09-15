@@ -27,7 +27,8 @@ internal static class ModeMapCatalog
             [GameMode.Assassin] = Barren01AltOnly
             ,[GameMode.Hardpoint] = Barren01AltOnly,
             [GameMode.CaptureTheFlag] = Barren01AltOnly,
-            [GameMode.SearchAndDestroy] = Barren01AltOnly
+            [GameMode.SearchAndDestroy] = Barren01AltOnly,
+            [GameMode.TeamDeathmatch] = Barren01AltOnly
         };
 
     internal static IReadOnlyList<string> GetMapNames(GameMode mode)
@@ -125,7 +126,7 @@ internal static class ModeMapCatalog
     private static bool RequiresMapDefinition(GameMode mode)
     {
         return mode == GameMode.Hardpoint || mode == GameMode.CaptureTheFlag
-            || mode == GameMode.SearchAndDestroy;
+            || mode == GameMode.SearchAndDestroy || mode == GameMode.TeamDeathmatch;
     }
 
     private static bool HasRequiredDefinition(GameMode mode, string mapName)
@@ -141,6 +142,8 @@ internal static class ModeMapCatalog
             GameMode.Hardpoint => definition.HardpointObjectives.Count > 0,
             GameMode.CaptureTheFlag => definition.CaptureTheFlagObjectives.Count == 2,
             GameMode.SearchAndDestroy => definition.SndObjectives.Count == 2,
+            GameMode.TeamDeathmatch => definition.SpawnPoints.Count > 0
+                && definition.TeamOrigins.Count >= 2,
             _ => true
         };
     }

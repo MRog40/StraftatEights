@@ -38,6 +38,9 @@ internal static class PauseManager_RoundLifecycle_Patch
             case GameMode.SearchAndDestroy:
                 SearchAndDestroyState.OnRoundStarted();
                 break;
+            case GameMode.TeamDeathmatch:
+                TeamDeathmatchState.OnRoundStarted();
+                break;
         }
 
         if (!GameModeManager.ShouldIgnoreGlobalWeaponSettings)
