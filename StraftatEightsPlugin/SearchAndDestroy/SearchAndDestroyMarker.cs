@@ -9,12 +9,16 @@ internal static class SearchAndDestroyMarker
     private const float SiteOverheadMarkerSize = 0.8f;
     private const float BombMarkerHeight = 2.8f;
     private const float BombMarkerSize = 0.6f;
-    private const float BombGroundMarkerSize = 0.25f;
+    private const float BombGroundMarkerWidth = 0.25f;
+    private const float BombGroundMarkerThickness = 0.1f;
     private const float BombGroundMarkerHeight = 0.01f;
     private static readonly GameObject?[] SiteMarkers = new GameObject?[2];
     private static GameObject? _bomb;
     private static Mesh? _bombDiamondMesh;
     private static Mesh? _bombSquareMesh;
+    private static AudioClip? _bombBeepClip;
+    private static float _nextBombBeepTime;
+    private static bool _bombWasPlanted;
 
     internal static void Update()
     {
@@ -99,6 +103,7 @@ internal static class SearchAndDestroyMarker
                 && !CanSeeCarriedBombMarker())
             || !SearchAndDestroyState.TryGetBombPosition(out Vector3 position))
         {
+            ResetBombAudio();
             SetActive(_bomb, false);
             return;
         }
@@ -112,17 +117,89 @@ internal static class SearchAndDestroyMarker
                 SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Carried);
             MeshRenderer renderer = _bomb.AddComponent<MeshRenderer>();
             ConfigureRenderer(renderer, true);
-            renderer.material.color = new Color32(35, 35, 35, 255);
+            renderer.material.color = Color.black;
+            AudioSource audio = _bomb.AddComponent<AudioSource>();
+            audio.playOnAwake = false;
+            audio.loop = false;
+            audio.spatialBlend = 0f;
+            audio.volume = 0.65f;
         }
 
         bool carried = SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Carried;
         _bomb.GetComponent<MeshFilter>()!.sharedMesh = GetBombMesh(carried);
-        float markerHeight = carried ? BombMarkerHeight : BombGroundMarkerHeight;
-        _bomb.transform.SetPositionAndRotation(position + Vector3.up * markerHeight,
-            Quaternion.identity);
-        _bomb.transform.localScale = Vector3.one
-            * (carried ? BombMarkerSize : BombGroundMarkerSize);
+        if (carried)
+        {
+            _bomb.transform.SetPositionAndRotation(position + Vector3.up * BombMarkerHeight,
+                Quaternion.identity);
+            _bomb.transform.localScale = Vector3.one * BombMarkerSize;
+        }
+        else
+        {
+            float groundY = position.y;
+            if (FloatingObjectiveMarker.TryGetGroundY(position, position.y, out float sampledGroundY))
+            {
+                groundY = sampledGroundY;
+            }
+
+            _bomb.transform.SetPositionAndRotation(
+                new Vector3(position.x, groundY + BombGroundMarkerHeight, position.z),
+                Quaternion.identity);
+            _bomb.transform.localScale = Vector3.one;
+        }
         _bomb.SetActive(true);
+
+        if (SearchAndDestroyState.BombStatus != SearchAndDestroyBombStatus.Planted)
+        {
+            ResetBombAudio();
+            return;
+        }
+
+        if (!_bombWasPlanted)
+        {
+            _bombWasPlanted = true;
+            _nextBombBeepTime = 0f;
+        }
+
+        if (Time.unscaledTime >= _nextBombBeepTime)
+        {
+            _bomb.GetComponent<AudioSource>()!.PlayOneShot(GetBombBeepClip());
+            _nextBombBeepTime = Time.unscaledTime + 1f;
+        }
+    }
+
+    private static AudioClip GetBombBeepClip()
+    {
+        if (_bombBeepClip != null)
+        {
+            return _bombBeepClip;
+        }
+
+        const int sampleRate = 44100;
+        const float duration = 0.12f;
+        int sampleCount = Mathf.RoundToInt(sampleRate * duration);
+        float[] samples = new float[sampleCount];
+        for (int index = 0; index < sampleCount; index++)
+        {
+            float progress = index / (float)sampleCount;
+            float envelope = Mathf.Sin(progress * Mathf.PI);
+            samples[index] = Mathf.Sin(2f * Mathf.PI * 880f * index / sampleRate)
+                * envelope * 0.35f;
+        }
+
+        _bombBeepClip = AudioClip.Create("SearchAndDestroyBombBeep", sampleCount,
+            1, sampleRate, false);
+        _bombBeepClip.SetData(samples, 0);
+        return _bombBeepClip;
+    }
+
+    private static void ResetBombAudio()
+    {
+        _bombWasPlanted = false;
+        _nextBombBeepTime = 0f;
+        if (_bomb != null && _bomb)
+        {
+            _bomb.GetComponent<AudioSource>()?.Stop();
+        }
     }
 
     private static bool CanSeeCarriedBombMarker()
@@ -150,17 +227,30 @@ internal static class SearchAndDestroyMarker
 
     private static Mesh CreateBombSquareMesh()
     {
+        float halfWidth = BombGroundMarkerWidth * 0.5f;
         Mesh mesh = new()
         {
             name = "SearchAndDestroyBombSquareMesh",
             vertices = new[]
             {
-                new Vector3(-0.5f, 0f, -0.5f),
-                new Vector3(0.5f, 0f, -0.5f),
-                new Vector3(0.5f, 0f, 0.5f),
-                new Vector3(-0.5f, 0f, 0.5f)
+                new Vector3(-halfWidth, 0f, -halfWidth),
+                new Vector3(halfWidth, 0f, -halfWidth),
+                new Vector3(halfWidth, 0f, halfWidth),
+                new Vector3(-halfWidth, 0f, halfWidth),
+                new Vector3(-halfWidth, BombGroundMarkerThickness, -halfWidth),
+                new Vector3(halfWidth, BombGroundMarkerThickness, -halfWidth),
+                new Vector3(halfWidth, BombGroundMarkerThickness, halfWidth),
+                new Vector3(-halfWidth, BombGroundMarkerThickness, halfWidth)
             },
-            triangles = new[] { 0, 2, 1, 0, 3, 2 }
+            triangles = new[]
+            {
+                0, 2, 1, 0, 3, 2,
+                4, 5, 6, 4, 6, 7,
+                0, 1, 5, 0, 5, 4,
+                1, 2, 6, 1, 6, 5,
+                2, 3, 7, 2, 7, 6,
+                3, 0, 4, 3, 4, 7
+            },
         };
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
@@ -238,6 +328,7 @@ internal static class SearchAndDestroyMarker
 
         if (_bomb != null && _bomb)
         {
+            ResetBombAudio();
             Object.Destroy(_bomb);
             _bomb = null;
         }

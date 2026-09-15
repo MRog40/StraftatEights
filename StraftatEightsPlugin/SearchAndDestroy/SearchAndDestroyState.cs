@@ -436,6 +436,45 @@ internal static class SearchAndDestroyState
         }
     }
 
+    internal static string GetLocalInteractionPrompt()
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.SearchAndDestroy)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || ClientInstance.Instance == null)
+        {
+            return string.Empty;
+        }
+
+        int playerId = ClientInstance.Instance.PlayerId;
+        if (playerId < 0 || !AlivePlayers.Contains(playerId))
+        {
+            return string.Empty;
+        }
+
+        if (BombStatus == SearchAndDestroyBombStatus.Carried
+            && BombCarrierPlayerId == playerId
+            && FindNearbySite(playerId) >= 0)
+        {
+            return "Press P to plant";
+        }
+
+        if (BombStatus == SearchAndDestroyBombStatus.Dropped
+            && IsOffensePlayer(playerId)
+            && IsNearPlayer(playerId, BombPosition))
+        {
+            return "Press P to pick up bomb";
+        }
+
+        if (BombStatus == SearchAndDestroyBombStatus.Planted
+            && IsDefensePlayer(playerId)
+            && IsNearPlayer(playerId, BombPosition))
+        {
+            return "Press P to defuse";
+        }
+
+        return string.Empty;
+    }
+
     internal static bool IsOffensePlayer(int playerId)
     {
         return TeamAssignment.TryGetTeamId(playerId, out int teamId)

@@ -27,6 +27,7 @@ internal sealed class GameModeHud : MonoBehaviour
     private GameObject _panel = null!;
     private TextMeshProUGUI _announcement = null!;
     private TextMeshProUGUI _targetAnnouncement = null!;
+    private TextMeshProUGUI _interactionPrompt = null!;
     private TextMeshProUGUI _scorePopup = null!;
     private TextMeshProUGUI _scoreboard = null!;
     private RectTransform _scorePopupRect = null!;
@@ -88,6 +89,26 @@ internal sealed class GameModeHud : MonoBehaviour
         _targetAnnouncement.outlineColor = new Color(0f, 0f, 0f, 0.9f);
         _targetAnnouncement.raycastTarget = false;
         targetAnnouncementObject.SetActive(false);
+
+        GameObject interactionPromptObject = new("GameModeInteractionPrompt");
+        interactionPromptObject.transform.SetParent(transform, false);
+        RectTransform interactionPromptRect = interactionPromptObject.AddComponent<RectTransform>();
+        interactionPromptRect.anchorMin = new Vector2(0.5f, 0.5f);
+        interactionPromptRect.anchorMax = new Vector2(0.5f, 0.5f);
+        interactionPromptRect.pivot = new Vector2(0.5f, 0.5f);
+        interactionPromptRect.sizeDelta = new Vector2(900f, 70f);
+        interactionPromptRect.anchoredPosition = new Vector2(0f, -250f);
+        _interactionPrompt = interactionPromptObject.AddComponent<TextMeshProUGUI>();
+        _interactionPrompt.fontSize = 32f;
+        _interactionPrompt.fontStyle = FontStyles.Bold;
+        _interactionPrompt.color = Color.white;
+        _interactionPrompt.richText = true;
+        _interactionPrompt.alignment = TextAlignmentOptions.Center;
+        _interactionPrompt.enableWordWrapping = false;
+        _interactionPrompt.outlineWidth = 0.25f;
+        _interactionPrompt.outlineColor = new Color(0f, 0f, 0f, 0.9f);
+        _interactionPrompt.raycastTarget = false;
+        interactionPromptObject.SetActive(false);
 
         GameObject scorePopupObject = new("GameModeScorePopup");
         scorePopupObject.transform.SetParent(transform, false);
@@ -190,6 +211,7 @@ internal sealed class GameModeHud : MonoBehaviour
 
             _announcement.gameObject.SetActive(false);
             _targetAnnouncement.gameObject.SetActive(false);
+            _interactionPrompt.gameObject.SetActive(false);
             _panel.SetActive(false);
             return;
         }
@@ -268,6 +290,12 @@ internal sealed class GameModeHud : MonoBehaviour
         {
             RefreshScoreboard();
         }
+
+        string interactionPrompt = visible && GameModeManager.IsActive(GameMode.SearchAndDestroy)
+            ? SearchAndDestroyState.GetLocalInteractionPrompt()
+            : string.Empty;
+        _interactionPrompt.text = interactionPrompt;
+        _interactionPrompt.gameObject.SetActive(interactionPrompt.Length > 0);
     }
 
     internal static void AnnounceActiveMode()
