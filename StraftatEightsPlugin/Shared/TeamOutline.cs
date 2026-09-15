@@ -67,7 +67,7 @@ internal static class TeamOutline
                 continue;
             }
 
-            PlayerHealth? health = PlayerLookup.FindPlayerHealthById(assignment.Key);
+            PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(assignment.Key);
             if (health == null || !health || !health.gameObject.activeInHierarchy)
             {
                 continue;
@@ -84,7 +84,9 @@ internal static class TeamOutline
             AppliedPlayers[assignment.Key] = health;
             if (playerChanged || refreshMaterials)
             {
-                TeamColorData teamColor = TeamRules.GetColor(assignment.Value);
+                TeamColorData teamColor = teammatesOnly
+                    ? TeamRules.GetColor(TeamRules.BlueTeamId)
+                    : TeamRules.GetColor(assignment.Value);
                 PlayerOutline.Apply(health, new Color32(teamColor.Red, teamColor.Green,
                     teamColor.Blue, 255));
             }

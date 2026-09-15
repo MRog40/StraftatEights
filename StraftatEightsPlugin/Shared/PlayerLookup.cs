@@ -123,6 +123,10 @@ internal static class PlayerLookup
                 {
                     return health;
                 }
+                if (IsMappedLivePlayerHealth(health, client))
+                {
+                    return health;
+                }
             }
 
             PlayerHealth? clientHealth = client.GetComponent<PlayerHealth>();
@@ -138,6 +142,36 @@ internal static class PlayerLookup
             if (IsPlayerHealthForId(health, playerId))
             {
                 return health;
+            }
+        }
+
+        foreach (ClientInstance sceneClient in Object.FindObjectsOfType<ClientInstance>())
+        {
+            if (sceneClient == null || !sceneClient || sceneClient.PlayerId != playerId)
+            {
+                continue;
+            }
+
+            PlayerManager? playerSpawner = sceneClient.PlayerSpawner;
+            if (playerSpawner != null && playerSpawner
+                && playerSpawner.player != null && playerSpawner.player)
+            {
+                PlayerHealth? health = playerSpawner.player.GetComponent<PlayerHealth>();
+                if (IsPlayerHealthForId(health, playerId) && health.gameObject.activeInHierarchy)
+                {
+                    return health;
+                }
+                if (IsMappedLivePlayerHealth(health, sceneClient))
+                {
+                    return health;
+                }
+            }
+
+            PlayerHealth? sceneHealth = sceneClient.GetComponent<PlayerHealth>();
+            if (IsPlayerHealthForId(sceneHealth, playerId)
+                && sceneHealth.gameObject.activeInHierarchy)
+            {
+                return sceneHealth;
             }
         }
 

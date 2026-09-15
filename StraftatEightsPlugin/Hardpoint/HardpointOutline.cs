@@ -29,8 +29,8 @@ internal static class HardpointOutline
         HashSet<int> currentPlayerIds = new();
         foreach (KeyValuePair<int, int> assignment in HardpointState.Assignments)
         {
-            PlayerHealth? health = PlayerLookup.FindPlayerHealthById(assignment.Key);
-            if (health == null || !health.gameObject.activeInHierarchy)
+            PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(assignment.Key);
+            if (health == null || !health || !health.gameObject.activeInHierarchy)
             {
                 continue;
             }

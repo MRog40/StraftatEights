@@ -61,6 +61,16 @@ internal static class CaptureTheFlagState
             return false;
         }
 
+        if (FlagStatuses[flagIndex] == CaptureTheFlagFlagStatus.Carried)
+        {
+            PlayerHealth? carrier = PlayerLookup.FindActivePlayerHealthById(FlagCarriers[flagIndex]);
+            if (carrier != null && carrier && carrier.gameObject.activeInHierarchy)
+            {
+                position = carrier.transform.position;
+                return true;
+            }
+        }
+
         position = FlagPositions[flagIndex];
         return true;
     }

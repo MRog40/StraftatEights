@@ -90,15 +90,31 @@ internal static class CaptureTheFlagMarker
     {
         GameObject marker = Markers[flagIndex]!;
         marker.SetActive(true);
-        float groundY = flagPosition.y;
-        if (TryGetGroundY(flagPosition, flagPosition.y, out float sampledGroundY))
+        bool carried = CaptureTheFlagState.GetFlagStatus(flagIndex)
+            == CaptureTheFlagFlagStatus.Carried;
+        PlayerHealth? carrier = carried
+            ? PlayerLookup.FindActivePlayerHealthById(CaptureTheFlagState.GetFlagCarrier(flagIndex))
+            : null;
+        if (carrier != null && carrier && carrier.gameObject.activeInHierarchy)
         {
-            groundY = sampledGroundY;
+            marker.transform.SetParent(carrier.transform, false);
+            marker.transform.localPosition = Vector3.zero;
+            marker.transform.localRotation = Quaternion.identity;
         }
+        else
+        {
+            marker.transform.SetParent(null, true);
+            float groundY = flagPosition.y;
+            if (!carried && TryGetGroundY(flagPosition, flagPosition.y, out float sampledGroundY))
+            {
+                groundY = sampledGroundY;
+            }
 
-        marker.transform.SetPositionAndRotation(
-            new Vector3(flagPosition.x, groundY + GroundClearance, flagPosition.z),
-            Quaternion.identity);
+            marker.transform.SetPositionAndRotation(
+                new Vector3(flagPosition.x, carried ? flagPosition.y : groundY + GroundClearance,
+                    flagPosition.z),
+                Quaternion.identity);
+        }
         Color color = GetFlagColor(flagIndex);
         SetRendererColor(MarkerRenderers[flagIndex], color);
         SetRendererColor(PoleRenderers[flagIndex], new Color(color.r, color.g, color.b, 0.65f));
