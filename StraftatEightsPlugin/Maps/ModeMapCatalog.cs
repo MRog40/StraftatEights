@@ -24,8 +24,7 @@ internal static class ModeMapCatalog
     private static readonly IReadOnlyList<string> KillTheRatMaps =
         new[] { "WestVillage_04", "Toilets_00", "Arena_13", "JF_Poolrooms_01" };
     private static readonly IReadOnlyList<string> OneInTheChamberMaps =
-        new[] { "TheSamePlace_02", "StLucia_01", "Chateaux_04" };
-    private static readonly IReadOnlyList<string> HotPotatoMaps = FreeForAllMaps;
+        new[] { "TheSamePlace_02", "StLucia_01", "Chateaux_04" };     private static readonly IReadOnlyList<string> HotPotatoMaps = FreeForAllMaps;
     private static readonly IReadOnlyList<string> InfidelMaps =
         new[] { "Bazaar_01", "TheSamePlace_04", "TheSamePlace_12" };
     private static readonly IReadOnlyList<string> Barren01AltOnly =
