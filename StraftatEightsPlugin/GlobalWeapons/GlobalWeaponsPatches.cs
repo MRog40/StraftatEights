@@ -34,6 +34,12 @@ internal static class PlayerPickup_WeaponHandPolicy_Patch
             return false;
         }
 
+        if (WeaponService.IsOwnerHandObjectUnattached(__instance, true))
+        {
+            WeaponService.AttachUnparentedWeapon(__instance);
+            return false;
+        }
+
         if (WeaponService.IsOwnerAttachmentPending(__instance))
         {
             WeaponService.AttachUnparentedWeapon(__instance);

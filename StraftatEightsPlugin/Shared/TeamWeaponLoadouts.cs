@@ -183,8 +183,11 @@ internal static class TeamWeaponLoadouts
         if (heldWeapon != null
             && heldWeapon.name.StartsWith(request.WeaponName, StringComparison.Ordinal))
         {
-            WeaponAmmoTuning.InitializeFromSpawnerPickup(heldWeapon,
-                WeaponSettingsState.SpareMagazines);
+            if (!request.Complete)
+            {
+                WeaponAmmoTuning.InitializeFromSpawnerPickup(heldWeapon,
+                    WeaponSettingsState.SpareMagazines);
+            }
             request.Complete = true;
             return;
         }

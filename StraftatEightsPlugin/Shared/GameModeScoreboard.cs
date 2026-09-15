@@ -17,6 +17,9 @@ internal readonly struct GameModeScoreboardRow
 
 internal static class GameModeScoreboard
 {
+    private const int ScoreColumnWidth = 3;
+    private const string ScoreColumnPosition = "90%";
+
     internal static string Build(GameMode mode, string? labelOverride, int? pointsToWin,
         IReadOnlyList<GameModeScoreboardRow> rows, string? timerText = null)
     {
@@ -28,7 +31,10 @@ internal static class GameModeScoreboard
 
         foreach (GameModeScoreboardRow row in rows)
         {
-            text.Append('\n').Append(row.Label).Append("  ").Append(row.Score);
+            string score = row.Score.ToString().PadLeft(ScoreColumnWidth);
+            text.Append('\n').Append(row.Label).Append("<pos=")
+                .Append(ScoreColumnPosition).Append(">")
+                .Append(score);
         }
 
         if (!string.IsNullOrEmpty(timerText))

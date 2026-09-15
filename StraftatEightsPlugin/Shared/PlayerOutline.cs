@@ -358,7 +358,7 @@ internal static class PlayerOutline
 
         foreach (SkinnedMeshRenderer renderer in player.GetComponentsInChildren<SkinnedMeshRenderer>(true))
         {
-            if (renderer == null || !renderer.gameObject.activeInHierarchy)
+            if (renderer == null)
             {
                 continue;
             }

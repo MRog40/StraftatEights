@@ -343,6 +343,46 @@ internal static class WeaponService
         return hasObject && (objectInHand == null || !objectInHand);
     }
 
+    internal static bool IsOwnerHandObjectUnattached(PlayerPickup pickup, bool rightHand)
+    {
+        if (!pickup.IsOwner)
+        {
+            return false;
+        }
+
+        bool hasObject = rightHand ? pickup.hasObjectInHand : pickup.hasObjectInLeftHand;
+        GameObject? objectInHand = rightHand ? pickup.objInHand : pickup.objInLeftHand;
+        if (!hasObject || objectInHand == null || !objectInHand)
+        {
+            return false;
+        }
+
+        ItemBehaviour? item = objectInHand.GetComponent<ItemBehaviour>();
+        Weapon? weapon = objectInHand.GetComponent<Weapon>();
+        if (item == null || weapon == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            Transform expectedParent = rightHand
+                ? (weapon.requireBothHands
+                    ? pickup.pickupPositionBothHand[item.camChildIndex]
+                    : pickup.pickupPositionRightHand[item.camChildIndex])
+                : pickup.pickupPositionLeftHand[item.camChildIndexLeftHand];
+            bool inExpectedHand = rightHand ? weapon.inRightHand : weapon.inLeftHand;
+            return objectInHand.transform.parent != expectedParent
+                || !inExpectedHand
+                || item.playerPickup != pickup
+                || item.rootObject != pickup.gameObject;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
     private static IEnumerator AttachGrantedWeaponAfterSync(int playerId, bool rightHand,
         int sessionGeneration)
     {
