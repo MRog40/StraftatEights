@@ -40,6 +40,17 @@ internal static class HealthSettingsTuning
     internal static void ApplyIfChanged(PlayerHealth controller, float healthMultiplier, int version)
     {
         CaptureBaseline(controller);
+        if (GameModeManager.IsVanillaScene)
+        {
+            Memory vanillaMemory = MemoryByInstance.GetOrCreateValue(controller);
+            controller.fullHealth = vanillaMemory.BaselineFullHealth;
+            vanillaMemory.LastModeSpecificHealth = false;
+            vanillaMemory.LastAppliedVersion = version;
+            vanillaMemory.LastAppliedHealthCompensationVersion = TeamAssignment.HealthCompensationVersion;
+            vanillaMemory.LastAppliedPlayerId = controller.playerValues?.playerClient?.PlayerId ?? -1;
+            return;
+        }
+
         if (RespawnProtection.IsProtected(controller))
         {
             RespawnProtection.ApplyHealth(controller);

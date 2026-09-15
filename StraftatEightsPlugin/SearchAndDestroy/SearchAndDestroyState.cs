@@ -33,6 +33,7 @@ internal static class SearchAndDestroyState
     internal static SearchAndDestroyBombStatus BombStatus { get; private set; }
     internal static float PlantProgress { get; private set; }
     internal static float DefuseProgress { get; private set; }
+    internal static float SubRoundTimeRemaining { get; private set; }
     internal static float FuseTimeRemaining { get; private set; }
     internal static Vector3 BombPosition { get; private set; }
     internal static int TeamCount => TeamAssignment.TeamCount;
@@ -189,6 +190,7 @@ internal static class SearchAndDestroyState
         BombStatus = SearchAndDestroyBombStatus.Home;
         PlantProgress = 0f;
         DefuseProgress = 0f;
+        SubRoundTimeRemaining = 0f;
         FuseTimeRemaining = 0f;
         BombPosition = default;
     }
@@ -237,7 +239,7 @@ internal static class SearchAndDestroyState
         if (!Enabled || !MyceliumNetwork.IsHost
             || !GameModeManager.IsActive(GameMode.SearchAndDestroy)
             || GameModeManager.Phase != GameModePhase.ActiveRound
-            || WinnerId >= 0 || !_roundStarted || _subRoundEnding)
+            || WinnerId >= 0 || !_roundStarted || SubRoundId <= 0 || _subRoundEnding)
         {
             return;
         }
@@ -251,6 +253,13 @@ internal static class SearchAndDestroyState
         float elapsed = _serverTickAccumulator;
         _serverTickAccumulator = 0f;
         EnsureTeamsAssigned();
+        SubRoundTimeRemaining = Mathf.Max(0f, SubRoundTimeRemaining - elapsed);
+        if (SubRoundTimeRemaining <= 0f)
+        {
+            CompleteSubRound(DefensiveTeamId);
+            return;
+        }
+
         bool stateChanged = ProcessBombInteractions(elapsed);
         if (BombStatus == SearchAndDestroyBombStatus.Planted)
         {
@@ -587,6 +596,8 @@ internal static class SearchAndDestroyState
         DefuserPlayerId = -1;
         PlantProgress = 0f;
         DefuseProgress = 0f;
+        SubRoundTimeRemaining = SearchAndDestroyRules.GetSubRoundTimeLimit(
+            GameModeManager.EffectivePointsToWin);
         FuseTimeRemaining = 0f;
         BombPosition = GetPlayerPosition(BombCarrierPlayerId);
         _subRoundEnding = false;
@@ -957,13 +968,14 @@ internal static class SearchAndDestroyState
             FuseTimeRemaining.ToString(CultureInfo.InvariantCulture),
             PlantProgress.ToString(CultureInfo.InvariantCulture),
             DefuseProgress.ToString(CultureInfo.InvariantCulture), DefuserPlayerId,
-            PlantingPlayerId, SubRoundWinnerId, aliveData);
+            PlantingPlayerId, SubRoundWinnerId,
+            SubRoundTimeRemaining.ToString(CultureInfo.InvariantCulture), aliveData);
     }
 
     private static bool TryParseState(string data)
     {
         string[] fields = (data ?? string.Empty).Split(';');
-        if (fields.Length != 14 || !int.TryParse(fields[0], out int offenseTeam)
+        if (fields.Length != 15 || !int.TryParse(fields[0], out int offenseTeam)
             || !int.TryParse(fields[1], out int bombStatus)
             || !int.TryParse(fields[2], out int carrierId)
             || !int.TryParse(fields[3], out int siteIndex)
@@ -975,7 +987,8 @@ internal static class SearchAndDestroyState
             || !TryParseFloat(fields[9], out float defuse)
             || !int.TryParse(fields[10], out int defuserId)
             || !int.TryParse(fields[11], out int plantingId)
-            || !int.TryParse(fields[12], out int subRoundWinner))
+            || !int.TryParse(fields[12], out int subRoundWinner)
+            || !TryParseFloat(fields[13], out float subRoundTimeRemaining))
         {
             return false;
         }
@@ -983,7 +996,10 @@ internal static class SearchAndDestroyState
         if (offenseTeam < 0 || offenseTeam > 1 || bombStatus < 0 || bombStatus > 3
             || siteIndex < -1 || siteIndex > 1 || fuse < 0f || fuse > FuseDurationSeconds
             || plant < 0f || plant > PlantDurationSeconds || defuse < 0f
-            || defuse > DefuseDurationSeconds || subRoundWinner < -1 || subRoundWinner > 1)
+            || defuse > DefuseDurationSeconds || subRoundWinner < -1 || subRoundWinner > 1
+            || subRoundTimeRemaining < 0f
+            || subRoundTimeRemaining > SearchAndDestroyRules.GetSubRoundTimeLimit(
+                GameModeManager.EffectivePointsToWin))
         {
             return false;
         }
@@ -996,11 +1012,12 @@ internal static class SearchAndDestroyState
         FuseTimeRemaining = fuse;
         PlantProgress = plant;
         DefuseProgress = defuse;
+        SubRoundTimeRemaining = subRoundTimeRemaining;
         DefuserPlayerId = defuserId;
         PlantingPlayerId = plantingId;
         SubRoundWinnerId = subRoundWinner;
         AlivePlayers.Clear();
-        foreach (string value in fields[13].Split(','))
+        foreach (string value in fields[14].Split(','))
         {
             if (int.TryParse(value, out int playerId) && playerId >= 0)
             {

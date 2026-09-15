@@ -371,7 +371,7 @@ internal static class GameModeManager
     {
         yield return new WaitForSeconds(delay);
         if (!SessionState.IsCurrent(sessionGeneration) || RoundId != roundId
-            || ActiveMode != mode || IsMatchOver || !MyceliumNetwork.IsHost)
+            || ActiveMode != mode || IsMatchOver || IsVanillaScene || !MyceliumNetwork.IsHost)
         {
             yield break;
         }
@@ -459,7 +459,7 @@ internal static class GameModeManager
 
     internal static bool CycleForNextMap()
     {
-        if (!MyceliumNetwork.IsHost)
+        if (IsVanillaScene || !MyceliumNetwork.IsHost)
         {
             return false;
         }
@@ -486,6 +486,12 @@ internal static class GameModeManager
     {
         DebugLog.Info($"Scene change requested host={MyceliumNetwork.IsHost} scene={SceneManager.GetActiveScene().name} "
             + $"mode={ActiveMode} phase={Phase} round={RoundId} sceneIndex={SceneMotor.Instance?.sceneIndex ?? -1}");
+        if (IsVanillaScene)
+        {
+            EnsureVanillaScene();
+            return false;
+        }
+
         if (!MyceliumNetwork.IsHost)
         {
             return false;
@@ -504,6 +510,12 @@ internal static class GameModeManager
     {
         DebugLog.Info($"StartMatch called host={MyceliumNetwork.IsHost} lobby={MyceliumNetwork.InLobby} "
             + $"mode={ActiveMode} phase={Phase} round={RoundId} matchOver={IsMatchOver}");
+        if (IsVanillaScene)
+        {
+            EnsureVanillaScene();
+            return;
+        }
+
         if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
             || (ActiveMode != GameMode.None && Phase != GameModePhase.Lobby && !IsMatchOver))
         {
@@ -593,22 +605,25 @@ internal static class GameModeManager
 
     internal static bool IsActive(GameMode mode)
     {
-        return ActiveMode == mode;
+        return !IsVanillaScene && ActiveMode == mode;
     }
 
     internal static bool ShouldIgnoreGlobalWeaponSettings =>
-        HasCapability(GameModeCapabilities.IgnoreGlobalWeapons);
+        IsVanillaScene || HasCapability(GameModeCapabilities.IgnoreGlobalWeapons);
 
-    internal static bool ShouldIgnoreGlobalHealthSettings => HasCapability(GameModeCapabilities.IgnoreGlobalHealth);
+    internal static bool ShouldIgnoreGlobalHealthSettings =>
+        IsVanillaScene || HasCapability(GameModeCapabilities.IgnoreGlobalHealth);
 
     internal static bool ShouldIgnoreGlobalMovementSettings =>
-        HasCapability(GameModeCapabilities.IgnoreGlobalMovement);
+        IsVanillaScene || HasCapability(GameModeCapabilities.IgnoreGlobalMovement);
 
-    internal static bool IsCustomMode => HasCapability(GameModeCapabilities.CustomRound);
-    internal static bool UsesSafeRespawn => HasCapability(GameModeCapabilities.SafeRespawn);
-    internal static bool IsTeamBased => HasCapability(GameModeCapabilities.TeamBased);
-    internal static bool ShouldHideCustomHud => HasCapability(GameModeCapabilities.HideHud);
-    internal static bool ShouldClearPlayerOutlines => HasCapability(GameModeCapabilities.ClearOutlines);
+    internal static bool IsCustomMode => !IsVanillaScene && HasCapability(GameModeCapabilities.CustomRound);
+    internal static bool UsesSafeRespawn => !IsVanillaScene && HasCapability(GameModeCapabilities.SafeRespawn);
+    internal static bool IsTeamBased => !IsVanillaScene && HasCapability(GameModeCapabilities.TeamBased);
+    internal static bool ShouldHideCustomHud => !IsVanillaScene && HasCapability(GameModeCapabilities.HideHud);
+    internal static bool ShouldClearPlayerOutlines => !IsVanillaScene && HasCapability(GameModeCapabilities.ClearOutlines);
+    internal static bool IsVanillaScene => SceneManager.GetActiveScene().name == "TrainingRange_00"
+        || SceneManager.GetActiveScene().name == "TutorialScene";
     internal static bool IsMatchOver => (PauseManager.Instance != null && PauseManager.Instance.inVictoryMenu)
         || SceneManager.GetActiveScene().name == "VictoryScene"
         || SceneManager.GetActiveScene().name == "EndGame";
@@ -746,7 +761,8 @@ internal static class GameModeManager
     internal static bool TryPrepareInitialMap(out string mapName)
     {
         mapName = string.Empty;
-        if (!EffectiveMapOverrides || !MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        if (IsVanillaScene || !EffectiveMapOverrides || !MyceliumNetwork.IsHost
+            || !MyceliumNetwork.InLobby)
         {
             return false;
         }
@@ -1041,6 +1057,12 @@ internal static class GameModeManager
     {
         DebugLog.Info($"ApplyActiveMode input mode={(GameMode)mode} round={roundId} phase={(GameModePhase)phase} "
             + $"map={mapName} currentMode={ActiveMode} currentPhase={Phase} currentRound={RoundId}");
+        if (IsVanillaScene)
+        {
+            EnsureVanillaScene();
+            return;
+        }
+
         if (!Enum.IsDefined(typeof(GameMode), mode) || !Enum.IsDefined(typeof(GameModePhase), phase)
             || roundId < RoundId)
         {
@@ -1174,7 +1196,7 @@ internal static class GameModeManager
     internal static void BeginRound()
     {
         DebugLog.Info($"BeginRound host={MyceliumNetwork.IsHost} mode={ActiveMode} phase={Phase} round={RoundId}");
-        if (ActiveMode == GameMode.None)
+        if (IsVanillaScene || ActiveMode == GameMode.None)
         {
             return;
         }
@@ -1191,6 +1213,23 @@ internal static class GameModeManager
     {
         return Modes.TryGetValue(ActiveMode, out ModeDescriptor? descriptor)
             && descriptor.Capabilities.HasFlag(capability);
+    }
+
+    internal static void EnsureVanillaScene()
+    {
+        if (!IsVanillaScene || (ActiveMode == GameMode.None && Phase == GameModePhase.Inactive))
+        {
+            return;
+        }
+
+        ResetMatchState();
+        ActiveMode = GameMode.None;
+        Phase = GameModePhase.Inactive;
+        RoundId++;
+        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
+        {
+            BroadcastActiveMode();
+        }
     }
 
     private static void BroadcastActiveMode()

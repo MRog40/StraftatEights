@@ -13,6 +13,7 @@ internal static class GameModeRespawn
     private static readonly HashSet<int> PendingSpawnAdjustments = new();
     private static readonly HashSet<int> InitialTeamSpawnsApplied = new();
     private static readonly Dictionary<int, CosmeticIndices> PendingRespawnCosmetics = new();
+    private static int _initialControlsReleaseRoundId = -1;
 
     private readonly struct CosmeticIndices
     {
@@ -33,6 +34,7 @@ internal static class GameModeRespawn
         PendingSpawnAdjustments.Clear();
         InitialTeamSpawnsApplied.Clear();
         PendingRespawnCosmetics.Clear();
+        _initialControlsReleaseRoundId = -1;
     }
 
     internal static void ResetForMatch()
@@ -42,6 +44,7 @@ internal static class GameModeRespawn
         PendingSpawnAdjustments.Clear();
         InitialTeamSpawnsApplied.Clear();
         PendingRespawnCosmetics.Clear();
+        _initialControlsReleaseRoundId = -1;
     }
 
     internal static void Schedule(PlayerManager manager, float delay)
@@ -250,6 +253,46 @@ internal static class GameModeRespawn
         if (PauseManager.Instance != null)
         {
             PauseManager.Instance.startRound = false;
+        }
+    }
+
+    internal static void ReleaseInitialSpawnControls()
+    {
+        if (Plugin.Instance == null || !GameModeManager.UsesSafeRespawn
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || _initialControlsReleaseRoundId == GameModeManager.RoundId)
+        {
+            return;
+        }
+
+        _initialControlsReleaseRoundId = GameModeManager.RoundId;
+        Plugin.Instance.StartCoroutine(ReleaseInitialSpawnControlsAfterDelay(
+            SessionState.Generation, GameModeManager.RoundId));
+    }
+
+    private static IEnumerator ReleaseInitialSpawnControlsAfterDelay(int sessionGeneration,
+        int roundId)
+    {
+        float endTime = Time.unscaledTime + 4f;
+        while (Time.unscaledTime < endTime)
+        {
+            if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
+                || GameModeManager.Phase != GameModePhase.ActiveRound)
+            {
+                yield break;
+            }
+
+            int playerId = ClientInstance.Instance?.PlayerId ?? -1;
+            PlayerHealth? health = playerId >= 0
+                ? PlayerLookup.FindActivePlayerHealthById(playerId)
+                : null;
+            FirstPersonController? player = health?.controller;
+            if (player != null && player && player.IsOwner)
+            {
+                SetPlayerMovable(player);
+            }
+
+            yield return null;
         }
     }
 

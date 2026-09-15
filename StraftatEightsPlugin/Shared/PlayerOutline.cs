@@ -55,7 +55,9 @@ internal static class PlayerOutline
             BroadcastRoleStateIfNeeded();
         }
 
-        GameMode activeMode = GameModeManager.ActiveMode;
+        GameMode activeMode = GameModeManager.IsVanillaScene
+            ? GameMode.None
+            : GameModeManager.ActiveMode;
         if (UpdateMode(activeMode))
         {
             _singleTarget = null;
@@ -292,7 +294,9 @@ internal static class PlayerOutline
             return;
         }
 
-        GameMode mode = GameModeManager.ActiveMode;
+        GameMode mode = GameModeManager.IsVanillaScene
+            ? GameMode.None
+            : GameModeManager.ActiveMode;
         int playerId = GetRolePlayerId(mode);
         int roundId = GameModeManager.RoundId;
         bool changed = mode != _publishedMode || playerId != _publishedPlayerId

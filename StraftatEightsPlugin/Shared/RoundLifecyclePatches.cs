@@ -7,6 +7,12 @@ internal static class PauseManager_RoundLifecycle_Patch
 {
     private static void Postfix()
     {
+        if (GameModeManager.IsVanillaScene)
+        {
+            GameModeManager.EnsureVanillaScene();
+            return;
+        }
+
         GameModeManager.BeginRound();
 
         switch (GameModeManager.ActiveMode)
@@ -42,6 +48,8 @@ internal static class PauseManager_RoundLifecycle_Patch
                 TeamDeathmatchState.OnRoundStarted();
                 break;
         }
+
+            GameModeRespawn.ReleaseInitialSpawnControls();
 
         if (!GameModeManager.ShouldIgnoreGlobalWeaponSettings)
         {

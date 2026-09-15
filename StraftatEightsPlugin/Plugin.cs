@@ -143,6 +143,7 @@ public partial class Plugin : BaseUnityPlugin
             + $"mainMenu={PauseManager.Instance?.inMainMenu.ToString() ?? "missing"} "
             + $"victoryMenu={PauseManager.Instance?.inVictoryMenu.ToString() ?? "missing"}");
         MyceliumTransportRecovery.Update();
+        GameModeManager.EnsureVanillaScene();
         GameModeManager.PeriodicPushIfHost();
         GameModeManager.PeriodicActiveModePushIfHost();
         GameModeManager.PollLobbyStateIfClient();

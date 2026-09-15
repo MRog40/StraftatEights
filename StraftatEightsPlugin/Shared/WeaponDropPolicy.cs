@@ -7,6 +7,11 @@ internal static class WeaponDropPolicy
 {
     internal static bool IsDropBlocked(PlayerPickup pickup, bool rightHand)
     {
+        if (GameModeManager.IsVanillaScene)
+        {
+            return false;
+        }
+
         Weapon? weapon = GetHeldWeapon(pickup, rightHand);
         if (weapon == null)
         {

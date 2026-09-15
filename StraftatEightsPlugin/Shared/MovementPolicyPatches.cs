@@ -22,12 +22,22 @@ internal static class MovementPolicy
 
     internal static bool CanSlide(FirstPersonController controller)
     {
+        if (GameModeManager.IsVanillaScene)
+        {
+            return true;
+        }
+
         return !JuggernautState.IsCurrentJuggernaut(controller)
             && (GameModeManager.ShouldIgnoreGlobalMovementSettings || GlobalModifiersState.SlidingEnabled);
     }
 
     internal static bool CanRunJump(FirstPersonController controller)
     {
+        if (GameModeManager.IsVanillaScene)
+        {
+            return true;
+        }
+
         if (JuggernautState.IsCurrentJuggernaut(controller))
         {
             return false;
@@ -42,6 +52,11 @@ internal static class MovementPolicy
 
     internal static void Apply(FirstPersonController controller)
     {
+        if (GameModeManager.IsVanillaScene)
+        {
+            return;
+        }
+
         switch (GameModeManager.ActiveMode)
         {
             case GameMode.Juggernaut:

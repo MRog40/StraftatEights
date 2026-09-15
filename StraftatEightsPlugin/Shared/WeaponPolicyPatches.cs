@@ -7,7 +7,9 @@ internal static class WeaponPolicy
 {
     internal static bool PrepareItemSpawn(ItemSpawner spawner)
     {
-        if (IsExclusiveLoadoutMode(GameModeManager.ActiveMode))
+        if (GameModeManager.IsTeamBased
+            || (!GameModeManager.IsVanillaScene
+                && IsExclusiveLoadoutMode(GameModeManager.ActiveMode)))
         {
             return false;
         }
@@ -49,7 +51,7 @@ internal static class WeaponPolicy
     internal static bool CanEquip(PlayerPickup pickup, GameObject obj, bool rightHand)
     {
         InitializeGlobalPickupAmmo(obj);
-        if (obj == null)
+        if (obj == null || GameModeManager.IsVanillaScene)
         {
             return true;
         }

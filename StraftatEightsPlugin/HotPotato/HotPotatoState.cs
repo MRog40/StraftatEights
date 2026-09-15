@@ -208,7 +208,7 @@ internal static class HotPotatoState
         {
             PotatoPlayerId = deadPlayerId;
             PendingLoadouts.Remove(killerId);
-            WeaponService.GiveWeapon(killerId, ShotgunWeaponName);
+            WeaponService.GiveWeapon(killerId, ShotgunWeaponName, unlimitedAmmo: true);
             Announce(PlayerLookup.GetPlayerNameTag(deadPlayerId) + " got the <b>HOT POTATO</b>!");
         }
 
@@ -250,6 +250,11 @@ internal static class HotPotatoState
         return playerId == PotatoPlayerId ? PotatoWeaponName : ShotgunWeaponName;
     }
 
+    internal static bool IsShotgunWeapon(Weapon weapon)
+    {
+        return weapon != null && weapon.name.StartsWith(ShotgunWeaponName, StringComparison.Ordinal);
+    }
+
     internal static void EnsureLoadouts()
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.HotPotato) || !MyceliumNetwork.InLobby
@@ -288,7 +293,8 @@ internal static class HotPotatoState
     private static void GiveExpectedWeapon(int playerId)
     {
         PendingLoadouts[playerId] = Time.unscaledTime + 2f;
-        WeaponService.GiveWeapon(playerId, GetExpectedWeapon(playerId));
+        WeaponService.GiveWeapon(playerId, GetExpectedWeapon(playerId),
+            unlimitedAmmo: playerId != PotatoPlayerId);
     }
 
     private static void ClearCurrentWeapons()

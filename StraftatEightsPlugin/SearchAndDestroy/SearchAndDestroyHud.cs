@@ -9,29 +9,19 @@ internal static class SearchAndDestroyHud
     {
         StringBuilder text = new();
         text.Append(GameModeManager.GetModeLabelMarkup(GameMode.SearchAndDestroy))
-            .Append("  Round ")
-            .Append(SearchAndDestroyState.SubRoundId)
-            .Append("  First to ")
-            .Append(GameModeManager.EffectivePointsToWin);
-
-        int localPlayerId = ClientInstance.Instance?.PlayerId ?? -1;
-        string role = SearchAndDestroyState.IsOffensePlayer(localPlayerId)
-            ? "OFFENSE"
-            : SearchAndDestroyState.IsDefensePlayer(localPlayerId) ? "DEFENSE" : "SPECTATOR";
-        text.Append("\nRole: ").Append(role);
+            .Append("  ")
+            .Append(Mathf.CeilToInt(SearchAndDestroyState.SubRoundTimeRemaining))
+            .Append("s\nFirst to ")
+            .Append(GameModeManager.EffectivePointsToWin)
+            .Append("  |  LIVE");
 
         for (int teamId = 0; teamId < 2; teamId++)
         {
-            TeamColorData colorData = teamId == SearchAndDestroyState.OffensiveTeamId
-                ? new TeamColorData(220, 45, 45)
-                : new TeamColorData(45, 110, 235);
+            TeamColorData colorData = TeamRules.GetColor(teamId);
             string color = ColorUtility.ToHtmlStringRGB(new Color32(colorData.Red,
                 colorData.Green, colorData.Blue, 255));
-            string teamName = teamId == SearchAndDestroyState.OffensiveTeamId
-                ? "OFFENSE"
-                : "DEFENSE";
             text.Append("\n<color=#").Append(color).Append("><b>")
-                .Append(teamName).Append("</b></color>  ")
+                .Append("TEAM ").Append(teamId + 1).Append("</b></color>: ")
                 .Append(SearchAndDestroyState.GetScore(teamId)).Append("/")
                 .Append(GameModeManager.EffectivePointsToWin);
         }

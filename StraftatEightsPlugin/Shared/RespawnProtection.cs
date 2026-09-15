@@ -27,7 +27,7 @@ internal static class RespawnProtection
 
     internal static void Begin(PlayerHealth player)
     {
-        if (player == null || !player)
+        if (GameModeManager.IsVanillaScene || player == null || !player)
         {
             return;
         }

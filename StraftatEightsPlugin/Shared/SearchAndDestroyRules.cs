@@ -21,6 +21,11 @@ internal static class SearchAndDestroyRules
     internal const float InteractionRadius = 2f;
     internal const float BetweenSubRoundDelaySeconds = 3f;
 
+    internal static float GetSubRoundTimeLimit(int scoreLimit)
+    {
+        return Math.Max(1, scoreLimit);
+    }
+
     internal static Dictionary<int, int> AssignStrictTwoTeams(IReadOnlyList<int> playerIds)
     {
         Dictionary<int, int> assignments = new();

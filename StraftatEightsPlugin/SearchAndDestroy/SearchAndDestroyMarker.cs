@@ -7,14 +7,19 @@ internal static class SearchAndDestroyMarker
 {
     private const float SiteMarkerHeight = 3f;
     private const float SiteMarkerSize = 0.8f;
-    private const float SiteSquareSize = 2.4f;
+    private const float SiteSquareSize = 4f;
     private const float SiteSquareThickness = 0.1f;
     private const float SiteSquareHeight = 0.05f;
     private const float CircleRadius = 0.55f;
-    private const float CircleThickness = 0.08f;
     private const float CircleHeight = 0.05f;
+    private const float GroundClearance = 0.1f;
+    private const float BombMarkerHeight = 2.8f;
+    private const float BombMarkerSize = 0.6f;
+    private const float BombGroundMarkerHeight = 0.1f;
     private const int RingSegments = 48;
     private static readonly GameObject?[] SiteMarkers = new GameObject?[2];
+    private static readonly bool[] SiteSquaresConformed = new bool[2];
+    private static readonly Vector3[] SiteSquarePositions = new Vector3[2];
     private static GameObject? _bomb;
 
     internal static void Update()
@@ -39,7 +44,9 @@ internal static class SearchAndDestroyMarker
                 SiteMarkers[siteIndex] = CreateSiteMarker(siteIndex);
             }
 
-            SiteMarkers[siteIndex]!.transform.SetPositionAndRotation(position, Quaternion.identity);
+            SiteMarkers[siteIndex]!.transform.SetPositionAndRotation(
+                GetSiteMarkerPosition(position), Quaternion.identity);
+            ConformSiteSquareToGround(SiteMarkers[siteIndex]!, siteIndex, position);
             SiteMarkers[siteIndex]!.SetActive(true);
         }
 
@@ -62,7 +69,7 @@ internal static class SearchAndDestroyMarker
         MeshFilter squareFilter = square.AddComponent<MeshFilter>();
         squareFilter.sharedMesh = CreateSquareMesh();
         MeshRenderer squareRenderer = square.AddComponent<MeshRenderer>();
-        ConfigureRenderer(squareRenderer, true);
+        ConfigureRenderer(squareRenderer, false);
         squareRenderer.material.color = new Color32(245, 245, 245, 190);
 
         GameObject marker = new(siteIndex == 0 ? "CircleMarker" : "DiamondMarker");
@@ -91,15 +98,20 @@ internal static class SearchAndDestroyMarker
 
         if (_bomb == null || !_bomb)
         {
-            _bomb = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _bomb = new GameObject("SearchAndDestroyBomb");
             _bomb.name = "SearchAndDestroyBomb";
-            _bomb.transform.localScale = Vector3.one;
-            Renderer renderer = _bomb.GetComponent<Renderer>();
-            ConfigureRenderer(renderer, false);
+            MeshFilter filter = _bomb.AddComponent<MeshFilter>();
+            filter.sharedMesh = CreateDiamondMesh();
+            MeshRenderer renderer = _bomb.AddComponent<MeshRenderer>();
+            ConfigureRenderer(renderer, true);
             renderer.material.color = new Color32(35, 35, 35, 255);
         }
 
-        _bomb.transform.SetPositionAndRotation(position + Vector3.up * 0.5f, Quaternion.identity);
+        bool carried = SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Carried;
+        float markerHeight = carried ? BombMarkerHeight : BombGroundMarkerHeight;
+        _bomb.transform.SetPositionAndRotation(position + Vector3.up * markerHeight,
+            Quaternion.identity);
+        _bomb.transform.localScale = Vector3.one * (carried ? BombMarkerSize : 0.8f);
         _bomb.SetActive(true);
     }
 
@@ -129,8 +141,7 @@ internal static class SearchAndDestroyMarker
     {
         Mesh mesh = new() { name = "SearchAndDestroyCircleMesh" };
         Vector3[] vertices = new Vector3[RingSegments * 4];
-        int[] triangles = new int[RingSegments * 24];
-        float innerRadius = CircleRadius - CircleThickness;
+        int[] triangles = new int[RingSegments * 18];
         for (int index = 0; index < RingSegments; index++)
         {
             float angle = index * Mathf.PI * 2f / RingSegments;
@@ -138,36 +149,30 @@ internal static class SearchAndDestroyMarker
             float z = Mathf.Sin(angle);
             int vertex = index * 4;
             vertices[vertex] = new Vector3(x * CircleRadius, 0f, z * CircleRadius);
-            vertices[vertex + 1] = new Vector3(x * innerRadius, 0f, z * innerRadius);
-            vertices[vertex + 2] = new Vector3(x * CircleRadius, CircleHeight, z * CircleRadius);
-            vertices[vertex + 3] = new Vector3(x * innerRadius, CircleHeight, z * innerRadius);
+            vertices[vertex + 1] = new Vector3(x * CircleRadius, CircleHeight, z * CircleRadius);
+            vertices[vertex + 2] = new Vector3(0f, 0f, 0f);
+            vertices[vertex + 3] = new Vector3(0f, CircleHeight, 0f);
 
             int next = ((index + 1) % RingSegments) * 4;
-            int triangle = index * 24;
-            triangles[triangle] = vertex + 2;
-            triangles[triangle + 1] = next + 3;
-            triangles[triangle + 2] = next + 2;
+            int triangle = index * 18;
+            triangles[triangle] = vertex + 3;
+            triangles[triangle + 1] = next + 1;
+            triangles[triangle + 2] = vertex + 1;
             triangles[triangle + 3] = vertex + 2;
-            triangles[triangle + 4] = vertex + 3;
-            triangles[triangle + 5] = next + 3;
+            triangles[triangle + 4] = vertex;
+            triangles[triangle + 5] = next;
             triangles[triangle + 6] = vertex;
             triangles[triangle + 7] = next;
             triangles[triangle + 8] = next + 1;
             triangles[triangle + 9] = vertex;
             triangles[triangle + 10] = next + 1;
             triangles[triangle + 11] = vertex + 1;
-            triangles[triangle + 12] = vertex;
+            triangles[triangle + 12] = vertex + 2;
             triangles[triangle + 13] = next + 2;
             triangles[triangle + 14] = next;
-            triangles[triangle + 15] = vertex;
-            triangles[triangle + 16] = vertex + 2;
-            triangles[triangle + 17] = next + 2;
-            triangles[triangle + 18] = vertex + 1;
-            triangles[triangle + 19] = next + 1;
-            triangles[triangle + 20] = next + 3;
-            triangles[triangle + 21] = vertex + 1;
-            triangles[triangle + 22] = next + 3;
-            triangles[triangle + 23] = vertex + 3;
+            triangles[triangle + 15] = vertex + 2;
+            triangles[triangle + 16] = next;
+            triangles[triangle + 17] = vertex;
         }
 
         mesh.vertices = vertices;
@@ -175,6 +180,84 @@ internal static class SearchAndDestroyMarker
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
         return mesh;
+    }
+
+    private static Vector3 GetSiteMarkerPosition(Vector3 sitePosition)
+    {
+        float groundY = sitePosition.y;
+        if (TryGetGroundY(sitePosition, sitePosition.y, out float sampledGroundY))
+        {
+            groundY = sampledGroundY;
+        }
+
+        return new Vector3(sitePosition.x, groundY + GroundClearance, sitePosition.z);
+    }
+
+    private static void ConformSiteSquareToGround(GameObject marker, int siteIndex,
+        Vector3 sitePosition)
+    {
+        if (SiteSquaresConformed[siteIndex] && SiteSquarePositions[siteIndex] == sitePosition)
+        {
+            return;
+        }
+
+        SiteSquaresConformed[siteIndex] = true;
+        SiteSquarePositions[siteIndex] = sitePosition;
+        Transform? square = marker.transform.Find("BombSiteSquare");
+        Mesh? mesh = square?.GetComponent<MeshFilter>()?.sharedMesh;
+        if (square == null || mesh == null)
+        {
+            return;
+        }
+
+        Vector3[] vertices = mesh.vertices;
+        for (int index = 0; index < vertices.Length; index++)
+        {
+            Vector3 vertex = vertices[index];
+            Vector3 worldPosition = marker.transform.position
+                + new Vector3(vertex.x, 0f, vertex.z);
+            float groundY = sitePosition.y;
+            if (TryGetGroundY(worldPosition, sitePosition.y, out float sampledGroundY))
+            {
+                groundY = sampledGroundY;
+            }
+
+            bool top = index % 4 >= 2;
+            vertex.y = groundY + GroundClearance + (top ? SiteSquareHeight : 0f)
+                - marker.transform.position.y;
+            vertices[index] = vertex;
+        }
+
+        mesh.vertices = vertices;
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+    }
+
+    private static bool TryGetGroundY(Vector3 position, float referenceY, out float groundY)
+    {
+        groundY = referenceY;
+        Vector3 rayOrigin = new(position.x, referenceY + 4f, position.z);
+        RaycastHit[] hits = Physics.RaycastAll(rayOrigin, Vector3.down, 8f,
+            Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        float closestDifference = float.MaxValue;
+        bool foundGround = false;
+        foreach (RaycastHit hit in hits)
+        {
+            if (hit.collider == null || hit.collider.GetComponentInParent<PlayerHealth>() != null)
+            {
+                continue;
+            }
+
+            float difference = Mathf.Abs(hit.point.y - referenceY);
+            if (difference < closestDifference)
+            {
+                closestDifference = difference;
+                groundY = hit.point.y;
+                foundGround = true;
+            }
+        }
+
+        return foundGround;
     }
 
     private static Mesh CreateSquareMesh()
@@ -262,6 +345,8 @@ internal static class SearchAndDestroyMarker
                 Object.Destroy(SiteMarkers[index]);
                 SiteMarkers[index] = null;
             }
+
+            SiteSquaresConformed[index] = false;
         }
 
         if (_bomb != null && _bomb)

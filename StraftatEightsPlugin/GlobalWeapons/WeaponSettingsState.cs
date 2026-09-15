@@ -95,7 +95,10 @@ internal static class WeaponSettingsState
 
     internal static void UpdateLocalCycle()
     {
-        if (GameModeManager.ShouldIgnoreGlobalWeaponSettings || !Enabled || !Cycle || !Input.GetKeyDown(KeyCode.F8) || Allowed.Count == 0 || ClientInstance.Instance == null || JuggernautState.IsCurrentJuggernaut(ClientInstance.Instance.PlayerSpawner?.player))
+        if (GameModeManager.IsVanillaScene || GameModeManager.ShouldIgnoreGlobalWeaponSettings
+            || !Enabled || !Cycle || !Input.GetKeyDown(KeyCode.F8) || Allowed.Count == 0
+            || ClientInstance.Instance == null
+            || JuggernautState.IsCurrentJuggernaut(ClientInstance.Instance.PlayerSpawner?.player))
         {
             return;
         }
@@ -112,7 +115,9 @@ internal static class WeaponSettingsState
 
     internal static void GiveCycledWeapon(int playerId)
     {
-        if (GameModeManager.IsActive(GameMode.Juggernaut) && playerId == JuggernautState.CurrentJuggernautPlayerId)
+        if (GameModeManager.IsVanillaScene
+            || (GameModeManager.IsActive(GameMode.Juggernaut)
+                && playerId == JuggernautState.CurrentJuggernautPlayerId))
         {
             return;
         }
@@ -127,7 +132,7 @@ internal static class WeaponSettingsState
 
     internal static void RequestLoadout(int playerId, string weaponName)
     {
-        if (WeaponService.IsFinalGameScreen)
+        if (GameModeManager.IsVanillaScene || WeaponService.IsFinalGameScreen)
         {
             return;
         }
@@ -137,7 +142,9 @@ internal static class WeaponSettingsState
 
     internal static void EnsureCycleLoadouts()
     {
-        if (GameModeManager.ShouldIgnoreGlobalWeaponSettings || !Enabled || !Cycle || WeaponService.IsFinalGameScreen || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost || Time.unscaledTime < _nextLoadoutCheckTime)
+        if (GameModeManager.IsVanillaScene || GameModeManager.ShouldIgnoreGlobalWeaponSettings
+            || !Enabled || !Cycle || WeaponService.IsFinalGameScreen || !MyceliumNetwork.InLobby
+            || !MyceliumNetwork.IsHost || Time.unscaledTime < _nextLoadoutCheckTime)
         {
             return;
         }
