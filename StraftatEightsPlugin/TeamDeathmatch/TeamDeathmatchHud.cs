@@ -15,9 +15,9 @@ internal static class TeamDeathmatchHud
             TeamColorData color = TeamRules.GetColor(teamId);
             string hex = ColorUtility.ToHtmlStringRGB(new Color32(color.Red, color.Green,
                 color.Blue, 255));
-            text.Append("\n<color=#").Append(hex).Append("><b>TEAM ").Append(teamId + 1)
+            text.Append("\n<color=#").Append(hex).Append(">TEAM ").Append(teamId + 1)
                 .Append(": ").Append(TeamDeathmatchState.GetScore(teamId))
-                .Append("</b></color>");
+                .Append("</color>");
         }
 
         return text.ToString();

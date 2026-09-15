@@ -8,7 +8,7 @@ internal static class SearchAndDestroyHud
     internal static string BuildScoreboard()
     {
         StringBuilder text = new();
-        text.Append("SND")
+        text.Append("<b>SND</b>")
             .Append(" - ")
             .Append(GameModeManager.EffectivePointsToWin);
 
@@ -17,8 +17,8 @@ internal static class SearchAndDestroyHud
             TeamColorData colorData = TeamRules.GetColor(teamId);
             string color = ColorUtility.ToHtmlStringRGB(new Color32(colorData.Red,
                 colorData.Green, colorData.Blue, 255));
-            text.Append("\n<color=#").Append(color).Append("><b>")
-                .Append("TEAM ").Append(teamId + 1).Append("</b></color>: ")
+            text.Append("\n<color=#").Append(color).Append(">TEAM ")
+                .Append(teamId + 1).Append("</color>: ")
                 .Append(SearchAndDestroyState.GetScore(teamId));
         }
 
