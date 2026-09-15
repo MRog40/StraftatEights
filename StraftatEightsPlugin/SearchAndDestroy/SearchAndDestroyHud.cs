@@ -8,7 +8,7 @@ internal static class SearchAndDestroyHud
     internal static string BuildScoreboard()
     {
         StringBuilder text = new();
-        text.Append(GameModeManager.GetModeLabelMarkup(GameMode.SearchAndDestroy))
+        text.Append("SND")
             .Append(" - ")
             .Append(GameModeManager.EffectivePointsToWin);
 

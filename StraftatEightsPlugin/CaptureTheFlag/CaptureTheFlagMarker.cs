@@ -78,7 +78,7 @@ internal static class CaptureTheFlagMarker
         MeshFilter ringFilter = marker.AddComponent<MeshFilter>();
         ringFilter.sharedMesh = CreateRingMesh();
         MeshRenderer ringRenderer = marker.AddComponent<MeshRenderer>();
-        ConfigureRenderer(ringRenderer, true);
+        ConfigureRenderer(ringRenderer, false);
 
         Markers[flagIndex] = marker;
         MarkerRenderers[flagIndex] = diamondRenderer;

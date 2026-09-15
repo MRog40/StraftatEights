@@ -5,15 +5,12 @@ namespace StraftatEightsPlugin;
 
 internal static class SearchAndDestroyMarker
 {
-    private const float SiteRadius = 2.5f;
+    private const float SiteRadius = 3f;
     private const float SiteOverheadMarkerSize = 0.8f;
-    private const float CircleRadius = 0.55f;
-    private const float CircleHeight = 0.05f;
     private const float BombMarkerHeight = 2.8f;
     private const float BombMarkerSize = 0.6f;
     private const float BombGroundMarkerSize = 0.25f;
     private const float BombGroundMarkerHeight = 0.01f;
-    private const int RingSegments = 48;
     private static readonly GameObject?[] SiteMarkers = new GameObject?[2];
     private static GameObject? _bomb;
     private static Mesh? _bombDiamondMesh;
@@ -28,6 +25,7 @@ internal static class SearchAndDestroyMarker
             return;
         }
 
+        Color overheadColor = GetOverheadMarkerColor();
         for (int siteIndex = 0; siteIndex < 2; siteIndex++)
         {
             if (!SearchAndDestroyState.TryGetSitePosition(siteIndex, out Vector3 position))
@@ -38,7 +36,7 @@ internal static class SearchAndDestroyMarker
 
             if (SiteMarkers[siteIndex] == null || !SiteMarkers[siteIndex]!)
             {
-                SiteMarkers[siteIndex] = CreateSiteMarker(siteIndex);
+                SiteMarkers[siteIndex] = CreateSiteMarker(siteIndex, overheadColor);
             }
 
             Transform markerRoot = SiteMarkers[siteIndex]!.transform;
@@ -46,15 +44,8 @@ internal static class SearchAndDestroyMarker
             FloatingObjectiveMarker.PositionRing(ring, position, SiteRadius,
                 new Color(1f, 1f, 1f, 0.8f));
             GameObject overheadMarker = markerRoot.Find("BombSiteOverhead")!.gameObject;
-            Color overheadColor = siteIndex == 0
-                ? new Color32(220, 45, 45, 235)
-                : new Color32(45, 110, 235, 235);
             FloatingObjectiveMarker.PositionOverhead(overheadMarker, position,
                 overheadColor, SiteOverheadMarkerSize);
-            if (siteIndex == 0)
-            {
-                overheadMarker.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            }
             SiteMarkers[siteIndex]!.SetActive(true);
         }
 
@@ -66,28 +57,39 @@ internal static class SearchAndDestroyMarker
         Clear();
     }
 
-    private static GameObject CreateSiteMarker(int siteIndex)
+    private static GameObject CreateSiteMarker(int siteIndex, Color overheadColor)
     {
         GameObject root = new($"SearchAndDestroySite_{siteIndex}");
         GameObject ring = FloatingObjectiveMarker.CreateRing("BombSiteRing",
             new Color(1f, 1f, 1f, 0.8f));
         ring.transform.SetParent(root.transform, false);
 
-        GameObject marker = new(siteIndex == 0 ? "CircleMarker" : "DiamondMarker");
+        GameObject marker = siteIndex == 0
+            ? FloatingObjectiveMarker.CreateOverheadCircle("CircleMarker", overheadColor)
+            : FloatingObjectiveMarker.CreateOverheadDiamond("DiamondMarker", overheadColor);
         marker.name = "BombSiteOverhead";
         marker.transform.SetParent(root.transform, false);
-        marker.transform.localRotation = siteIndex == 0
-            ? Quaternion.Euler(90f, 0f, 0f)
-            : Quaternion.identity;
-        MeshFilter markerFilter = marker.AddComponent<MeshFilter>();
-        markerFilter.sharedMesh = siteIndex == 0 ? CreateCircleMesh() : CreateDiamondMesh();
-        MeshRenderer markerRenderer = marker.AddComponent<MeshRenderer>();
-        ConfigureRenderer(markerRenderer, true);
-        markerRenderer.material.color = siteIndex == 0
-            ? new Color32(220, 45, 45, 235)
-            : new Color32(45, 110, 235, 235);
 
         return root;
+    }
+
+    private static Color GetOverheadMarkerColor()
+    {
+        if (ClientInstance.Instance != null
+            && TeamAssignment.TryGetTeamId(ClientInstance.Instance.PlayerId, out int teamId))
+        {
+            if (teamId == SearchAndDestroyState.OffensiveTeamId)
+            {
+                return new Color32(220, 45, 45, 235);
+            }
+
+            if (teamId == SearchAndDestroyState.DefensiveTeamId)
+            {
+                return new Color32(45, 110, 235, 235);
+            }
+        }
+
+        return new Color32(220, 220, 220, 235);
     }
 
     private static void UpdateBomb()
@@ -182,51 +184,6 @@ internal static class SearchAndDestroyMarker
                 1, 3, 2, 1, 4, 3, 1, 5, 4, 1, 2, 5
             }
         };
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-        return mesh;
-    }
-
-    private static Mesh CreateCircleMesh()
-    {
-        Mesh mesh = new() { name = "SearchAndDestroyCircleMesh" };
-        Vector3[] vertices = new Vector3[RingSegments * 4];
-        int[] triangles = new int[RingSegments * 18];
-        for (int index = 0; index < RingSegments; index++)
-        {
-            float angle = index * Mathf.PI * 2f / RingSegments;
-            float x = Mathf.Cos(angle);
-            float z = Mathf.Sin(angle);
-            int vertex = index * 4;
-            vertices[vertex] = new Vector3(x * CircleRadius, 0f, z * CircleRadius);
-            vertices[vertex + 1] = new Vector3(x * CircleRadius, CircleHeight, z * CircleRadius);
-            vertices[vertex + 2] = new Vector3(0f, 0f, 0f);
-            vertices[vertex + 3] = new Vector3(0f, CircleHeight, 0f);
-
-            int next = ((index + 1) % RingSegments) * 4;
-            int triangle = index * 18;
-            triangles[triangle] = vertex + 3;
-            triangles[triangle + 1] = next + 1;
-            triangles[triangle + 2] = vertex + 1;
-            triangles[triangle + 3] = vertex + 2;
-            triangles[triangle + 4] = vertex;
-            triangles[triangle + 5] = next;
-            triangles[triangle + 6] = vertex;
-            triangles[triangle + 7] = next;
-            triangles[triangle + 8] = next + 1;
-            triangles[triangle + 9] = vertex;
-            triangles[triangle + 10] = next + 1;
-            triangles[triangle + 11] = vertex + 1;
-            triangles[triangle + 12] = vertex + 2;
-            triangles[triangle + 13] = next + 2;
-            triangles[triangle + 14] = next;
-            triangles[triangle + 15] = vertex + 2;
-            triangles[triangle + 16] = next;
-            triangles[triangle + 17] = vertex;
-        }
-
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
         return mesh;

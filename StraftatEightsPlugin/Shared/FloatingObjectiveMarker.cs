@@ -60,6 +60,33 @@ internal static class FloatingObjectiveMarker
         return marker;
     }
 
+    internal static GameObject CreateOverheadCircle(string name, Color color)
+    {
+        GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        marker.name = name;
+        Collider? collider = marker.GetComponent<Collider>();
+        if (collider != null)
+        {
+            Object.Destroy(collider);
+        }
+
+        MeshRenderer meshRenderer = marker.GetComponent<MeshRenderer>()!;
+        Shader? shader = Shader.Find("Hidden/Internal-Colored")
+            ?? Shader.Find("Unlit/Color")
+            ?? Shader.Find("Sprites/Default");
+        if (shader != null)
+        {
+            Material material = new(shader);
+            ConfigureOverlayMaterial(material);
+            material.color = color;
+            meshRenderer.material = material;
+        }
+
+        meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+        meshRenderer.receiveShadows = false;
+        return marker;
+    }
+
     internal static void PositionRing(GameObject marker, Vector3 objectivePosition,
         float radius, Color color)
     {
