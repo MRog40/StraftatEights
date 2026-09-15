@@ -141,7 +141,7 @@ internal static class GameModeManager
             | GameModeCapabilities.HideHud,
             MichaelMeyersPeriodicPush, MichaelMeyersState.EnsureLoadouts,
             MichaelMeyersState.PeriodicPushSettingsIfHost),
-        [GameMode.KillTheRat] = new ModeDescriptor("EXTERMINATORS", new Color32(170, 170, 170, 255),
+        [GameMode.KillTheRat] = new ModeDescriptor("KILL THE RAT", new Color32(170, 170, 170, 255),
             () => Plugin.KillTheRatEnabled.Value, KillTheRatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn,
@@ -179,25 +179,26 @@ internal static class GameModeManager
             () => Plugin.HardpointEnabled.Value, HardpointReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
-            HardpointState.PeriodicPushIfHost, HardpointState.EnsureLoadouts,
+            HardpointState.PeriodicPushIfHost, TeamWeaponLoadouts.EnsureLoadouts,
             HardpointState.PeriodicPushSettingsIfHost),
         [GameMode.CaptureTheFlag] = new ModeDescriptor("CAPTURE THE FLAG", new Color32(255, 190, 55, 255),
             () => Plugin.CaptureTheFlagEnabled.Value, CaptureTheFlagReset,
-            GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn
-            | GameModeCapabilities.TeamBased,
-            CaptureTheFlagState.PeriodicPushIfHost, ensureLoadouts: null,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            CaptureTheFlagState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
             periodicSettingsPush: CaptureTheFlagState.PeriodicPushSettingsIfHost),
         [GameMode.SearchAndDestroy] = new ModeDescriptor("SEARCH AND DESTROY", new Color32(225, 70, 70, 255),
             () => Plugin.SearchAndDestroyEnabled.Value, SearchAndDestroyReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
-            SearchAndDestroyState.PeriodicPushIfHost, ensureLoadouts: null,
+            SearchAndDestroyState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
             periodicSettingsPush: SearchAndDestroyState.PeriodicPushSettingsIfHost),
         [GameMode.TeamDeathmatch] = new ModeDescriptor("TDM", new Color32(255, 190, 55, 255),
             () => Plugin.TeamDeathmatchEnabled.Value, TeamDeathmatchReset,
-            GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn
-            | GameModeCapabilities.TeamBased,
-            TeamDeathmatchState.PeriodicPushIfHost, periodicSettingsPush:
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            TeamDeathmatchState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
+            periodicSettingsPush:
             TeamDeathmatchState.PeriodicPushSettingsIfHost)
     };
 
@@ -529,6 +530,20 @@ internal static class GameModeManager
         }
 
         MapPlaylistEntry<GameMode> entry = _mapPlaylist[_mapPlaylistIndex];
+        if (!IsEnabled(entry.Mode)
+            || !ModeMapCatalog.IsSupported(entry.Mode, entry.MapName, EffectiveMapOverrides))
+        {
+            DebugLog.Info($"StartMatch ignored stale playlist entry mode={entry.Mode} "
+                + $"enabled={IsEnabled(entry.Mode)} map={entry.MapName}");
+            if (!TrySelectNextPlaylistEntry(out entry))
+            {
+                GameMode fallbackMode = NextEnabledMode(GameMode.None);
+                SetDefaultMapForMode(fallbackMode);
+                ActivateMode(fallbackMode, true);
+                return;
+            }
+        }
+
         SelectedMapName = entry.MapName;
         ActivateMode(entry.Mode, true);
     }
@@ -964,6 +979,16 @@ internal static class GameModeManager
     {
         DebugLog.Info($"ActivateMode from={ActiveMode} to={mode} forceReset={forceReset} "
             + $"beforePhase={Phase} beforeRound={RoundId} host={MyceliumNetwork.IsHost}");
+        if (MyceliumNetwork.IsHost && mode != GameMode.None && !IsEnabled(mode))
+        {
+            DebugLog.Info($"ActivateMode rejected disabled mode={mode}");
+            mode = NextEnabledMode(mode);
+            if (mode == GameMode.None)
+            {
+                SelectedMapName = string.Empty;
+            }
+        }
+
         if (!forceReset && ActiveMode == mode)
         {
             return;
@@ -1041,6 +1066,13 @@ internal static class GameModeManager
             return;
         }
 
+        if (MyceliumNetwork.IsHost && nextMode != GameMode.None && !IsEnabled(nextMode))
+        {
+            DebugLog.Info($"ApplyActiveMode rejected disabled host mode={nextMode}");
+            EnsureActiveMode();
+            return;
+        }
+
         bool newRound = roundId > RoundId;
         bool mapChanged = SelectedMapName != mapName;
         bool modeChanged = ActiveMode != nextMode || newRound || mapChanged;
@@ -1065,6 +1097,7 @@ internal static class GameModeManager
         _customRoundTransitionPending = false;
         PendingDeaths.Clear();
         GameModeRespawn.ResetForMatch();
+        TeamWeaponLoadouts.ResetMatchState();
         foreach (ModeDescriptor descriptor in Modes.Values)
         {
             descriptor.Reset();

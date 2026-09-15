@@ -16,5 +16,6 @@
     <Compile Include="..\..\Shared\CaptureTheFlagRules.cs" Link="CaptureTheFlagRules.cs" />
     <Compile Include="..\..\Shared\SearchAndDestroyRules.cs" Link="SearchAndDestroyRules.cs" />
     <Compile Include="..\..\Shared\TeamDeathmatchRules.cs" Link="TeamDeathmatchRules.cs" />
+    <Compile Include="..\..\Shared\TeamWeaponSequence.cs" Link="TeamWeaponSequence.cs" />
   </ItemGroup>
 </Project>

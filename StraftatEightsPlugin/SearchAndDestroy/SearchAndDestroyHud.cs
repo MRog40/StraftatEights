@@ -54,8 +54,8 @@ internal static class SearchAndDestroyHud
 
     private static string GetPlantedStatus()
     {
-        string site = SearchAndDestroyState.BombSiteIndex == 0 ? "A"
-            : SearchAndDestroyState.BombSiteIndex == 1 ? "B" : "?";
+        string site = SearchAndDestroyState.BombSiteIndex == 0 ? "CIRCLE"
+            : SearchAndDestroyState.BombSiteIndex == 1 ? "DIAMOND" : "?";
         int seconds = Mathf.CeilToInt(SearchAndDestroyState.FuseTimeRemaining);
         if (SearchAndDestroyState.DefuserPlayerId >= 0)
         {

@@ -12,12 +12,14 @@ internal static class TeamAssignment
 
     internal static IReadOnlyDictionary<int, int> Current => Assignments;
     internal static int TeamCount { get; private set; }
+    internal static int HealthCompensationVersion { get; private set; }
 
     internal static void Reset()
     {
         Assignments.Clear();
         InitialSpawnEligiblePlayers.Clear();
         TeamCount = 0;
+        HealthCompensationVersion++;
         if (GameManager.Instance != null && GameManager.Instance.IsServer)
         {
             GameManager.Instance.sync___set_value_playingTeams(false, true);
@@ -31,8 +33,10 @@ internal static class TeamAssignment
             return false;
         }
 
-        Dictionary<int, int> nextAssignments =
-            TeamRules.AssignBalanced(PlayerLookup.GetConnectedPlayerIds());
+        List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
+        Dictionary<int, int> nextAssignments = GameModeManager.IsActive(GameMode.Hardpoint)
+            ? TeamRules.AssignHardpointBalanced(playerIds)
+            : TeamRules.AssignBalanced(playerIds);
         if (nextAssignments.Count == 0)
         {
             return false;
@@ -46,8 +50,11 @@ internal static class TeamAssignment
             InitialSpawnEligiblePlayers.Add(assignment.Key);
         }
 
-        TeamCount = TeamRules.GetTeamCount(Assignments.Count);
+        TeamCount = GameModeManager.IsActive(GameMode.Hardpoint)
+            ? TeamRules.GetHardpointTeamCount(Assignments.Count)
+            : TeamRules.GetTeamCount(Assignments.Count);
         ApplyNativeAssignments();
+        HealthCompensationVersion++;
         return true;
     }
 
@@ -75,6 +82,7 @@ internal static class TeamAssignment
 
         TeamCount = 2;
         ApplyNativeAssignments();
+        HealthCompensationVersion++;
         return true;
     }
 
@@ -102,6 +110,7 @@ internal static class TeamAssignment
 
         TeamCount = 2;
         ApplyNativeAssignments();
+        HealthCompensationVersion++;
         return true;
     }
 
@@ -134,6 +143,7 @@ internal static class TeamAssignment
 
         Assignments[playerId] = selectedTeam;
         ApplyNativeAssignments();
+        HealthCompensationVersion++;
         return true;
     }
 
@@ -167,6 +177,20 @@ internal static class TeamAssignment
         }
 
         Dictionary<int, int> parsed = TeamRules.ParseAssignments(data, teamCount);
+        bool changed = TeamCount != teamCount || Assignments.Count != parsed.Count;
+        if (!changed)
+        {
+            foreach (KeyValuePair<int, int> assignment in parsed)
+            {
+                if (!Assignments.TryGetValue(assignment.Key, out int currentTeamId)
+                    || currentTeamId != assignment.Value)
+                {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+
         Assignments.Clear();
         foreach (KeyValuePair<int, int> assignment in parsed)
         {
@@ -174,6 +198,17 @@ internal static class TeamAssignment
         }
 
         TeamCount = teamCount;
+        if (changed)
+        {
+            HealthCompensationVersion++;
+        }
+    }
+
+    internal static float GetHealthMultiplier(int playerId)
+    {
+        return GameModeManager.IsTeamBased
+            ? TeamRules.GetTeamHealthMultiplier(Assignments, playerId)
+            : 1f;
     }
 
     internal static bool TryGetTeamId(int playerId, out int teamId)

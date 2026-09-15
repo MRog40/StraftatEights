@@ -186,6 +186,15 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
   selection, or the first allowed weapon for a new player. The Global Weapons `SpawnPlayer` postfix
   uses this value after death/respawn and passes `SpareMagazines`, so future modes should not reset
   a player's selected weapon to `Allowed[0]` unless that is explicitly required.
+- **Use `TeamWeaponLoadouts` for team-mode allocations.** Hardpoint, Capture The Flag, Search And
+  Destroy, and Team Deathmatch use the configured `WeaponSettingsState.Allowed` list and
+  `SpareMagazines`, regardless of the global weapon or F8 cycle switches. The host creates one
+  shuffled `TeamWeaponSequence` per round, maps sorted team slots to the same sequence, and advances
+  a separate respawn cursor for each team. Do not add a fixed per-mode weapon grant or a client-side
+  weapon spawn path.
+- **Preserve normal team-mode drops.** `TeamWeaponLoadouts` assigns once for each new player object
+  and must not continuously replace the held weapon. Team modes keep the `IgnoreGlobalWeapons`
+  capability so global cycling and cycle-only drop restrictions do not block normal drops or pickups.
 - **Keep weapon grants host-authoritative.** `WeaponService` exits unless the FishNet server is
   active. Client input should request a host action through a registered Mycelium RPC, as F8 cycling
   does, instead of spawning or changing weapons locally.
@@ -241,6 +250,10 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
   Weapons cycle state stores the selected prefab name and the `SpawnPlayer` postfix restores it.
   Pass the configured spare-magazine count to `WeaponService.GiveWeapon` so the replacement gets a
   full loadout.
+- **Team weapon state is different from F8 cycling.** The team allocator stores initial slot state,
+  player-object identities, and per-team respawn cursors for the current round. It must reset on a
+  new round, mode reset, lobby reset, or allowed-list change. It must not use the global selected
+  weapon dictionary or reapply a grant after a player drops the weapon.
 - **Use the existing weapon grant and ammo paths together.** A direct server grant is not an
   `ItemSpawner` pickup, so call `WeaponService.GiveWeapon` with `spareMagazines` when a fresh full
   loadout is required. The service calls `WeaponAmmoTuning.InitializeFromSpawnerPickup` before hand

@@ -28,7 +28,6 @@ internal static class HardpointState
     internal static IReadOnlyDictionary<int, int> Assignments => TeamAssignment.Current;
 
     private static readonly ModeSyncState Sync = new(livePushInterval: 1f);
-    private static readonly Dictionary<int, PlayerHealth> ConfiguredLoadouts = new();
     private static float _scoreAccumulator;
     private static float _serverTickAccumulator;
     private static float _serverDiagnosticsAccumulator;
@@ -175,7 +174,6 @@ internal static class HardpointState
         _serverProcessedTickCount = 0;
         _roundInitialized = false;
         _roundCompletionRequested = false;
-        ConfiguredLoadouts.Clear();
     }
 
     internal static void OnRoundStarted()
@@ -219,33 +217,6 @@ internal static class HardpointState
         }
 
         return changed;
-    }
-
-    internal static void EnsureLoadouts()
-    {
-        if (!Enabled || !MyceliumNetwork.IsHost || !GameModeManager.IsActive(GameMode.Hardpoint))
-        {
-            return;
-        }
-
-        foreach (KeyValuePair<int, int> assignment in TeamAssignment.Current)
-        {
-            PlayerHealth? health = PlayerLookup.FindPlayerHealthById(assignment.Key);
-            if (health == null || !health.gameObject.activeInHierarchy || health.health <= 0f)
-            {
-                ConfiguredLoadouts.Remove(assignment.Key);
-                continue;
-            }
-
-            if (ConfiguredLoadouts.TryGetValue(assignment.Key, out PlayerHealth? configured)
-                && configured == health)
-            {
-                continue;
-            }
-
-            ConfiguredLoadouts[assignment.Key] = health;
-            WeaponService.GiveWeapon(assignment.Key, "Dispenser", WeaponSettingsState.SpareMagazines);
-        }
     }
 
     internal static void ServerTick(float deltaTime)
@@ -434,7 +405,6 @@ internal static class HardpointState
         _scoreAccumulator = 0f;
         _serverTickAccumulator = 0f;
         _roundCompletionRequested = false;
-        ConfiguredLoadouts.Clear();
     }
 
     private static HashSet<int> GetTeamsOnPoint(HardpointObjective objective)

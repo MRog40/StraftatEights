@@ -68,6 +68,25 @@ Assert(parsed.SequenceEqual(new[] { "Glock", "SMG" }),
 Assert(WeaponListParser.Parse(null!, new[] { "Glock" }).Count == 0,
     "A null weapon list must produce an empty result.");
 
+TeamWeaponSequence firstWeaponSequence = new(new[] { "Glock", "SMG", "Shotgun" }, 19);
+TeamWeaponSequence secondWeaponSequence = new(new[] { "Glock", "SMG", "Shotgun" }, 19);
+string[] firstTeamWeapons = Enumerable.Range(0, firstWeaponSequence.CycleLength)
+    .Select(firstWeaponSequence.GetAt).ToArray();
+string[] secondTeamWeapons = Enumerable.Range(0, secondWeaponSequence.CycleLength)
+    .Select(secondWeaponSequence.GetAt).ToArray();
+Assert(firstTeamWeapons.SequenceEqual(secondTeamWeapons)
+    && firstTeamWeapons.Distinct().Count() == firstWeaponSequence.CycleLength,
+    "Team weapon allocations must mirror a seeded permutation without duplicates.");
+string[] secondCycle = Enumerable.Range(firstWeaponSequence.CycleLength,
+        firstWeaponSequence.CycleLength)
+    .Select(firstWeaponSequence.GetAt).ToArray();
+Assert(secondCycle.Distinct().Count() == firstWeaponSequence.CycleLength
+    && secondCycle.OrderBy(weapon => weapon).SequenceEqual(firstTeamWeapons.OrderBy(weapon => weapon)),
+    "A completed weapon cycle must reshuffle into another valid permutation.");
+Assert(firstWeaponSequence.GetAt(3) == secondWeaponSequence.GetAt(3)
+    && firstWeaponSequence.GetAt(4) == secondWeaponSequence.GetAt(4),
+    "Independent team cursors must resolve the same next weapons.");
+
 Dictionary<string, IReadOnlyList<string>> playlistMaps = new()
 {
     ["FFA"] = new[] { "Barren_01_Alt" },
@@ -126,6 +145,29 @@ Assert(TeamRules.GetTeamCount(teamDeathmatchAssignments.Count) == 3
     && teamDeathmatchAssignments.Values.Count(teamId => teamId == 1) == 2
     && teamDeathmatchAssignments.Values.Count(teamId => teamId == 2) == 2,
     "Team Deathmatch must preserve balanced three-team assignment for six players.");
+Assert(TeamRules.GetHardpointTeamCount(4) == 2
+    && TeamRules.GetHardpointTeamCount(5) == 3
+    && TeamRules.GetHardpointTeamCount(7) == 3,
+    "Hardpoint team count must use three teams for five and seven players.");
+Dictionary<int, int> hardpointFiveAssignments =
+    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5 });
+Dictionary<int, int> hardpointSevenAssignments =
+    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5, 6, 7 });
+Assert(hardpointFiveAssignments.Values.Count(teamId => teamId == 0) == 2
+    && hardpointFiveAssignments.Values.Count(teamId => teamId == 1) == 2
+    && hardpointFiveAssignments.Values.Count(teamId => teamId == 2) == 1,
+    "Hardpoint five-player assignment must be 2v2v1.");
+Assert(hardpointSevenAssignments.Values.Count(teamId => teamId == 0) == 3
+    && hardpointSevenAssignments.Values.Count(teamId => teamId == 1) == 2
+    && hardpointSevenAssignments.Values.Count(teamId => teamId == 2) == 2,
+    "Hardpoint seven-player assignment must be 3v2v2.");
+Assert(Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointFiveAssignments, 3) - 2f) < 0.001f
+    && Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointSevenAssignments, 2) - 1.5f) < 0.001f
+    && Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointSevenAssignments, 1) - 1f) < 0.001f,
+    "Uneven teams must receive health compensation based on player counts.");
+Dictionary<int, int> unevenTwoTeams = new() { [1] = 0, [2] = 0, [3] = 1 };
+Assert(Math.Abs(TeamRules.GetTeamHealthMultiplier(unevenTwoTeams, 3) - 2f) < 0.001f,
+    "A one-player team must receive 100 percent extra health.");
 Assert(TeamRules.GetColor(TeamRules.BlueTeamId).Equals(new TeamColorData(0, 114, 178))
     && TeamRules.GetColor(TeamRules.VermillionTeamId).Equals(new TeamColorData(213, 94, 0))
     && TeamRules.GetColor(TeamRules.GreenTeamId).Equals(new TeamColorData(0, 158, 115)),

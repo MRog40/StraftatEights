@@ -17,6 +17,8 @@ internal static class HealthSettingsTuning
         public float LastRegenWriteTime;
         public float LastLoggedHealth = -1f;
         public bool LastModeSpecificHealth;
+        public int LastAppliedHealthCompensationVersion = -1;
+        public int LastAppliedPlayerId = -1;
     }
 
     private static readonly ConditionalWeakTable<PlayerHealth, Memory> MemoryByInstance = new();
@@ -85,17 +87,25 @@ internal static class HealthSettingsTuning
             memory.LastModeSpecificHealth = false;
             memory.LastAppliedVersion = -1;
         }
-        if (memory.LastAppliedVersion == version)
+
+        int playerId = controller.playerValues?.playerClient?.PlayerId ?? -1;
+        int healthCompensationVersion = TeamAssignment.HealthCompensationVersion;
+        float teamHealthMultiplier = TeamAssignment.GetHealthMultiplier(playerId);
+        if (memory.LastAppliedVersion == version
+            && memory.LastAppliedHealthCompensationVersion == healthCompensationVersion
+            && memory.LastAppliedPlayerId == playerId)
         {
             return;
         }
         memory.LastAppliedVersion = version;
+        memory.LastAppliedHealthCompensationVersion = healthCompensationVersion;
+        memory.LastAppliedPlayerId = playerId;
 
-        float scaledFullHealth = memory.BaselineFullHealth * healthMultiplier;
+        float scaledFullHealth = memory.BaselineFullHealth * healthMultiplier * teamHealthMultiplier;
         float previousFullHealth = controller.fullHealth;
         controller.fullHealth = scaledFullHealth;
 
-        DebugLog.Info($"[HealthSettings] Health apply: owner={controller.IsOwner} server={controller.IsServer} baseline={memory.BaselineFullHealth:0.##} fullHealth={previousFullHealth:0.##}->{scaledFullHealth:0.##} healthBefore={controller.health:0.##} multiplier={healthMultiplier:0.##} version={version}");
+        DebugLog.Info($"[HealthSettings] Health apply: owner={controller.IsOwner} server={controller.IsServer} baseline={memory.BaselineFullHealth:0.##} fullHealth={previousFullHealth:0.##}->{scaledFullHealth:0.##} healthBefore={controller.health:0.##} multiplier={healthMultiplier:0.##} teamMultiplier={teamHealthMultiplier:0.##} version={version}");
 
         if (controller.IsServer)
         {

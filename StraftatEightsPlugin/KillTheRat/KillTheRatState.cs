@@ -341,7 +341,7 @@ internal static class KillTheRatState
         {
             WinnerId = playerId;
             Announce(PlayerLookup.GetPlayerNameTag(playerId) + " reached " + PointsToWin
-                + " points and won the EXTERMINATORS round!");
+                + " points and won the KILL THE RAT round!");
             BroadcastLiveState();
             GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(playerId));
             return false;

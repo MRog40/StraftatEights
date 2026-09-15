@@ -132,9 +132,34 @@ an action that must be retried.
   second inside the horizontal radius and the vertical range `y - 1` through `y + 1`. The point warns
   five seconds before rotation. A contested or empty point drains the contest clock; a tied clock
   expiry enters sudden death.
-- All players receive `Dispenser` through the shared host-authoritative weapon service after each
-  spawn. Team colors, outlines, markers, and the scoreboard are local visuals driven by the revisioned
-  team and live-state snapshots.
+- Weapon allocation is shared with Capture The Flag, Search And Destroy, and Team Deathmatch. At each
+  official round, the host builds one shuffled permutation from `WeaponSettingsState.Allowed`. Players
+  in the same team slot receive the same weapon, and each team's respawns advance independently through
+  the sequence. Every grant passes `WeaponSettingsState.SpareMagazines` to `WeaponService.GiveWeapon`.
+- Team loadouts are host-only assignments. Clients receive the spawned FishNet weapon and never select
+  or grant a team weapon locally. The team modes ignore the global weapon master switch and F8 cycle so
+  those systems cannot overwrite the assignment.
+- A loadout is assigned once for each new player object. This is important because repeatedly enforcing
+  the held weapon would destroy the normal Straftat drop and pickup behavior. Team-mode players can
+  drop, see, and pick up weapons normally after their spawn grant.
+- Team colors, outlines, markers, and the scoreboard are local visuals driven by the revisioned team
+  and live-state snapshots.
+
+## Team Weapon Allocation
+
+The shared coordinator is `Shared/TeamWeaponLoadouts.cs`; the pure permutation logic is in
+`Shared/TeamWeaponSequence.cs`.
+
+- Only the FishNet server assigns weapons. The host sorts each team's player IDs to establish stable
+  initial slots, then resolves every slot against the same host-generated sequence.
+- The sequence is a Fisher-Yates permutation of the allowed list. It appends another shuffled cycle
+  only after the current cycle is exhausted, so a cycle has no duplicate weapon names.
+- A new player object means a respawn. The coordinator gives that player the next weapon for their
+  team's respawn cursor and passes the configured spare-magazine count to the shared weapon service.
+- A changed allowed list clears the active allocation state and creates a new sequence. A changed
+  spare-magazine value is applied to the next team grant or direct ammo initialization.
+- The active team capabilities block the global item-spawn randomizer, global cycling, and global drop
+  restriction. They do not block normal item spawns, weapon drops, or weapon pickups.
 
 ## FishNet RPCs and Ownership
 
@@ -196,6 +221,9 @@ For every host-authoritative mode, test at least:
 - Same mode starts in a new round.
 - Mode changes between rounds.
 - Player respawns while the mode is active.
+- Team-mode initial loadouts match by team slot, respawns advance independently per team, and every
+  granted weapon has the configured spare magazines.
+- Team-mode players can drop and pick up weapons without being immediately re-equipped by the mode.
 - A player joins after the state already exists.
 
 When a result is asymmetric, compare the host and client logs and verify these facts in order:

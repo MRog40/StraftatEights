@@ -62,9 +62,24 @@ stable through sub-rounds and are rebuilt for each official map or mode round.
 Hardpoints use the map definition order, rotate every 30 seconds, and warn five seconds before the
 next point. A team scores one point per uncontested second inside the two-unit vertical zone from
 `y - 1` through `y + 1`. A contested or empty point drains the contest clock; a tied expiry enters
-sudden death. Every player receives the `Dispenser` loadout, and respawns use the shared configured
-delay. Team-colored outlines, the local scoreboard, and ground markers are presentation-only and
-are reapplied on every peer.
+sudden death. Respawns use the shared configured delay. Team-colored outlines, the local scoreboard,
+and ground markers are presentation-only and are reapplied on every peer.
+
+### Team-mode weapon contract
+
+Hardpoint, Capture The Flag, Search And Destroy, and Team Deathmatch share one team loadout path.
+The host uses the existing `Allowed Weapons` and `Spare Magazines` settings even when global weapon
+tweaks or F8 cycling are disabled. At the start of a round, the host creates one shuffled permutation
+of the allowed weapon names. Sorted player IDs establish the initial slot within each team, so equal
+team slots receive equal weapons. Respawns use an independent cursor per team and receive the next
+weapon from the same sequence.
+
+Use `Shared/TeamWeaponLoadouts.cs` for this behavior. Do not add a per-mode dispenser grant, a second
+weapon allocator, or a client-side spawn path. The allocator detects a new player object after a
+respawn and calls `WeaponService.GiveWeapon(playerId, weaponName, spareMagazines)` once for that
+spawn. Do not continuously enforce the held weapon: normal Straftat drops and pickups must remain
+usable after the grant. Team modes must keep the `IgnoreGlobalWeapons` capability so global cycling,
+global item randomization, and cycle-only drop restrictions do not fight the team allocation.
 
 ## 3. Keep the plugin bootstrap complete
 
@@ -159,7 +174,9 @@ Private state uses targeted RPCs. For example, a private role assignment must se
 
 Examples:
 
-- Gun Game, Sniper Battle, One in the Chamber, Hot Potato, Michael Meyers, Exterminators, and Infidel can ignore global weapons when their loadouts require it.
+- Gun Game, Sniper Battle, One in the Chamber, Hot Potato, Michael Meyers, Exterminators, Infidel,
+  Hardpoint, Capture The Flag, Search And Destroy, and Team Deathmatch can ignore global weapons when
+  their loadouts require it.
 - Sniper Battle, One in the Chamber, and Infidel can ignore global health when their health rules require it.
 - A Rat, Infidel, or Juggernaut movement multiplier layers on top of or replaces global movement only when the mode's precedence rule says so.
 - A mode that owns respawn timing must use the shared respawn helper and prevent the normal path from fighting it.
@@ -171,6 +188,11 @@ Only one game mode is expected to be active at a time. If future modes can be se
 ## 8. Reuse shared gameplay services
 
 Use `WeaponService.GiveWeapon(playerId, weaponName, spareMagazines)` for server-authoritative weapon grants. Do not instantiate prefabs or duplicate hand attachment logic in a mode.
+
+For the four team modes, use the shared team allocator instead of assigning a fixed weapon. Its host
+sequence must be mirrored by team slot, use an independent cursor per team on respawn, and pass the
+configured spare-magazine count. Keep the grant one-shot for each player object so normal drops and
+pickups are not overwritten.
 
 Use `WeaponService.GiveWeaponToLeftHand(...)` for off-hand grants and `AttachUnparentedWeapon(...)` for repair of an existing hand SyncVar whose transform is not attached.
 
@@ -185,6 +207,12 @@ is a strong penalty rather than a hard rejection so open maps and incomplete col
 deterministic distance-based fallback.
 
 Persistent choices belong in dictionaries keyed by `ClientInstance.PlayerId`. Player and weapon GameObjects are recreated on every spawn and respawn. Loadout reconciliation must retry for a bounded time because settings, player objects, parent objects, and SyncVars can arrive in different orders.
+
+Team-mode loadouts use `Shared/TeamWeaponLoadouts.cs`, not a per-mode fixed grant. The host creates one
+shuffled sequence from the configured allowed list, assigns matching team slots the same weapon, and
+advances an independent cursor for each team on respawn. Pass `SpareMagazines` to
+`WeaponService.GiveWeapon`, assign only once per new player object, and preserve normal drops and
+pickups after the grant.
 
 Coroutines that survive despawn must run on `Plugin.Instance`. A dying player's GameObject is disabled during despawn, so a coroutine started on that object can stop immediately.
 
@@ -220,6 +248,10 @@ Before play testing:
 4. Run `git diff --check`.
 5. Search for old per-mode revision, cursor, and retry fields.
 6. Build Release.
+
+For team weapon changes, also verify that initial team slots match, each team advances independently
+on respawn, the allowed list reshuffles without duplicates inside one cycle, and a dropped weapon is
+not immediately replaced.
 
 For play testing, use the matrix in `MULTIPLAYER_SYNC_NOTES.md`:
 

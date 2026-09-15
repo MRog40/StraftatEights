@@ -7,9 +7,12 @@ internal static class SearchAndDestroyMarker
 {
     private const float SiteMarkerHeight = 3f;
     private const float SiteMarkerSize = 0.8f;
-    private const float RingRadius = 1.05f;
-    private const float RingThickness = 0.08f;
-    private const float RingHeight = 0.05f;
+    private const float SiteSquareSize = 2.4f;
+    private const float SiteSquareThickness = 0.1f;
+    private const float SiteSquareHeight = 0.05f;
+    private const float CircleRadius = 0.55f;
+    private const float CircleThickness = 0.08f;
+    private const float CircleHeight = 0.05f;
     private const int RingSegments = 48;
     private static readonly GameObject?[] SiteMarkers = new GameObject?[2];
     private static GameObject? _bomb;
@@ -53,39 +56,26 @@ internal static class SearchAndDestroyMarker
         GameObject root = new($"SearchAndDestroySite_{siteIndex}");
         root.transform.position = Vector3.zero;
 
-        GameObject ring = new("OffenseMarker");
-        ring.transform.SetParent(root.transform, false);
-        ring.transform.localPosition = Vector3.up * 0.06f;
-        MeshFilter ringFilter = ring.AddComponent<MeshFilter>();
-        ringFilter.sharedMesh = CreateRingMesh();
-        MeshRenderer ringRenderer = ring.AddComponent<MeshRenderer>();
-        ConfigureRenderer(ringRenderer, true);
-        ringRenderer.material.color = new Color32(220, 45, 45, 210);
+        GameObject square = new("BombSiteSquare");
+        square.transform.SetParent(root.transform, false);
+        square.transform.localPosition = Vector3.up * 0.06f;
+        MeshFilter squareFilter = square.AddComponent<MeshFilter>();
+        squareFilter.sharedMesh = CreateSquareMesh();
+        MeshRenderer squareRenderer = square.AddComponent<MeshRenderer>();
+        ConfigureRenderer(squareRenderer, true);
+        squareRenderer.material.color = new Color32(245, 245, 245, 190);
 
-        GameObject diamond = new("DefenseMarker");
-        diamond.transform.SetParent(root.transform, false);
-        diamond.transform.localPosition = Vector3.up * SiteMarkerHeight;
-        diamond.transform.localScale = Vector3.one * SiteMarkerSize;
-        MeshFilter diamondFilter = diamond.AddComponent<MeshFilter>();
-        diamondFilter.sharedMesh = CreateDiamondMesh();
-        MeshRenderer diamondRenderer = diamond.AddComponent<MeshRenderer>();
-        ConfigureRenderer(diamondRenderer, true);
-        diamondRenderer.material.color = new Color32(45, 110, 235, 235);
-
-        GameObject labelObject = new("SiteLabel");
-        labelObject.transform.SetParent(root.transform, false);
-        labelObject.transform.localPosition = Vector3.up * (SiteMarkerHeight + 0.25f);
-        TextMesh label = labelObject.AddComponent<TextMesh>();
-        label.text = siteIndex == 0 ? "A" : "B";
-        label.anchor = TextAnchor.MiddleCenter;
-        label.alignment = TextAlignment.Center;
-        label.characterSize = 0.45f;
-        label.fontSize = 48;
-        label.color = Color.white;
-        label.fontStyle = FontStyle.Bold;
-        MeshRenderer labelRenderer = label.GetComponent<MeshRenderer>();
-        ConfigureRenderer(labelRenderer, true);
-        labelRenderer.material.color = Color.white;
+        GameObject marker = new(siteIndex == 0 ? "CircleMarker" : "DiamondMarker");
+        marker.transform.SetParent(root.transform, false);
+        marker.transform.localPosition = Vector3.up * SiteMarkerHeight;
+        marker.transform.localScale = Vector3.one * SiteMarkerSize;
+        MeshFilter markerFilter = marker.AddComponent<MeshFilter>();
+        markerFilter.sharedMesh = siteIndex == 0 ? CreateCircleMesh() : CreateDiamondMesh();
+        MeshRenderer markerRenderer = marker.AddComponent<MeshRenderer>();
+        ConfigureRenderer(markerRenderer, true);
+        markerRenderer.material.color = siteIndex == 0
+            ? new Color32(220, 45, 45, 235)
+            : new Color32(45, 110, 235, 235);
 
         return root;
     }
@@ -135,22 +125,22 @@ internal static class SearchAndDestroyMarker
         return mesh;
     }
 
-    private static Mesh CreateRingMesh()
+    private static Mesh CreateCircleMesh()
     {
-        Mesh mesh = new() { name = "SearchAndDestroyRingMesh" };
+        Mesh mesh = new() { name = "SearchAndDestroyCircleMesh" };
         Vector3[] vertices = new Vector3[RingSegments * 4];
         int[] triangles = new int[RingSegments * 24];
-        float innerRadius = RingRadius - RingThickness;
+        float innerRadius = CircleRadius - CircleThickness;
         for (int index = 0; index < RingSegments; index++)
         {
             float angle = index * Mathf.PI * 2f / RingSegments;
             float x = Mathf.Cos(angle);
             float z = Mathf.Sin(angle);
             int vertex = index * 4;
-            vertices[vertex] = new Vector3(x * RingRadius, 0f, z * RingRadius);
+            vertices[vertex] = new Vector3(x * CircleRadius, 0f, z * CircleRadius);
             vertices[vertex + 1] = new Vector3(x * innerRadius, 0f, z * innerRadius);
-            vertices[vertex + 2] = new Vector3(x * RingRadius, RingHeight, z * RingRadius);
-            vertices[vertex + 3] = new Vector3(x * innerRadius, RingHeight, z * innerRadius);
+            vertices[vertex + 2] = new Vector3(x * CircleRadius, CircleHeight, z * CircleRadius);
+            vertices[vertex + 3] = new Vector3(x * innerRadius, CircleHeight, z * innerRadius);
 
             int next = ((index + 1) % RingSegments) * 4;
             int triangle = index * 24;
@@ -178,6 +168,51 @@ internal static class SearchAndDestroyMarker
             triangles[triangle + 21] = vertex + 1;
             triangles[triangle + 22] = next + 3;
             triangles[triangle + 23] = vertex + 3;
+        }
+
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
+    private static Mesh CreateSquareMesh()
+    {
+        Mesh mesh = new() { name = "SearchAndDestroySquareMesh" };
+        Vector3[] vertices = new Vector3[16];
+        int[] triangles = new int[24];
+        float outer = SiteSquareSize * 0.5f;
+        float inner = outer - SiteSquareThickness;
+        Vector2[] outerCorners =
+        {
+            new(-outer, -outer), new(outer, -outer),
+            new(outer, outer), new(-outer, outer)
+        };
+        Vector2[] innerCorners =
+        {
+            new(-inner, -inner), new(inner, -inner),
+            new(inner, inner), new(-inner, inner)
+        };
+
+        for (int index = 0; index < 4; index++)
+        {
+            int vertex = index * 4;
+            vertices[vertex] = new Vector3(outerCorners[index].x, 0f, outerCorners[index].y);
+            vertices[vertex + 1] = new Vector3(innerCorners[index].x, 0f, innerCorners[index].y);
+            vertices[vertex + 2] = new Vector3(outerCorners[index].x, SiteSquareHeight,
+                outerCorners[index].y);
+            vertices[vertex + 3] = new Vector3(innerCorners[index].x, SiteSquareHeight,
+                innerCorners[index].y);
+
+            int next = ((index + 1) % 4) * 4;
+            int triangle = index * 6;
+            triangles[triangle] = vertex + 2;
+            triangles[triangle + 1] = next + 3;
+            triangles[triangle + 2] = next + 2;
+            triangles[triangle + 3] = vertex + 2;
+            triangles[triangle + 4] = vertex + 3;
+            triangles[triangle + 5] = next + 3;
         }
 
         mesh.vertices = vertices;

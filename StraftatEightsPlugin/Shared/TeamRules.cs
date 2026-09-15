@@ -90,6 +90,56 @@ internal static class TeamRules
         return assignments;
     }
 
+    internal static Dictionary<int, int> AssignHardpointBalanced(IReadOnlyList<int> playerIds)
+    {
+        Dictionary<int, int> assignments = new();
+        int teamCount = GetHardpointTeamCount(playerIds.Count);
+        if (teamCount == 0)
+        {
+            return assignments;
+        }
+
+        foreach (int playerId in playerIds.OrderBy(id => id))
+        {
+            if (playerId >= 0 && !assignments.ContainsKey(playerId))
+            {
+                assignments[playerId] = assignments.Count % teamCount;
+            }
+        }
+
+        return assignments;
+    }
+
+    internal static int GetHardpointTeamCount(int playerCount)
+    {
+        if (playerCount <= 0)
+        {
+            return 0;
+        }
+
+        return playerCount == 3 || playerCount >= 5 ? 3 : 2;
+    }
+
+    internal static float GetTeamHealthMultiplier(IReadOnlyDictionary<int, int> assignments,
+        int playerId)
+    {
+        if (!assignments.TryGetValue(playerId, out int playerTeamId))
+        {
+            return 1f;
+        }
+
+        Dictionary<int, int> teamSizes = new();
+        foreach (int teamId in assignments.Values)
+        {
+            teamSizes.TryGetValue(teamId, out int teamSize);
+            teamSizes[teamId] = teamSize + 1;
+        }
+
+        int playerTeamSize = teamSizes[playerTeamId];
+        int largestTeamSize = teamSizes.Values.Max();
+        return (float)largestTeamSize / playerTeamSize;
+    }
+
     internal static TeamColorData GetColor(int teamId)
     {
         return teamId switch

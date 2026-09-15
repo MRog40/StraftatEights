@@ -8,24 +8,44 @@ namespace StraftatEightsPlugin;
 
 internal static class ModeMapCatalog
 {
+    private static readonly IReadOnlyList<string> FreeForAllMaps =
+        new[] { "Chateaux_06_NoGrass", "Basket_Swirly", "Basket_Swirly_Alt", "Republic_08" };
+    private static readonly IReadOnlyList<string> JuggernautMaps =
+        new[] { "Arena_11_Alt", "Arena_10", "Arena_10_Alt", "Basket_Junglegym" };
+    private static readonly IReadOnlyList<string> GunGameMaps = FreeForAllMaps;
+    private static readonly IReadOnlyList<string> SniperBattleMaps =
+        new[] { "Adobe_02", "Arena_Shadow_08", "Garden_01", "Chateaux_01" };
+    private static readonly IReadOnlyList<string> MichaelMeyersMaps =
+        new[]
+        {
+            "Bazaar_Alleyway_Alt", "WestVillage_04_Alt", "Adobe_01_Alt",
+            "Arena_Shadow_04_Alt", "Basket_Junglegym_Alt", "Neo_Arena_03"
+        };
+    private static readonly IReadOnlyList<string> KillTheRatMaps =
+        new[] { "WestVillage_04", "Toilets_00", "Arena_13", "JF_Poolrooms_01" };
+    private static readonly IReadOnlyList<string> OneInTheChamberMaps =
+        new[] { "TheSamePlace_02", "StLucia_01", "Chateaux_04" };
+    private static readonly IReadOnlyList<string> HotPotatoMaps = FreeForAllMaps;
+    private static readonly IReadOnlyList<string> InfidelMaps =
+        new[] { "Bazaar_01", "TheSamePlace_04", "TheSamePlace_12" };
     private static readonly IReadOnlyList<string> Barren01AltOnly =
         new[] { MapDefinitions.Barren01AltName };
 
     private static readonly IReadOnlyDictionary<GameMode, IReadOnlyList<string>> MapsByMode =
         new Dictionary<GameMode, IReadOnlyList<string>>
         {
-            [GameMode.FreeForAll] = Barren01AltOnly,
-            [GameMode.Juggernaut] = Barren01AltOnly,
-            [GameMode.GunGame] = Barren01AltOnly,
-            [GameMode.SniperBattle] = Barren01AltOnly,
-            [GameMode.MichaelMeyers] = Barren01AltOnly,
-            [GameMode.KillTheRat] = Barren01AltOnly,
-            [GameMode.OneInTheChamber] = Barren01AltOnly,
-            [GameMode.HotPotato] = Barren01AltOnly,
-            [GameMode.Infidel] = Barren01AltOnly,
+            [GameMode.FreeForAll] = FreeForAllMaps,
+            [GameMode.Juggernaut] = JuggernautMaps,
+            [GameMode.GunGame] = GunGameMaps,
+            [GameMode.SniperBattle] = SniperBattleMaps,
+            [GameMode.MichaelMeyers] = MichaelMeyersMaps,
+            [GameMode.KillTheRat] = KillTheRatMaps,
+            [GameMode.OneInTheChamber] = OneInTheChamberMaps,
+            [GameMode.HotPotato] = HotPotatoMaps,
+            [GameMode.Infidel] = InfidelMaps,
             [GameMode.HVT] = Barren01AltOnly,
-            [GameMode.Assassin] = Barren01AltOnly
-            ,[GameMode.Hardpoint] = Barren01AltOnly,
+            [GameMode.Assassin] = Barren01AltOnly,
+            [GameMode.Hardpoint] = Barren01AltOnly,
             [GameMode.CaptureTheFlag] = Barren01AltOnly,
             [GameMode.SearchAndDestroy] = Barren01AltOnly,
             [GameMode.TeamDeathmatch] = Barren01AltOnly
