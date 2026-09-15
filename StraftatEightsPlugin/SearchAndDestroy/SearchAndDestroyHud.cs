@@ -9,11 +9,8 @@ internal static class SearchAndDestroyHud
     {
         StringBuilder text = new();
         text.Append(GameModeManager.GetModeLabelMarkup(GameMode.SearchAndDestroy))
-            .Append("  ")
-            .Append(Mathf.CeilToInt(SearchAndDestroyState.SubRoundTimeRemaining))
-            .Append("s\nFirst to ")
-            .Append(GameModeManager.EffectivePointsToWin)
-            .Append("  |  LIVE");
+            .Append(" - ")
+            .Append(GameModeManager.EffectivePointsToWin);
 
         for (int teamId = 0; teamId < 2; teamId++)
         {
@@ -22,38 +19,12 @@ internal static class SearchAndDestroyHud
                 colorData.Green, colorData.Blue, 255));
             text.Append("\n<color=#").Append(color).Append("><b>")
                 .Append("TEAM ").Append(teamId + 1).Append("</b></color>: ")
-                .Append(SearchAndDestroyState.GetScore(teamId)).Append("/")
-                .Append(GameModeManager.EffectivePointsToWin);
+                .Append(SearchAndDestroyState.GetScore(teamId));
         }
 
-        text.Append("\n").Append(GetBombStatus());
+        text.Append("\nTimer: ")
+            .Append(Mathf.CeilToInt(SearchAndDestroyState.SubRoundTimeRemaining))
+            .Append("s");
         return text.ToString();
-    }
-
-    private static string GetBombStatus()
-    {
-        return SearchAndDestroyState.BombStatus switch
-        {
-            SearchAndDestroyBombStatus.Home => "BOMB: HOME",
-            SearchAndDestroyBombStatus.Carried => "BOMB: CARRIED",
-            SearchAndDestroyBombStatus.Dropped => "BOMB: DROPPED",
-            SearchAndDestroyBombStatus.Planted => GetPlantedStatus(),
-            _ => "BOMB: UNKNOWN"
-        };
-    }
-
-    private static string GetPlantedStatus()
-    {
-        string site = SearchAndDestroyState.BombSiteIndex == 0 ? "CIRCLE"
-            : SearchAndDestroyState.BombSiteIndex == 1 ? "DIAMOND" : "?";
-        int seconds = Mathf.CeilToInt(SearchAndDestroyState.FuseTimeRemaining);
-        if (SearchAndDestroyState.DefuserPlayerId >= 0)
-        {
-            int percent = Mathf.RoundToInt(SearchAndDestroyState.DefuseProgress
-                / SearchAndDestroyState.DefuseDurationSeconds * 100f);
-            return $"BOMB: {site}  DEFUSING {percent}%  {seconds}s";
-        }
-
-        return $"BOMB: {site}  PLANTED  {seconds}s";
     }
 }

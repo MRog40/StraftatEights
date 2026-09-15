@@ -232,7 +232,7 @@ Assert(SearchAndDestroyRules.GetOffensiveTeamId(1) == 0
     && SearchAndDestroyRules.GetOtherTeamId(1) == 0
     && SearchAndDestroyRules.GetOtherTeamId(2) == -1,
     "Search and Destroy offense must alternate between sub-rounds.");
-Assert(SearchAndDestroyRules.PointsPerRoundWin == 35
+Assert(SearchAndDestroyRules.PointsPerRoundWin == 40
     && SearchAndDestroyRules.GetSubRoundTimeLimit(100) == 100f
     && SearchAndDestroyRules.GetSubRoundTimeLimit(0) == 1f
     && SearchAndDestroyRules.PlantDurationSeconds == 5f

@@ -11,6 +11,7 @@ namespace StraftatEightsPlugin;
 
 internal static class SearchAndDestroyState
 {
+    private const KeyCode InteractionKey = KeyCode.P;
     internal const string SettingsLobbyDataKey = "StraftatEights_SnD_Settings";
     internal const string LiveLobbyDataKey = "StraftatEights_SnD_Live";
     internal const float PlantDurationSeconds = SearchAndDestroyRules.PlantDurationSeconds;
@@ -43,9 +44,12 @@ internal static class SearchAndDestroyState
 
     private static readonly ModeSyncState Sync = new(livePushInterval: 1f);
     private static readonly Dictionary<int, bool> HeldInteractions = new();
+    private static readonly Dictionary<int, bool> LookingAtBomb = new();
     private static readonly NetworkCommandTracker InteractionCommands = new();
     private static float _serverTickAccumulator;
     private static int _nextLocalCommandId;
+    private static bool _localInteractionHeld;
+    private static bool _localLookingAtBomb;
     private static bool _roundStarted;
     private static bool _subRoundEnding;
 
@@ -176,7 +180,10 @@ internal static class SearchAndDestroyState
         AlivePlayers.Clear();
         Scores.Clear();
         HeldInteractions.Clear();
+        LookingAtBomb.Clear();
         _serverTickAccumulator = 0f;
+        _localInteractionHeld = false;
+        _localLookingAtBomb = false;
         _roundStarted = false;
         _subRoundEnding = false;
         SubRoundId = 0;
@@ -286,6 +293,8 @@ internal static class SearchAndDestroyState
             return;
         }
 
+        HeldInteractions.Remove(deadPlayerId);
+        LookingAtBomb.Remove(deadPlayerId);
         PlayerHealth? deadHealth = PlayerLookup.FindPlayerHealthById(deadPlayerId);
         Vector3 deathPosition = deadHealth != null && deadHealth
             ? deadHealth.transform.position
@@ -332,6 +341,7 @@ internal static class SearchAndDestroyState
 
         AlivePlayers.Remove(playerId);
         HeldInteractions.Remove(playerId);
+        LookingAtBomb.Remove(playerId);
         InteractionCommands.Remove(player);
         if (BombStatus == SearchAndDestroyBombStatus.Carried
             && BombCarrierPlayerId == playerId)
@@ -350,7 +360,8 @@ internal static class SearchAndDestroyState
         }
     }
 
-    internal static void HandleInteractionRequest(int playerId, int commandId, bool pressed)
+    internal static void HandleInteractionRequest(int playerId, int commandId, bool pressed,
+        bool lookingAtBomb)
     {
         if (!MyceliumNetwork.IsHost || !NetworkAuthority.IsLocalPlayer(playerId)
             || commandId < 0)
@@ -358,11 +369,11 @@ internal static class SearchAndDestroyState
             return;
         }
 
-        SetInteractionHeld(playerId, commandId, pressed);
+        SetInteractionHeld(playerId, commandId, pressed, lookingAtBomb);
     }
 
     internal static void HandleInteractionRequest(int playerId, int commandId, bool pressed,
-        RPCInfo info)
+        bool lookingAtBomb, RPCInfo info)
     {
         if (!MyceliumNetwork.IsHost || !NetworkAuthority.IsPlayerSender(info, playerId)
             || !InteractionCommands.TryAccept(info.SenderSteamID, commandId))
@@ -370,7 +381,7 @@ internal static class SearchAndDestroyState
             return;
         }
 
-        SetInteractionHeld(playerId, commandId, pressed);
+        SetInteractionHeld(playerId, commandId, pressed, lookingAtBomb);
     }
 
     internal static void PollLocalInput()
@@ -388,14 +399,14 @@ internal static class SearchAndDestroyState
             return;
         }
 
-        var interact = InputManager.inputActions.Player.Interact;
-        if (interact.WasPressedThisFrame())
+        bool interactionHeld = Input.GetKey(InteractionKey);
+        bool lookingAtBomb = interactionHeld && IsLocalPlayerLookingAtBomb();
+        if (interactionHeld != _localInteractionHeld
+            || lookingAtBomb != _localLookingAtBomb)
         {
-            SendInteractionRequest(playerId, true);
-        }
-        else if (interact.WasReleasedThisFrame())
-        {
-            SendInteractionRequest(playerId, false);
+            SendInteractionRequest(playerId, interactionHeld, lookingAtBomb);
+            _localInteractionHeld = interactionHeld;
+            _localLookingAtBomb = lookingAtBomb;
         }
     }
 
@@ -526,7 +537,8 @@ internal static class SearchAndDestroyState
         return _subRoundEnding || AlivePlayers.Contains(playerId);
     }
 
-    private static void SetInteractionHeld(int playerId, int commandId, bool pressed)
+    private static void SetInteractionHeld(int playerId, int commandId, bool pressed,
+        bool lookingAtBomb)
     {
         if (commandId < 0 || !AlivePlayers.Contains(playerId))
         {
@@ -534,20 +546,21 @@ internal static class SearchAndDestroyState
         }
 
         HeldInteractions[playerId] = pressed;
+        LookingAtBomb[playerId] = pressed && lookingAtBomb;
     }
 
-    private static void SendInteractionRequest(int playerId, bool pressed)
+    private static void SendInteractionRequest(int playerId, bool pressed, bool lookingAtBomb)
     {
         int commandId = ++_nextLocalCommandId;
         if (MyceliumNetwork.IsHost)
         {
-            SetInteractionHeld(playerId, commandId, pressed);
+            SetInteractionHeld(playerId, commandId, pressed, lookingAtBomb);
             return;
         }
 
         MyceliumNetwork.RPC(Plugin.SearchAndDestroyModId,
             nameof(Plugin.RequestSearchAndDestroyInteraction), ReliableType.Reliable,
-            playerId, commandId, pressed);
+            playerId, commandId, pressed, lookingAtBomb);
     }
 
     private static void StartSubRound()
@@ -579,6 +592,7 @@ internal static class SearchAndDestroyState
         SubRoundWinnerId = -1;
         AlivePlayers.Clear();
         HeldInteractions.Clear();
+        LookingAtBomb.Clear();
         foreach (int playerId in players)
         {
             AlivePlayers.Add(playerId);
@@ -682,6 +696,7 @@ internal static class SearchAndDestroyState
         {
             if (DefuserPlayerId >= 0
                 && (!IsInteractionHeld(DefuserPlayerId)
+                    || !IsLookingAtBomb(DefuserPlayerId)
                     || !AlivePlayers.Contains(DefuserPlayerId)
                     || !IsDefensePlayer(DefuserPlayerId)
                     || !IsNearPlayer(DefuserPlayerId, BombPosition)))
@@ -695,6 +710,7 @@ internal static class SearchAndDestroyState
                 foreach (int playerId in AlivePlayers)
                 {
                     if (!IsDefensePlayer(playerId) || !IsInteractionHeld(playerId)
+                        || !IsLookingAtBomb(playerId)
                         || !IsNearPlayer(playerId, BombPosition))
                     {
                         continue;
@@ -800,9 +816,42 @@ internal static class SearchAndDestroyState
         return HeldInteractions.TryGetValue(playerId, out bool held) && held;
     }
 
+    private static bool IsLookingAtBomb(int playerId)
+    {
+        return LookingAtBomb.TryGetValue(playerId, out bool looking) && looking;
+    }
+
+    private static bool IsLocalPlayerLookingAtBomb()
+    {
+        if (BombStatus != SearchAndDestroyBombStatus.Planted
+            || ClientInstance.Instance == null)
+        {
+            return false;
+        }
+
+        PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(
+            ClientInstance.Instance.PlayerId);
+        Camera? camera = health?.controller?.playerCamera;
+        if (camera == null || !camera.enabled)
+        {
+            return false;
+        }
+
+        Ray ray = camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        Vector3 toBomb = BombPosition - ray.origin;
+        float distanceAlongRay = Vector3.Dot(toBomb, ray.direction);
+        if (distanceAlongRay <= 0f)
+        {
+            return false;
+        }
+
+        Vector3 closestPoint = ray.origin + ray.direction * distanceAlongRay;
+        return (closestPoint - BombPosition).sqrMagnitude <= 0.04f;
+    }
+
     private static bool IsLocalActionCandidate(int playerId)
     {
-        if (!InputManager.inputActions.Player.Interact.IsPressed()
+        if (!Input.GetKey(InteractionKey)
             || !AlivePlayers.Contains(playerId))
         {
             return false;

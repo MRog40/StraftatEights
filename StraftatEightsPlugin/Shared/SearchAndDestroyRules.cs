@@ -14,7 +14,7 @@ internal enum SearchAndDestroyBombStatus
 
 internal static class SearchAndDestroyRules
 {
-    internal const int PointsPerRoundWin = 35;
+    internal const int PointsPerRoundWin = 40;
     internal const float PlantDurationSeconds = 5f;
     internal const float DefuseDurationSeconds = 7.5f;
     internal const float FuseDurationSeconds = 30f;

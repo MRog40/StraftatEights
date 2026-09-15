@@ -113,9 +113,9 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(12.447f, 7.007f, 8.975f), 5f),
-                    new HardpointObjective(new Vector3(40.771f, 7.078f, 26.327f), 5f),
-                    new HardpointObjective(new Vector3(15.493f, 6.988f, -9.839f), 5f)
+                    new HardpointObjective(new Vector3(12.447f, 7.007f, 8.975f), 6f),
+                    new HardpointObjective(new Vector3(40.771f, 7.078f, 26.327f), 6f),
+                    new HardpointObjective(new Vector3(15.493f, 6.988f, -9.839f), 6f)
                 },
                 new[]
                 {

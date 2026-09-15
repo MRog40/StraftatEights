@@ -61,8 +61,9 @@ public partial class Plugin
 
     [CustomRPC]
     public void RequestSearchAndDestroyInteraction(int playerId, int commandId, bool pressed,
-        RPCInfo info)
+        bool lookingAtBomb, RPCInfo info)
     {
-        SearchAndDestroyState.HandleInteractionRequest(playerId, commandId, pressed, info);
+        SearchAndDestroyState.HandleInteractionRequest(playerId, commandId, pressed,
+            lookingAtBomb, info);
     }
 }

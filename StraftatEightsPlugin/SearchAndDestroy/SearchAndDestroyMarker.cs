@@ -5,22 +5,19 @@ namespace StraftatEightsPlugin;
 
 internal static class SearchAndDestroyMarker
 {
-    private const float SiteMarkerHeight = 3f;
-    private const float SiteMarkerSize = 0.8f;
-    private const float SiteSquareSize = 4f;
-    private const float SiteSquareThickness = 0.1f;
-    private const float SiteSquareHeight = 0.05f;
+    private const float SiteRadius = 2.5f;
+    private const float SiteOverheadMarkerSize = 0.8f;
     private const float CircleRadius = 0.55f;
     private const float CircleHeight = 0.05f;
-    private const float GroundClearance = 0.1f;
     private const float BombMarkerHeight = 2.8f;
     private const float BombMarkerSize = 0.6f;
-    private const float BombGroundMarkerHeight = 0.1f;
+    private const float BombGroundMarkerSize = 0.25f;
+    private const float BombGroundMarkerHeight = 0.01f;
     private const int RingSegments = 48;
     private static readonly GameObject?[] SiteMarkers = new GameObject?[2];
-    private static readonly bool[] SiteSquaresConformed = new bool[2];
-    private static readonly Vector3[] SiteSquarePositions = new Vector3[2];
     private static GameObject? _bomb;
+    private static Mesh? _bombDiamondMesh;
+    private static Mesh? _bombSquareMesh;
 
     internal static void Update()
     {
@@ -44,9 +41,20 @@ internal static class SearchAndDestroyMarker
                 SiteMarkers[siteIndex] = CreateSiteMarker(siteIndex);
             }
 
-            SiteMarkers[siteIndex]!.transform.SetPositionAndRotation(
-                GetSiteMarkerPosition(position), Quaternion.identity);
-            ConformSiteSquareToGround(SiteMarkers[siteIndex]!, siteIndex, position);
+            Transform markerRoot = SiteMarkers[siteIndex]!.transform;
+            GameObject ring = markerRoot.Find("BombSiteRing")!.gameObject;
+            FloatingObjectiveMarker.PositionRing(ring, position, SiteRadius,
+                new Color(1f, 1f, 1f, 0.8f));
+            GameObject overheadMarker = markerRoot.Find("BombSiteOverhead")!.gameObject;
+            Color overheadColor = siteIndex == 0
+                ? new Color32(220, 45, 45, 235)
+                : new Color32(45, 110, 235, 235);
+            FloatingObjectiveMarker.PositionOverhead(overheadMarker, position,
+                overheadColor, SiteOverheadMarkerSize);
+            if (siteIndex == 0)
+            {
+                overheadMarker.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            }
             SiteMarkers[siteIndex]!.SetActive(true);
         }
 
@@ -61,21 +69,16 @@ internal static class SearchAndDestroyMarker
     private static GameObject CreateSiteMarker(int siteIndex)
     {
         GameObject root = new($"SearchAndDestroySite_{siteIndex}");
-        root.transform.position = Vector3.zero;
-
-        GameObject square = new("BombSiteSquare");
-        square.transform.SetParent(root.transform, false);
-        square.transform.localPosition = Vector3.up * 0.06f;
-        MeshFilter squareFilter = square.AddComponent<MeshFilter>();
-        squareFilter.sharedMesh = CreateSquareMesh();
-        MeshRenderer squareRenderer = square.AddComponent<MeshRenderer>();
-        ConfigureRenderer(squareRenderer, false);
-        squareRenderer.material.color = new Color32(245, 245, 245, 190);
+        GameObject ring = FloatingObjectiveMarker.CreateRing("BombSiteRing",
+            new Color(1f, 1f, 1f, 0.8f));
+        ring.transform.SetParent(root.transform, false);
 
         GameObject marker = new(siteIndex == 0 ? "CircleMarker" : "DiamondMarker");
+        marker.name = "BombSiteOverhead";
         marker.transform.SetParent(root.transform, false);
-        marker.transform.localPosition = Vector3.up * SiteMarkerHeight;
-        marker.transform.localScale = Vector3.one * SiteMarkerSize;
+        marker.transform.localRotation = siteIndex == 0
+            ? Quaternion.Euler(90f, 0f, 0f)
+            : Quaternion.identity;
         MeshFilter markerFilter = marker.AddComponent<MeshFilter>();
         markerFilter.sharedMesh = siteIndex == 0 ? CreateCircleMesh() : CreateDiamondMesh();
         MeshRenderer markerRenderer = marker.AddComponent<MeshRenderer>();
@@ -90,6 +93,8 @@ internal static class SearchAndDestroyMarker
     private static void UpdateBomb()
     {
         if (SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Home
+            || (SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Carried
+                && !CanSeeCarriedBombMarker())
             || !SearchAndDestroyState.TryGetBombPosition(out Vector3 position))
         {
             SetActive(_bomb, false);
@@ -101,18 +106,63 @@ internal static class SearchAndDestroyMarker
             _bomb = new GameObject("SearchAndDestroyBomb");
             _bomb.name = "SearchAndDestroyBomb";
             MeshFilter filter = _bomb.AddComponent<MeshFilter>();
-            filter.sharedMesh = CreateDiamondMesh();
+            filter.sharedMesh = GetBombMesh(
+                SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Carried);
             MeshRenderer renderer = _bomb.AddComponent<MeshRenderer>();
             ConfigureRenderer(renderer, true);
             renderer.material.color = new Color32(35, 35, 35, 255);
         }
 
         bool carried = SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Carried;
+        _bomb.GetComponent<MeshFilter>()!.sharedMesh = GetBombMesh(carried);
         float markerHeight = carried ? BombMarkerHeight : BombGroundMarkerHeight;
         _bomb.transform.SetPositionAndRotation(position + Vector3.up * markerHeight,
             Quaternion.identity);
-        _bomb.transform.localScale = Vector3.one * (carried ? BombMarkerSize : 0.8f);
+        _bomb.transform.localScale = Vector3.one
+            * (carried ? BombMarkerSize : BombGroundMarkerSize);
         _bomb.SetActive(true);
+    }
+
+    private static bool CanSeeCarriedBombMarker()
+    {
+        if (ClientInstance.Instance == null
+            || !TeamAssignment.TryGetTeamId(ClientInstance.Instance.PlayerId, out int localTeamId)
+            || !TeamAssignment.TryGetTeamId(SearchAndDestroyState.BombCarrierPlayerId,
+                out int carrierTeamId))
+        {
+            return false;
+        }
+
+        return localTeamId == carrierTeamId;
+    }
+
+    private static Mesh GetBombMesh(bool carried)
+    {
+        if (carried)
+        {
+            return _bombDiamondMesh ??= CreateDiamondMesh();
+        }
+
+        return _bombSquareMesh ??= CreateBombSquareMesh();
+    }
+
+    private static Mesh CreateBombSquareMesh()
+    {
+        Mesh mesh = new()
+        {
+            name = "SearchAndDestroyBombSquareMesh",
+            vertices = new[]
+            {
+                new Vector3(-0.5f, 0f, -0.5f),
+                new Vector3(0.5f, 0f, -0.5f),
+                new Vector3(0.5f, 0f, 0.5f),
+                new Vector3(-0.5f, 0f, 0.5f)
+            },
+            triangles = new[] { 0, 2, 1, 0, 3, 2 }
+        };
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
     }
 
     private static Mesh CreateDiamondMesh()
@@ -182,129 +232,6 @@ internal static class SearchAndDestroyMarker
         return mesh;
     }
 
-    private static Vector3 GetSiteMarkerPosition(Vector3 sitePosition)
-    {
-        float groundY = sitePosition.y;
-        if (TryGetGroundY(sitePosition, sitePosition.y, out float sampledGroundY))
-        {
-            groundY = sampledGroundY;
-        }
-
-        return new Vector3(sitePosition.x, groundY + GroundClearance, sitePosition.z);
-    }
-
-    private static void ConformSiteSquareToGround(GameObject marker, int siteIndex,
-        Vector3 sitePosition)
-    {
-        if (SiteSquaresConformed[siteIndex] && SiteSquarePositions[siteIndex] == sitePosition)
-        {
-            return;
-        }
-
-        SiteSquaresConformed[siteIndex] = true;
-        SiteSquarePositions[siteIndex] = sitePosition;
-        Transform? square = marker.transform.Find("BombSiteSquare");
-        Mesh? mesh = square?.GetComponent<MeshFilter>()?.sharedMesh;
-        if (square == null || mesh == null)
-        {
-            return;
-        }
-
-        Vector3[] vertices = mesh.vertices;
-        for (int index = 0; index < vertices.Length; index++)
-        {
-            Vector3 vertex = vertices[index];
-            Vector3 worldPosition = marker.transform.position
-                + new Vector3(vertex.x, 0f, vertex.z);
-            float groundY = sitePosition.y;
-            if (TryGetGroundY(worldPosition, sitePosition.y, out float sampledGroundY))
-            {
-                groundY = sampledGroundY;
-            }
-
-            bool top = index % 4 >= 2;
-            vertex.y = groundY + GroundClearance + (top ? SiteSquareHeight : 0f)
-                - marker.transform.position.y;
-            vertices[index] = vertex;
-        }
-
-        mesh.vertices = vertices;
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-    }
-
-    private static bool TryGetGroundY(Vector3 position, float referenceY, out float groundY)
-    {
-        groundY = referenceY;
-        Vector3 rayOrigin = new(position.x, referenceY + 4f, position.z);
-        RaycastHit[] hits = Physics.RaycastAll(rayOrigin, Vector3.down, 8f,
-            Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
-        float closestDifference = float.MaxValue;
-        bool foundGround = false;
-        foreach (RaycastHit hit in hits)
-        {
-            if (hit.collider == null || hit.collider.GetComponentInParent<PlayerHealth>() != null)
-            {
-                continue;
-            }
-
-            float difference = Mathf.Abs(hit.point.y - referenceY);
-            if (difference < closestDifference)
-            {
-                closestDifference = difference;
-                groundY = hit.point.y;
-                foundGround = true;
-            }
-        }
-
-        return foundGround;
-    }
-
-    private static Mesh CreateSquareMesh()
-    {
-        Mesh mesh = new() { name = "SearchAndDestroySquareMesh" };
-        Vector3[] vertices = new Vector3[16];
-        int[] triangles = new int[24];
-        float outer = SiteSquareSize * 0.5f;
-        float inner = outer - SiteSquareThickness;
-        Vector2[] outerCorners =
-        {
-            new(-outer, -outer), new(outer, -outer),
-            new(outer, outer), new(-outer, outer)
-        };
-        Vector2[] innerCorners =
-        {
-            new(-inner, -inner), new(inner, -inner),
-            new(inner, inner), new(-inner, inner)
-        };
-
-        for (int index = 0; index < 4; index++)
-        {
-            int vertex = index * 4;
-            vertices[vertex] = new Vector3(outerCorners[index].x, 0f, outerCorners[index].y);
-            vertices[vertex + 1] = new Vector3(innerCorners[index].x, 0f, innerCorners[index].y);
-            vertices[vertex + 2] = new Vector3(outerCorners[index].x, SiteSquareHeight,
-                outerCorners[index].y);
-            vertices[vertex + 3] = new Vector3(innerCorners[index].x, SiteSquareHeight,
-                innerCorners[index].y);
-
-            int next = ((index + 1) % 4) * 4;
-            int triangle = index * 6;
-            triangles[triangle] = vertex + 2;
-            triangles[triangle + 1] = next + 3;
-            triangles[triangle + 2] = next + 2;
-            triangles[triangle + 3] = vertex + 2;
-            triangles[triangle + 4] = vertex + 3;
-            triangles[triangle + 5] = next + 3;
-        }
-
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-        return mesh;
-    }
-
     private static void ConfigureRenderer(Renderer renderer, bool overlay)
     {
         Shader? shader = Shader.Find("Hidden/Internal-Colored")
@@ -342,11 +269,14 @@ internal static class SearchAndDestroyMarker
         {
             if (SiteMarkers[index] != null && SiteMarkers[index])
             {
+                Transform? ring = SiteMarkers[index]!.transform.Find("BombSiteRing");
+                if (ring != null)
+                {
+                    FloatingObjectiveMarker.Release(ring.gameObject);
+                }
                 Object.Destroy(SiteMarkers[index]);
                 SiteMarkers[index] = null;
             }
-
-            SiteSquaresConformed[index] = false;
         }
 
         if (_bomb != null && _bomb)
