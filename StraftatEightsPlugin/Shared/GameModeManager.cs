@@ -636,12 +636,18 @@ internal static class GameModeManager
 
     internal static string GetModeLabelMarkup(GameMode mode)
     {
+        return GetModeLabelMarkup(mode, null);
+    }
+
+    internal static string GetModeLabelMarkup(GameMode mode, string? labelOverride)
+    {
         if (!Modes.TryGetValue(mode, out ModeDescriptor? descriptor))
         {
             return "<b>UNKNOWN</b>";
         }
 
-        return $"<b><color=#{ColorUtility.ToHtmlStringRGB(descriptor.Color)}>{descriptor.Label}</color></b>";
+        string label = labelOverride ?? descriptor.Label;
+        return $"<b><color=#{ColorUtility.ToHtmlStringRGB(descriptor.Color)}>{label}</color></b>";
     }
 
     internal static void EnsureActiveMode()

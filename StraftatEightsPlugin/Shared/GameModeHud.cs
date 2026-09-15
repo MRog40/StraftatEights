@@ -446,80 +446,80 @@ internal sealed class GameModeHud : MonoBehaviour
 
         if (GameModeManager.IsActive(GameMode.MichaelMeyers))
         {
-            _scoreboard.text = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode)
-                + "  Survivors: " + MichaelMeyersState.SurvivorCount;
+            GameModeScoreboardRow[] survivorRows =
+            {
+                new GameModeScoreboardRow("Survivors", MichaelMeyersState.SurvivorCount)
+            };
+            _scoreboard.text = GameModeScoreboard.Build(GameMode.MichaelMeyers, null, null,
+                survivorRows);
             return;
         }
         Dictionary<int, int> scores;
         bool crownFirst;
-        string header;
+        int pointsToWin;
         if (GameModeManager.IsActive(GameMode.FreeForAll))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + FFAState.KillsToWin;
+            pointsToWin = FFAState.KillsToWin;
             scores = FFAState.Kills;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.Juggernaut))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + JuggernautState.PointsToWin;
+            pointsToWin = JuggernautState.PointsToWin;
             scores = JuggernautState.Points;
             crownFirst = true;
         }
         else if (GameModeManager.IsActive(GameMode.HVT))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + HVTState.PointsToWin;
+            pointsToWin = HVTState.PointsToWin;
             scores = HVTState.Points;
             crownFirst = true;
         }
         else if (GameModeManager.IsActive(GameMode.SniperBattle))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + SniperBattleState.PointsToWin;
+            pointsToWin = SniperBattleState.PointsToWin;
             scores = SniperBattleState.Points;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.KillTheRat))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + KillTheRatState.PointsToWin;
+            pointsToWin = KillTheRatState.PointsToWin;
             scores = KillTheRatState.Points;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.HotPotato))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + HotPotatoState.KillsToWin;
+            pointsToWin = HotPotatoState.KillsToWin;
             scores = HotPotatoState.Kills;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.Infidel))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + InfidelState.KillsToWin;
+            pointsToWin = InfidelState.KillsToWin;
             scores = InfidelState.Scores;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.Assassin))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + AssassinState.PointsToWin;
+            pointsToWin = AssassinState.PointsToWin;
             scores = AssassinState.Scores;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.OneInTheChamber))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - "
-                + OneInTheChamberState.PointsToWin + "  Round " + OneInTheChamberState.SubRoundId
-                + "  " + OneInTheChamberState.AliveCount + " alive";
+            pointsToWin = OneInTheChamberState.PointsToWin;
             scores = OneInTheChamberState.Scores;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.Default))
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - "
-                + DefaultGameModeState.PointsToWin + "  Round " + DefaultGameModeState.SubRoundId
-                + "  " + DefaultGameModeState.AliveCount + " alive";
+            pointsToWin = DefaultGameModeState.PointsToWin;
             scores = DefaultGameModeState.Scores;
             crownFirst = false;
         }
         else
         {
-            header = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode) + " - " + GunGameState.ScoreLimit;
+            pointsToWin = GunGameState.ScoreLimit;
             scores = GunGameState.Progress;
             crownFirst = false;
         }
@@ -543,7 +543,7 @@ internal sealed class GameModeHud : MonoBehaviour
             return rightScore.CompareTo(leftScore);
         });
 
-        StringBuilder text = new(header);
+        List<GameModeScoreboardRow> rows = new(playerIds.Count);
         foreach (int playerId in playerIds)
         {
             scores.TryGetValue(playerId, out int score);
@@ -554,16 +554,14 @@ internal sealed class GameModeHud : MonoBehaviour
             }
 
             bool isCrown = crownFirst && playerId == crownPlayerId;
-            string crownColor = hvtCrown ? "#0000FF" : "#FF6A00";
-            text.Append('\n').Append(isCrown ? "<color=" + crownColor + "><b>" : "<color=#DDDDDD>")
-                .Append(playerName).Append("  ").Append(score);
             if (isCrown)
             {
-                text.Append(hvtCrown ? "  HVT</b>" : "  JUG</b>");
+                playerName += hvtCrown ? "  HVT" : "  JUG";
             }
-            text.Append("</color>");
+            rows.Add(new GameModeScoreboardRow(playerName, score));
         }
 
-        _scoreboard.text = text.ToString();
+        _scoreboard.text = GameModeScoreboard.Build(GameModeManager.ActiveMode, null,
+            pointsToWin, rows);
     }
 }
