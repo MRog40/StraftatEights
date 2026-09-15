@@ -69,7 +69,7 @@ an action that must be retried.
 - Mycelium serializers support primitives and selected arrays only. Flatten dictionaries into a
   string such as `id:score;id:score`, then validate IDs and score limits when parsing.
 
-## Exterminators
+## Kill The Rat
 
 - The host owns the current Rat, points, and role transfers. A valid player kill awards 10 points
   to the killer; the Rat earns 1 point per second while active, up to the shared 100-point target.

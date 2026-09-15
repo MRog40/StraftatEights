@@ -174,7 +174,7 @@ Private state uses targeted RPCs. For example, a private role assignment must se
 
 Examples:
 
-- Gun Game, Sniper Battle, One in the Chamber, Hot Potato, Michael Meyers, Exterminators, Infidel,
+- Gun Game, Sniper Battle, One in the Chamber, Hot Potato, Michael Meyers, Kill The Rat, Infidel,
   Hardpoint, Capture The Flag, Search And Destroy, and Team Deathmatch can ignore global weapons when
   their loadouts require it.
 - Sniper Battle, One in the Chamber, and Infidel can ignore global health when their health rules require it.

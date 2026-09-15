@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using FishNet.Object;
 using MyceliumNetworking;
 using UnityEngine;
 
@@ -188,7 +189,14 @@ internal static class TeamWeaponLoadouts
             return;
         }
 
-        if (request.Complete)
+        if (pickup == null || !pickup)
+        {
+            return;
+        }
+
+        NetworkObject? pickupNetworkObject = pickup.GetComponent<NetworkObject>();
+        if (request.Complete || !pickup.IsServer
+            || pickupNetworkObject == null || !pickupNetworkObject.IsSpawned)
         {
             return;
         }

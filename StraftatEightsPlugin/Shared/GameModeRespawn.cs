@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 
@@ -236,6 +237,22 @@ internal static class GameModeRespawn
         }
     }
 
+    internal static void SetPlayerMovable(FirstPersonController player)
+    {
+        if (player == null || !player)
+        {
+            return;
+        }
+
+        player.canMove = true;
+        player.sync___set_value_canMove(true, true);
+        player.startOfRound = false;
+        if (PauseManager.Instance != null)
+        {
+            PauseManager.Instance.startRound = false;
+        }
+    }
+
     private static PlayerManager? FindManagerByPlayerId(int playerId)
     {
         return ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client)
@@ -402,6 +419,29 @@ internal static class PlayerManager_CustomRespawnRoundStart_Patch
     private static bool Prefix(PlayerManager __instance)
     {
         return !GameModeRespawn.ConsumeRoundStartSuppressed(__instance);
+    }
+}
+
+[HarmonyPatch]
+internal static class PlayerSetup_CustomRespawnMovement_Patch
+{
+    private static MethodBase? TargetMethod()
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        return typeof(PlayerSetup).GetMethod("OnStartClient___UserLogic", flags)
+            ?? typeof(PlayerSetup).GetMethod("OnStartClient", flags);
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
+    private static void Postfix(PlayerSetup __instance)
+    {
+        FirstPersonController? player = __instance.GetComponent<FirstPersonController>();
+        if (player != null && player.IsOwner && GameModeManager.Phase == GameModePhase.ActiveRound
+            && GameModeManager.UsesSafeRespawn)
+        {
+            GameModeRespawn.SetPlayerMovable(player);
+        }
     }
 }
 

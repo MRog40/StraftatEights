@@ -24,7 +24,7 @@ and the first player to reach the point target wins.
 a Couperet, while the survivors try to eliminate Michael; sub-round scores continue until the target is
 reached.
 
-**Exterminators (Kill The Rat)** selects the Rat after the first legitimate kill. The Rat uses a Taser
+**Kill The Rat** selects the Rat after the first legitimate kill. The Rat uses a Taser
 and moves faster, while the other players use Glocks; survival time and kills award points, and killing
 the Rat transfers the role.
 
