@@ -89,6 +89,11 @@ internal static class MichaelMeyersState
         }
     }
 
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
+    }
+
     internal static void OnLobbyDataUpdated(List<string> keys)
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
@@ -119,6 +124,64 @@ internal static class MichaelMeyersState
         MyceliumNetwork.RPCTarget(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, SurvivorCount, OneVsOne,
             GameModeManager.RoundId, Sync.LiveRevision);
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        bool wasAlive = playerId >= 0 && AlivePlayers.Remove(playerId);
+        bool changed = wasAlive || (playerId >= 0 && RoundPlayers.Remove(playerId));
+        PendingLoadouts.Remove(playerId);
+        if (playerId >= 0 && _oneVsOneSurvivorId == playerId)
+        {
+            _oneVsOneSurvivorId = -1;
+            OneVsOne = false;
+            changed = true;
+        }
+
+        bool wasMichael = playerId >= 0 && CurrentMichaelPlayerId == playerId;
+        if (wasMichael)
+        {
+            CurrentMichaelPlayerId = -1;
+            OneVsOne = false;
+            _oneVsOneSurvivorId = -1;
+            changed = true;
+        }
+
+        if (wasAlive && GameModeManager.IsActive(GameMode.MichaelMeyers)
+            && _winnerId < 0)
+        {
+            if (AlivePlayers.Count <= 1)
+            {
+                int winnerId = -1;
+                foreach (int alivePlayerId in AlivePlayers)
+                {
+                    winnerId = alivePlayerId;
+                    break;
+                }
+                FinishRound(winnerId);
+            }
+            else if (wasMichael)
+            {
+                List<int> candidates = new(AlivePlayers);
+                CurrentMichaelPlayerId = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+                PrepareOneVsOneSurvivor();
+                Announce(PlayerLookup.GetPlayerNameTag(CurrentMichaelPlayerId)
+                    + " is <color=#CC2222><b>MICHAEL MEYERS</b></color>!");
+                GiveStartingWeapon(CurrentMichaelPlayerId);
+            }
+        }
+
+        if (changed && GameModeManager.IsActive(GameMode.MichaelMeyers))
+        {
+            SurvivorCount = Math.Max(0, AlivePlayers.Count - 1);
+            BroadcastLiveState();
+        }
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)

@@ -66,6 +66,11 @@ internal static class GunGameState
             ApplyLobbyLiveSnapshot();
         }
     }
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
+    }
+
     internal static void OnLobbyDataUpdated(List<string> keys)
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
@@ -92,6 +97,25 @@ internal static class GunGameState
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeProgress(), GameModeManager.RoundId,
             Sync.LiveRevision);
     }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        if (playerId >= 0)
+        {
+            PendingLoadouts.Remove(playerId);
+            if (Progress.Remove(playerId) && GameModeManager.IsActive(GameMode.GunGame))
+            {
+                BroadcastLiveState();
+            }
+        }
+    }
+
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision,
         string source = "unknown")
     {

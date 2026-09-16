@@ -81,6 +81,11 @@ internal static class HotPotatoState
         }
     }
 
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
+    }
+
     internal static void OnLobbyDataUpdated(List<string> keys)
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
@@ -111,6 +116,28 @@ internal static class HotPotatoState
         MyceliumNetwork.RPCTarget(Plugin.HotPotatoModId, nameof(Plugin.SyncHotPotatoLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeKills(), PotatoPlayerId, WinnerId,
             GameModeManager.RoundId, Sync.LiveRevision);
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        bool changed = playerId >= 0 && Kills.Remove(playerId);
+        PendingLoadouts.Remove(playerId);
+        if (playerId >= 0 && PotatoPlayerId == playerId)
+        {
+            PotatoPlayerId = -1;
+            changed = true;
+        }
+
+        if (changed && GameModeManager.IsActive(GameMode.HotPotato))
+        {
+            BroadcastLiveState();
+        }
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)

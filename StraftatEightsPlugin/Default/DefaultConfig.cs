@@ -23,6 +23,7 @@ public partial class Plugin
         MyceliumNetwork.LobbyEntered += DefaultGameModeState.OnLobbyEntered;
         MyceliumNetwork.LobbyDataUpdated += DefaultGameModeState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += DefaultGameModeState.OnPlayerEntered;
+        MyceliumNetwork.PlayerLeft += DefaultGameModeState.OnPlayerLeft;
     }
 
     [CustomRPC]

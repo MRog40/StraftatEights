@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Steamworks;
 using UnityEngine;
 
 namespace StraftatEightsPlugin;
@@ -103,6 +104,19 @@ internal static class PlayerLookup
             }
         }
         return null;
+    }
+
+    internal static int FindPlayerId(CSteamID steamId)
+    {
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client != null && client && client.PlayerSteamID == steamId.m_SteamID)
+            {
+                return client.PlayerId;
+            }
+        }
+
+        return -1;
     }
 
     internal static PlayerHealth? FindActivePlayerHealthById(int playerId)

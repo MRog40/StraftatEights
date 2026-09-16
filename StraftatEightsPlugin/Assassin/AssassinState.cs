@@ -173,6 +173,41 @@ internal static class AssassinState
         SendRoleToPlayer(player, playerId, true);
     }
 
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        bool wasAlive = playerId >= 0 && AlivePlayers.Contains(playerId);
+        if (wasAlive && GameModeManager.IsActive(GameMode.Assassin)
+            && WinnerId < 0 && !_subRoundEnding)
+        {
+            OnServerKill(playerId, -1);
+        }
+
+        bool changed = wasAlive || (playerId >= 0 && Scores.Remove(playerId));
+        PendingLoadouts.Remove(playerId);
+        AlivePlayers.Remove(playerId);
+        if (playerId >= 0 && AssassinPlayerId == playerId)
+        {
+            AssassinPlayerId = -1;
+            changed = true;
+        }
+        if (playerId >= 0 && KingPlayerId == playerId)
+        {
+            KingPlayerId = -1;
+            changed = true;
+        }
+
+        if (changed && GameModeManager.IsActive(GameMode.Assassin))
+        {
+            BroadcastLiveState();
+        }
+    }
+
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
         return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);

@@ -31,6 +31,7 @@ public partial class Plugin
         MyceliumNetwork.LobbyEntered += JuggernautState.OnLobbyEntered;
         MyceliumNetwork.LobbyDataUpdated += JuggernautState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += JuggernautState.OnPlayerEntered;
+        MyceliumNetwork.PlayerLeft += JuggernautState.OnPlayerLeft;
     }
 
     // Invoked on every peer when the host (re)broadcasts its settings

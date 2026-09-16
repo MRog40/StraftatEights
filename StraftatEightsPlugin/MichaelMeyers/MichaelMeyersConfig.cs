@@ -27,6 +27,7 @@ public partial class Plugin
         MyceliumNetwork.LobbyEntered += MichaelMeyersState.OnLobbyEntered;
         MyceliumNetwork.LobbyDataUpdated += MichaelMeyersState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += MichaelMeyersState.OnPlayerEntered;
+        MyceliumNetwork.PlayerLeft += MichaelMeyersState.OnPlayerLeft;
     }
 
     [CustomRPC]

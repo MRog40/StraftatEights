@@ -27,6 +27,7 @@ public partial class Plugin
         MyceliumNetwork.LobbyEntered += KillTheRatState.OnLobbyEntered;
         MyceliumNetwork.LobbyDataUpdated += KillTheRatState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += KillTheRatState.OnPlayerEntered;
+        MyceliumNetwork.PlayerLeft += KillTheRatState.OnPlayerLeft;
     }
 
     [CustomRPC]

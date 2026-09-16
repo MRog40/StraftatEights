@@ -28,6 +28,7 @@ public partial class Plugin
         MyceliumNetwork.LobbyCreated += WeaponSettingsState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += WeaponSettingsState.OnLobbyEntered;
         MyceliumNetwork.PlayerEntered += WeaponSettingsState.OnPlayerEntered;
+        MyceliumNetwork.PlayerLeft += WeaponSettingsState.OnPlayerLeft;
     }
 
     [CustomRPC]

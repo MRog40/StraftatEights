@@ -146,6 +146,20 @@ internal static class HardpointState
         SendLiveStateTo(player);
     }
 
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = ResolvePlayerId(player);
+        if (playerId >= 0 && TeamAssignment.RemovePlayer(playerId))
+        {
+            BroadcastLiveState();
+        }
+    }
+
     internal static void PollLiveStateIfClient()
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby

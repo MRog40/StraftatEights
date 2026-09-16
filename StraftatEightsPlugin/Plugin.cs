@@ -150,15 +150,10 @@ public partial class Plugin : BaseUnityPlugin
         CaptureTheFlagState.ServerTick(Time.unscaledDeltaTime);
         SearchAndDestroyState.ServerTick(Time.unscaledDeltaTime);
         SearchAndDestroyState.PollLocalInput();
-        SearchAndDestroyState.PollLiveStateIfClient();
         SearchAndDestroyState.ApplyLocalMovementLock();
-        AssassinState.PollLiveStateIfClient();
-        HardpointState.PollLiveStateIfClient();
         GlobalModifiersState.PeriodicPushIfHost();
         HealthSettingsState.PeriodicPushIfHost();
         HealthSettingsState.ServerTick();
-        CaptureTheFlagState.PollLiveStateIfClient();
-        OneInTheChamberState.PollLiveStateIfClient();
         WeaponSettingsState.UpdateLocalCycle();
         WeaponSettingsState.PeriodicPushIfHost();
         WeaponSettingsState.EnsureCycleLoadouts();

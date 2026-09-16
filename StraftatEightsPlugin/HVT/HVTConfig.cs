@@ -27,6 +27,7 @@ public partial class Plugin
         MyceliumNetwork.LobbyEntered += HVTState.OnLobbyEntered;
         MyceliumNetwork.LobbyDataUpdated += HVTState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += HVTState.OnPlayerEntered;
+        MyceliumNetwork.PlayerLeft += HVTState.OnPlayerLeft;
     }
 
     [CustomRPC]

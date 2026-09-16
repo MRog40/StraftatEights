@@ -156,6 +156,33 @@ internal static class OneInTheChamberState
         }
     }
 
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        bool wasAlive = playerId >= 0 && AlivePlayers.Contains(playerId);
+        if (wasAlive && GameModeManager.IsActive(GameMode.OneInTheChamber)
+            && WinnerId < 0 && !_subRoundEnding)
+        {
+            OnServerKill(playerId, -1);
+        }
+
+        bool changed = wasAlive || (playerId >= 0 && RoundPlayers.Remove(playerId));
+        AlivePlayers.Remove(playerId);
+        ReserveBullets.Remove(playerId);
+        Scores.Remove(playerId);
+        PendingRightLoadouts.Remove(playerId);
+        PendingLeftLoadouts.Remove(playerId);
+        if (changed && GameModeManager.IsActive(GameMode.OneInTheChamber))
+        {
+            BroadcastLiveState();
+        }
+    }
+
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
         return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);

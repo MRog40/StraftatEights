@@ -76,6 +76,11 @@ internal static class FFAState
         }
     }
 
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
+    }
+
     internal static void OnLobbyDataUpdated(List<string> keys)
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
@@ -103,6 +108,21 @@ internal static class FFAState
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision, Plugin.FFAEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.FFAModId, nameof(Plugin.SyncFFALiveState), player, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, SerializeKills(), WinnerId, GameModeManager.RoundId, Sync.LiveRevision);
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        if (playerId >= 0 && Kills.Remove(playerId)
+            && GameModeManager.IsActive(GameMode.FreeForAll))
+        {
+            BroadcastLiveState();
+        }
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)

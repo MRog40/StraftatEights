@@ -33,6 +33,7 @@ public partial class Plugin
         MyceliumNetwork.LobbyEntered += HardpointState.OnLobbyEntered;
         MyceliumNetwork.LobbyDataUpdated += HardpointState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += HardpointState.OnPlayerEntered;
+        MyceliumNetwork.PlayerLeft += HardpointState.OnPlayerLeft;
     }
 
     [CustomRPC]

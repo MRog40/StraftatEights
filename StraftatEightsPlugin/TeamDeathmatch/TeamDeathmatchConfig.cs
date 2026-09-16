@@ -32,6 +32,7 @@ public partial class Plugin
         MyceliumNetwork.LobbyLeft += TeamDeathmatchState.OnLobbyLeft;
         MyceliumNetwork.LobbyDataUpdated += TeamDeathmatchState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += TeamDeathmatchState.OnPlayerEntered;
+        MyceliumNetwork.PlayerLeft += TeamDeathmatchState.OnPlayerLeft;
     }
 
     [CustomRPC]

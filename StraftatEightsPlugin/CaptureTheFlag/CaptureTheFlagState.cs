@@ -235,6 +235,8 @@ internal static class CaptureTheFlagState
             }
         }
 
+        changed |= TeamAssignment.RemovePlayer(playerId);
+
         if (changed)
         {
             BroadcastLiveState();

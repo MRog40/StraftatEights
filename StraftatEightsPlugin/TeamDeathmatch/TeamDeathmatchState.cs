@@ -93,6 +93,11 @@ internal static class TeamDeathmatchState
         ResetMatchState();
     }
 
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
+    }
+
     internal static void OnLobbyDataUpdated(List<string> keys)
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
@@ -131,6 +136,20 @@ internal static class TeamDeathmatchState
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
             Plugin.TeamDeathmatchEnabled.Value, Plugin.TeamDeathmatchUseWeaponSpawners.Value);
         SendLiveStateTo(player);
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = ResolvePlayerId(player);
+        if (playerId >= 0 && TeamAssignment.RemovePlayer(playerId))
+        {
+            BroadcastLiveState();
+        }
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)

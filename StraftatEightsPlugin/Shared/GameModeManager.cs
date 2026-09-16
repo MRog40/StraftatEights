@@ -69,10 +69,11 @@ internal static class GameModeManager
         internal readonly Action PeriodicSettingsPush;
         internal readonly Action PeriodicPush;
         internal readonly Action EnsureLoadouts;
+        internal readonly Action PollLiveState;
 
         internal ModeDescriptor(string label, Color color, Func<bool> isEnabled, Action reset,
             GameModeCapabilities capabilities, Action? periodicPush = null, Action? ensureLoadouts = null,
-            Action? periodicSettingsPush = null)
+            Action? periodicSettingsPush = null, Action? pollLiveState = null)
         {
             Label = label;
             Color = color;
@@ -82,6 +83,7 @@ internal static class GameModeManager
             PeriodicSettingsPush = periodicSettingsPush ?? periodicPush ?? Noop;
             PeriodicPush = periodicPush ?? Noop;
             EnsureLoadouts = ensureLoadouts ?? Noop;
+            PollLiveState = pollLiveState ?? Noop;
         }
     }
 
@@ -112,94 +114,109 @@ internal static class GameModeManager
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.IgnoreGlobalMovement
             | GameModeCapabilities.SafeRespawn,
-            DefaultGameModeState.PeriodicPushIfHost),
+            DefaultGameModeState.PeriodicPushIfHost,
+            pollLiveState: DefaultGameModeState.PollLiveStateIfClient),
         [GameMode.FreeForAll] = new ModeDescriptor("FFA", new Color32(85, 204, 255, 255),
             () => Plugin.FFAEnabled.Value, FfaReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
-               FFAState.PeriodicPushIfHost, periodicSettingsPush: FFAState.PeriodicPushSettingsIfHost),
+                    FFAState.PeriodicPushIfHost, periodicSettingsPush: FFAState.PeriodicPushSettingsIfHost,
+                    pollLiveState: FFAState.PollLiveStateIfClient),
         [GameMode.Juggernaut] = new ModeDescriptor("JUGGERNAUT", new Color32(255, 106, 0, 255),
             () => Plugin.JuggernautEnabled.Value, JuggernautReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
             JuggernautState.PeriodicPushIfHost, JuggernautState.EnsureLoadout,
-            JuggernautState.PeriodicPushSettingsIfHost),
+            JuggernautState.PeriodicPushSettingsIfHost,
+            JuggernautState.PollLiveStateIfClient),
         [GameMode.GunGame] = new ModeDescriptor("GUN GAME", new Color32(255, 221, 85, 255),
             () => Plugin.GunGameEnabled.Value, GunGameReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn,
                GunGameState.PeriodicPushIfHost, GunGameState.EnsureLoadouts,
-               periodicSettingsPush: GunGameState.PeriodicPushSettingsIfHost),
+                    periodicSettingsPush: GunGameState.PeriodicPushSettingsIfHost,
+                    pollLiveState: GunGameState.PollLiveStateIfClient),
         [GameMode.SniperBattle] = new ModeDescriptor("SNIPER BATTLE", new Color32(255, 96, 128, 255),
             () => Plugin.SniperBattleEnabled.Value, SniperBattleReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.ClearOutlines
             | GameModeCapabilities.SafeRespawn,
                SniperBattleState.PeriodicPushIfHost, SniperBattleState.EnsureLoadouts,
-               SniperBattleState.PeriodicPushSettingsIfHost),
+                    SniperBattleState.PeriodicPushSettingsIfHost,
+                    SniperBattleState.PollLiveStateIfClient),
         [GameMode.MichaelMeyers] = new ModeDescriptor("MICHAEL MEYERS", new Color32(204, 34, 34, 255),
             () => Plugin.MichaelMeyersEnabled.Value, MichaelMeyersReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.HideHud,
             MichaelMeyersPeriodicPush, MichaelMeyersState.EnsureLoadouts,
-            MichaelMeyersState.PeriodicPushSettingsIfHost),
+            MichaelMeyersState.PeriodicPushSettingsIfHost,
+            MichaelMeyersState.PollLiveStateIfClient),
         [GameMode.KillTheRat] = new ModeDescriptor("KILL THE RAT", new Color32(170, 170, 170, 255),
             () => Plugin.KillTheRatEnabled.Value, KillTheRatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn,
             KillTheRatState.PeriodicPushIfHost, KillTheRatState.EnsureLoadouts,
-            KillTheRatState.PeriodicPushSettingsIfHost),
+            KillTheRatState.PeriodicPushSettingsIfHost,
+            KillTheRatState.PollLiveStateIfClient),
         [GameMode.OneInTheChamber] = new ModeDescriptor("ONE IN THE CHAMBER", new Color32(180, 180, 180, 255),
             () => Plugin.OneInTheChamberEnabled.Value, OneInTheChamberReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.SafeRespawn,
             OneInTheChamberState.PeriodicPushIfHost, OneInTheChamberState.EnsureLoadouts,
-            OneInTheChamberState.PeriodicPushSettingsIfHost),
+            OneInTheChamberState.PeriodicPushSettingsIfHost,
+            OneInTheChamberState.PollLiveStateIfClient),
         [GameMode.HotPotato] = new ModeDescriptor("HOT POTATO", new Color32(255, 170, 70, 255),
             () => Plugin.HotPotatoEnabled.Value, HotPotatoReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn,
             HotPotatoState.PeriodicPushIfHost, HotPotatoState.EnsureLoadouts,
-            HotPotatoState.PeriodicPushSettingsIfHost),
+            HotPotatoState.PeriodicPushSettingsIfHost,
+            HotPotatoState.PollLiveStateIfClient),
         [GameMode.Infidel] = new ModeDescriptor("INFIDEL", new Color32(204, 64, 64, 255),
             () => Plugin.InfidelEnabled.Value, InfidelReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.SafeRespawn,
             InfidelState.PeriodicPushIfHost, InfidelState.EnsureLoadouts,
-            InfidelState.PeriodicPushSettingsIfHost),
+            InfidelState.PeriodicPushSettingsIfHost,
+            InfidelState.PollLiveStateIfClient),
         [GameMode.HVT] = new ModeDescriptor("HVT", new Color32(0, 0, 255, 255),
             () => Plugin.HVTEnabled.Value, HVTReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
-            HVTState.PeriodicPushIfHost, periodicSettingsPush: HVTState.PeriodicPushSettingsIfHost),
+            HVTState.PeriodicPushIfHost, periodicSettingsPush: HVTState.PeriodicPushSettingsIfHost,
+            pollLiveState: HVTState.PollLiveStateIfClient),
         [GameMode.Assassin] = new ModeDescriptor("ASSASSIN", new Color32(53, 208, 95, 255),
             () => Plugin.AssassinEnabled.Value, AssassinReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn,
             AssassinState.PeriodicPushIfHost, AssassinState.EnsureLoadouts,
-            AssassinState.PeriodicPushSettingsIfHost),
+            AssassinState.PeriodicPushSettingsIfHost,
+            AssassinState.PollLiveStateIfClient),
         [GameMode.Hardpoint] = new ModeDescriptor("HARDPOINT", new Color32(0, 114, 178, 255),
             () => Plugin.HardpointEnabled.Value, HardpointReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
             HardpointState.PeriodicPushIfHost, TeamWeaponLoadouts.EnsureLoadouts,
-            HardpointState.PeriodicPushSettingsIfHost),
+            HardpointState.PeriodicPushSettingsIfHost, HardpointState.PollLiveStateIfClient),
         [GameMode.CaptureTheFlag] = new ModeDescriptor("CAPTURE THE FLAG", new Color32(255, 190, 55, 255),
             () => Plugin.CaptureTheFlagEnabled.Value, CaptureTheFlagReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
             CaptureTheFlagState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
-            periodicSettingsPush: CaptureTheFlagState.PeriodicPushSettingsIfHost),
+            periodicSettingsPush: CaptureTheFlagState.PeriodicPushSettingsIfHost,
+            pollLiveState: CaptureTheFlagState.PollLiveStateIfClient),
         [GameMode.SearchAndDestroy] = new ModeDescriptor("SEARCH AND DESTROY", new Color32(225, 70, 70, 255),
             () => Plugin.SearchAndDestroyEnabled.Value, SearchAndDestroyReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
             SearchAndDestroyState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
-            periodicSettingsPush: SearchAndDestroyState.PeriodicPushSettingsIfHost),
+            periodicSettingsPush: SearchAndDestroyState.PeriodicPushSettingsIfHost,
+            pollLiveState: SearchAndDestroyState.PollLiveStateIfClient),
         [GameMode.TeamDeathmatch] = new ModeDescriptor("TDM", new Color32(255, 190, 55, 255),
             () => Plugin.TeamDeathmatchEnabled.Value, TeamDeathmatchReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
             TeamDeathmatchState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
             periodicSettingsPush:
-            TeamDeathmatchState.PeriodicPushSettingsIfHost)
+            TeamDeathmatchState.PeriodicPushSettingsIfHost,
+            pollLiveState: TeamDeathmatchState.PollLiveStateIfClient)
     };
 
     private static void DefaultReset() => DefaultGameModeState.ResetMatchState();
@@ -447,6 +464,10 @@ internal static class GameModeManager
 
         _nextClientLobbyPollTime = Time.unscaledTime + 1f;
         ApplyLobbyActiveModeSnapshot();
+        if (Modes.TryGetValue(ActiveMode, out ModeDescriptor? descriptor))
+        {
+            descriptor.PollLiveState();
+        }
     }
 
     internal static void EnsureActiveModeLoadouts()

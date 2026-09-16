@@ -28,6 +28,7 @@ public partial class Plugin
         MyceliumNetwork.LobbyLeft += AssassinState.OnLobbyLeft;
         MyceliumNetwork.LobbyDataUpdated += AssassinState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += AssassinState.OnPlayerEntered;
+        MyceliumNetwork.PlayerLeft += AssassinState.OnPlayerLeft;
     }
 
     [CustomRPC]

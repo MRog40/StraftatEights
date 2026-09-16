@@ -24,6 +24,7 @@ public partial class Plugin
         MyceliumNetwork.LobbyEntered += FFAState.OnLobbyEntered;
         MyceliumNetwork.LobbyDataUpdated += FFAState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += FFAState.OnPlayerEntered;
+        MyceliumNetwork.PlayerLeft += FFAState.OnPlayerLeft;
     }
 
     [CustomRPC]

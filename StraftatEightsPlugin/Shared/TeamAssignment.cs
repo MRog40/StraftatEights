@@ -149,6 +149,19 @@ internal static class TeamAssignment
         return true;
     }
 
+    internal static bool RemovePlayer(int playerId)
+    {
+        if (!Assignments.Remove(playerId))
+        {
+            return false;
+        }
+
+        InitialSpawnEligiblePlayers.Remove(playerId);
+        ApplyNativeAssignments();
+        HealthCompensationVersion++;
+        return true;
+    }
+
     internal static void EnsureAssignedForActiveRound()
     {
         if (!GameModeManager.IsTeamBased || !MyceliumNetworking.MyceliumNetwork.IsHost

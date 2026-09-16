@@ -107,6 +107,11 @@ internal static class JuggernautState
         }
     }
 
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
+    }
+
     internal static void OnLobbyDataUpdated(List<string> keys)
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
@@ -138,6 +143,29 @@ internal static class JuggernautState
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentJuggernautPlayerId, CurrentJuggernautKills,
             SerializePoints(),
             GameModeManager.RoundId, Sync.LiveRevision);
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        bool changed = playerId >= 0 && Points.Remove(playerId);
+        PendingLoadouts.Remove(playerId);
+        if (playerId >= 0 && CurrentJuggernautPlayerId == playerId)
+        {
+            CurrentJuggernautPlayerId = -1;
+            CurrentJuggernautKills = 0;
+            changed = true;
+        }
+
+        if (changed && GameModeManager.IsActive(GameMode.Juggernaut))
+        {
+            BroadcastLiveState();
+        }
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)

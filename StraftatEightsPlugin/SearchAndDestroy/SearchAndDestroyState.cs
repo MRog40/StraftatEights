@@ -368,6 +368,8 @@ internal static class SearchAndDestroyState
             BombCarrierPlayerId = -1;
         }
 
+        TeamAssignment.RemovePlayer(playerId);
+
         if (TryResolveTeamWipe(out int winningTeamId))
         {
             CompleteSubRound(winningTeamId, GetEliminationWinReason(winningTeamId));

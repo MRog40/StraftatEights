@@ -81,6 +81,11 @@ internal static class SniperBattleState
         }
     }
 
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
+    }
+
     internal static void OnLobbyDataUpdated(List<string> keys)
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
@@ -110,6 +115,24 @@ internal static class SniperBattleState
         MyceliumNetwork.RPCTarget(Plugin.SniperBattleModId, nameof(Plugin.SyncSniperBattleLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializePoints(), WinnerId,
             GameModeManager.RoundId, Sync.LiveRevision);
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        if (playerId >= 0)
+        {
+            PendingLoadouts.Remove(playerId);
+            if (Points.Remove(playerId) && GameModeManager.IsActive(GameMode.SniperBattle))
+            {
+                BroadcastLiveState();
+            }
+        }
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision,

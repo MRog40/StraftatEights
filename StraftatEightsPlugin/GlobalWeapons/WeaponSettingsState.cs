@@ -83,6 +83,17 @@ internal static class WeaponSettingsState
             Plugin.CycleWeapons.Value);
     }
 
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        CycleRequests.Remove(player);
+        int playerId = PlayerLookup.FindPlayerId(player);
+        if (playerId >= 0)
+        {
+            SelectedWeapons.Remove(playerId);
+            PendingLoadouts.Remove(playerId);
+        }
+    }
+
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
     {
         return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);

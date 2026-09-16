@@ -92,12 +92,19 @@ internal static class InfidelState
         {
             ApplySettingsFromHostConfig();
             ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
         }
         else
         {
             ApplyLobbySettingsSnapshot();
             ApplyLobbyLiveSnapshot();
         }
+    }
+
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
     }
 
     internal static void OnLobbyDataUpdated(List<string> keys)
@@ -141,6 +148,37 @@ internal static class InfidelState
                 Scores.TryAdd(playerId, 0);
             }
             SendRoleToPlayer(player, playerId, true);
+        }
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        bool wasAlive = playerId >= 0 && AlivePlayers.Contains(playerId);
+        if (wasAlive && GameModeManager.IsActive(GameMode.Infidel)
+            && WinnerId < 0 && !_subRoundEnding)
+        {
+            OnServerKill(playerId, -1);
+        }
+
+        bool changed = wasAlive || (playerId >= 0 && Scores.Remove(playerId));
+        PendingHealthResets.Remove(playerId);
+        PendingLoadouts.Remove(playerId);
+        AlivePlayers.Remove(playerId);
+        if (playerId >= 0 && InfidelPlayerId == playerId)
+        {
+            InfidelPlayerId = -1;
+            changed = true;
+        }
+
+        if (changed && GameModeManager.IsActive(GameMode.Infidel))
+        {
+            BroadcastLiveState();
         }
     }
 

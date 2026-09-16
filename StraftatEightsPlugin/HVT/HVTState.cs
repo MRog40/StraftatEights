@@ -80,6 +80,11 @@ internal static class HVTState
         }
     }
 
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
+    }
+
     internal static void OnLobbyDataUpdated(List<string> keys)
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
@@ -110,6 +115,28 @@ internal static class HVTState
         MyceliumNetwork.RPCTarget(Plugin.HVTModId, nameof(Plugin.SyncHVTLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentHVTPlayerId,
             SerializePoints(), WinnerId, GameModeManager.RoundId, Sync.LiveRevision);
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        bool changed = playerId >= 0 && Points.Remove(playerId);
+        if (playerId >= 0 && CurrentHVTPlayerId == playerId)
+        {
+            CurrentHVTPlayerId = -1;
+            _survivalAccumulator = 0f;
+            changed = true;
+        }
+
+        if (changed && GameModeManager.IsActive(GameMode.HVT))
+        {
+            BroadcastLiveState();
+        }
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)

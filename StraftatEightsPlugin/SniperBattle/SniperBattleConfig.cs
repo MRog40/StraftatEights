@@ -25,6 +25,7 @@ public partial class Plugin
         MyceliumNetwork.LobbyEntered += SniperBattleState.OnLobbyEntered;
         MyceliumNetwork.LobbyDataUpdated += SniperBattleState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += SniperBattleState.OnPlayerEntered;
+        MyceliumNetwork.PlayerLeft += SniperBattleState.OnPlayerLeft;
     }
 
     [CustomRPC]

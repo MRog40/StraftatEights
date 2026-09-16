@@ -33,10 +33,20 @@ internal static class DefaultGameModeState
     internal static void OnLobbyEntered()
     {
         Sync.ResetForLobby();
-        if (!MyceliumNetwork.IsHost)
+        if (MyceliumNetwork.IsHost)
+        {
+            ResetMatchState();
+            BroadcastLiveState();
+        }
+        else
         {
             ApplyLobbyLiveSnapshot();
         }
+    }
+
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
     }
 
     internal static void OnLobbyDataUpdated(List<string> keys)
@@ -84,6 +94,35 @@ internal static class DefaultGameModeState
                 Scores.TryAdd(playerId, 0);
                 BroadcastLiveState();
             }
+        }
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        bool wasAlive = playerId >= 0 && AlivePlayers.Contains(playerId);
+        bool changed = playerId >= 0 && (wasAlive || RoundPlayers.Remove(playerId)
+            || Scores.Remove(playerId));
+        if (wasAlive && GameModeManager.IsActive(GameMode.Default)
+            && WinnerId < 0 && !_subRoundEnding)
+        {
+            OnServerKill(playerId);
+        }
+
+        if (playerId >= 0)
+        {
+            AlivePlayers.Remove(playerId);
+            RoundPlayers.Remove(playerId);
+            Scores.Remove(playerId);
+        }
+        if (changed)
+        {
+            BroadcastLiveState();
         }
     }
 

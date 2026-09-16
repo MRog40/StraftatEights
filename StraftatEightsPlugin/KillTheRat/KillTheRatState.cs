@@ -83,6 +83,11 @@ internal static class KillTheRatState
         }
     }
 
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
+    }
+
     internal static void OnLobbyDataUpdated(List<string> keys)
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
@@ -113,6 +118,30 @@ internal static class KillTheRatState
         MyceliumNetwork.RPCTarget(Plugin.KillTheRatModId, nameof(Plugin.SyncKillTheRatLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentRatPlayerId, SerializePoints(),
             WinnerId, GameModeManager.RoundId, Sync.LiveRevision);
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        bool changed = playerId >= 0 && Points.Remove(playerId);
+        PendingLoadouts.Remove(playerId);
+        if (playerId >= 0 && CurrentRatPlayerId == playerId)
+        {
+            CurrentRatPlayerId = -1;
+            _survivalAccumulator = 0f;
+            PendingLoadouts.Clear();
+            changed = true;
+        }
+
+        if (changed && GameModeManager.IsActive(GameMode.KillTheRat))
+        {
+            BroadcastLiveState();
+        }
     }
 
     internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
