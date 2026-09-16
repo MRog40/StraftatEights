@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -9,16 +10,20 @@ internal static class SearchAndDestroyMarker
     private const float SiteOverheadMarkerSize = 0.8f;
     private const float BombMarkerHeight = 2.8f;
     private const float BombMarkerSize = 0.6f;
-    private const float BombGroundMarkerWidth = 0.25f;
-    private const float BombGroundMarkerThickness = 0.1f;
+    private const float BombGroundMarkerWidth = 0.4f;
+    private const float BombGroundMarkerThickness = 0.2f;
     private const float BombGroundMarkerHeight = 0.01f;
+    private const int ElectricArcCount = 4;
+    private const int ElectricArcPointCount = 7;
     private static readonly GameObject?[] SiteMarkers = new GameObject?[2];
+    private static readonly List<LineRenderer> ElectricArcs = new();
     private static GameObject? _bomb;
     private static Mesh? _bombDiamondMesh;
     private static Mesh? _bombSquareMesh;
     private static AudioClip? _bombBeepClip;
     private static float _nextBombBeepTime;
     private static bool _bombWasPlanted;
+    private static Material? _electricMaterial;
 
     internal static void Update()
     {
@@ -116,17 +121,21 @@ internal static class SearchAndDestroyMarker
             filter.sharedMesh = GetBombMesh(
                 SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Carried);
             MeshRenderer renderer = _bomb.AddComponent<MeshRenderer>();
-            ConfigureRenderer(renderer, true);
+            ConfigureRenderer(renderer,
+                SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Carried);
             renderer.material.color = Color.black;
             AudioSource audio = _bomb.AddComponent<AudioSource>();
             audio.playOnAwake = false;
             audio.loop = false;
             audio.spatialBlend = 0f;
-            audio.volume = 0.65f;
+            audio.volume = 0.975f;
+            CreateElectricArcs(_bomb.transform);
         }
 
         bool carried = SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Carried;
         _bomb.GetComponent<MeshFilter>()!.sharedMesh = GetBombMesh(carried);
+        _bomb.GetComponent<MeshRenderer>()!.material.SetInt("_ZTest",
+            (int)(carried ? CompareFunction.Always : CompareFunction.LessEqual));
         if (carried)
         {
             _bomb.transform.SetPositionAndRotation(position + Vector3.up * BombMarkerHeight,
@@ -147,6 +156,7 @@ internal static class SearchAndDestroyMarker
             _bomb.transform.localScale = Vector3.one;
         }
         _bomb.SetActive(true);
+        UpdateElectricArcs(SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Planted);
 
         if (SearchAndDestroyState.BombStatus != SearchAndDestroyBombStatus.Planted)
         {
@@ -199,6 +209,87 @@ internal static class SearchAndDestroyMarker
         if (_bomb != null && _bomb)
         {
             _bomb.GetComponent<AudioSource>()?.Stop();
+        }
+    }
+
+    private static void CreateElectricArcs(Transform parent)
+    {
+        ElectricArcs.Clear();
+        for (int arcIndex = 0; arcIndex < ElectricArcCount; arcIndex++)
+        {
+            GameObject arcObject = new($"BombElectricArc_{arcIndex}");
+            arcObject.transform.SetParent(parent, false);
+            LineRenderer arc = arcObject.AddComponent<LineRenderer>();
+            arc.useWorldSpace = false;
+            arc.positionCount = ElectricArcPointCount;
+            arc.startWidth = 0.035f;
+            arc.endWidth = 0.01f;
+            arc.numCapVertices = 3;
+            arc.shadowCastingMode = ShadowCastingMode.Off;
+            arc.receiveShadows = false;
+            if (GetElectricMaterial() != null)
+            {
+                arc.material = GetElectricMaterial();
+            }
+
+            arc.enabled = false;
+            ElectricArcs.Add(arc);
+        }
+    }
+
+    private static Material? GetElectricMaterial()
+    {
+        if (_electricMaterial != null)
+        {
+            return _electricMaterial;
+        }
+
+        Shader? shader = Shader.Find("Sprites/Default")
+            ?? Shader.Find("Unlit/Color")
+            ?? Shader.Find("Standard");
+        if (shader != null)
+        {
+            _electricMaterial = new Material(shader);
+        }
+
+        return _electricMaterial;
+    }
+
+    private static void UpdateElectricArcs(bool visible)
+    {
+        float time = Time.unscaledTime;
+        for (int arcIndex = 0; arcIndex < ElectricArcs.Count; arcIndex++)
+        {
+            LineRenderer arc = ElectricArcs[arcIndex];
+            if (arc == null || !arc)
+            {
+                continue;
+            }
+
+            arc.enabled = visible;
+            if (!visible)
+            {
+                continue;
+            }
+
+            float phase = time * (2.5f + arcIndex * 0.35f) + arcIndex * 1.7f;
+            for (int pointIndex = 0; pointIndex < ElectricArcPointCount; pointIndex++)
+            {
+                float progress = pointIndex / (float)(ElectricArcPointCount - 1);
+                float angle = arcIndex * Mathf.PI * 0.5f + progress * 1.4f
+                    + Mathf.Sin(phase + pointIndex * 2.1f) * 0.35f;
+                float radius = 0.18f + progress * 0.28f;
+                float jitter = Mathf.Sin(phase * 1.7f + pointIndex * 3.4f) * 0.08f;
+                arc.SetPosition(pointIndex, new Vector3(
+                    Mathf.Cos(angle) * (radius + jitter),
+                    0.18f + progress * 0.9f,
+                    Mathf.Sin(angle) * (radius + jitter)));
+            }
+
+            float alpha = 0.6f + Mathf.Sin(time * 8f + arcIndex) * 0.25f;
+            Color color = new(0.25f, 0.85f, 1f, alpha);
+            arc.startColor = color;
+            arc.endColor = new Color(0.65f, 0.95f, 1f, alpha * 0.15f);
         }
     }
 
@@ -312,6 +403,8 @@ internal static class SearchAndDestroyMarker
 
     private static void Clear()
     {
+        UpdateElectricArcs(false);
+        ElectricArcs.Clear();
         for (int index = 0; index < SiteMarkers.Length; index++)
         {
             if (SiteMarkers[index] != null && SiteMarkers[index])

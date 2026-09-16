@@ -10,7 +10,7 @@ internal static class SearchAndDestroyHud
         for (int teamId = 0; teamId < 2; teamId++)
         {
             rows[teamId] = new GameModeScoreboardRow("TEAM " + (teamId + 1),
-                SearchAndDestroyState.GetScore(teamId));
+                SearchAndDestroyState.GetScore(teamId), teamId);
         }
 
         return GameModeScoreboard.Build(GameMode.SearchAndDestroy, "SND",

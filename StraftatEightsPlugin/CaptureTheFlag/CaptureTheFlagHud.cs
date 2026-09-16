@@ -10,7 +10,7 @@ internal static class CaptureTheFlagHud
         for (int teamId = 0; teamId < 2; teamId++)
         {
             rows[teamId] = new GameModeScoreboardRow("TEAM " + (teamId + 1),
-                CaptureTheFlagState.GetScore(teamId));
+                CaptureTheFlagState.GetScore(teamId), teamId);
         }
 
         return GameModeScoreboard.Build(GameMode.CaptureTheFlag, "CTF",

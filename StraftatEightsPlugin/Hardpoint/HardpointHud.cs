@@ -12,7 +12,7 @@ internal static class HardpointHud
         for (int teamId = 0; teamId < HardpointState.TeamCount; teamId++)
         {
             rows[teamId] = new GameModeScoreboardRow("TEAM " + (teamId + 1),
-                HardpointState.GetScore(teamId));
+                HardpointState.GetScore(teamId), teamId);
         }
 
         return GameModeScoreboard.Build(GameMode.Hardpoint, "HP",

@@ -157,12 +157,13 @@ public partial class Plugin : BaseUnityPlugin
         GlobalModifiersState.PeriodicPushIfHost();
         HealthSettingsState.PeriodicPushIfHost();
         HealthSettingsState.ServerTick();
+        CaptureTheFlagState.PollLiveStateIfClient();
+        OneInTheChamberState.PollLiveStateIfClient();
         WeaponSettingsState.UpdateLocalCycle();
         WeaponSettingsState.PeriodicPushIfHost();
         WeaponSettingsState.EnsureCycleLoadouts();
         GameModeManager.EnsureActiveModeLoadouts();
         PlayerOutline.EnforceOutline();
-        HardpointOutline.Enforce();
         TeamOutline.Enforce();
         HardpointMarker.Update();
         CaptureTheFlagMarker.Update();

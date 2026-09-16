@@ -7,7 +7,7 @@ internal static class WeaponPolicy
 {
     internal static bool PrepareItemSpawn(ItemSpawner spawner)
     {
-        if (GameModeManager.IsTeamBased
+        if ((GameModeManager.IsTeamBased && !GameModeManager.UsesWeaponSpawners)
             || (!GameModeManager.IsVanillaScene
                 && IsExclusiveLoadoutMode(GameModeManager.ActiveMode)))
         {

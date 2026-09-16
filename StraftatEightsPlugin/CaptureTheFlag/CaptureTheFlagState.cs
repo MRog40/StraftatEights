@@ -17,6 +17,7 @@ internal static class CaptureTheFlagState
     internal const float ServerTickIntervalSeconds = 0.1f;
 
     internal static bool Enabled;
+    internal static bool UseWeaponSpawners;
     internal static readonly Dictionary<int, int> Scores = new();
     internal static float MatchTimeRemaining { get; private set; }
     internal static bool IsSuddenDeath { get; private set; }
@@ -30,6 +31,7 @@ internal static class CaptureTheFlagState
     private static readonly Vector3[] FlagPositions = new Vector3[2];
     private static readonly int[] FlagTeamIds = { -1, -1 };
     private static float _serverTickAccumulator;
+    private static float _nextClientLivePollTime;
     private static bool _roundCompletionRequested;
 
     internal static CaptureTheFlagFlagStatus GetFlagStatus(int flagIndex)
@@ -95,10 +97,11 @@ internal static class CaptureTheFlagState
         return false;
     }
 
-    internal static void ApplySettings(bool enabled)
+    internal static void ApplySettings(bool enabled, bool useWeaponSpawners)
     {
-        bool changed = Enabled != enabled;
+        bool changed = Enabled != enabled || UseWeaponSpawners != useWeaponSpawners;
         Enabled = enabled;
+        UseWeaponSpawners = useWeaponSpawners;
         if (changed)
         {
             ResetMatchState();
@@ -107,7 +110,8 @@ internal static class CaptureTheFlagState
 
     private static void ApplySettingsFromHostConfig()
     {
-        ApplySettings(Plugin.CaptureTheFlagEnabled.Value);
+        ApplySettings(Plugin.CaptureTheFlagEnabled.Value,
+            Plugin.CaptureTheFlagUseWeaponSpawners.Value);
     }
 
     internal static void PushSettingsIfHost()
@@ -120,11 +124,12 @@ internal static class CaptureTheFlagState
         ApplySettingsFromHostConfig();
         int revision = Sync.NextSettingsRevision();
         ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
-            GameModeManager.RoundId, revision, Plugin.CaptureTheFlagEnabled.Value ? "1" : "0");
+            GameModeManager.RoundId, revision, Plugin.CaptureTheFlagEnabled.Value ? "1" : "0",
+            Plugin.CaptureTheFlagUseWeaponSpawners.Value ? "1" : "0");
         MyceliumNetwork.RPC(Plugin.CaptureTheFlagModId,
             nameof(Plugin.SyncCaptureTheFlagSettings), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
-            Plugin.CaptureTheFlagEnabled.Value);
+            Plugin.CaptureTheFlagEnabled.Value, Plugin.CaptureTheFlagUseWeaponSpawners.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -147,6 +152,7 @@ internal static class CaptureTheFlagState
     internal static void OnLobbyEntered()
     {
         Sync.ResetForLobby();
+        _nextClientLivePollTime = 0f;
         if (MyceliumNetwork.IsHost)
         {
             ApplySettingsFromHostConfig();
@@ -164,6 +170,7 @@ internal static class CaptureTheFlagState
     internal static void OnLobbyLeft()
     {
         Sync.ResetForLobby();
+        _nextClientLivePollTime = 0f;
         ResetMatchState();
     }
 
@@ -200,7 +207,7 @@ internal static class CaptureTheFlagState
         MyceliumNetwork.RPCTarget(Plugin.CaptureTheFlagModId,
             nameof(Plugin.SyncCaptureTheFlagSettings), player, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
-            Plugin.CaptureTheFlagEnabled.Value);
+            Plugin.CaptureTheFlagEnabled.Value, Plugin.CaptureTheFlagUseWeaponSpawners.Value);
         SendLiveStateTo(player);
     }
 
@@ -237,11 +244,13 @@ internal static class CaptureTheFlagState
     internal static void PollLiveStateIfClient()
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
-            || !GameModeManager.IsActive(GameMode.CaptureTheFlag))
+            || !GameModeManager.IsActive(GameMode.CaptureTheFlag)
+            || Time.unscaledTime < _nextClientLivePollTime)
         {
             return;
         }
 
+        _nextClientLivePollTime = Time.unscaledTime + 1f;
         ApplyLobbyLiveSnapshot();
     }
 
@@ -312,6 +321,11 @@ internal static class CaptureTheFlagState
         }
     }
 
+    internal static bool CanRespawn()
+    {
+        return !IsSuddenDeath && !_roundCompletionRequested;
+    }
+
     internal static void ServerTick(float deltaTime)
     {
         if (!Enabled || !MyceliumNetwork.IsHost
@@ -347,6 +361,7 @@ internal static class CaptureTheFlagState
                 {
                     IsSuddenDeath = true;
                     stateChanged = true;
+                    AnnounceSuddenDeath();
                 }
             }
             else
@@ -400,11 +415,14 @@ internal static class CaptureTheFlagState
         bool suddenDeath, int roundId, int revision, string source = "rpc")
     {
         if (teamCount != 2 || matchTimeRemaining < 0f
+            || !TryParseFlags(flagsData, out CaptureTheFlagFlagStatus[] statuses,
+                out int[] carriers, out int[] teamIds, out Vector3[] positions)
             || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
 
+        bool wasSuddenDeath = IsSuddenDeath;
         TeamAssignment.ApplySnapshot(assignmentsData, teamCount);
         Scores.Clear();
         foreach (KeyValuePair<int, int> score in ScoreCodec.Parse(scoresData,
@@ -413,10 +431,19 @@ internal static class CaptureTheFlagState
             Scores[score.Key] = score.Value;
         }
 
-        InitializeFlagOwnership();
         MatchTimeRemaining = matchTimeRemaining;
         IsSuddenDeath = suddenDeath;
-        ParseFlags(flagsData);
+        for (int flagIndex = 0; flagIndex < FlagStatuses.Length; flagIndex++)
+        {
+            FlagStatuses[flagIndex] = statuses[flagIndex];
+            FlagCarriers[flagIndex] = carriers[flagIndex];
+            FlagTeamIds[flagIndex] = teamIds[flagIndex];
+            FlagPositions[flagIndex] = positions[flagIndex];
+        }
+        if (!wasSuddenDeath && IsSuddenDeath)
+        {
+            AnnounceSuddenDeath();
+        }
     }
 
     internal static int GetScore(int teamId)
@@ -477,6 +504,14 @@ internal static class CaptureTheFlagState
             if (carriedFlag >= 0)
             {
                 int ownFlag = FindFlagForTeam(teamId);
+                if (ownFlag >= 0 && FlagStatuses[ownFlag] == CaptureTheFlagFlagStatus.Dropped
+                    && IsNear(playerPosition, GetFlagWorldPosition(ownFlag)))
+                {
+                    ReturnFlagHome(ownFlag);
+                    changed = true;
+                    continue;
+                }
+
                 if (ownFlag >= 0 && FlagStatuses[ownFlag] == CaptureTheFlagFlagStatus.Home
                     && IsNear(playerPosition, GetHomePosition(ownFlag)))
                 {
@@ -490,7 +525,7 @@ internal static class CaptureTheFlagState
                     ReturnFlagHome(carriedFlag);
                     ShowCapturePopupForTeam(teamId);
                     changed = true;
-                    if (winningTeamId >= 0)
+                    if (IsSuddenDeath || winningTeamId >= 0)
                     {
                         CompleteRound(teamId);
                         return true;
@@ -680,6 +715,12 @@ internal static class CaptureTheFlagState
         BroadcastLiveState();
     }
 
+    private static void AnnounceSuddenDeath()
+    {
+        GameModeHud.AnnounceTarget("<color=#FFCF4A><b>SUDDEN DEATH</b></color>\n"
+            + "<i>NEXT CAP WINS</i>", 4f);
+    }
+
     private static void BroadcastLiveStateWhenDue()
     {
         if (Sync.IsLivePushDue())
@@ -735,10 +776,21 @@ internal static class CaptureTheFlagState
             position.z.ToString(CultureInfo.InvariantCulture));
     }
 
-    private static void ParseFlags(string data)
+    private static bool TryParseFlags(string data,
+        out CaptureTheFlagFlagStatus[] statuses, out int[] carriers, out int[] teamIds,
+        out Vector3[] positions)
     {
+        statuses = new CaptureTheFlagFlagStatus[2];
+        carriers = new int[2];
+        teamIds = new int[2];
+        positions = new Vector3[2];
         string[] flags = (data ?? string.Empty).Split(';');
-        for (int flagIndex = 0; flagIndex < 2 && flagIndex < flags.Length; flagIndex++)
+        if (flags.Length != 2)
+        {
+            return false;
+        }
+
+        for (int flagIndex = 0; flagIndex < 2; flagIndex++)
         {
             string[] fields = flags[flagIndex].Split(',');
             if (fields.Length != 6 || !int.TryParse(fields[0], out int status)
@@ -750,30 +802,38 @@ internal static class CaptureTheFlagState
                     out float y)
                 || !float.TryParse(fields[5], NumberStyles.Float, CultureInfo.InvariantCulture,
                     out float z)
-                || status < 0 || status > 2 || teamId < 0 || teamId > 1)
+                || status < 0 || status > 2 || teamId < 0 || teamId > 1
+                || float.IsNaN(x) || float.IsInfinity(x)
+                || float.IsNaN(y) || float.IsInfinity(y)
+                || float.IsNaN(z) || float.IsInfinity(z)
+                || (status == (int)CaptureTheFlagFlagStatus.Carried && carrier < 0)
+                || (status != (int)CaptureTheFlagFlagStatus.Carried && carrier != -1))
             {
-                continue;
+                return false;
             }
 
-            FlagStatuses[flagIndex] = (CaptureTheFlagFlagStatus)status;
-            FlagCarriers[flagIndex] = carrier;
-            FlagTeamIds[flagIndex] = teamId;
-            FlagPositions[flagIndex] = new Vector3(x, y, z);
+            statuses[flagIndex] = (CaptureTheFlagFlagStatus)status;
+            carriers[flagIndex] = carrier;
+            teamIds[flagIndex] = teamId;
+            positions[flagIndex] = new Vector3(x, y, z);
         }
+
+        return true;
     }
 
     private static void ApplyLobbySettingsSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 2, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !LobbySnapshotCodec.TryParseBool(fields[1], out bool useWeaponSpawners)
             || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
                 ModeLobbyDataSync.Source("ctf", "settings")))
         {
             return;
         }
 
-        ApplySettings(enabled);
+        ApplySettings(enabled, useWeaponSpawners);
     }
 
     private static void ApplyLobbyLiveSnapshot()

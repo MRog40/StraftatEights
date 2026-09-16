@@ -15,7 +15,7 @@ internal static class OneInTheChamberState
     internal const int PointsPerRoundWin = ScoreRules.PointsPerRoundWin;
     internal const string PistolWeaponName = "Revolver";
     internal const string CouperetWeaponName = "Couperet";
-    private const float LoadoutDelaySeconds = 10f;
+    private const float LoadoutDelaySeconds = 5f;
     internal static bool Enabled;
     internal static int AliveCount => AlivePlayers.Count;
     internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
@@ -27,12 +27,14 @@ internal static class OneInTheChamberState
 
     private static float _nextLoadoutCheckTime;
     private static float _loadoutsAvailableAt;
-    private static readonly ModeSyncState Sync = new();
+    private static readonly ModeSyncState Sync = new(livePushInterval: 1f);
     private static readonly HashSet<int> RoundPlayers = new();
     private static readonly Dictionary<int, float> PendingRightLoadouts = new();
     private static readonly Dictionary<int, float> PendingLeftLoadouts = new();
     private static bool _startRetryPending;
     private static bool _subRoundEnding;
+    private static float _nextClientLivePollTime;
+    private static float _loadoutCountdownEndsAt;
 
     internal static void ApplySettings(bool enabled)
     {
@@ -82,6 +84,7 @@ internal static class OneInTheChamberState
     internal static void OnLobbyEntered()
     {
         Sync.ResetForLobby();
+        _nextClientLivePollTime = 0f;
         if (MyceliumNetwork.IsHost)
         {
             ApplySettingsFromHostConfig();
@@ -92,6 +95,19 @@ internal static class OneInTheChamberState
             ApplyLobbySettingsSnapshot();
             ApplyLobbyLiveSnapshot();
         }
+    }
+
+    internal static void PollLiveStateIfClient()
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || !GameModeManager.IsActive(GameMode.OneInTheChamber)
+            || Time.unscaledTime < _nextClientLivePollTime)
+        {
+            return;
+        }
+
+        _nextClientLivePollTime = Time.unscaledTime + 1f;
+        ApplyLobbyLiveSnapshot();
     }
 
     internal static void OnLobbyDataUpdated(List<string> keys)
@@ -123,7 +139,8 @@ internal static class OneInTheChamberState
             Plugin.OneInTheChamberEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.OneInTheChamberModId, nameof(Plugin.SyncOneInTheChamberLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeAlive(), SerializeBullets(),
-            SerializeScores(), SubRoundId, WinnerId, GameModeManager.RoundId, Sync.LiveRevision);
+            SerializeScores(), SubRoundId, WinnerId, GetLoadoutCountdownSeconds(),
+            GameModeManager.RoundId, Sync.LiveRevision);
 
         if (SubRoundId > 0 && WinnerId < 0 && !_subRoundEnding)
         {
@@ -150,6 +167,7 @@ internal static class OneInTheChamberState
         Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
         _loadoutsAvailableAt = 0f;
+        _loadoutCountdownEndsAt = 0f;
         _startRetryPending = false;
         SubRoundId = 0;
         WinnerId = -1;
@@ -162,11 +180,13 @@ internal static class OneInTheChamberState
     }
 
     internal static void ApplyLiveState(CSteamID hostId, string aliveData, string bulletsData,
-        string scoresData, int subRoundId, int winnerId, int roundId, int revision,
+        string scoresData, int subRoundId, int winnerId, float loadoutSecondsRemaining,
+        int roundId, int revision,
         string source = "rpc")
     {
         int previousRoundId = Sync.LastLiveRoundId;
-        if (subRoundId < 0 || winnerId < -1
+        if (subRoundId < 0 || winnerId < -1 || loadoutSecondsRemaining < 0f
+            || float.IsNaN(loadoutSecondsRemaining) || float.IsInfinity(loadoutSecondsRemaining)
             || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
@@ -193,6 +213,9 @@ internal static class OneInTheChamberState
             Scores[entry.Key] = entry.Value;
         }
         ApplyLocalReserveBullets();
+        _loadoutCountdownEndsAt = loadoutSecondsRemaining > 0f
+            ? Time.unscaledTime + loadoutSecondsRemaining
+            : 0f;
     }
 
     internal static void OnRoundStarted()
@@ -502,6 +525,7 @@ internal static class OneInTheChamberState
         _subRoundEnding = false;
         _nextLoadoutCheckTime = 0f;
         _loadoutsAvailableAt = Time.unscaledTime + LoadoutDelaySeconds;
+        _loadoutCountdownEndsAt = _loadoutsAvailableAt;
         PendingRightLoadouts.Clear();
         PendingLeftLoadouts.Clear();
         AlivePlayers.Clear();
@@ -518,6 +542,23 @@ internal static class OneInTheChamberState
         ClearCurrentWeapons();
         EnsureLoadouts();
         BroadcastLiveState();
+    }
+
+    internal static string GetLoadoutCountdownText()
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.OneInTheChamber)
+            || GameModeManager.Phase != GameModePhase.ActiveRound)
+        {
+            return string.Empty;
+        }
+
+        float countdownEnd = MyceliumNetwork.IsHost
+            ? _loadoutsAvailableAt
+            : _loadoutCountdownEndsAt;
+        int secondsRemaining = Mathf.CeilToInt(countdownEnd - Time.unscaledTime);
+        return secondsRemaining > 0
+            ? $"<color=#FFD35A><b>WEAPONS IN {secondsRemaining}</b></color>"
+            : string.Empty;
     }
 
     private static void ScheduleStartSubRoundRetry()
@@ -671,13 +712,23 @@ internal static class OneInTheChamberState
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
             int revision = Sync.NextLiveRevision();
+            float loadoutSecondsRemaining = GetLoadoutCountdownSeconds();
             ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
                 GameModeManager.RoundId, revision, SerializeAlive(), SerializeBullets(),
-                SerializeScores(), SubRoundId.ToString(), WinnerId.ToString());
+                SerializeScores(), SubRoundId.ToString(), WinnerId.ToString(),
+                loadoutSecondsRemaining.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture));
             MyceliumNetwork.RPC(Plugin.OneInTheChamberModId, nameof(Plugin.SyncOneInTheChamberLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, SerializeAlive(), SerializeBullets(), SerializeScores(),
-                SubRoundId, WinnerId, GameModeManager.RoundId, revision);
+                SubRoundId, WinnerId, loadoutSecondsRemaining, GameModeManager.RoundId, revision);
         }
+    }
+
+    private static float GetLoadoutCountdownSeconds()
+    {
+        return _loadoutsAvailableAt <= 0f
+            ? 0f
+            : Mathf.Max(0f, _loadoutsAvailableAt - Time.unscaledTime);
     }
 
     private static void ApplyLobbySettingsSnapshot()
@@ -696,16 +747,19 @@ internal static class OneInTheChamberState
 
     private static void ApplyLobbyLiveSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 5, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 6, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !int.TryParse(fields[3], out int subRoundId)
-            || !int.TryParse(fields[4], out int winnerId))
+            || !int.TryParse(fields[4], out int winnerId)
+            || !float.TryParse(fields[5], System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out float loadoutSecondsRemaining))
         {
             return;
         }
 
         ApplyLiveState(hostId, fields[0], fields[1], fields[2], subRoundId, winnerId,
-            roundId, revision, ModeLobbyDataSync.Source("one-in-the-chamber", "live"));
+            loadoutSecondsRemaining, roundId, revision,
+            ModeLobbyDataSync.Source("one-in-the-chamber", "live"));
     }
 
     private static void Announce(string text)

@@ -27,6 +27,7 @@ internal sealed class GameModeHud : MonoBehaviour
     private GameObject _panel = null!;
     private TextMeshProUGUI _announcement = null!;
     private TextMeshProUGUI _targetAnnouncement = null!;
+    private TextMeshProUGUI _objectiveStatus = null!;
     private TextMeshProUGUI _interactionPrompt = null!;
     private TextMeshProUGUI _scorePopup = null!;
     private TextMeshProUGUI _scoreboard = null!;
@@ -90,14 +91,34 @@ internal sealed class GameModeHud : MonoBehaviour
         _targetAnnouncement.raycastTarget = false;
         targetAnnouncementObject.SetActive(false);
 
+        GameObject objectiveStatusObject = new("GameModeObjectiveStatus");
+        objectiveStatusObject.transform.SetParent(transform, false);
+        RectTransform objectiveStatusRect = objectiveStatusObject.AddComponent<RectTransform>();
+        objectiveStatusRect.anchorMin = new Vector2(0.5f, 0.5f);
+        objectiveStatusRect.anchorMax = new Vector2(0.5f, 0.5f);
+        objectiveStatusRect.pivot = new Vector2(0.5f, 0.5f);
+        objectiveStatusRect.sizeDelta = new Vector2(900f, 90f);
+        objectiveStatusRect.anchoredPosition = new Vector2(0f, -255f);
+        _objectiveStatus = objectiveStatusObject.AddComponent<TextMeshProUGUI>();
+        _objectiveStatus.fontSize = 32f;
+        _objectiveStatus.fontStyle = FontStyles.Bold;
+        _objectiveStatus.color = new Color32(255, 211, 74, 255);
+        _objectiveStatus.richText = true;
+        _objectiveStatus.alignment = TextAlignmentOptions.Center;
+        _objectiveStatus.enableWordWrapping = false;
+        _objectiveStatus.outlineWidth = 0.25f;
+        _objectiveStatus.outlineColor = new Color(0f, 0f, 0f, 0.9f);
+        _objectiveStatus.raycastTarget = false;
+        objectiveStatusObject.SetActive(false);
+
         GameObject interactionPromptObject = new("GameModeInteractionPrompt");
         interactionPromptObject.transform.SetParent(transform, false);
         RectTransform interactionPromptRect = interactionPromptObject.AddComponent<RectTransform>();
         interactionPromptRect.anchorMin = new Vector2(0.5f, 0.5f);
         interactionPromptRect.anchorMax = new Vector2(0.5f, 0.5f);
         interactionPromptRect.pivot = new Vector2(0.5f, 0.5f);
-        interactionPromptRect.sizeDelta = new Vector2(900f, 70f);
-        interactionPromptRect.anchoredPosition = new Vector2(0f, -250f);
+        interactionPromptRect.sizeDelta = new Vector2(900f, 90f);
+        interactionPromptRect.anchoredPosition = new Vector2(0f, -325f);
         _interactionPrompt = interactionPromptObject.AddComponent<TextMeshProUGUI>();
         _interactionPrompt.fontSize = 32f;
         _interactionPrompt.fontStyle = FontStyles.Bold;
@@ -211,6 +232,7 @@ internal sealed class GameModeHud : MonoBehaviour
 
             _announcement.gameObject.SetActive(false);
             _targetAnnouncement.gameObject.SetActive(false);
+            _objectiveStatus.gameObject.SetActive(false);
             _interactionPrompt.gameObject.SetActive(false);
             _panel.SetActive(false);
             return;
@@ -291,11 +313,28 @@ internal sealed class GameModeHud : MonoBehaviour
             RefreshScoreboard();
         }
 
+        string objectiveStatus = visible && GameModeManager.IsActive(GameMode.SearchAndDestroy)
+            ? SearchAndDestroyState.GetLocalBombStatusText()
+            : string.Empty;
+        _objectiveStatus.text = objectiveStatus;
+        _objectiveStatus.gameObject.SetActive(objectiveStatus.Length > 0);
+
         string interactionPrompt = visible && GameModeManager.IsActive(GameMode.SearchAndDestroy)
             ? SearchAndDestroyState.GetLocalInteractionPrompt()
             : string.Empty;
         _interactionPrompt.text = interactionPrompt;
         _interactionPrompt.gameObject.SetActive(interactionPrompt.Length > 0);
+
+        if (visible && GameModeManager.IsActive(GameMode.OneInTheChamber))
+        {
+            string countdown = OneInTheChamberState.GetLoadoutCountdownText();
+            if (countdown.Length > 0)
+            {
+                _targetAnnouncement.text = countdown;
+                _targetAnnouncementUntil = Time.unscaledTime + RefreshInterval + 0.1f;
+                _targetAnnouncement.gameObject.SetActive(true);
+            }
+        }
     }
 
     internal static void AnnounceActiveMode()

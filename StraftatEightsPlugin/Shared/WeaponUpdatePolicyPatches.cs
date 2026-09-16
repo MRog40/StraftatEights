@@ -8,9 +8,12 @@ internal static class Weapon_UpdatePolicy_Patch
 {
     private static void Prefix(Weapon __instance)
     {
-        if (!GameModeManager.ShouldIgnoreGlobalWeaponSettingsFor(__instance))
+        if (GameModeManager.UsesTeamWeaponLoadouts
+            || !GameModeManager.ShouldIgnoreGlobalWeaponSettingsFor(__instance))
         {
-            WeaponAmmoTuning.ApplyToWeapon(__instance, WeaponSettingsState.Enabled,
+            bool ammoTuningEnabled = GameModeManager.UsesTeamWeaponLoadouts
+                || WeaponSettingsState.Enabled;
+            WeaponAmmoTuning.ApplyToWeapon(__instance, ammoTuningEnabled,
                 WeaponSettingsState.SpareMagazines);
         }
 
@@ -94,12 +97,15 @@ internal static class Weapon_UpdatePolicy_Patch
             }
         }
 
-        if (!GameModeManager.ShouldIgnoreGlobalWeaponSettingsFor(__instance))
+        if (GameModeManager.UsesTeamWeaponLoadouts
+            || !GameModeManager.ShouldIgnoreGlobalWeaponSettingsFor(__instance))
         {
-            WeaponAmmoTuning.TryStartManualReload(__instance, WeaponSettingsState.Enabled,
+            bool ammoTuningEnabled = GameModeManager.UsesTeamWeaponLoadouts
+                || WeaponSettingsState.Enabled;
+            WeaponAmmoTuning.TryStartManualReload(__instance, ammoTuningEnabled,
                 WeaponSettingsState.SpareMagazines);
             bool customReloading = __instance != null && WeaponAmmoTuning.IsReloading(__instance);
-            if (WeaponSettingsState.Enabled && __instance != null && __instance.IsOwner
+            if (ammoTuningEnabled && __instance != null && __instance.IsOwner
                 && __instance.needsAmmo && __instance.gameObject.layer == 8
                 && (customReloading || !__instance.reloadWeapon))
             {

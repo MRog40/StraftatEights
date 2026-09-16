@@ -72,6 +72,11 @@ internal static class GameModeRespawn
     {
         int managerId = manager.GetInstanceID();
         yield return new WaitForSeconds(delay);
+        if (!CanRespawnForActiveMode())
+        {
+            PendingManagers.Remove(managerId);
+            yield break;
+        }
         if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId)
         {
             PendingManagers.Remove(managerId);
@@ -114,6 +119,12 @@ internal static class GameModeRespawn
         yield return new WaitForSeconds(delay);
         for (int attempt = 0; attempt < 3; attempt++)
         {
+            if (!CanRespawnForActiveMode())
+            {
+                PendingManagers.Remove(playerId);
+                yield break;
+            }
+
             if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId)
             {
                 PendingManagers.Remove(playerId);
@@ -150,6 +161,21 @@ internal static class GameModeRespawn
     {
         SuppressedRoundStarts.Add(manager.GetInstanceID());
         PendingSpawnAdjustments.Add(manager.GetInstanceID());
+    }
+
+    private static bool CanRespawnForActiveMode()
+    {
+        if (GameModeManager.IsActive(GameMode.CaptureTheFlag))
+        {
+            return CaptureTheFlagState.CanRespawn();
+        }
+
+        if (GameModeManager.IsActive(GameMode.Hardpoint))
+        {
+            return HardpointState.CanRespawn();
+        }
+
+        return true;
     }
 
     internal static void CaptureRespawnCosmetics(PlayerManager manager)
@@ -493,6 +519,18 @@ internal static class PlayerManager_SearchAndDestroyRespawn_Patch
 {
     private static bool Prefix(PlayerManager __instance)
     {
+        if (GameModeManager.IsActive(GameMode.CaptureTheFlag)
+            && !CaptureTheFlagState.CanRespawn())
+        {
+            return false;
+        }
+
+        if (GameModeManager.IsActive(GameMode.Hardpoint)
+            && !HardpointState.CanRespawn())
+        {
+            return false;
+        }
+
         if (!SearchAndDestroyState.CanRespawn(__instance))
         {
             return false;

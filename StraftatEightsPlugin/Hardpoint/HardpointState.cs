@@ -16,6 +16,7 @@ internal static class HardpointState
     internal const float ServerTickIntervalSeconds = 0.1f;
 
     internal static bool Enabled;
+    internal static bool UseWeaponSpawners;
     internal static readonly Dictionary<int, int> Scores = new();
     internal static int CurrentObjectiveIndex { get; private set; }
     internal static float ObjectiveElapsedSeconds { get; private set; }
@@ -27,6 +28,11 @@ internal static class HardpointState
     internal static int TeamCount => TeamAssignment.TeamCount;
     internal static IReadOnlyDictionary<int, int> Assignments => TeamAssignment.Current;
 
+    internal static bool CanRespawn()
+    {
+        return !IsSuddenDeath && !_roundCompletionRequested;
+    }
+
     private static readonly ModeSyncState Sync = new(livePushInterval: 1f);
     private static float _scoreAccumulator;
     private static float _serverTickAccumulator;
@@ -37,10 +43,11 @@ internal static class HardpointState
     private static bool _roundCompletionRequested;
     private static float _nextClientLivePollTime;
 
-    internal static void ApplySettings(bool enabled)
+    internal static void ApplySettings(bool enabled, bool useWeaponSpawners)
     {
-        bool changed = Enabled != enabled;
+        bool changed = Enabled != enabled || UseWeaponSpawners != useWeaponSpawners;
         Enabled = enabled;
+        UseWeaponSpawners = useWeaponSpawners;
         if (changed)
         {
             ResetMatchState();
@@ -49,7 +56,7 @@ internal static class HardpointState
 
     private static void ApplySettingsFromHostConfig()
     {
-        ApplySettings(Plugin.HardpointEnabled.Value);
+        ApplySettings(Plugin.HardpointEnabled.Value, Plugin.HardpointUseWeaponSpawners.Value);
     }
 
     internal static void PushSettingsIfHost()
@@ -62,10 +69,11 @@ internal static class HardpointState
         ApplySettingsFromHostConfig();
         int revision = Sync.NextSettingsRevision();
         ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
-            GameModeManager.RoundId, revision, Plugin.HardpointEnabled.Value ? "1" : "0");
+            GameModeManager.RoundId, revision, Plugin.HardpointEnabled.Value ? "1" : "0",
+            Plugin.HardpointUseWeaponSpawners.Value ? "1" : "0");
         MyceliumNetwork.RPC(Plugin.HardpointModId, nameof(Plugin.SyncHardpointSettings),
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId,
-            revision, Plugin.HardpointEnabled.Value);
+            revision, Plugin.HardpointEnabled.Value, Plugin.HardpointUseWeaponSpawners.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -133,7 +141,8 @@ internal static class HardpointState
 
         MyceliumNetwork.RPCTarget(Plugin.HardpointModId, nameof(Plugin.SyncHardpointSettings),
             player, ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId,
-            Sync.SettingsRevision, Plugin.HardpointEnabled.Value);
+            Sync.SettingsRevision, Plugin.HardpointEnabled.Value,
+            Plugin.HardpointUseWeaponSpawners.Value);
         SendLiveStateTo(player);
     }
 
@@ -159,7 +168,7 @@ internal static class HardpointState
     {
         Sync.ResetLiveState();
         TeamAssignment.Reset();
-        HardpointOutline.ResetState();
+        TeamOutline.ResetState();
         HardpointMarker.ResetState();
         Scores.Clear();
         CurrentObjectiveIndex = 0;
@@ -304,6 +313,7 @@ internal static class HardpointState
                 {
                     IsSuddenDeath = true;
                     stateChanged = true;
+                    AnnounceSuddenDeath();
                 }
             }
         }
@@ -373,6 +383,7 @@ internal static class HardpointState
             return;
         }
 
+        bool wasSuddenDeath = IsSuddenDeath;
         TeamAssignment.ApplySnapshot(assignmentsData, teamCount);
         Scores.Clear();
         foreach (KeyValuePair<int, int> score in ScoreCodec.Parse(
@@ -387,6 +398,10 @@ internal static class HardpointState
         CurrentController = controller;
         IsSuddenDeath = suddenDeath;
         _roundInitialized = true;
+        if (!wasSuddenDeath && IsSuddenDeath)
+        {
+            AnnounceSuddenDeath();
+        }
     }
 
     private static void ResetRoundState()
@@ -442,6 +457,12 @@ internal static class HardpointState
         BroadcastLiveState();
     }
 
+    private static void AnnounceSuddenDeath()
+    {
+        GameModeHud.AnnounceTarget("<color=#FFCF4A><b>SUDDEN DEATH</b></color>\n"
+            + "<i>NEXT CAP WINS</i>", 4f);
+    }
+
     private static void BroadcastLiveStateWhenDue()
     {
         if (Sync.IsLivePushDue())
@@ -486,16 +507,17 @@ internal static class HardpointState
 
     private static void ApplyLobbySettingsSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 2, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !LobbySnapshotCodec.TryParseBool(fields[1], out bool useWeaponSpawners)
             || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
                 ModeLobbyDataSync.Source("hardpoint", "settings")))
         {
             return;
         }
 
-        ApplySettings(enabled);
+        ApplySettings(enabled, useWeaponSpawners);
     }
 
     private static void ApplyLobbyLiveSnapshot()

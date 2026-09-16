@@ -31,12 +31,21 @@ internal static class TeamOutline
 
         IReadOnlyDictionary<int, int>? assignments = activeMode switch
         {
+            GameMode.Hardpoint => HardpointState.Assignments,
             GameMode.CaptureTheFlag => CaptureTheFlagState.Assignments,
             GameMode.TeamDeathmatch => TeamDeathmatchState.Assignments,
             GameMode.SearchAndDestroy => SearchAndDestroyState.Assignments,
             _ => null
         };
         if (assignments == null || GameModeManager.Phase != GameModePhase.ActiveRound)
+        {
+            ClearApplied();
+            _nextRefreshTime = 0f;
+            return;
+        }
+
+        int teamCount = TeamAssignment.TeamCount;
+        if (teamCount < 2)
         {
             ClearApplied();
             _nextRefreshTime = 0f;
@@ -61,7 +70,7 @@ internal static class TeamOutline
         HashSet<int> currentPlayerIds = new();
         foreach (KeyValuePair<int, int> assignment in assignments)
         {
-            if (assignment.Value < 0 || assignment.Value > 1
+            if (assignment.Value < 0 || assignment.Value >= teamCount
                 || (teammatesOnly && assignment.Value != localTeamId))
             {
                 continue;

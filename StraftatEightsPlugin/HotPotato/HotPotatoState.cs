@@ -10,7 +10,7 @@ internal static class HotPotatoState
 {
     internal const string SettingsLobbyDataKey = "StraftatEights_HotPotato_Settings";
     internal const string LiveLobbyDataKey = "StraftatEights_HotPotato_Live";
-    internal const string PotatoWeaponName = "HandGrenade";
+    internal const string PotatoWeaponName = "GlandGrenade";
     internal const string ShotgunWeaponName = "Shotgun";
     internal static bool Enabled;
     internal static int PotatoPlayerId { get; private set; } = -1;

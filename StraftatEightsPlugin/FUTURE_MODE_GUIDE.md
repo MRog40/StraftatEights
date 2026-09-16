@@ -67,12 +67,15 @@ and ground markers are presentation-only and are reapplied on every peer.
 
 ### Team-mode weapon contract
 
-Hardpoint, Capture The Flag, Search And Destroy, and Team Deathmatch share one team loadout path.
-The host uses the existing `Allowed Weapons` and `Spare Magazines` settings even when global weapon
-tweaks or F8 cycling are disabled. At the start of a round, the host creates one shuffled permutation
-of the allowed weapon names. Sorted player IDs establish the initial slot within each team, so equal
-team slots receive equal weapons. Respawns use an independent cursor per team and receive the next
-weapon from the same sequence.
+Hardpoint, Capture The Flag, Search And Destroy, and Team Deathmatch share one team weapon path.
+Each mode has a `Use Weapon Spawners` setting. It defaults on for the respawning modes (Hardpoint,
+Capture The Flag, and Team Deathmatch), so the native map spawners provide weapons and their normal
+ammo lifecycle. It defaults off for Search And Destroy, which uses direct round loadouts instead.
+When spawners are disabled, the host uses the existing `Allowed Weapons` and `Spare Magazines`
+settings even when global weapon tweaks or F8 cycling are disabled. At the start of a round, the host
+creates one shuffled permutation of the allowed weapon names. Sorted player IDs establish the initial
+slot within each team, so equal team slots receive equal weapons. Respawns use an independent cursor
+per team and receive the next weapon from the same sequence.
 
 Use `Shared/TeamWeaponLoadouts.cs` for this behavior. Do not add a per-mode dispenser grant, a second
 weapon allocator, or a client-side spawn path. The allocator detects a new player object after a

@@ -10,7 +10,7 @@ namespace StraftatEightsPlugin;
 internal static class SniperBattleState
 {
     internal const string WeaponName = "M2000";
-    internal const float PlayerHealth = 10f;
+    internal const float PlayerHealth = 0.4f;
     internal const string SettingsLobbyDataKey = "StraftatEights_SniperBattle_Settings";
     internal const string LiveLobbyDataKey = "StraftatEights_SniperBattle_Live";
     internal static bool Enabled;

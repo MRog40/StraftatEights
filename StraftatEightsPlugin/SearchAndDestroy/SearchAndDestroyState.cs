@@ -9,6 +9,16 @@ using UnityEngine;
 
 namespace StraftatEightsPlugin;
 
+internal enum SearchAndDestroyWinReason
+{
+    None,
+    TimeExpired,
+    BombExploded,
+    BombDefused,
+    AttackersEliminated,
+    DefendersEliminated
+}
+
 internal static class SearchAndDestroyState
 {
     private const KeyCode InteractionKey = KeyCode.P;
@@ -22,9 +32,11 @@ internal static class SearchAndDestroyState
     internal const int PointsPerRoundWin = SearchAndDestroyRules.PointsPerRoundWin;
 
     internal static bool Enabled;
+    internal static bool UseWeaponSpawners;
     internal static int SubRoundId { get; private set; }
     internal static int WinnerId { get; private set; } = -1;
     internal static int SubRoundWinnerId { get; private set; } = -1;
+    internal static SearchAndDestroyWinReason SubRoundWinReason { get; private set; }
     internal static int OffensiveTeamId { get; private set; } = 0;
     internal static int DefensiveTeamId => SearchAndDestroyRules.GetOtherTeamId(OffensiveTeamId);
     internal static int BombCarrierPlayerId { get; private set; } = -1;
@@ -52,11 +64,13 @@ internal static class SearchAndDestroyState
     private static bool _localLookingAtBomb;
     private static bool _roundStarted;
     private static bool _subRoundEnding;
+    private static int _lastAnnouncedSubRoundId = -1;
 
-    internal static void ApplySettings(bool enabled)
+    internal static void ApplySettings(bool enabled, bool useWeaponSpawners)
     {
-        bool changed = Enabled != enabled;
+        bool changed = Enabled != enabled || UseWeaponSpawners != useWeaponSpawners;
         Enabled = enabled;
+        UseWeaponSpawners = useWeaponSpawners;
         if (changed)
         {
             ResetMatchState();
@@ -65,7 +79,8 @@ internal static class SearchAndDestroyState
 
     private static void ApplySettingsFromHostConfig()
     {
-        ApplySettings(Plugin.SearchAndDestroyEnabled.Value);
+        ApplySettings(Plugin.SearchAndDestroyEnabled.Value,
+            Plugin.SearchAndDestroyUseWeaponSpawners.Value);
     }
 
     internal static void PushSettingsIfHost()
@@ -78,11 +93,12 @@ internal static class SearchAndDestroyState
         ApplySettingsFromHostConfig();
         int revision = Sync.NextSettingsRevision();
         ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
-            GameModeManager.RoundId, revision, Plugin.SearchAndDestroyEnabled.Value ? "1" : "0");
+            GameModeManager.RoundId, revision, Plugin.SearchAndDestroyEnabled.Value ? "1" : "0",
+            Plugin.SearchAndDestroyUseWeaponSpawners.Value ? "1" : "0");
         MyceliumNetwork.RPC(Plugin.SearchAndDestroyModId,
             nameof(Plugin.SyncSearchAndDestroySettings), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
-            Plugin.SearchAndDestroyEnabled.Value);
+            Plugin.SearchAndDestroyEnabled.Value, Plugin.SearchAndDestroyUseWeaponSpawners.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -155,7 +171,7 @@ internal static class SearchAndDestroyState
         MyceliumNetwork.RPCTarget(Plugin.SearchAndDestroyModId,
             nameof(Plugin.SyncSearchAndDestroySettings), player, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
-            Plugin.SearchAndDestroyEnabled.Value);
+            Plugin.SearchAndDestroyEnabled.Value, Plugin.SearchAndDestroyUseWeaponSpawners.Value);
         SendLiveStateTo(player);
     }
 
@@ -189,6 +205,8 @@ internal static class SearchAndDestroyState
         SubRoundId = 0;
         WinnerId = -1;
         SubRoundWinnerId = -1;
+        SubRoundWinReason = SearchAndDestroyWinReason.None;
+        _lastAnnouncedSubRoundId = -1;
         OffensiveTeamId = 0;
         BombCarrierPlayerId = -1;
         PlantingPlayerId = -1;
@@ -263,7 +281,7 @@ internal static class SearchAndDestroyState
         SubRoundTimeRemaining = Mathf.Max(0f, SubRoundTimeRemaining - elapsed);
         if (SubRoundTimeRemaining <= 0f)
         {
-            CompleteSubRound(DefensiveTeamId);
+            CompleteSubRound(DefensiveTeamId, SearchAndDestroyWinReason.TimeExpired);
             return;
         }
 
@@ -274,7 +292,7 @@ internal static class SearchAndDestroyState
             stateChanged = true;
             if (FuseTimeRemaining <= 0f)
             {
-                CompleteSubRound(OffensiveTeamId);
+                CompleteSubRound(OffensiveTeamId, SearchAndDestroyWinReason.BombExploded);
                 return;
             }
         }
@@ -318,7 +336,7 @@ internal static class SearchAndDestroyState
 
         if (TryResolveTeamWipe(out int winningTeamId))
         {
-            CompleteSubRound(winningTeamId);
+            CompleteSubRound(winningTeamId, GetEliminationWinReason(winningTeamId));
         }
         else
         {
@@ -352,7 +370,7 @@ internal static class SearchAndDestroyState
 
         if (TryResolveTeamWipe(out int winningTeamId))
         {
-            CompleteSubRound(winningTeamId);
+            CompleteSubRound(winningTeamId, GetEliminationWinReason(winningTeamId));
         }
         else
         {
@@ -451,6 +469,18 @@ internal static class SearchAndDestroyState
             return string.Empty;
         }
 
+        if (PlantingPlayerId == playerId)
+        {
+            return FormatInteractionProgress("PLANTING BOMB", PlantProgress,
+                PlantDurationSeconds);
+        }
+
+        if (DefuserPlayerId == playerId)
+        {
+            return FormatInteractionProgress("DEFUSING BOMB", DefuseProgress,
+                DefuseDurationSeconds);
+        }
+
         if (BombStatus == SearchAndDestroyBombStatus.Carried
             && BombCarrierPlayerId == playerId
             && FindNearbySite(playerId) >= 0)
@@ -473,6 +503,38 @@ internal static class SearchAndDestroyState
         }
 
         return string.Empty;
+    }
+
+    internal static string GetLocalBombStatusText()
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.SearchAndDestroy)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || ClientInstance.Instance == null)
+        {
+            return string.Empty;
+        }
+
+        int playerId = ClientInstance.Instance.PlayerId;
+        if (playerId < 0 || !AlivePlayers.Contains(playerId))
+        {
+            return string.Empty;
+        }
+
+        if (PlantingPlayerId == playerId)
+        {
+            return GetRoleLabel(playerId) + "\nPlanting the bomb";
+        }
+
+        if (DefuserPlayerId == playerId)
+        {
+            return GetRoleLabel(playerId) + "\nDefusing the bomb";
+        }
+
+        string action = BombStatus == SearchAndDestroyBombStatus.Carried
+            && BombCarrierPlayerId == playerId
+            ? "Carrying the bomb"
+            : string.Empty;
+        return GetRoleLabel(playerId) + (action.Length > 0 ? "\n" + action : string.Empty);
     }
 
     internal static bool IsOffensePlayer(int playerId)
@@ -531,16 +593,14 @@ internal static class SearchAndDestroyState
             return false;
         }
 
+        EnsureTeamsAssigned();
         int playerId = FindPlayerId(manager);
         if (!TeamAssignment.TryGetTeamId(playerId, out int teamId))
         {
             return false;
         }
 
-        int activeOffensiveTeamId = _subRoundEnding
-            ? SearchAndDestroyRules.GetOffensiveTeamId(SubRoundId + 1)
-            : OffensiveTeamId;
-        int roleOriginIndex = teamId == activeOffensiveTeamId ? 0 : 1;
+        int roleOriginIndex = teamId == OffensiveTeamId ? 0 : 1;
         List<int> rolePlayers = TeamAssignment.Current
             .Where(entry => entry.Value == teamId)
             .Select(entry => entry.Key)
@@ -629,6 +689,7 @@ internal static class SearchAndDestroyState
         SubRoundId++;
         OffensiveTeamId = SearchAndDestroyRules.GetOffensiveTeamId(SubRoundId);
         SubRoundWinnerId = -1;
+        SubRoundWinReason = SearchAndDestroyWinReason.None;
         AlivePlayers.Clear();
         HeldInteractions.Clear();
         LookingAtBomb.Clear();
@@ -777,7 +838,7 @@ internal static class SearchAndDestroyState
                     FuseTimeRemaining = 0f;
                     DefuserPlayerId = -1;
                     DefuseProgress = 0f;
-                    CompleteSubRound(DefensiveTeamId);
+                    CompleteSubRound(DefensiveTeamId, SearchAndDestroyWinReason.BombDefused);
                     return true;
                 }
             }
@@ -802,7 +863,7 @@ internal static class SearchAndDestroyState
         return true;
     }
 
-    private static void CompleteSubRound(int winningTeamId)
+    private static void CompleteSubRound(int winningTeamId, SearchAndDestroyWinReason reason)
     {
         if (_subRoundEnding || WinnerId >= 0 || winningTeamId < 0)
         {
@@ -811,8 +872,10 @@ internal static class SearchAndDestroyState
 
         _subRoundEnding = true;
         SubRoundWinnerId = winningTeamId;
+    SubRoundWinReason = reason;
         Scores.TryGetValue(winningTeamId, out int score);
         Scores[winningTeamId] = score + PointsPerRoundWin;
+    AnnounceSubRoundResult();
         BroadcastLiveState();
         if (SearchAndDestroyRules.IsMatchWon(Scores[winningTeamId],
             GameModeManager.EffectivePointsToWin))
@@ -823,16 +886,63 @@ internal static class SearchAndDestroyState
             return;
         }
 
-        foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
-        {
-            GameModeRespawn.Schedule(playerId, 0f);
-        }
-
         if (Plugin.Instance != null)
         {
             Plugin.Instance.StartCoroutine(StartNextSubRoundAfterDelay(
                 SearchAndDestroyRules.BetweenSubRoundDelaySeconds,
                 SessionState.Generation, GameModeManager.RoundId));
+        }
+    }
+
+    private static SearchAndDestroyWinReason GetEliminationWinReason(int winningTeamId)
+    {
+        return winningTeamId == OffensiveTeamId
+            ? SearchAndDestroyWinReason.DefendersEliminated
+            : SearchAndDestroyWinReason.AttackersEliminated;
+    }
+
+    private static void AnnounceSubRoundResult()
+    {
+        if (SubRoundWinnerId < 0 || _lastAnnouncedSubRoundId == SubRoundId)
+        {
+            return;
+        }
+
+        _lastAnnouncedSubRoundId = SubRoundId;
+        TeamColorData teamColor = TeamRules.GetColor(SubRoundWinnerId);
+        string teamColorMarkup = $"#{teamColor.Red:X2}{teamColor.Green:X2}{teamColor.Blue:X2}";
+        string reason = SubRoundWinReason switch
+        {
+            SearchAndDestroyWinReason.TimeExpired => "TIME EXPIRED",
+            SearchAndDestroyWinReason.BombExploded => "BOMB EXPLODED",
+            SearchAndDestroyWinReason.BombDefused => "BOMB DEFUSED",
+            SearchAndDestroyWinReason.AttackersEliminated => "ALL ATTACKERS ELIMINATED",
+            SearchAndDestroyWinReason.DefendersEliminated => "ALL DEFENDERS ELIMINATED",
+            _ => "ROUND COMPLETE"
+        };
+        string resultText = SubRoundWinReason == SearchAndDestroyWinReason.BombExploded
+            ? $"<color=#FF5A36><b>BOOM! BOMB EXPLODED</b></color>\n"
+                + $"<color={teamColorMarkup}><b>TEAM {SubRoundWinnerId + 1} WON THE ROUND</b></color>"
+            : $"<color={teamColorMarkup}><b>TEAM {SubRoundWinnerId + 1} "
+                + $"WON THE ROUND</b></color>\n<i>{reason}</i>";
+        GameModeHud.AnnounceTarget(resultText,
+            SubRoundWinReason == SearchAndDestroyWinReason.BombExploded ? 4f : 3f);
+
+        if (MyceliumNetwork.IsHost)
+        {
+            foreach (KeyValuePair<int, int> assignment in TeamAssignment.Current)
+            {
+                if (assignment.Value == SubRoundWinnerId)
+                {
+                    GameModeHud.ShowScorePopupForPlayer(assignment.Key, PointsPerRoundWin);
+                }
+            }
+        }
+        else if (ClientInstance.Instance != null
+            && TeamAssignment.TryGetTeamId(ClientInstance.Instance.PlayerId, out int localTeamId)
+            && localTeamId == SubRoundWinnerId)
+        {
+            GameModeHud.ShowScorePopup(PointsPerRoundWin);
         }
     }
 
@@ -848,11 +958,30 @@ internal static class SearchAndDestroyState
         }
 
         StartSubRound();
+        foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
+        {
+            GameModeRespawn.Schedule(playerId, 0f);
+        }
     }
 
     private static bool IsInteractionHeld(int playerId)
     {
         return HeldInteractions.TryGetValue(playerId, out bool held) && held;
+    }
+
+    private static string FormatInteractionProgress(string label, float progress,
+        float duration)
+    {
+        int percent = Mathf.RoundToInt(Mathf.Clamp01(progress / Mathf.Max(0.01f, duration)) * 100f);
+        int filled = Mathf.Clamp(Mathf.RoundToInt(percent / 10f), 0, 10);
+        return $"{label}\n[{new string('|', filled)}{new string('.', 10 - filled)}] {percent}%";
+    }
+
+    private static string GetRoleLabel(int playerId)
+    {
+        return IsOffensePlayer(playerId)
+            ? "<color=#F05A47>OFFENSE</color>"
+            : "<color=#5797F2>DEFENSE</color>";
     }
 
     private static bool IsLookingAtBomb(int playerId)
@@ -1044,6 +1173,7 @@ internal static class SearchAndDestroyState
 
         SubRoundId = subRoundId;
         WinnerId = winnerId;
+        AnnounceSubRoundResult();
     }
 
     private static string SerializeState()
@@ -1056,14 +1186,14 @@ internal static class SearchAndDestroyState
             FuseTimeRemaining.ToString(CultureInfo.InvariantCulture),
             PlantProgress.ToString(CultureInfo.InvariantCulture),
             DefuseProgress.ToString(CultureInfo.InvariantCulture), DefuserPlayerId,
-            PlantingPlayerId, SubRoundWinnerId,
+            PlantingPlayerId, SubRoundWinnerId, (int)SubRoundWinReason,
             SubRoundTimeRemaining.ToString(CultureInfo.InvariantCulture), aliveData);
     }
 
     private static bool TryParseState(string data)
     {
         string[] fields = (data ?? string.Empty).Split(';');
-        if (fields.Length != 15 || !int.TryParse(fields[0], out int offenseTeam)
+        if (fields.Length != 16 || !int.TryParse(fields[0], out int offenseTeam)
             || !int.TryParse(fields[1], out int bombStatus)
             || !int.TryParse(fields[2], out int carrierId)
             || !int.TryParse(fields[3], out int siteIndex)
@@ -1076,7 +1206,8 @@ internal static class SearchAndDestroyState
             || !int.TryParse(fields[10], out int defuserId)
             || !int.TryParse(fields[11], out int plantingId)
             || !int.TryParse(fields[12], out int subRoundWinner)
-            || !TryParseFloat(fields[13], out float subRoundTimeRemaining))
+            || !int.TryParse(fields[13], out int winReason)
+            || !TryParseFloat(fields[14], out float subRoundTimeRemaining))
         {
             return false;
         }
@@ -1085,6 +1216,8 @@ internal static class SearchAndDestroyState
             || siteIndex < -1 || siteIndex > 1 || fuse < 0f || fuse > FuseDurationSeconds
             || plant < 0f || plant > PlantDurationSeconds || defuse < 0f
             || defuse > DefuseDurationSeconds || subRoundWinner < -1 || subRoundWinner > 1
+            || winReason < (int)SearchAndDestroyWinReason.None
+            || winReason > (int)SearchAndDestroyWinReason.DefendersEliminated
             || subRoundTimeRemaining < 0f
             || subRoundTimeRemaining > SearchAndDestroyRules.GetSubRoundTimeLimit(
                 GameModeManager.EffectivePointsToWin))
@@ -1104,8 +1237,9 @@ internal static class SearchAndDestroyState
         DefuserPlayerId = defuserId;
         PlantingPlayerId = plantingId;
         SubRoundWinnerId = subRoundWinner;
+        SubRoundWinReason = (SearchAndDestroyWinReason)winReason;
         AlivePlayers.Clear();
-        foreach (string value in fields[14].Split(','))
+        foreach (string value in fields[15].Split(','))
         {
             if (int.TryParse(value, out int playerId) && playerId >= 0)
             {
@@ -1124,16 +1258,17 @@ internal static class SearchAndDestroyState
 
     private static void ApplyLobbySettingsSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 2, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !LobbySnapshotCodec.TryParseBool(fields[1], out bool useWeaponSpawners)
             || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
                 ModeLobbyDataSync.Source("snd", "settings")))
         {
             return;
         }
 
-        ApplySettings(enabled);
+        ApplySettings(enabled, useWeaponSpawners);
     }
 
     private static void ApplyLobbyLiveSnapshot()

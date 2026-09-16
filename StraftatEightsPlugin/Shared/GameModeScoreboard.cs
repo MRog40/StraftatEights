@@ -5,14 +5,16 @@ namespace StraftatEightsPlugin;
 
 internal readonly struct GameModeScoreboardRow
 {
-    internal GameModeScoreboardRow(string label, int score)
+    internal GameModeScoreboardRow(string label, int score, int teamId = -1)
     {
         Label = label;
         Score = score;
+        TeamId = teamId;
     }
 
     internal string Label { get; }
     internal int Score { get; }
+    internal int TeamId { get; }
 }
 
 internal static class GameModeScoreboard
@@ -32,7 +34,23 @@ internal static class GameModeScoreboard
         foreach (GameModeScoreboardRow row in rows)
         {
             string score = row.Score.ToString().PadLeft(ScoreColumnWidth);
-            text.Append('\n').Append(row.Label).Append("<pos=")
+            text.Append('\n');
+            if (row.TeamId >= 0)
+            {
+                TeamColorData color = TeamRules.GetColor(row.TeamId);
+                text.Append("<color=#").Append(color.Red.ToString("X2"))
+                    .Append(color.Green.ToString("X2"))
+                    .Append(color.Blue.ToString("X2"))
+                    .Append(">");
+            }
+
+            text.Append(row.Label);
+            if (row.TeamId >= 0)
+            {
+                text.Append("</color>");
+            }
+
+            text.Append("<pos=")
                 .Append(ScoreColumnPosition).Append(">")
                 .Append(score);
         }
