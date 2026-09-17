@@ -1457,8 +1457,9 @@ internal static class GameManager_GameModeDeath_Patch
     {
         return FishNetCompatibility.FindGeneratedMethod(typeof(GameManager), "RpcLogic___PlayerDied_",
             method => method.ReturnType == typeof(void)
-                && method.GetParameters() is { Length: 1 } parameters
-                && parameters[0].ParameterType == typeof(int));
+                && method.GetParameters() is { Length: 2 } parameters
+                && parameters[0].ParameterType == typeof(int)
+                && parameters[1].ParameterType == typeof(uint));
     }
 
     private static bool Prepare() => TargetMethod() != null;
