@@ -14,6 +14,7 @@ internal static class HardpointState
     internal const float ObjectiveDurationSeconds = 50f;
     internal const float WarningDurationSeconds = 5f;
     internal const float ServerTickIntervalSeconds = 0.1f;
+    internal const float ClientLivePollIntervalSeconds = 0.25f;
 
     internal static bool Enabled;
     internal static readonly Dictionary<int, int> Scores = new();
@@ -166,7 +167,7 @@ internal static class HardpointState
             return;
         }
 
-        _nextClientLivePollTime = Time.unscaledTime + 1f;
+        _nextClientLivePollTime = Time.unscaledTime + ClientLivePollIntervalSeconds;
         ApplyLobbyLiveSnapshot();
     }
 
@@ -285,7 +286,8 @@ internal static class HardpointState
             % definition.HardpointObjectives.Count];
         HashSet<int> teamsOnPoint = GetTeamsOnPoint(objective);
         int controller = TeamRules.ResolveController(teamsOnPoint);
-        bool stateChanged = controller != CurrentController;
+        bool controllerChanged = controller != CurrentController;
+        bool stateChanged = controllerChanged;
         CurrentController = controller;
 
         ObjectiveElapsedSeconds += elapsed;
@@ -338,7 +340,11 @@ internal static class HardpointState
             stateChanged = true;
         }
 
-        if (stateChanged || IsWarningActive)
+        if (controllerChanged)
+        {
+            BroadcastLiveState();
+        }
+        else if (stateChanged || IsWarningActive)
         {
             BroadcastLiveStateWhenDue();
         }

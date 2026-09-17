@@ -48,6 +48,10 @@
       <HintPath>$(BepInExPluginsDir)\straftatmodding-MyceliumNetworking\MyceliumNetworkingForStraftat.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="ModMenu">
+      <HintPath>$(BepInExPluginsDir)\kestrel-Mod_Menu\ModMenu\ModMenu.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Unity.TextMeshPro">
       <HintPath>$(GameManagedDir)\Unity.TextMeshPro.dll</HintPath>
       <Private>false</Private>

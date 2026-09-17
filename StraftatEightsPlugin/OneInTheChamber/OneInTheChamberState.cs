@@ -281,6 +281,9 @@ internal static class OneInTheChamberState
             if (roundWinnerId >= 0)
             {
                 AwardScore(roundWinnerId, PointsPerRoundWin);
+                GameModeHud.BroadcastSubRoundResult("<b>"
+                    + PlayerLookup.GetPlayerNameTag(roundWinnerId)
+                    + " WON THE SUB-ROUND</b>\n<i>LAST PLAYER STANDING</i>");
             }
 
             if (WinnerId >= 0)

@@ -67,6 +67,11 @@ internal static class SearchAndDestroyState
     private static bool _roundStarted;
     private static bool _subRoundEnding;
     private static int _lastAnnouncedSubRoundId = -1;
+    private static float _lastLiveStateAppliedTime;
+    private static float _lastLivePlantProgress;
+    private static float _lastLiveDefuseProgress;
+    private static int _lastLivePlantingPlayerId = -1;
+    private static int _lastLiveDefuserPlayerId = -1;
 
     internal static void ApplySettings(bool enabled)
     {
@@ -220,6 +225,11 @@ internal static class SearchAndDestroyState
         SubRoundTimeRemaining = 0f;
         FuseTimeRemaining = 0f;
         BombPosition = default;
+        _lastLiveStateAppliedTime = 0f;
+        _lastLivePlantProgress = 0f;
+        _lastLiveDefuseProgress = 0f;
+        _lastLivePlantingPlayerId = -1;
+        _lastLiveDefuserPlayerId = -1;
     }
 
     internal static void PrepareTeamsForRound()
@@ -491,13 +501,19 @@ internal static class SearchAndDestroyState
 
         if (PlantingPlayerId == playerId)
         {
-            return FormatInteractionProgress("PLANTING BOMB", PlantProgress,
+            float progress = GetDisplayedInteractionProgress(PlantProgress,
+                _lastLivePlantProgress, PlantingPlayerId, _lastLivePlantingPlayerId,
+                PlantDurationSeconds);
+            return FormatInteractionCountdown("PLANTING BOMB", progress,
                 PlantDurationSeconds);
         }
 
         if (DefuserPlayerId == playerId)
         {
-            return FormatInteractionProgress("DEFUSING BOMB", DefuseProgress,
+            float progress = GetDisplayedInteractionProgress(DefuseProgress,
+                _lastLiveDefuseProgress, DefuserPlayerId, _lastLiveDefuserPlayerId,
+                DefuseDurationSeconds);
+            return FormatInteractionCountdown("DEFUSING BOMB", progress,
                 DefuseDurationSeconds);
         }
 
@@ -917,10 +933,10 @@ internal static class SearchAndDestroyState
 
         _subRoundEnding = true;
         SubRoundWinnerId = winningTeamId;
-    SubRoundWinReason = reason;
+        SubRoundWinReason = reason;
         Scores.TryGetValue(winningTeamId, out int score);
         Scores[winningTeamId] = score + PointsPerRoundWin;
-    AnnounceSubRoundResult();
+        AnnounceSubRoundResult();
         BroadcastLiveState();
         if (SearchAndDestroyRules.IsMatchWon(Scores[winningTeamId],
             GameModeManager.EffectivePointsToWin))
@@ -967,10 +983,10 @@ internal static class SearchAndDestroyState
         };
         string resultText = SubRoundWinReason == SearchAndDestroyWinReason.BombExploded
             ? $"<color=#FF5A36><b>BOOM! BOMB EXPLODED</b></color>\n"
-                + $"<color={teamColorMarkup}><b>TEAM {SubRoundWinnerId + 1} WON THE ROUND</b></color>"
+                + $"<color={teamColorMarkup}><b>TEAM {SubRoundWinnerId + 1} WON THE SUB-ROUND</b></color>"
             : $"<color={teamColorMarkup}><b>TEAM {SubRoundWinnerId + 1} "
-                + $"WON THE ROUND</b></color>\n<i>{reason}</i>";
-        GameModeHud.AnnounceTarget(resultText,
+                + $"WON THE SUB-ROUND</b></color>\n<i>{reason}</i>";
+        GameModeHud.BroadcastSubRoundResult(resultText,
             SubRoundWinReason == SearchAndDestroyWinReason.BombExploded ? 4f : 3f);
 
         if (MyceliumNetwork.IsHost)
@@ -1014,12 +1030,24 @@ internal static class SearchAndDestroyState
         return HeldInteractions.TryGetValue(playerId, out bool held) && held;
     }
 
-    private static string FormatInteractionProgress(string label, float progress,
+    private static float GetDisplayedInteractionProgress(float progress,
+        float snapshotProgress, int activePlayerId, int snapshotPlayerId, float duration)
+    {
+        if (MyceliumNetwork.IsHost || activePlayerId != snapshotPlayerId)
+        {
+            return progress;
+        }
+
+        float extrapolatedProgress = snapshotProgress
+            + Mathf.Max(0f, Time.unscaledTime - _lastLiveStateAppliedTime);
+        return Mathf.Min(duration, extrapolatedProgress);
+    }
+
+    private static string FormatInteractionCountdown(string label, float progress,
         float duration)
     {
-        int percent = Mathf.RoundToInt(Mathf.Clamp01(progress / Mathf.Max(0.01f, duration)) * 100f);
-        int filled = Mathf.Clamp(Mathf.RoundToInt(percent / 10f), 0, 10);
-        return $"{label}\n[{new string('|', filled)}{new string('.', 10 - filled)}] {percent}%";
+        float remaining = Mathf.Max(0f, duration - Mathf.Clamp(progress, 0f, duration));
+        return label + "\n" + remaining.ToString("F2", CultureInfo.InvariantCulture) + "s";
     }
 
     private static string GetRoleLabel(int playerId)
@@ -1285,6 +1313,11 @@ internal static class SearchAndDestroyState
         PlantingPlayerId = plantingId;
         SubRoundWinnerId = subRoundWinner;
         SubRoundWinReason = (SearchAndDestroyWinReason)winReason;
+        _lastLiveStateAppliedTime = Time.unscaledTime;
+        _lastLivePlantProgress = PlantProgress;
+        _lastLiveDefuseProgress = DefuseProgress;
+        _lastLivePlantingPlayerId = PlantingPlayerId;
+        _lastLiveDefuserPlayerId = DefuserPlayerId;
         AlivePlayers.Clear();
         foreach (string value in fields[15].Split(','))
         {

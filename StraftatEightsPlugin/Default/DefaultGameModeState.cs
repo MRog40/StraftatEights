@@ -189,6 +189,11 @@ internal static class DefaultGameModeState
             AwardScore(playerId, ScoreRules.PointsPerRoundWin);
         }
 
+        string winnerLabel = winners.Count == 1
+            ? PlayerLookup.GetPlayerNameTag(winners[0])
+            : "TEAM " + (winningTeamId + 1);
+        GameModeHud.BroadcastSubRoundResult("<b>" + winnerLabel
+            + " WON THE SUB-ROUND</b>\n<i>LAST TEAM STANDING</i>");
         BroadcastLiveState();
         if (WinnerId >= 0)
         {

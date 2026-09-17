@@ -42,6 +42,12 @@ internal sealed class GameModeHud : MonoBehaviour
     private bool _hasLoggedVisibility;
     private bool _lastVisible;
     private string _lastVisibilityReason = string.Empty;
+    private static int _nextSubRoundResultId;
+    private static int _lastReceivedSubRoundResultId = -1;
+    private static int _pendingSubRoundResultId = -1;
+    private static string _pendingSubRoundResultText = string.Empty;
+    private static float _pendingSubRoundResultUntil;
+    private static float _nextSubRoundResultPushTime;
 
     private void Awake()
     {
@@ -361,6 +367,66 @@ internal sealed class GameModeHud : MonoBehaviour
             || GameModeManager.Phase != GameModePhase.ActiveRound
             || GameModeManager.IsMatchOver || pauseManager?.inMainMenu == true
             || pauseManager?.inVictoryMenu == true)
+        {
+            return;
+        }
+
+        _instance._targetAnnouncement.text = text;
+        _instance._targetAnnouncementUntil = Time.unscaledTime + Mathf.Max(0f, durationSeconds);
+        _instance._targetAnnouncement.gameObject.SetActive(true);
+    }
+
+    internal static void ReceiveSubRoundResult(int resultId, string text, float durationSeconds)
+    {
+        if (resultId <= _lastReceivedSubRoundResultId)
+        {
+            return;
+        }
+
+        _lastReceivedSubRoundResultId = resultId;
+        ShowSubRoundResult(ClientInstance.ReplaceAllPlayerNameTags(text), durationSeconds);
+    }
+
+    internal static void PeriodicPushSubRoundResult()
+    {
+        if (!MyceliumNetwork.IsHost || _pendingSubRoundResultId < 0
+            || Time.unscaledTime >= _pendingSubRoundResultUntil
+            || Time.unscaledTime < _nextSubRoundResultPushTime)
+        {
+            return;
+        }
+
+        _nextSubRoundResultPushTime = Time.unscaledTime + 0.5f;
+        MyceliumNetwork.RPC(GameModeManager.ModId, nameof(Plugin.SyncSubRoundResult),
+            ReliableType.Reliable, _pendingSubRoundResultId, _pendingSubRoundResultText,
+            _pendingSubRoundResultUntil - Time.unscaledTime);
+    }
+
+    internal static void BroadcastSubRoundResult(string text, float durationSeconds = 3f)
+    {
+        if (string.IsNullOrWhiteSpace(text) || !MyceliumNetwork.InLobby
+            || !MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int resultId = ++_nextSubRoundResultId;
+        _pendingSubRoundResultId = resultId;
+        _pendingSubRoundResultText = text;
+        _pendingSubRoundResultUntil = Time.unscaledTime + Mathf.Max(1f, durationSeconds);
+        _nextSubRoundResultPushTime = Time.unscaledTime + 0.5f;
+        string resolvedText = ClientInstance.ReplaceAllPlayerNameTags(text);
+        ShowSubRoundResult(resolvedText, durationSeconds);
+        MyceliumNetwork.RPC(GameModeManager.ModId, nameof(Plugin.SyncSubRoundResult),
+            ReliableType.Reliable, resultId, text, durationSeconds);
+    }
+
+    internal static void ShowSubRoundResult(string text, float durationSeconds)
+    {
+        PauseManager? pauseManager = PauseManager.Instance;
+        if (_instance == null || string.IsNullOrWhiteSpace(text)
+            || !GameModeManager.IsCustomMode || GameModeManager.IsMatchOver
+            || pauseManager?.inMainMenu == true || pauseManager?.inVictoryMenu == true)
         {
             return;
         }

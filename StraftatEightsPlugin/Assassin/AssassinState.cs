@@ -280,6 +280,9 @@ internal static class AssassinState
         if (deadPlayerId == KingPlayerId)
         {
             AwardScore(AssassinPlayerId, PointsForAssassinWin);
+            GameModeHud.BroadcastSubRoundResult("<b>"
+                + PlayerLookup.GetPlayerNameTag(AssassinPlayerId)
+                + " WON THE SUB-ROUND</b>\n<i>THE KING WAS ELIMINATED</i>");
             AnnounceResult("The King was killed. The Assassin was "
                 + PlayerLookup.GetPlayerNameTag(AssassinPlayerId) + ".");
             FinishSubRound();
@@ -303,6 +306,11 @@ internal static class AssassinState
                 AwardScore(killerId, PointsForBodyguardKill);
             }
 
+            string kingLabel = KingPlayerId >= 0
+                ? PlayerLookup.GetPlayerNameTag(KingPlayerId)
+                : "THE KING";
+            GameModeHud.BroadcastSubRoundResult("<b>" + kingLabel
+                + " AND THE BODYGUARDS WON THE SUB-ROUND</b>\n<i>THE ASSASSIN WAS ELIMINATED</i>");
             AnnounceResult("The Assassin was "
                 + PlayerLookup.GetPlayerNameTag(AssassinPlayerId) + " and was stopped.");
             FinishSubRound();

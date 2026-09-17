@@ -14,6 +14,7 @@ namespace StraftatEightsPlugin;
 
 [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
 [BepInDependency("RugbugRedfern.MyceliumNetworking")]
+[BepInDependency("kestrel.straftat.modmenu", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInProcess("STRAFTAT.exe")]
 public partial class Plugin : BaseUnityPlugin
 {
@@ -40,6 +41,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("Mycelium transport recovery", MyceliumTransportRecovery.Initialize);
         InitializeSafely("weapon service", WeaponService.Initialize);
         InitializeSafely("game mode manager", GameModeManager.Initialize);
+        InitializeSafely("ModMenu integration", ModMenuIntegration.Initialize);
         InitializeSafely("shared player outline", PlayerOutline.Initialize);
 
         InitializeSafely("global modifiers", InitializeGlobalModifiers);
@@ -153,6 +155,7 @@ public partial class Plugin : BaseUnityPlugin
         SearchAndDestroyState.ApplyLocalMovementLock();
         GlobalModifiersState.PeriodicPushIfHost();
         HealthSettingsState.PeriodicPushIfHost();
+        GameModeHud.PeriodicPushSubRoundResult();
         HealthSettingsState.ServerTick();
         WeaponSettingsState.UpdateLocalCycle();
         WeaponSettingsState.PeriodicPushIfHost();

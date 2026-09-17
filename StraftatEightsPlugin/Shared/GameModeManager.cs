@@ -538,6 +538,12 @@ internal static class GameModeManager
             return false;
         }
 
+        if (_skipRoundTransitionPending)
+        {
+            _skipRoundTransitionPending = false;
+            return CycleForNextMap();
+        }
+
         if (IsFinalMatchTransition())
         {
             EndMatch();
@@ -1179,6 +1185,7 @@ internal static class GameModeManager
     internal static void ResetMatchState()
     {
         _customRoundTransitionPending = false;
+        _skipRoundTransitionPending = false;
         PendingDeaths.Clear();
         GameModeRespawn.ResetForMatch();
         TeamWeaponLoadouts.ResetMatchState();
@@ -1337,6 +1344,8 @@ internal static class GameModeManager
 
     private static readonly HashSet<int> PendingDeaths = new();
     private static bool _customRoundTransitionPending;
+    private static bool _skipRoundTransitionPending;
+    private const int NoWinningTeamId = int.MinValue;
 
     internal static void CompleteCustomRound(int winningTeamId)
     {
@@ -1354,6 +1363,29 @@ internal static class GameModeManager
         ScoreManager.Instance.ResetRound();
         ScoreManager.Instance.AddPoints(winningTeamId);
         RoundManager.Instance.CmdEndRound(winningTeamId);
+        Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
+    }
+
+    internal static void SkipCurrentRound()
+    {
+        if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby || !IsCustomMode
+            || Phase != GameModePhase.ActiveRound || _customRoundTransitionPending
+            || RoundManager.Instance == null || ScoreManager.Instance == null
+            || SceneMotor.Instance == null || Plugin.Instance == null)
+        {
+            return;
+        }
+
+        _customRoundTransitionPending = true;
+        _skipRoundTransitionPending = true;
+        Phase = GameModePhase.EndingRound;
+        BroadcastActiveMode();
+        int roundId = RoundId;
+
+        ScoreManager.Instance.ResetRound();
+        RoundManager.Instance.CmdEndRound(NoWinningTeamId);
+        Plugin.Logger.LogInfo($"[GameMode] Skipping round without points: mode={ActiveMode} "
+            + $"map={SelectedMapName} round={roundId}");
         Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
     }
 
@@ -1513,6 +1545,19 @@ public partial class Plugin
         }
 
         GameModeHud.ShowScorePopup(amount);
+    }
+
+    [CustomRPC]
+    public void SyncSubRoundResult(int resultId, string text, float durationSeconds, RPCInfo info)
+    {
+        if (!NetworkAuthority.IsHostSender(info)
+            || resultId < 0 || string.IsNullOrWhiteSpace(text)
+            || float.IsNaN(durationSeconds) || float.IsInfinity(durationSeconds))
+        {
+            return;
+        }
+
+        GameModeHud.ReceiveSubRoundResult(resultId, text, Mathf.Clamp(durationSeconds, 1f, 8f));
     }
 
     [CustomRPC]

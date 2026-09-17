@@ -270,6 +270,17 @@ internal static class InfidelState
         }
 
         BroadcastLiveState();
+        if (deadWasInfidel)
+        {
+            GameModeHud.BroadcastSubRoundResult(
+                "<b>THE TERRORISTS WON THE SUB-ROUND</b>\n<i>THE INFIDEL WAS ELIMINATED</i>");
+        }
+        else if (infidelWon)
+        {
+            GameModeHud.BroadcastSubRoundResult("<b>"
+                + PlayerLookup.GetPlayerNameTag(InfidelPlayerId)
+                + " WON THE SUB-ROUND</b>\n<i>ALL TERRORISTS WERE ELIMINATED</i>");
+        }
         if (WinnerId >= 0)
         {
             Announce(PlayerLookup.GetPlayerNameTag(WinnerId) + " reached " + KillsToWin

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace StraftatEightsPlugin;
 
@@ -14,6 +15,10 @@ internal static class GameModeRespawn
     private static readonly HashSet<int> InitialTeamSpawnsApplied = new();
     private static readonly Dictionary<int, CosmeticIndices> PendingRespawnCosmetics = new();
     private static int _initialControlsReleaseRoundId = -1;
+    private static int _cachedCenterSceneHandle = -1;
+    private static string _cachedCenterSceneName = string.Empty;
+    private static Vector3 _cachedMapCenter;
+    private static bool _hasCachedMapCenter;
 
     private readonly struct CosmeticIndices
     {
@@ -35,6 +40,7 @@ internal static class GameModeRespawn
         InitialTeamSpawnsApplied.Clear();
         PendingRespawnCosmetics.Clear();
         _initialControlsReleaseRoundId = -1;
+        ClearMapCenterCache();
     }
 
     internal static void ResetForMatch()
@@ -45,6 +51,7 @@ internal static class GameModeRespawn
         InitialTeamSpawnsApplied.Clear();
         PendingRespawnCosmetics.Clear();
         _initialControlsReleaseRoundId = -1;
+        ClearMapCenterCache();
     }
 
     internal static void Schedule(PlayerManager manager, float delay)
@@ -382,6 +389,215 @@ internal static class GameModeRespawn
         return currentPosition;
     }
 
+    internal static void ApplySpawnFacing(PlayerManager manager, Vector3 position,
+        ref Quaternion rotation)
+    {
+        int playerId = FindPlayerId(manager);
+        if (!TryGetSpawnFacingTarget(playerId, position, out Vector3 target))
+        {
+            return;
+        }
+
+        Vector3 direction = target - position;
+        direction.y = 0f;
+        if (direction.sqrMagnitude <= 0.01f)
+        {
+            return;
+        }
+
+        rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+    }
+
+    private static bool TryGetSpawnFacingTarget(int playerId, Vector3 position,
+        out Vector3 target)
+    {
+        target = default;
+        if (GameModeManager.IsActive(GameMode.Hardpoint)
+            && HardpointState.TryGetCurrentObjective(out HardpointObjective objective))
+        {
+            target = objective.Position;
+            return true;
+        }
+
+        if (GameModeManager.IsActive(GameMode.CaptureTheFlag)
+            && CaptureTheFlagState.TryGetEnemyFlagPosition(playerId, out target))
+        {
+            return true;
+        }
+
+        if (GameModeManager.IsActive(GameMode.SearchAndDestroy))
+        {
+            if (SearchAndDestroyState.TryGetBombPosition(out target))
+            {
+                return true;
+            }
+
+            if (TryGetNearestSearchAndDestroySite(position, out target))
+            {
+                return true;
+            }
+        }
+
+        if (GameModeManager.IsTeamBased && TryGetTeammateCenter(playerId, out target))
+        {
+            return true;
+        }
+
+        return TryGetMapCenter(out target);
+    }
+
+    private static bool TryGetTeammateCenter(int playerId, out Vector3 center)
+    {
+        center = default;
+        if (!TeamAssignment.TryGetTeamId(playerId, out int teamId))
+        {
+            return false;
+        }
+
+        int teammateCount = 0;
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client == null || !client || client.PlayerId == playerId
+                || !TeamAssignment.TryGetTeamId(client.PlayerId, out int otherTeamId)
+                || otherTeamId != teamId)
+            {
+                continue;
+            }
+
+            PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(client.PlayerId);
+            if (health == null || !health || !health.gameObject.activeInHierarchy
+                || health.health <= 0f)
+            {
+                continue;
+            }
+
+            center += health.transform.position;
+            teammateCount++;
+        }
+
+        if (teammateCount == 0)
+        {
+            return false;
+        }
+
+        center /= teammateCount;
+        return true;
+    }
+
+    private static bool TryGetNearestSearchAndDestroySite(Vector3 position,
+        out Vector3 target)
+    {
+        target = default;
+        float nearestDistance = float.MaxValue;
+        bool found = false;
+        for (int siteIndex = 0; siteIndex < 2; siteIndex++)
+        {
+            if (!SearchAndDestroyState.TryGetSitePosition(siteIndex, out Vector3 sitePosition))
+            {
+                continue;
+            }
+
+            Vector3 offset = sitePosition - position;
+            offset.y = 0f;
+            float distance = offset.sqrMagnitude;
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                target = sitePosition;
+                found = true;
+            }
+        }
+
+        return found;
+    }
+
+    private static bool TryGetMapCenter(out Vector3 center)
+    {
+        Scene scene = SceneManager.GetActiveScene();
+        if (_hasCachedMapCenter && _cachedCenterSceneHandle == scene.handle
+            && _cachedCenterSceneName == scene.name)
+        {
+            center = _cachedMapCenter;
+            return true;
+        }
+
+        if (GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition)
+            && TryGetAverage(definition.SpawnPoints, out center))
+        {
+            CacheMapCenter(scene, center);
+            return true;
+        }
+
+        GameObject? spawnRoot = FindSpawnRoot("Spawnpoints")
+            ?? FindSpawnRoot("Spawnpoints4Player");
+        SpawnPoint[] spawnPoints = spawnRoot == null
+            ? System.Array.Empty<SpawnPoint>()
+            : spawnRoot.GetComponentsInChildren<SpawnPoint>(true);
+        if (spawnPoints.Length == 0)
+        {
+            center = default;
+            return false;
+        }
+
+        center = default;
+        foreach (SpawnPoint spawnPoint in spawnPoints)
+        {
+            if (spawnPoint != null && spawnPoint)
+            {
+                center += spawnPoint.transform.position;
+            }
+        }
+
+        center /= spawnPoints.Length;
+        CacheMapCenter(scene, center);
+        return true;
+    }
+
+    private static bool TryGetAverage(IReadOnlyList<Vector3> positions, out Vector3 average)
+    {
+        average = default;
+        if (positions.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (Vector3 position in positions)
+        {
+            average += position;
+        }
+
+        average /= positions.Count;
+        return true;
+    }
+
+    private static GameObject? FindSpawnRoot(string tag)
+    {
+        try
+        {
+            return GameObject.FindGameObjectWithTag(tag);
+        }
+        catch (UnityException)
+        {
+            return null;
+        }
+    }
+
+    private static void CacheMapCenter(Scene scene, Vector3 center)
+    {
+        _cachedCenterSceneHandle = scene.handle;
+        _cachedCenterSceneName = scene.name;
+        _cachedMapCenter = center;
+        _hasCachedMapCenter = true;
+    }
+
+    private static void ClearMapCenterCache()
+    {
+        _cachedCenterSceneHandle = -1;
+        _cachedCenterSceneName = string.Empty;
+        _cachedMapCenter = default;
+        _hasCachedMapCenter = false;
+    }
+
     internal static bool TryChooseSafeSpawnPosition(PlayerManager manager, out Vector3 position)
     {
         position = default;
@@ -477,33 +693,38 @@ internal static class PlayerManager_DistantSpawn_Patch
 internal static class PlayerManager_CustomRespawnSpawn_Patch
 {
     private static void Prefix(PlayerManager __instance, ref int suitIndex, ref int cigIndex,
-        ref Vector3 position)
+        ref Vector3 position, ref Quaternion rotation)
     {
         GameModeRespawn.ApplyRespawnCosmetics(__instance, ref suitIndex, ref cigIndex);
         if (SearchAndDestroyState.TryGetRoleSpawnPosition(__instance, out Vector3 rolePosition))
         {
             position = rolePosition;
-            return;
         }
-        bool hasPendingSpawnAdjustment = GameModeRespawn.ConsumeSpawnAdjustment(__instance);
-        if (!hasPendingSpawnAdjustment
-            && GameModeRespawn.TryChooseInitialTeamSpawnPosition(__instance,
-            out Vector3 initialTeamPosition))
+        else
         {
-            position = initialTeamPosition;
+            bool hasPendingSpawnAdjustment = GameModeRespawn.ConsumeSpawnAdjustment(__instance);
+            if (!hasPendingSpawnAdjustment
+                && GameModeRespawn.TryChooseInitialTeamSpawnPosition(__instance,
+                out Vector3 initialTeamPosition))
+            {
+                position = initialTeamPosition;
+            }
+            else if (GameModeRespawn.TryChooseSafeSpawnPosition(__instance,
+                out Vector3 safePosition))
+            {
+                position = safePosition;
+            }
+            else if (GameModeRespawn.TryChooseMapSpawnPosition(out Vector3 mapPosition))
+            {
+                position = mapPosition;
+            }
+            else if (hasPendingSpawnAdjustment)
+            {
+                position = GameModeRespawn.ChooseSpawnPosition(position);
+            }
         }
-        else if (GameModeRespawn.TryChooseSafeSpawnPosition(__instance, out Vector3 safePosition))
-        {
-            position = safePosition;
-        }
-        else if (GameModeRespawn.TryChooseMapSpawnPosition(out Vector3 mapPosition))
-        {
-            position = mapPosition;
-        }
-        else if (hasPendingSpawnAdjustment)
-        {
-            position = GameModeRespawn.ChooseSpawnPosition(position);
-        }
+
+        GameModeRespawn.ApplySpawnFacing(__instance, position, ref rotation);
     }
 }
 
