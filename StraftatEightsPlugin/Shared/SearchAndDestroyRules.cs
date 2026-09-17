@@ -67,6 +67,11 @@ internal static class SearchAndDestroyRules
         return true;
     }
 
+    internal static bool CanResolveTeamWipe(SearchAndDestroyBombStatus status)
+    {
+        return status != SearchAndDestroyBombStatus.Planted;
+    }
+
     internal static bool TryRecoverBomb(SearchAndDestroyBombStatus status, bool isOffense,
         bool inRange, out SearchAndDestroyBombStatus nextStatus)
     {

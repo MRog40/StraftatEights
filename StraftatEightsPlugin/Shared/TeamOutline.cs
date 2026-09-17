@@ -17,6 +17,11 @@ internal static class TeamOutline
         _lastMode = GameMode.None;
     }
 
+    internal static void RequestRefresh()
+    {
+        _nextRefreshTime = 0f;
+    }
+
     internal static void Enforce()
     {
         GameMode activeMode = GameModeManager.IsVanillaScene

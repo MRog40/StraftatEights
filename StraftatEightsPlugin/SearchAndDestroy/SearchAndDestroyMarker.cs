@@ -21,8 +21,10 @@ internal static class SearchAndDestroyMarker
     private static Mesh? _bombDiamondMesh;
     private static Mesh? _bombSquareMesh;
     private static AudioClip? _bombBeepClip;
+    private static AudioClip? _bombExplosionClip;
     private static float _nextBombBeepTime;
     private static bool _bombWasPlanted;
+    private static int _lastExplosionSubRoundId = -1;
     private static Material? _electricMaterial;
 
     internal static void Update()
@@ -156,7 +158,19 @@ internal static class SearchAndDestroyMarker
             _bomb.transform.localScale = Vector3.one;
         }
         _bomb.SetActive(true);
-        UpdateElectricArcs(SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Planted);
+        UpdateElectricArcs(SearchAndDestroyState.PlantingPlayerId >= 0
+            || SearchAndDestroyState.DefuserPlayerId >= 0);
+
+        if (SearchAndDestroyState.SubRoundWinReason == SearchAndDestroyWinReason.BombExploded)
+        {
+            if (_lastExplosionSubRoundId != SearchAndDestroyState.SubRoundId)
+            {
+                _lastExplosionSubRoundId = SearchAndDestroyState.SubRoundId;
+                PlayExplosion(_bomb.transform.position + Vector3.up * 0.2f);
+            }
+
+            return;
+        }
 
         if (SearchAndDestroyState.BombStatus != SearchAndDestroyBombStatus.Planted)
         {
@@ -175,6 +189,54 @@ internal static class SearchAndDestroyMarker
             _bomb.GetComponent<AudioSource>()!.PlayOneShot(GetBombBeepClip());
             _nextBombBeepTime = Time.unscaledTime + 1f;
         }
+    }
+
+    private static void PlayExplosion(Vector3 position)
+    {
+        if (_bomb != null && _bomb)
+        {
+            _bomb.GetComponent<AudioSource>()?.PlayOneShot(GetBombExplosionClip());
+        }
+
+        GameObject burstObject = new("SearchAndDestroyBombExplosion");
+        burstObject.transform.position = position;
+        ParticleSystem particles = burstObject.AddComponent<ParticleSystem>();
+        ParticleSystem.MainModule main = particles.main;
+        main.duration = 0.8f;
+        main.loop = false;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, 0.9f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(1.5f, 4.5f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.22f);
+        main.startColor = new Color(1f, 0.32f, 0.06f, 1f);
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        ParticleSystem.EmissionModule emission = particles.emission;
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 32) });
+        ParticleSystem.ShapeModule shape = particles.shape;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 0.2f;
+
+        ParticleSystemRenderer renderer = burstObject.GetComponent<ParticleSystemRenderer>();
+        Shader? shader = Shader.Find("Particles/Standard Unlit")
+            ?? Shader.Find("Sprites/Default")
+            ?? Shader.Find("Unlit/Color");
+        if (shader != null)
+        {
+            Material material = new(shader);
+            material.color = new Color(1f, 0.28f, 0.04f, 1f);
+            renderer.material = material;
+        }
+
+        GameObject lightObject = new("SearchAndDestroyBombExplosionLight");
+        lightObject.transform.position = position;
+        Light light = lightObject.AddComponent<Light>();
+        light.type = LightType.Point;
+        light.color = new Color(1f, 0.24f, 0.04f);
+        light.range = 8f;
+        light.intensity = 5f;
+        particles.Play();
+        Object.Destroy(burstObject, 2f);
+        Object.Destroy(lightObject, 0.2f);
     }
 
     private static AudioClip GetBombBeepClip()
@@ -200,6 +262,33 @@ internal static class SearchAndDestroyMarker
             1, sampleRate, false);
         _bombBeepClip.SetData(samples, 0);
         return _bombBeepClip;
+    }
+
+    private static AudioClip GetBombExplosionClip()
+    {
+        if (_bombExplosionClip != null)
+        {
+            return _bombExplosionClip;
+        }
+
+        const int sampleRate = 44100;
+        const float duration = 0.8f;
+        int sampleCount = Mathf.RoundToInt(sampleRate * duration);
+        float[] samples = new float[sampleCount];
+        for (int index = 0; index < sampleCount; index++)
+        {
+            float time = index / (float)sampleRate;
+            float rumble = Mathf.Sin(2f * Mathf.PI * 58f * time)
+                * Mathf.Exp(-time * 5.5f) * 0.8f;
+            float crack = (Mathf.Repeat(Mathf.Sin(index * 12.9898f) * 43758.547f, 2f) - 1f)
+                * Mathf.Exp(-time * 22f) * 0.45f;
+            samples[index] = Mathf.Clamp((rumble + crack) * 0.7f, -1f, 1f);
+        }
+
+        _bombExplosionClip = AudioClip.Create("SearchAndDestroyBombExplosion", sampleCount,
+            1, sampleRate, false);
+        _bombExplosionClip.SetData(samples, 0);
+        return _bombExplosionClip;
     }
 
     private static void ResetBombAudio()
@@ -403,6 +492,7 @@ internal static class SearchAndDestroyMarker
 
     private static void Clear()
     {
+        _lastExplosionSubRoundId = -1;
         UpdateElectricArcs(false);
         ElectricArcs.Clear();
         for (int index = 0; index < SiteMarkers.Length; index++)

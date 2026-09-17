@@ -247,6 +247,9 @@ Assert(SearchAndDestroyRules.IsTeamWiped(searchAndDestroyAlive,
     && !SearchAndDestroyRules.IsTeamWiped(searchAndDestroyAlive,
         searchAndDestroyAssignments, 0),
     "Search and Destroy must detect a team wipe from the alive-player set.");
+Assert(!SearchAndDestroyRules.CanResolveTeamWipe(SearchAndDestroyBombStatus.Planted)
+    && SearchAndDestroyRules.CanResolveTeamWipe(SearchAndDestroyBombStatus.Carried),
+    "A planted Search and Destroy bomb must keep the round active after a team wipe.");
 Assert(SearchAndDestroyRules.TryRecoverBomb(SearchAndDestroyBombStatus.Dropped,
         true, true, out SearchAndDestroyBombStatus recoveredBomb)
     && recoveredBomb == SearchAndDestroyBombStatus.Carried

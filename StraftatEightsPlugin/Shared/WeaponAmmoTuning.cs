@@ -2,6 +2,8 @@ using System;
 using System.Collections;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using MyceliumNetworking;
+using Steamworks;
 using UnityEngine;
 
 namespace StraftatEightsPlugin;
@@ -23,9 +25,20 @@ internal static class WeaponAmmoTuning
     }
 
     private static readonly ConditionalWeakTable<Weapon, Memory> MemoryByWeapon = new();
+    private static readonly NetworkCommandTracker ReloadRequests = new();
     private static bool fallbackReloadClipResolved;
     private static AudioClip? fallbackReloadClip;
     private static Coroutine? hudRefreshCoroutine;
+    private static int nextReloadRequestId;
+
+    private static void SetCurrentAmmo(Weapon weapon, int ammo)
+    {
+        weapon.currentAmmo = ammo;
+        if (weapon.IsServer || weapon.IsOwner)
+        {
+            weapon.sync___set_value_currentAmmo(ammo, true);
+        }
+    }
 
     internal static void CaptureMagazineSize(Weapon weapon)
     {
@@ -123,7 +136,7 @@ internal static class WeaponAmmoTuning
         if (shouldRestoreAmmo)
         {
             weapon.CancelInvoke("DespawnObject");
-            weapon.currentAmmo = memory.MagazineSize;
+            SetCurrentAmmo(weapon, memory.MagazineSize);
             weapon.cantTakeSafeBool = false;
             weapon.noAmmoClicks = 0;
         }
@@ -146,7 +159,7 @@ internal static class WeaponAmmoTuning
             memory.SingleShot = true;
             memory.SpareRoundsInitialized = true;
             weapon.reloadWeapon = false;
-            weapon.currentAmmo = 1;
+            SetCurrentAmmo(weapon, 1);
         }
     }
 
@@ -198,8 +211,9 @@ internal static class WeaponAmmoTuning
             {
                 memory.MagazineSize = Mathf.Max(1, weapon.ammoCharge > 0 ? weapon.ammoCharge : Mathf.RoundToInt(weapon.chargedBullets));
             }
-            weapon.currentAmmo = memory.MagazineSize * Mathf.Max(0, spareMagazines);
-            memory.SpareRounds = weapon.currentAmmo;
+            int rounds = memory.MagazineSize * Mathf.Max(0, spareMagazines);
+            SetCurrentAmmo(weapon, rounds);
+            memory.SpareRounds = rounds;
         }
         else
         {
@@ -208,7 +222,7 @@ internal static class WeaponAmmoTuning
                 memory.MagazineSize = Mathf.Max(1, weapon.currentAmmo);
             }
             memory.SpareRounds = memory.MagazineSize * Mathf.Max(0, spareMagazines);
-            weapon.currentAmmo = memory.MagazineSize;
+            SetCurrentAmmo(weapon, memory.MagazineSize);
         }
 
         memory.Initialized = true;
@@ -249,6 +263,64 @@ internal static class WeaponAmmoTuning
     internal static bool IsReloading(Weapon weapon)
     {
         return MemoryByWeapon.TryGetValue(weapon, out Memory memory) && memory.Reloading;
+    }
+
+    internal static bool TryAcceptReloadRequest(CSteamID sender, int requestId)
+    {
+        return ReloadRequests.TryAccept(sender, requestId);
+    }
+
+    internal static void RequestServerReload(Weapon weapon, int rounds)
+    {
+        if (weapon == null || weapon.IsServer || !weapon.IsOwner || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        PlayerHealth? health = weapon.playerController == null
+            ? null
+            : weapon.playerController.GetComponent<PlayerHealth>();
+        int playerId = health?.playerValues?.playerClient?.PlayerId
+            ?? weapon.playerValues?.playerClient?.PlayerId ?? -1;
+        if (playerId < 0)
+        {
+            return;
+        }
+
+        MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId, nameof(Plugin.RequestWeaponAmmoReload),
+            ReliableType.Reliable, playerId, ++nextReloadRequestId, GameModeManager.RoundId,
+            rounds, weapon.inRightHand);
+    }
+
+    internal static void ApplyServerReload(int playerId, bool rightHand, int rounds)
+    {
+        if (!MyceliumNetwork.IsHost || rounds <= 0)
+        {
+            return;
+        }
+
+        PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(playerId);
+        PlayerPickup? pickup = health?.controller?.playerPickupScript;
+        GameObject? heldObject = rightHand ? pickup?.objInHand : pickup?.objInLeftHand;
+        Weapon? weapon = heldObject == null || !heldObject
+            ? null
+            : heldObject.GetComponent<Weapon>();
+        if (weapon == null || !weapon.needsAmmo || weapon.reloadWeapon)
+        {
+            return;
+        }
+
+        CaptureMagazineSize(weapon);
+        if (!MemoryByWeapon.TryGetValue(weapon, out Memory memory)
+            || rounds > memory.MagazineSize)
+        {
+            return;
+        }
+
+        weapon.CancelInvoke("DespawnObject");
+        SetCurrentAmmo(weapon, rounds);
+        weapon.cantTakeSafeBool = false;
+        weapon.noAmmoClicks = 0;
     }
 
     internal static void ScheduleLocalAmmoHudRefresh()
@@ -509,7 +581,8 @@ internal static class WeaponAmmoTuning
         {
             memory.SpareRounds -= rounds;
         }
-        weapon.currentAmmo = rounds;
+        SetCurrentAmmo(weapon, rounds);
+        RequestServerReload(weapon, rounds);
         weapon.cantTakeSafeBool = false;
         weapon.noAmmoClicks = 0;
         memory.Reloading = false;

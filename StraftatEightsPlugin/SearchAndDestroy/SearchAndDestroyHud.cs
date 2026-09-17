@@ -13,8 +13,12 @@ internal static class SearchAndDestroyHud
                 SearchAndDestroyState.GetScore(teamId), teamId);
         }
 
+        bool bombPlanted = SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Planted;
+        string timerText = bombPlanted
+            ? "<color=#FF3B30><b>Bomb: "
+                + Mathf.CeilToInt(SearchAndDestroyState.FuseTimeRemaining) + "s</b></color>"
+            : "Timer: " + Mathf.CeilToInt(SearchAndDestroyState.SubRoundTimeRemaining) + "s";
         return GameModeScoreboard.Build(GameMode.SearchAndDestroy, "SND",
-            GameModeManager.EffectivePointsToWin, rows,
-            "Timer: " + Mathf.CeilToInt(SearchAndDestroyState.SubRoundTimeRemaining) + "s");
+            GameModeManager.EffectivePointsToWin, rows, timerText);
     }
 }

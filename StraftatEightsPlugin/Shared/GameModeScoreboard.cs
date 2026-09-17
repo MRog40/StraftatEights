@@ -19,13 +19,13 @@ internal readonly struct GameModeScoreboardRow
 
 internal static class GameModeScoreboard
 {
-    private const int ScoreColumnWidth = 3;
-    private const string ScoreColumnPosition = "90%";
+    private const int ScoreColumnWidth = 4;
+    private const string ScoreColumnGap = "  ";
 
     internal static string Build(GameMode mode, string? labelOverride, int? pointsToWin,
         IReadOnlyList<GameModeScoreboardRow> rows, string? timerText = null)
     {
-        StringBuilder text = new(GameModeManager.GetModeLabelMarkup(mode, labelOverride));
+        StringBuilder text = new(GameModeManager.GetScoreboardModeLabelMarkup(mode, labelOverride));
         if (pointsToWin.HasValue)
         {
             text.Append(" - ").Append(pointsToWin.Value);
@@ -50,9 +50,7 @@ internal static class GameModeScoreboard
                 text.Append("</color>");
             }
 
-            text.Append("<pos=")
-                .Append(ScoreColumnPosition).Append(">")
-                .Append(score);
+            text.Append(ScoreColumnGap).Append(score);
         }
 
         if (!string.IsNullOrEmpty(timerText))

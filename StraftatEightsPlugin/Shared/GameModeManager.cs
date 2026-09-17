@@ -107,6 +107,26 @@ internal static class GameModeManager
         GameMode.TeamDeathmatch
     };
 
+    private static readonly Dictionary<GameMode, string> ScoreboardColors = new()
+    {
+        [GameMode.Default] = "F2F2F2",
+        [GameMode.FreeForAll] = "7B61FF",
+        [GameMode.Juggernaut] = "FF6B6B",
+        [GameMode.GunGame] = "F4D35E",
+        [GameMode.SniperBattle] = "E56BCA",
+        [GameMode.MichaelMeyers] = "C44536",
+        [GameMode.KillTheRat] = "A7C7E7",
+        [GameMode.OneInTheChamber] = "D8B4FE",
+        [GameMode.HotPotato] = "F28F3B",
+        [GameMode.Infidel] = "B56576",
+        [GameMode.HVT] = "6D597A",
+        [GameMode.Assassin] = "C77DFF",
+        [GameMode.Hardpoint] = "43D17A",
+        [GameMode.CaptureTheFlag] = "FFCA3A",
+        [GameMode.SearchAndDestroy] = "D1495B",
+        [GameMode.TeamDeathmatch] = "00B4D8"
+    };
+
     private static readonly Dictionary<GameMode, ModeDescriptor> Modes = new()
     {
         [GameMode.Default] = new ModeDescriptor("DEFAULT", new Color32(220, 220, 220, 255),
@@ -678,6 +698,20 @@ internal static class GameModeManager
 
         string label = labelOverride ?? descriptor.Label;
         return $"<b><color=#{ColorUtility.ToHtmlStringRGB(descriptor.Color)}>{label}</color></b>";
+    }
+
+    internal static string GetScoreboardModeLabelMarkup(GameMode mode, string? labelOverride)
+    {
+        if (!Modes.TryGetValue(mode, out ModeDescriptor? descriptor))
+        {
+            return "<b>UNKNOWN</b>";
+        }
+
+        string label = labelOverride ?? descriptor.Label;
+        string color = ScoreboardColors.TryGetValue(mode, out string? scoreboardColor)
+            ? scoreboardColor
+            : "F2F2F2";
+        return $"<b><color=#{color}>{label}</color></b>";
     }
 
     internal static void EnsureActiveMode()

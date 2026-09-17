@@ -278,11 +278,14 @@ internal static class SearchAndDestroyState
         float elapsed = _serverTickAccumulator;
         _serverTickAccumulator = 0f;
         EnsureTeamsAssigned();
-        SubRoundTimeRemaining = Mathf.Max(0f, SubRoundTimeRemaining - elapsed);
-        if (SubRoundTimeRemaining <= 0f)
+        if (BombStatus != SearchAndDestroyBombStatus.Planted)
         {
-            CompleteSubRound(DefensiveTeamId, SearchAndDestroyWinReason.TimeExpired);
-            return;
+            SubRoundTimeRemaining = Mathf.Max(0f, SubRoundTimeRemaining - elapsed);
+            if (SubRoundTimeRemaining <= 0f)
+            {
+                CompleteSubRound(DefensiveTeamId, SearchAndDestroyWinReason.TimeExpired);
+                return;
+            }
         }
 
         bool stateChanged = ProcessBombInteractions(elapsed);
@@ -487,21 +490,21 @@ internal static class SearchAndDestroyState
             && BombCarrierPlayerId == playerId
             && FindNearbySite(playerId) >= 0)
         {
-            return "Press P to plant";
+            return "Hold P to plant";
         }
 
         if (BombStatus == SearchAndDestroyBombStatus.Dropped
             && IsOffensePlayer(playerId)
             && IsNearPlayer(playerId, BombPosition))
         {
-            return "Press P to pick up bomb";
+            return "Hold P to pick up bomb";
         }
 
         if (BombStatus == SearchAndDestroyBombStatus.Planted
             && IsDefensePlayer(playerId)
             && IsNearPlayer(playerId, BombPosition))
         {
-            return "Press P to defuse";
+            return "Hold P to defuse";
         }
 
         return string.Empty;
@@ -851,6 +854,12 @@ internal static class SearchAndDestroyState
 
     private static bool TryResolveTeamWipe(out int winningTeamId)
     {
+        if (!SearchAndDestroyRules.CanResolveTeamWipe(BombStatus))
+        {
+            winningTeamId = -1;
+            return false;
+        }
+
         bool teamZeroWiped = SearchAndDestroyRules.IsTeamWiped(AlivePlayers,
             TeamAssignment.Current, 0);
         bool teamOneWiped = SearchAndDestroyRules.IsTeamWiped(AlivePlayers,
