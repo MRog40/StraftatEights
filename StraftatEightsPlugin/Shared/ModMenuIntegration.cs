@@ -30,6 +30,7 @@ internal static class ModMenuIntegration
 
     private static void BuildContent(OptionListContext context)
     {
-        context.PrependButton("Round control", "Skip round", GameModeManager.SkipCurrentRound);
+        context.InsertButton(0, "Round control", "Skip round",
+            GameModeManager.SkipCurrentRound);
     }
 }
