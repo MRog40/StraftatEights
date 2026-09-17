@@ -377,6 +377,7 @@ internal static class GameModeManager
             bool restartRound = Phase == GameModePhase.ActiveRound
                 && ActiveMode != GameMode.None && !IsEnabled(ActiveMode);
             EnsureActiveMode();
+            AddNewConfiguredModesToPlaylist();
             if (restartRound)
             {
                 RestartRoundAfterModeDisabled();
@@ -874,6 +875,45 @@ internal static class GameModeManager
         foreach (MapPlaylistEntry<GameMode> entry in _mapPlaylist)
         {
             DebugLog.Info($"[MapPlaylist] Candidate mode={entry.Mode} map={entry.MapName}");
+        }
+    }
+
+    private static void AddNewConfiguredModesToPlaylist()
+    {
+        if (!_mapPlaylistPrepared || _mapPlaylistRandom == null)
+        {
+            return;
+        }
+
+        HashSet<GameMode> playlistModes = new();
+        foreach (MapPlaylistEntry<GameMode> entry in _mapPlaylist)
+        {
+            playlistModes.Add(entry.Mode);
+        }
+
+        foreach (GameMode mode in GetConfiguredModes())
+        {
+            if (!playlistModes.Add(mode))
+            {
+                continue;
+            }
+
+            string mapName = MapPlaylist.SelectNextMap(
+                ModeMapCatalog.GetMapNames(mode, EffectiveMapOverrides), string.Empty,
+                _mapPlaylistRandom);
+            if (string.IsNullOrEmpty(mapName)
+                || !ModeMapCatalog.IsSupported(mode, mapName, EffectiveMapOverrides))
+            {
+                continue;
+            }
+
+            int insertionStart = _mapPlaylistIndex < 0 ? 0 : _mapPlaylistIndex + 1;
+            int insertionCount = _mapPlaylist.Count - insertionStart + 1;
+            int insertionWindow = Math.Min(3, insertionCount);
+            int insertionIndex = insertionStart + _mapPlaylistRandom.Next(insertionWindow);
+            _mapPlaylist.Insert(insertionIndex, new MapPlaylistEntry<GameMode>(mode, mapName));
+            DebugLog.Info($"[MapPlaylist] Added mode={mode} map={mapName} to active playlist "
+                + $"at index={insertionIndex}");
         }
     }
 

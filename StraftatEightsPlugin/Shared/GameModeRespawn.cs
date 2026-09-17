@@ -10,7 +10,6 @@ namespace StraftatEightsPlugin;
 internal static class GameModeRespawn
 {
     private static readonly HashSet<int> PendingManagers = new();
-    private static readonly HashSet<int> SuppressedRoundStarts = new();
     private static readonly HashSet<int> PendingSpawnAdjustments = new();
     private static readonly HashSet<int> InitialTeamSpawnsApplied = new();
     private static readonly Dictionary<int, CosmeticIndices> PendingRespawnCosmetics = new();
@@ -35,7 +34,6 @@ internal static class GameModeRespawn
     internal static void ResetForLobbyLeft()
     {
         PendingManagers.Clear();
-        SuppressedRoundStarts.Clear();
         PendingSpawnAdjustments.Clear();
         InitialTeamSpawnsApplied.Clear();
         PendingRespawnCosmetics.Clear();
@@ -46,7 +44,6 @@ internal static class GameModeRespawn
     internal static void ResetForMatch()
     {
         PendingManagers.Clear();
-        SuppressedRoundStarts.Clear();
         PendingSpawnAdjustments.Clear();
         InitialTeamSpawnsApplied.Clear();
         PendingRespawnCosmetics.Clear();
@@ -95,7 +92,7 @@ internal static class GameModeRespawn
             try
             {
                 CaptureRespawnCosmetics(manager);
-                MarkRoundStartSuppressed(manager);
+                PrepareForRespawn(manager);
                 success = FishNetCompatibility.TryInvokeRespawn(manager);
                 if (success)
                 {
@@ -105,7 +102,7 @@ internal static class GameModeRespawn
             }
             catch (System.Exception exception)
             {
-                ClearRoundStartSuppressed(manager);
+                ClearSpawnAdjustment(manager);
                 Plugin.Logger.LogWarning($"[Respawn] PlayerManager respawn failed: {exception.GetBaseException().Message}");
                 success = false;
             }
@@ -143,7 +140,7 @@ internal static class GameModeRespawn
                 try
                 {
                     CaptureRespawnCosmetics(manager);
-                    MarkRoundStartSuppressed(manager);
+                    PrepareForRespawn(manager);
                     if (FishNetCompatibility.TryInvokeRespawn(manager))
                     {
                         FinalizeRespawn(manager);
@@ -154,7 +151,7 @@ internal static class GameModeRespawn
                 }
                 catch (System.Exception exception)
                 {
-                    ClearRoundStartSuppressed(manager);
+                    ClearSpawnAdjustment(manager);
                     Plugin.Logger.LogWarning($"[Respawn] player={playerId} attempt={attempt + 1} failed: {exception.GetBaseException().Message}");
                 }
             }
@@ -164,9 +161,14 @@ internal static class GameModeRespawn
         Plugin.Logger.LogWarning($"[Respawn] player={playerId} failed after 3 attempts");
     }
 
-    internal static void MarkRoundStartSuppressed(PlayerManager manager)
+    private static void PrepareForRespawn(PlayerManager manager)
     {
-        SuppressedRoundStarts.Add(manager.GetInstanceID());
+        if (manager.waitForRoundStartCoroutine != null)
+        {
+            manager.StopCoroutine(manager.waitForRoundStartCoroutine);
+            manager.waitForRoundStartCoroutine = null;
+        }
+
         PendingSpawnAdjustments.Add(manager.GetInstanceID());
     }
 
@@ -204,17 +206,6 @@ internal static class GameModeRespawn
             cigaretteIndex = cosmetics.CigaretteIndex;
             PendingRespawnCosmetics.Remove(manager.GetInstanceID());
         }
-    }
-
-    internal static void ClearRoundStartSuppressed(PlayerManager manager)
-    {
-        SuppressedRoundStarts.Remove(manager.GetInstanceID());
-        ClearSpawnAdjustment(manager);
-    }
-
-    internal static bool ConsumeRoundStartSuppressed(PlayerManager manager)
-    {
-        return SuppressedRoundStarts.Remove(manager.GetInstanceID());
     }
 
     internal static bool ConsumeSpawnAdjustment(PlayerManager manager)
@@ -277,6 +268,11 @@ internal static class GameModeRespawn
     private static void SetPlayerMovable(PlayerManager manager)
     {
         if (manager == null || !manager || manager.player == null || !manager.player)
+        {
+            return;
+        }
+
+        if (!manager.player.IsOwner)
         {
             return;
         }
@@ -728,14 +724,6 @@ internal static class PlayerManager_CustomRespawnSpawn_Patch
     }
 }
 
-[HarmonyPatch(typeof(PlayerManager), "WaitForRoundStartCoroutineStart")]
-internal static class PlayerManager_CustomRespawnRoundStart_Patch
-{
-    private static bool Prefix(PlayerManager __instance)
-    {
-        return !GameModeRespawn.ConsumeRoundStartSuppressed(__instance);
-    }
-}
 
 [HarmonyPatch]
 internal static class PlayerSetup_CustomRespawnMovement_Patch
