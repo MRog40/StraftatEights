@@ -661,15 +661,7 @@ internal static class GameModeManager
     internal static bool IsCustomMode => !IsVanillaScene && HasCapability(GameModeCapabilities.CustomRound);
     internal static bool UsesSafeRespawn => !IsVanillaScene && HasCapability(GameModeCapabilities.SafeRespawn);
     internal static bool IsTeamBased => !IsVanillaScene && HasCapability(GameModeCapabilities.TeamBased);
-    internal static bool UsesWeaponSpawners => !IsVanillaScene && ActiveMode switch
-    {
-        GameMode.Hardpoint => HardpointState.UseWeaponSpawners,
-        GameMode.CaptureTheFlag => CaptureTheFlagState.UseWeaponSpawners,
-        GameMode.SearchAndDestroy => SearchAndDestroyState.UseWeaponSpawners,
-        GameMode.TeamDeathmatch => TeamDeathmatchState.UseWeaponSpawners,
-        _ => false
-    };
-    internal static bool UsesTeamWeaponLoadouts => IsTeamBased && !UsesWeaponSpawners;
+    internal static bool UsesTeamWeaponLoadouts => IsTeamBased;
     internal static bool ShouldHideCustomHud => !IsVanillaScene && HasCapability(GameModeCapabilities.HideHud);
     internal static bool ShouldClearPlayerOutlines => !IsVanillaScene && HasCapability(GameModeCapabilities.ClearOutlines);
     internal static bool IsVanillaScene => SceneManager.GetActiveScene().name == "TrainingRange_00"

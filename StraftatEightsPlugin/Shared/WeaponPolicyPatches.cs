@@ -7,9 +7,25 @@ internal static class WeaponPolicy
 {
     internal static bool PrepareItemSpawn(ItemSpawner spawner)
     {
-        if ((GameModeManager.IsTeamBased && !GameModeManager.UsesWeaponSpawners)
-            || (!GameModeManager.IsVanillaScene
-                && IsExclusiveLoadoutMode(GameModeManager.ActiveMode)))
+        if (GameModeManager.IsTeamBased)
+        {
+            if (WeaponSettingsState.Allowed.Count == 0)
+            {
+                return false;
+            }
+
+            GameObject? teamPrefab = WeaponService.FindPrefab(
+                WeaponSettingsState.Allowed[Random.Range(0, WeaponSettingsState.Allowed.Count)]);
+            if (teamPrefab == null)
+            {
+                return false;
+            }
+
+            spawner.itemToSpawn = teamPrefab;
+            return true;
+        }
+
+        if (!GameModeManager.IsVanillaScene && IsExclusiveLoadoutMode(GameModeManager.ActiveMode))
         {
             return false;
         }
@@ -105,7 +121,9 @@ internal static class WeaponPolicy
 
     private static void InitializeGlobalPickupAmmo(GameObject obj)
     {
-        if (GameModeManager.ShouldIgnoreGlobalWeaponSettings || !WeaponSettingsState.Enabled || obj == null)
+        if ((!GameModeManager.IsTeamBased
+                && (GameModeManager.ShouldIgnoreGlobalWeaponSettings || !WeaponSettingsState.Enabled))
+            || obj == null)
         {
             return;
         }

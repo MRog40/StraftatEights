@@ -16,7 +16,6 @@ internal static class HardpointState
     internal const float ServerTickIntervalSeconds = 0.1f;
 
     internal static bool Enabled;
-    internal static bool UseWeaponSpawners;
     internal static readonly Dictionary<int, int> Scores = new();
     internal static int CurrentObjectiveIndex { get; private set; }
     internal static float ObjectiveElapsedSeconds { get; private set; }
@@ -43,11 +42,10 @@ internal static class HardpointState
     private static bool _roundCompletionRequested;
     private static float _nextClientLivePollTime;
 
-    internal static void ApplySettings(bool enabled, bool useWeaponSpawners)
+    internal static void ApplySettings(bool enabled)
     {
-        bool changed = Enabled != enabled || UseWeaponSpawners != useWeaponSpawners;
+        bool changed = Enabled != enabled;
         Enabled = enabled;
-        UseWeaponSpawners = useWeaponSpawners;
         if (changed)
         {
             ResetMatchState();
@@ -56,7 +54,7 @@ internal static class HardpointState
 
     private static void ApplySettingsFromHostConfig()
     {
-        ApplySettings(Plugin.HardpointEnabled.Value, Plugin.HardpointUseWeaponSpawners.Value);
+        ApplySettings(Plugin.HardpointEnabled.Value);
     }
 
     internal static void PushSettingsIfHost()
@@ -70,10 +68,10 @@ internal static class HardpointState
         int revision = Sync.NextSettingsRevision();
         ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
             GameModeManager.RoundId, revision, Plugin.HardpointEnabled.Value ? "1" : "0",
-            Plugin.HardpointUseWeaponSpawners.Value ? "1" : "0");
+            "1");
         MyceliumNetwork.RPC(Plugin.HardpointModId, nameof(Plugin.SyncHardpointSettings),
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId,
-            revision, Plugin.HardpointEnabled.Value, Plugin.HardpointUseWeaponSpawners.Value);
+            revision, Plugin.HardpointEnabled.Value, true);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -141,8 +139,7 @@ internal static class HardpointState
 
         MyceliumNetwork.RPCTarget(Plugin.HardpointModId, nameof(Plugin.SyncHardpointSettings),
             player, ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId,
-            Sync.SettingsRevision, Plugin.HardpointEnabled.Value,
-            Plugin.HardpointUseWeaponSpawners.Value);
+            Sync.SettingsRevision, Plugin.HardpointEnabled.Value, true);
         SendLiveStateTo(player);
     }
 
@@ -524,14 +521,14 @@ internal static class HardpointState
         if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 2, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
-            || !LobbySnapshotCodec.TryParseBool(fields[1], out bool useWeaponSpawners)
+            || !LobbySnapshotCodec.TryParseBool(fields[1], out _)
             || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
                 ModeLobbyDataSync.Source("hardpoint", "settings")))
         {
             return;
         }
 
-        ApplySettings(enabled, useWeaponSpawners);
+        ApplySettings(enabled);
     }
 
     private static void ApplyLobbyLiveSnapshot()

@@ -9,6 +9,9 @@ internal static class SafeSpawnService
     private const float EyeHeight = 1.4f;
     private const int DroppedWeaponLayer = 7;
     private const int SuppressionLayer = 17;
+    private static readonly int LineOfSightMask = Physics.DefaultRaycastLayers
+        & ~(1 << DroppedWeaponLayer)
+        & ~(1 << SuppressionLayer);
 
     internal static bool TryChoose(int playerId, IReadOnlyList<Vector3> candidatePositions,
         out Vector3 position)
@@ -115,23 +118,13 @@ internal static class SafeSpawnService
             return true;
         }
 
-        int mask = Physics.DefaultRaycastLayers
-            & ~(1 << DroppedWeaponLayer)
-            & ~(1 << SuppressionLayer);
-        RaycastHit[] hits = Physics.RaycastAll(origin, delta / distance, distance, mask,
-            QueryTriggerInteraction.Ignore);
-        Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
-        foreach (RaycastHit hit in hits)
+        if (!Physics.Raycast(origin, delta / distance, out RaycastHit hit, distance,
+            LineOfSightMask, QueryTriggerInteraction.Ignore))
         {
-            if (hit.collider == null)
-            {
-                continue;
-            }
-
-            return hit.collider.transform.root == enemy.transform.root;
+            return true;
         }
 
-        return true;
+        return hit.collider != null && hit.collider.transform.root == enemy.transform.root;
     }
 
     private static List<TeamPoint> ToTeamPoints(IReadOnlyList<Vector3> positions)

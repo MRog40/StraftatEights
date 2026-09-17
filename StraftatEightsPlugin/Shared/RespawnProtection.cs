@@ -9,7 +9,7 @@ internal static class RespawnProtection
 {
     private const float DurationSeconds = 2f;
     private const float ProtectedHealth = 999f / 25f;
-    private const float OutlineWidth = 0.15f;
+    private const float OutlineWidth = 0.10f;
     private static readonly Color OutlineColor = new(0.5f, 0.5f, 0.5f);
     private static readonly List<Protection> ActiveProtections = new();
 
@@ -112,7 +112,7 @@ internal static class RespawnProtection
         {
             if (protection.Player != null && protection.Player)
             {
-                PlayerOutline.ClearTemporary(protection.Player);
+                PlayerOutline.ClearTemporary(protection.Player, OutlineColor, OutlineWidth);
             }
         }
         ActiveProtections.Clear();
@@ -148,7 +148,8 @@ internal static class RespawnProtection
 
     private static void End(PlayerHealth player)
     {
-        PlayerOutline.ClearTemporary(player);
+        PlayerOutline.ClearTemporary(player, OutlineColor, OutlineWidth);
+        TeamOutline.RequestRefresh();
         HealthSettingsTuning.ApplyIfChanged(player, HealthSettingsState.MaxHealthMultiplier,
             HealthSettingsState.TuningVersion);
 

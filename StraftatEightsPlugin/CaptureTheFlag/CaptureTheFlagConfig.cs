@@ -8,21 +8,17 @@ public partial class Plugin
 {
     internal const uint CaptureTheFlagModId = 1618033995u;
     internal static ConfigEntry<bool> CaptureTheFlagEnabled = null!;
-    internal static ConfigEntry<bool> CaptureTheFlagUseWeaponSpawners = null!;
 
     private void InitializeCaptureTheFlag()
     {
         const string section = "Game Mode Settings";
         CaptureTheFlagEnabled = Config.Bind(section, "Capture The Flag Enabled", false,
             "Host-controlled: teams capture the enemy flag and return it to their base.");
-        CaptureTheFlagUseWeaponSpawners = Config.Bind(section, "Capture The Flag Use Weapon Spawners", true,
-            "Host-controlled: use map weapon spawners instead of assigning a weapon directly on respawn.");
         CaptureTheFlagEnabled.SettingChanged += (_, _) =>
         {
             CaptureTheFlagState.PushSettingsIfHost();
             GameModeManager.OnSettingsChanged();
         };
-        CaptureTheFlagUseWeaponSpawners.SettingChanged += (_, _) => CaptureTheFlagState.PushSettingsIfHost();
 
         MyceliumNetwork.RegisterNetworkObject(this, CaptureTheFlagModId);
         ModeLobbyDataSync.RegisterKeys(CaptureTheFlagState.SettingsLobbyDataKey,
@@ -37,7 +33,7 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncCaptureTheFlagSettings(CSteamID hostId, int roundId, int revision,
-        bool enabled, bool useWeaponSpawners, RPCInfo info)
+        bool enabled, bool ignoredLegacySpawnerFlag, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info)
             || !CaptureTheFlagState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
@@ -45,7 +41,7 @@ public partial class Plugin
             return;
         }
 
-        CaptureTheFlagState.ApplySettings(enabled, useWeaponSpawners);
+        CaptureTheFlagState.ApplySettings(enabled);
     }
 
     [CustomRPC]

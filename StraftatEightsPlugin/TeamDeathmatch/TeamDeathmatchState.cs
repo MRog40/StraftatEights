@@ -10,7 +10,6 @@ internal static class TeamDeathmatchState
     internal const string LiveLobbyDataKey = "StraftatEights_TDM_Live";
 
     internal static bool Enabled;
-    internal static bool UseWeaponSpawners;
     internal static readonly Dictionary<int, int> Scores = new();
     internal static int TeamCount => TeamAssignment.TeamCount;
     internal static IReadOnlyDictionary<int, int> Assignments => TeamAssignment.Current;
@@ -19,11 +18,10 @@ internal static class TeamDeathmatchState
     private static bool _roundInitialized;
     private static bool _roundCompletionRequested;
 
-    internal static void ApplySettings(bool enabled, bool useWeaponSpawners)
+    internal static void ApplySettings(bool enabled)
     {
-        bool changed = Enabled != enabled || UseWeaponSpawners != useWeaponSpawners;
+        bool changed = Enabled != enabled;
         Enabled = enabled;
-        UseWeaponSpawners = useWeaponSpawners;
         if (changed)
         {
             ResetMatchState();
@@ -32,8 +30,7 @@ internal static class TeamDeathmatchState
 
     private static void ApplySettingsFromHostConfig()
     {
-        ApplySettings(Plugin.TeamDeathmatchEnabled.Value,
-            Plugin.TeamDeathmatchUseWeaponSpawners.Value);
+        ApplySettings(Plugin.TeamDeathmatchEnabled.Value);
     }
 
     internal static void PushSettingsIfHost()
@@ -47,11 +44,11 @@ internal static class TeamDeathmatchState
         int revision = Sync.NextSettingsRevision();
         ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
             GameModeManager.RoundId, revision, Plugin.TeamDeathmatchEnabled.Value ? "1" : "0",
-            Plugin.TeamDeathmatchUseWeaponSpawners.Value ? "1" : "0");
+            "1");
         MyceliumNetwork.RPC(Plugin.TeamDeathmatchModId,
             nameof(Plugin.SyncTeamDeathmatchSettings), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
-            Plugin.TeamDeathmatchEnabled.Value, Plugin.TeamDeathmatchUseWeaponSpawners.Value);
+            Plugin.TeamDeathmatchEnabled.Value, true);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -134,7 +131,7 @@ internal static class TeamDeathmatchState
         MyceliumNetwork.RPCTarget(Plugin.TeamDeathmatchModId,
             nameof(Plugin.SyncTeamDeathmatchSettings), player, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
-            Plugin.TeamDeathmatchEnabled.Value, Plugin.TeamDeathmatchUseWeaponSpawners.Value);
+            Plugin.TeamDeathmatchEnabled.Value, true);
         SendLiveStateTo(player);
     }
 
@@ -289,14 +286,14 @@ internal static class TeamDeathmatchState
         if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 2, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
-            || !LobbySnapshotCodec.TryParseBool(fields[1], out bool useWeaponSpawners)
+            || !LobbySnapshotCodec.TryParseBool(fields[1], out _)
             || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
                 ModeLobbyDataSync.Source("tdm", "settings")))
         {
             return;
         }
 
-        ApplySettings(enabled, useWeaponSpawners);
+        ApplySettings(enabled);
     }
 
     private static void ApplyLobbyLiveSnapshot()

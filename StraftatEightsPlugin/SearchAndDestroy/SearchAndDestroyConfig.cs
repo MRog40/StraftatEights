@@ -8,21 +8,17 @@ public partial class Plugin
 {
     internal const uint SearchAndDestroyModId = 1618033996u;
     internal static ConfigEntry<bool> SearchAndDestroyEnabled = null!;
-    internal static ConfigEntry<bool> SearchAndDestroyUseWeaponSpawners = null!;
 
     private void InitializeSearchAndDestroy()
     {
         const string section = "Game Mode Settings";
         SearchAndDestroyEnabled = Config.Bind(section, "Search and Destroy Enabled", false,
             "Host-controlled: two teams attack and defend bomb sites with one life per sub-round.");
-        SearchAndDestroyUseWeaponSpawners = Config.Bind(section, "Search and Destroy Use Weapon Spawners", false,
-            "Host-controlled: use map weapon spawners instead of assigning a weapon directly on respawn.");
         SearchAndDestroyEnabled.SettingChanged += (_, _) =>
         {
             SearchAndDestroyState.PushSettingsIfHost();
             GameModeManager.OnSettingsChanged();
         };
-        SearchAndDestroyUseWeaponSpawners.SettingChanged += (_, _) => SearchAndDestroyState.PushSettingsIfHost();
 
         MyceliumNetwork.RegisterNetworkObject(this, SearchAndDestroyModId);
         ModeLobbyDataSync.RegisterKeys(SearchAndDestroyState.SettingsLobbyDataKey,
@@ -37,7 +33,7 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncSearchAndDestroySettings(CSteamID hostId, int roundId, int revision,
-        bool enabled, bool useWeaponSpawners, RPCInfo info)
+        bool enabled, bool ignoredLegacySpawnerFlag, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info)
             || !SearchAndDestroyState.TryAcceptSettingsSnapshot(hostId, roundId, revision))
@@ -45,7 +41,7 @@ public partial class Plugin
             return;
         }
 
-        SearchAndDestroyState.ApplySettings(enabled, useWeaponSpawners);
+        SearchAndDestroyState.ApplySettings(enabled);
     }
 
     [CustomRPC]

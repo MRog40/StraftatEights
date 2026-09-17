@@ -28,11 +28,12 @@ internal static class SearchAndDestroyState
     internal const float DefuseDurationSeconds = SearchAndDestroyRules.DefuseDurationSeconds;
     internal const float FuseDurationSeconds = SearchAndDestroyRules.FuseDurationSeconds;
     internal const float InteractionRadius = SearchAndDestroyRules.InteractionRadius;
-    internal const float ServerTickIntervalSeconds = 0.1f;
+    internal const float PlantSiteRadius = SearchAndDestroyRules.PlantSiteRadius;
+    internal const float ServerTickIntervalSeconds = 0.05f;
+    private const float InteractionRequestResendSeconds = 0.25f;
     internal const int PointsPerRoundWin = SearchAndDestroyRules.PointsPerRoundWin;
 
     internal static bool Enabled;
-    internal static bool UseWeaponSpawners;
     internal static int SubRoundId { get; private set; }
     internal static int WinnerId { get; private set; } = -1;
     internal static int SubRoundWinnerId { get; private set; } = -1;
@@ -60,17 +61,17 @@ internal static class SearchAndDestroyState
     private static readonly NetworkCommandTracker InteractionCommands = new();
     private static float _serverTickAccumulator;
     private static int _nextLocalCommandId;
+    private static float _nextInteractionRequestTime;
     private static bool _localInteractionHeld;
     private static bool _localLookingAtBomb;
     private static bool _roundStarted;
     private static bool _subRoundEnding;
     private static int _lastAnnouncedSubRoundId = -1;
 
-    internal static void ApplySettings(bool enabled, bool useWeaponSpawners)
+    internal static void ApplySettings(bool enabled)
     {
-        bool changed = Enabled != enabled || UseWeaponSpawners != useWeaponSpawners;
+        bool changed = Enabled != enabled;
         Enabled = enabled;
-        UseWeaponSpawners = useWeaponSpawners;
         if (changed)
         {
             ResetMatchState();
@@ -79,8 +80,7 @@ internal static class SearchAndDestroyState
 
     private static void ApplySettingsFromHostConfig()
     {
-        ApplySettings(Plugin.SearchAndDestroyEnabled.Value,
-            Plugin.SearchAndDestroyUseWeaponSpawners.Value);
+        ApplySettings(Plugin.SearchAndDestroyEnabled.Value);
     }
 
     internal static void PushSettingsIfHost()
@@ -94,11 +94,11 @@ internal static class SearchAndDestroyState
         int revision = Sync.NextSettingsRevision();
         ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
             GameModeManager.RoundId, revision, Plugin.SearchAndDestroyEnabled.Value ? "1" : "0",
-            Plugin.SearchAndDestroyUseWeaponSpawners.Value ? "1" : "0");
+            "1");
         MyceliumNetwork.RPC(Plugin.SearchAndDestroyModId,
             nameof(Plugin.SyncSearchAndDestroySettings), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
-            Plugin.SearchAndDestroyEnabled.Value, Plugin.SearchAndDestroyUseWeaponSpawners.Value);
+            Plugin.SearchAndDestroyEnabled.Value, true);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -122,6 +122,7 @@ internal static class SearchAndDestroyState
     {
         Sync.ResetForLobby();
         _nextLocalCommandId = 0;
+        _nextInteractionRequestTime = 0f;
         InteractionCommands.Clear();
         if (MyceliumNetwork.IsHost)
         {
@@ -171,7 +172,7 @@ internal static class SearchAndDestroyState
         MyceliumNetwork.RPCTarget(Plugin.SearchAndDestroyModId,
             nameof(Plugin.SyncSearchAndDestroySettings), player, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
-            Plugin.SearchAndDestroyEnabled.Value, Plugin.SearchAndDestroyUseWeaponSpawners.Value);
+            Plugin.SearchAndDestroyEnabled.Value, true);
         SendLiveStateTo(player);
     }
 
@@ -198,6 +199,7 @@ internal static class SearchAndDestroyState
         HeldInteractions.Clear();
         LookingAtBomb.Clear();
         _serverTickAccumulator = 0f;
+        _nextInteractionRequestTime = 0f;
         _localInteractionHeld = false;
         _localLookingAtBomb = false;
         _roundStarted = false;
@@ -288,7 +290,7 @@ internal static class SearchAndDestroyState
             }
         }
 
-        bool stateChanged = ProcessBombInteractions(elapsed);
+        bool stateChanged = ProcessBombInteractions(elapsed, out bool broadcastImmediately);
         if (BombStatus == SearchAndDestroyBombStatus.Planted)
         {
             FuseTimeRemaining = Mathf.Max(0f, FuseTimeRemaining - elapsed);
@@ -302,7 +304,14 @@ internal static class SearchAndDestroyState
 
         if (stateChanged)
         {
-            BroadcastLiveStateWhenDue();
+            if (broadcastImmediately)
+            {
+                BroadcastLiveState();
+            }
+            else
+            {
+                BroadcastLiveStateWhenDue();
+            }
         }
     }
 
@@ -424,12 +433,18 @@ internal static class SearchAndDestroyState
 
         bool interactionHeld = Input.GetKey(InteractionKey);
         bool lookingAtBomb = interactionHeld && IsLocalPlayerLookingAtBomb();
-        if (interactionHeld != _localInteractionHeld
-            || lookingAtBomb != _localLookingAtBomb)
+        bool stateChanged = interactionHeld != _localInteractionHeld
+            || lookingAtBomb != _localLookingAtBomb;
+        bool resendDue = interactionHeld && !MyceliumNetwork.IsHost
+            && Time.unscaledTime >= _nextInteractionRequestTime;
+        if (stateChanged || resendDue)
         {
             SendInteractionRequest(playerId, interactionHeld, lookingAtBomb);
             _localInteractionHeld = interactionHeld;
             _localLookingAtBomb = lookingAtBomb;
+            _nextInteractionRequestTime = interactionHeld
+                ? Time.unscaledTime + InteractionRequestResendSeconds
+                : 0f;
         }
     }
 
@@ -723,9 +738,10 @@ internal static class SearchAndDestroyState
         BroadcastLiveState();
     }
 
-    private static bool ProcessBombInteractions(float elapsed)
+    private static bool ProcessBombInteractions(float elapsed, out bool broadcastImmediately)
     {
         bool changed = false;
+        broadcastImmediately = false;
         if (BombStatus == SearchAndDestroyBombStatus.Dropped)
         {
             foreach (int playerId in AlivePlayers)
@@ -743,6 +759,7 @@ internal static class SearchAndDestroyState
                     BombCarrierPlayerId = playerId;
                     BombSiteIndex = -1;
                     changed = true;
+                    broadcastImmediately = true;
                     break;
                 }
             }
@@ -754,14 +771,26 @@ internal static class SearchAndDestroyState
             if (!IsInteractionHeld(BombCarrierPlayerId)
                 || !AlivePlayers.Contains(BombCarrierPlayerId))
             {
+                bool wasPlanting = PlantingPlayerId >= 0;
                 CancelPlanting();
+                if (wasPlanting)
+                {
+                    changed = true;
+                    broadcastImmediately = true;
+                }
             }
             else
             {
                 int siteIndex = FindNearbySite(BombCarrierPlayerId);
                 if (siteIndex < 0)
                 {
+                    bool wasPlanting = PlantingPlayerId >= 0;
                     CancelPlanting();
+                    if (wasPlanting)
+                    {
+                        changed = true;
+                        broadcastImmediately = true;
+                    }
                 }
                 else
                 {
@@ -772,6 +801,7 @@ internal static class SearchAndDestroyState
                         BombSiteIndex = siteIndex;
                         PlantProgress = 0f;
                         changed = true;
+                        broadcastImmediately = true;
                     }
 
                     PlantProgress += elapsed;
@@ -787,6 +817,7 @@ internal static class SearchAndDestroyState
                         PlantProgress = 0f;
                         FuseTimeRemaining = FuseDurationSeconds;
                         changed = true;
+                        broadcastImmediately = true;
                     }
                 }
             }
@@ -795,6 +826,7 @@ internal static class SearchAndDestroyState
         {
             CancelPlanting();
             changed = true;
+            broadcastImmediately = true;
         }
 
         if (BombStatus == SearchAndDestroyBombStatus.Planted)
@@ -808,6 +840,7 @@ internal static class SearchAndDestroyState
             {
                 CancelDefusing();
                 changed = true;
+                broadcastImmediately = true;
             }
 
             if (DefuserPlayerId < 0)
@@ -826,6 +859,7 @@ internal static class SearchAndDestroyState
                         DefuserPlayerId = playerId;
                         DefuseProgress = 0f;
                         changed = true;
+                        broadcastImmediately = true;
                         break;
                     }
                 }
@@ -1068,8 +1102,10 @@ internal static class SearchAndDestroyState
                 continue;
             }
 
-            float distance = (playerPosition - sitePosition).sqrMagnitude;
-            if (distance <= InteractionRadius * InteractionRadius && distance < selectedDistance)
+            Vector3 horizontalOffset = playerPosition - sitePosition;
+            horizontalOffset.y = 0f;
+            float distance = horizontalOffset.sqrMagnitude;
+            if (distance <= PlantSiteRadius * PlantSiteRadius && distance < selectedDistance)
             {
                 selectedSite = siteIndex;
                 selectedDistance = distance;
@@ -1272,14 +1308,14 @@ internal static class SearchAndDestroyState
         if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 2, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
-            || !LobbySnapshotCodec.TryParseBool(fields[1], out bool useWeaponSpawners)
+            || !LobbySnapshotCodec.TryParseBool(fields[1], out _)
             || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
                 ModeLobbyDataSync.Source("snd", "settings")))
         {
             return;
         }
 
-        ApplySettings(enabled, useWeaponSpawners);
+        ApplySettings(enabled);
     }
 
     private static void ApplyLobbyLiveSnapshot()

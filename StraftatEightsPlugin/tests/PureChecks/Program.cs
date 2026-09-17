@@ -238,6 +238,7 @@ Assert(SearchAndDestroyRules.PointsPerRoundWin == 40
     && SearchAndDestroyRules.PlantDurationSeconds == 5f
     && SearchAndDestroyRules.DefuseDurationSeconds == 7.5f
     && SearchAndDestroyRules.FuseDurationSeconds == 30f
+    && SearchAndDestroyRules.PlantSiteRadius == 3f
     && SearchAndDestroyRules.IsMatchWon(4, 4)
     && !SearchAndDestroyRules.IsMatchWon(3, 4),
     "Search and Destroy must use the configured round and interaction timings.");

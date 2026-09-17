@@ -428,9 +428,33 @@ internal static class PlayerOutline
         }
     }
 
-    internal static void ClearTemporary(PlayerHealth player)
+    internal static void ClearTemporary(PlayerHealth player, Color temporaryColor,
+        float temporaryWidth)
     {
-        Clear(player);
+        if (player == null)
+        {
+            return;
+        }
+
+        foreach (SkinnedMeshRenderer renderer in player.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        {
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            Material[] materials = renderer.materials;
+            if (materials.Length == 0 || materials[0] == null
+                || !materials[0].HasProperty("_ASEOutlineWidth")
+                || !Mathf.Approximately(materials[0].GetFloat("_ASEOutlineWidth"), temporaryWidth)
+                || materials[0].GetColor("_ASEOutlineColor") != temporaryColor)
+            {
+                continue;
+            }
+
+            materials[0].SetFloat("_ASEOutlineWidth", 0f);
+            renderer.materials = materials;
+        }
     }
 
     internal static void ClearAll()

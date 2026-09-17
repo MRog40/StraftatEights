@@ -17,7 +17,6 @@ internal static class CaptureTheFlagState
     internal const float ServerTickIntervalSeconds = 0.1f;
 
     internal static bool Enabled;
-    internal static bool UseWeaponSpawners;
     internal static readonly Dictionary<int, int> Scores = new();
     internal static float MatchTimeRemaining { get; private set; }
     internal static bool IsSuddenDeath { get; private set; }
@@ -97,11 +96,10 @@ internal static class CaptureTheFlagState
         return false;
     }
 
-    internal static void ApplySettings(bool enabled, bool useWeaponSpawners)
+    internal static void ApplySettings(bool enabled)
     {
-        bool changed = Enabled != enabled || UseWeaponSpawners != useWeaponSpawners;
+        bool changed = Enabled != enabled;
         Enabled = enabled;
-        UseWeaponSpawners = useWeaponSpawners;
         if (changed)
         {
             ResetMatchState();
@@ -110,8 +108,7 @@ internal static class CaptureTheFlagState
 
     private static void ApplySettingsFromHostConfig()
     {
-        ApplySettings(Plugin.CaptureTheFlagEnabled.Value,
-            Plugin.CaptureTheFlagUseWeaponSpawners.Value);
+        ApplySettings(Plugin.CaptureTheFlagEnabled.Value);
     }
 
     internal static void PushSettingsIfHost()
@@ -125,11 +122,11 @@ internal static class CaptureTheFlagState
         int revision = Sync.NextSettingsRevision();
         ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
             GameModeManager.RoundId, revision, Plugin.CaptureTheFlagEnabled.Value ? "1" : "0",
-            Plugin.CaptureTheFlagUseWeaponSpawners.Value ? "1" : "0");
+            "1");
         MyceliumNetwork.RPC(Plugin.CaptureTheFlagModId,
             nameof(Plugin.SyncCaptureTheFlagSettings), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
-            Plugin.CaptureTheFlagEnabled.Value, Plugin.CaptureTheFlagUseWeaponSpawners.Value);
+            Plugin.CaptureTheFlagEnabled.Value, true);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -207,7 +204,7 @@ internal static class CaptureTheFlagState
         MyceliumNetwork.RPCTarget(Plugin.CaptureTheFlagModId,
             nameof(Plugin.SyncCaptureTheFlagSettings), player, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
-            Plugin.CaptureTheFlagEnabled.Value, Plugin.CaptureTheFlagUseWeaponSpawners.Value);
+            Plugin.CaptureTheFlagEnabled.Value, true);
         SendLiveStateTo(player);
     }
 
@@ -828,14 +825,14 @@ internal static class CaptureTheFlagState
         if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 2, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
-            || !LobbySnapshotCodec.TryParseBool(fields[1], out bool useWeaponSpawners)
+            || !LobbySnapshotCodec.TryParseBool(fields[1], out _)
             || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
                 ModeLobbyDataSync.Source("ctf", "settings")))
         {
             return;
         }
 
-        ApplySettings(enabled, useWeaponSpawners);
+        ApplySettings(enabled);
     }
 
     private static void ApplyLobbyLiveSnapshot()

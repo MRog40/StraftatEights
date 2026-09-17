@@ -19,6 +19,7 @@ internal static class SearchAndDestroyRules
     internal const float DefuseDurationSeconds = 7.5f;
     internal const float FuseDurationSeconds = 30f;
     internal const float InteractionRadius = 2f;
+    internal const float PlantSiteRadius = 3f;
     internal const float BetweenSubRoundDelaySeconds = 3f;
 
     internal static float GetSubRoundTimeLimit(int scoreLimit)

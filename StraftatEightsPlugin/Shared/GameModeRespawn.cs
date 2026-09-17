@@ -245,9 +245,26 @@ internal static class GameModeRespawn
                 yield break;
             }
 
+            if (!IsPlayerMovementLocked(manager))
+            {
+                yield return null;
+                continue;
+            }
+
             SetPlayerMovable(manager);
             yield return null;
         }
+    }
+
+    private static bool IsPlayerMovementLocked(PlayerManager manager)
+    {
+        if (manager.player == null || !manager.player)
+        {
+            return false;
+        }
+
+        return !manager.player.canMove || manager.player.startOfRound
+            || (PauseManager.Instance != null && PauseManager.Instance.startRound);
     }
 
     private static void SetPlayerMovable(PlayerManager manager)
@@ -257,8 +274,12 @@ internal static class GameModeRespawn
             return;
         }
 
+        bool wasMovementLocked = !manager.player.canMove;
         manager.player.canMove = true;
-        manager.player.sync___set_value_canMove(true, true);
+        if (wasMovementLocked)
+        {
+            manager.player.sync___set_value_canMove(true, true);
+        }
         manager.player.startOfRound = false;
         if (PauseManager.Instance != null)
         {
@@ -273,8 +294,12 @@ internal static class GameModeRespawn
             return;
         }
 
+        bool wasMovementLocked = !player.canMove;
         player.canMove = true;
-        player.sync___set_value_canMove(true, true);
+        if (wasMovementLocked)
+        {
+            player.sync___set_value_canMove(true, true);
+        }
         player.startOfRound = false;
         if (PauseManager.Instance != null)
         {

@@ -49,7 +49,6 @@ internal static class TeamWeaponLoadouts
     {
         if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
             || !GameModeManager.IsTeamBased
-            || GameModeManager.UsesWeaponSpawners
             || GameModeManager.Phase != GameModePhase.ActiveRound
             || WeaponService.IsFinalGameScreen)
         {
