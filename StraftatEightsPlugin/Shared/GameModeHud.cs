@@ -42,12 +42,12 @@ internal sealed class GameModeHud : MonoBehaviour
     private bool _hasLoggedVisibility;
     private bool _lastVisible;
     private string _lastVisibilityReason = string.Empty;
-    private static int _nextSubRoundResultId;
-    private static int _lastReceivedSubRoundResultId = -1;
-    private static int _pendingSubRoundResultId = -1;
-    private static string _pendingSubRoundResultText = string.Empty;
-    private static float _pendingSubRoundResultUntil;
-    private static float _nextSubRoundResultPushTime;
+    private static int _nextTakeResultId;
+    private static int _lastReceivedTakeResultId = -1;
+    private static int _pendingTakeResultId = -1;
+    private static string _pendingTakeResultText = string.Empty;
+    private static float _pendingTakeResultUntil;
+    private static float _nextTakeResultPushTime;
 
     private void Awake()
     {
@@ -376,33 +376,33 @@ internal sealed class GameModeHud : MonoBehaviour
         _instance._targetAnnouncement.gameObject.SetActive(true);
     }
 
-    internal static void ReceiveSubRoundResult(int resultId, string text, float durationSeconds)
+    internal static void ReceiveTakeResult(int resultId, string text, float durationSeconds)
     {
-        if (resultId <= _lastReceivedSubRoundResultId)
+        if (resultId <= _lastReceivedTakeResultId)
         {
             return;
         }
 
-        _lastReceivedSubRoundResultId = resultId;
-        ShowSubRoundResult(ClientInstance.ReplaceAllPlayerNameTags(text), durationSeconds);
+        _lastReceivedTakeResultId = resultId;
+        ShowTakeResult(ClientInstance.ReplaceAllPlayerNameTags(text), durationSeconds);
     }
 
-    internal static void PeriodicPushSubRoundResult()
+    internal static void PeriodicPushTakeResult()
     {
-        if (!MyceliumNetwork.IsHost || _pendingSubRoundResultId < 0
-            || Time.unscaledTime >= _pendingSubRoundResultUntil
-            || Time.unscaledTime < _nextSubRoundResultPushTime)
+        if (!MyceliumNetwork.IsHost || _pendingTakeResultId < 0
+            || Time.unscaledTime >= _pendingTakeResultUntil
+            || Time.unscaledTime < _nextTakeResultPushTime)
         {
             return;
         }
 
-        _nextSubRoundResultPushTime = Time.unscaledTime + 0.5f;
-        MyceliumNetwork.RPC(GameModeManager.ModId, nameof(Plugin.SyncSubRoundResult),
-            ReliableType.Reliable, _pendingSubRoundResultId, _pendingSubRoundResultText,
-            _pendingSubRoundResultUntil - Time.unscaledTime);
+        _nextTakeResultPushTime = Time.unscaledTime + 0.5f;
+        MyceliumNetwork.RPC(GameModeManager.ModId, nameof(Plugin.SyncTakeResult),
+            ReliableType.Reliable, _pendingTakeResultId, _pendingTakeResultText,
+            _pendingTakeResultUntil - Time.unscaledTime);
     }
 
-    internal static void BroadcastSubRoundResult(string text, float durationSeconds = 3f)
+    internal static void BroadcastTakeResult(string text, float durationSeconds = 3f)
     {
         if (string.IsNullOrWhiteSpace(text) || !MyceliumNetwork.InLobby
             || !MyceliumNetwork.IsHost)
@@ -410,18 +410,18 @@ internal sealed class GameModeHud : MonoBehaviour
             return;
         }
 
-        int resultId = ++_nextSubRoundResultId;
-        _pendingSubRoundResultId = resultId;
-        _pendingSubRoundResultText = text;
-        _pendingSubRoundResultUntil = Time.unscaledTime + Mathf.Max(1f, durationSeconds);
-        _nextSubRoundResultPushTime = Time.unscaledTime + 0.5f;
+        int resultId = ++_nextTakeResultId;
+        _pendingTakeResultId = resultId;
+        _pendingTakeResultText = text;
+        _pendingTakeResultUntil = Time.unscaledTime + Mathf.Max(1f, durationSeconds);
+        _nextTakeResultPushTime = Time.unscaledTime + 0.5f;
         string resolvedText = ClientInstance.ReplaceAllPlayerNameTags(text);
-        ShowSubRoundResult(resolvedText, durationSeconds);
-        MyceliumNetwork.RPC(GameModeManager.ModId, nameof(Plugin.SyncSubRoundResult),
+        ShowTakeResult(resolvedText, durationSeconds);
+        MyceliumNetwork.RPC(GameModeManager.ModId, nameof(Plugin.SyncTakeResult),
             ReliableType.Reliable, resultId, text, durationSeconds);
     }
 
-    internal static void ShowSubRoundResult(string text, float durationSeconds)
+    internal static void ShowTakeResult(string text, float durationSeconds)
     {
         PauseManager? pauseManager = PauseManager.Instance;
         if (_instance == null || string.IsNullOrWhiteSpace(text)

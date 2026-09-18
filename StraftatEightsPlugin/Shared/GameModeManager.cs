@@ -265,6 +265,7 @@ internal static class GameModeManager
     internal static GameMode ActiveMode { get; private set; }
     internal static GameModePhase Phase { get; private set; } = GameModePhase.Inactive;
     internal static int RoundId { get; private set; }
+    private static bool _roundLifecycleStarted;
     internal static string SelectedMapName { get; private set; } = string.Empty;
     internal static ConfigEntry<float> RespawnDelaySeconds = null!;
     internal static ConfigEntry<int> PointsToWin = null!;
@@ -414,7 +415,10 @@ internal static class GameModeManager
             yield break;
         }
 
-        BeginRound();
+        if (!BeginRound())
+        {
+            yield break;
+        }
         switch (ActiveMode)
         {
             case GameMode.MichaelMeyers:
@@ -1224,6 +1228,7 @@ internal static class GameModeManager
 
     internal static void ResetMatchState()
     {
+        _roundLifecycleStarted = false;
         _customRoundTransitionPending = false;
         _skipRoundTransitionPending = false;
         PendingDeaths.Clear();
@@ -1238,6 +1243,7 @@ internal static class GameModeManager
     internal static void ResetGameState()
     {
         DebugLog.Info($"ResetGameState host={MyceliumNetwork.IsHost} mode={ActiveMode} phase={Phase} round={RoundId}");
+        _roundLifecycleStarted = false;
         if (Phase == GameModePhase.EndingRound)
         {
             PendingDeaths.Clear();
@@ -1302,13 +1308,20 @@ internal static class GameModeManager
         Phase = ActiveMode == GameMode.None ? GameModePhase.Inactive : GameModePhase.Lobby;
     }
 
-    internal static void BeginRound()
+    internal static bool BeginRound()
     {
         DebugLog.Info($"BeginRound host={MyceliumNetwork.IsHost} mode={ActiveMode} phase={Phase} round={RoundId}");
         if (IsVanillaScene || ActiveMode == GameMode.None)
         {
-            return;
+            return false;
         }
+
+        if (_roundLifecycleStarted)
+        {
+            return false;
+        }
+
+        _roundLifecycleStarted = true;
 
         Phase = GameModePhase.ActiveRound;
         if (MyceliumNetwork.IsHost)
@@ -1316,6 +1329,8 @@ internal static class GameModeManager
             RoundId++;
             BroadcastActiveMode();
         }
+
+        return true;
     }
 
     private static bool HasCapability(GameModeCapabilities capability)
@@ -1588,7 +1603,7 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncSubRoundResult(int resultId, string text, float durationSeconds, RPCInfo info)
+    public void SyncTakeResult(int resultId, string text, float durationSeconds, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info)
             || resultId < 0 || string.IsNullOrWhiteSpace(text)
@@ -1597,7 +1612,7 @@ public partial class Plugin
             return;
         }
 
-        GameModeHud.ReceiveSubRoundResult(resultId, text, Mathf.Clamp(durationSeconds, 1f, 8f));
+        GameModeHud.ReceiveTakeResult(resultId, text, Mathf.Clamp(durationSeconds, 1f, 8f));
     }
 
     [CustomRPC]

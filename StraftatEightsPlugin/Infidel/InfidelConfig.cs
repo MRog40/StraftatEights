@@ -46,7 +46,7 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncInfidelLiveState(CSteamID hostId, string scoresData, int winnerId,
-        int subRoundId, bool weaponsUnlocked, int roundId, int revision, RPCInfo info)
+        int takeId, bool weaponsUnlocked, int roundId, int revision, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
@@ -56,18 +56,18 @@ public partial class Plugin
         {
             return;
         }
-        InfidelState.ApplyLiveState(hostId, scoresData, winnerId, subRoundId,
+        InfidelState.ApplyLiveState(hostId, scoresData, winnerId, takeId,
             weaponsUnlocked, roundId, revision);
     }
 
     [CustomRPC]
-    public void SyncInfidelRole(CSteamID hostId, int subRoundId, bool isInfidel, bool announce, RPCInfo info)
+    public void SyncInfidelRole(CSteamID hostId, int takeId, bool isInfidel, bool announce, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
             return;
         }
-        InfidelState.ApplyLocalRole(hostId, subRoundId, isInfidel, announce);
+        InfidelState.ApplyLocalRole(hostId, takeId, isInfidel, announce);
     }
 
     [CustomRPC]

@@ -6,7 +6,7 @@ Ping @MRog40 in the STRAFTAT Discord with any issues.
 ## Game Modes
 
 **Default** is a round-based last-player or last-team-standing mode. Players earn points for winning
-sub-rounds, and the first player or team to reach the shared point target wins the match.
+takes, and the first player or team to reach the shared point target wins the match.
 
 **Free For All (FFA)** awards individual kill points. The first player to reach the shared point target
 wins the round.
@@ -21,7 +21,7 @@ to finish the weapon progression wins.
 and the first player to reach the point target wins.
 
 **Michael Meyers** selects one player as Michael after the round begins. Michael hunts the survivors with
-a Couperet, while the survivors try to eliminate Michael; sub-round scores continue until the target is
+a Couperet, while the survivors try to eliminate Michael; take scores continue until the target is
 reached.
 
 **Kill The Rat** selects the Rat after the first legitimate kill. The Rat uses a Taser
@@ -29,19 +29,19 @@ and moves faster, while the other players use Glocks; survival time and kills aw
 the Rat transfers the role.
 
 **One In The Chamber** gives each player a Revolver with one chambered shot and a Couperet. Players have
-very low health, kills award reserve bullets, and the last player alive wins each sub-round.
+very low health, kills award reserve bullets, and the last player alive wins each take.
 
 **Hot Potato** starts with Shotguns and selects the first Potato when a player dies. The Potato carries
 a HandGrenade, killing the Potato transfers it to the victim, and kill points determine the winner.
 
 **Infidel** selects one hidden Infidel against the remaining Terrorists. After the preparation delay,
-the Infidel uses an AK-K while the roles fight through repeated sub-rounds for points; the Infidel wins
+the Infidel uses an AK-K while the roles fight through repeated takes for points; the Infidel wins
 by surviving after all Terrorists are eliminated.
 
 **HVT** selects a High-Value Target after the first legitimate kill. The HVT earns survival points,
 killing the HVT transfers the role to the killer, and the first player to reach the point target wins.
 
-**Assassin** assigns a hidden Assassin, a King, and Bodyguards each sub-round. After the weapon delay,
+**Assassin** assigns a hidden Assassin, a King, and Bodyguards each take. After the weapon delay,
 the Assassin uses Silenzzio, the King uses a Taser, and Bodyguards use Glocks; killing the King rewards
 the Assassin, while stopping the Assassin rewards the King and Bodyguards.
 

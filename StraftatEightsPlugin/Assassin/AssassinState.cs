@@ -36,11 +36,11 @@ internal static class AssassinState
     private static readonly ModeSyncState Sync = new();
     private static float _nextLoadoutCheckTime;
     private static float _nextClientLivePollTime;
-    private static int _subRoundId;
-    private static int _localRoleSubRoundId = -1;
-    private static int _localRoleAnnouncedSubRoundId = -1;
+    private static int _takeId;
+    private static int _localRoleTakeId = -1;
+    private static int _localRoleAnnouncedTakeId = -1;
     private static bool _startRetryPending;
-    private static bool _subRoundEnding;
+    private static bool _takeEnding;
 
     internal static void ApplySettings(bool enabled)
     {
@@ -155,9 +155,9 @@ internal static class AssassinState
             Sync.SettingsRevision, Plugin.AssassinEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.AssassinModId, nameof(Plugin.SyncAssassinLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, KingPlayerId, SerializeScores(),
-            WinnerId, _subRoundId, WeaponsUnlocked, GameModeManager.RoundId, Sync.LiveRevision);
+            WinnerId, _takeId, WeaponsUnlocked, GameModeManager.RoundId, Sync.LiveRevision);
 
-        if (!SubRoundIsActive())
+        if (!TakeIsActive())
         {
             return;
         }
@@ -183,7 +183,7 @@ internal static class AssassinState
         int playerId = PlayerLookup.FindPlayerId(player);
         bool wasAlive = playerId >= 0 && AlivePlayers.Contains(playerId);
         if (wasAlive && GameModeManager.IsActive(GameMode.Assassin)
-            && WinnerId < 0 && !_subRoundEnding)
+            && WinnerId < 0 && !_takeEnding)
         {
             OnServerKill(playerId, -1);
         }
@@ -217,11 +217,11 @@ internal static class AssassinState
     {
         Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
-        _subRoundId = 0;
-        _localRoleSubRoundId = -1;
-        _localRoleAnnouncedSubRoundId = -1;
+        _takeId = 0;
+        _localRoleTakeId = -1;
+        _localRoleAnnouncedTakeId = -1;
         _startRetryPending = false;
-        _subRoundEnding = false;
+        _takeEnding = false;
         AssassinPlayerId = -1;
         KingPlayerId = -1;
         WinnerId = -1;
@@ -234,7 +234,7 @@ internal static class AssassinState
     }
 
     internal static void ApplyLiveState(CSteamID hostId, int kingPlayerId, string scoresData,
-        int winnerId, int subRoundId, bool weaponsUnlocked, int roundId, int revision,
+        int winnerId, int takeId, bool weaponsUnlocked, int roundId, int revision,
         string source = "rpc")
     {
         int previousRoundId = Sync.LastLiveRoundId;
@@ -245,9 +245,9 @@ internal static class AssassinState
         }
 
         KingPlayerId = kingPlayerId;
-        _subRoundId = roundId != previousRoundId
-            ? subRoundId
-            : Math.Max(_subRoundId, subRoundId);
+        _takeId = roundId != previousRoundId
+            ? takeId
+            : Math.Max(_takeId, takeId);
         WinnerId = winnerId;
         WeaponsUnlocked = weaponsUnlocked;
         Scores.Clear();
@@ -266,13 +266,13 @@ internal static class AssassinState
 
         Scores.Clear();
         WinnerId = -1;
-        StartSubRound();
+        StartTake();
     }
 
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.Assassin)
-            || WinnerId >= 0 || _subRoundEnding || !AlivePlayers.Remove(deadPlayerId))
+            || WinnerId >= 0 || _takeEnding || !AlivePlayers.Remove(deadPlayerId))
         {
             return;
         }
@@ -280,12 +280,12 @@ internal static class AssassinState
         if (deadPlayerId == KingPlayerId)
         {
             AwardScore(AssassinPlayerId, PointsForAssassinWin);
-            GameModeHud.BroadcastSubRoundResult("<b>"
+            GameModeHud.BroadcastTakeResult("<b>"
                 + PlayerLookup.GetPlayerNameTag(AssassinPlayerId)
-                + " WON THE SUB-ROUND</b>\n<i>THE KING WAS ELIMINATED</i>");
+                + " WON THE TAKE</b>\n<i>THE KING WAS ELIMINATED</i>");
             AnnounceResult("The King was killed. The Assassin was "
                 + PlayerLookup.GetPlayerNameTag(AssassinPlayerId) + ".");
-            FinishSubRound();
+            FinishTake();
             return;
         }
 
@@ -309,11 +309,11 @@ internal static class AssassinState
             string kingLabel = KingPlayerId >= 0
                 ? PlayerLookup.GetPlayerNameTag(KingPlayerId)
                 : "THE KING";
-            GameModeHud.BroadcastSubRoundResult("<b>" + kingLabel
-                + " AND THE BODYGUARDS WON THE SUB-ROUND</b>\n<i>THE ASSASSIN WAS ELIMINATED</i>");
+            GameModeHud.BroadcastTakeResult("<b>" + kingLabel
+                + " AND THE BODYGUARDS WON THE TAKE</b>\n<i>THE ASSASSIN WAS ELIMINATED</i>");
             AnnounceResult("The Assassin was "
                 + PlayerLookup.GetPlayerNameTag(AssassinPlayerId) + " and was stopped.");
-            FinishSubRound();
+            FinishTake();
             return;
         }
 
@@ -360,22 +360,22 @@ internal static class AssassinState
 
     internal static bool IsKingPlayer(int playerId) => playerId >= 0 && playerId == KingPlayerId;
 
-    internal static void ApplyLocalRole(CSteamID hostId, int subRoundId, bool isAssassin,
+    internal static void ApplyLocalRole(CSteamID hostId, int takeId, bool isAssassin,
         bool isKing, bool announce)
     {
-        if (hostId != MyceliumNetwork.LobbyHost || subRoundId < _localRoleSubRoundId)
+        if (hostId != MyceliumNetwork.LobbyHost || takeId < _localRoleTakeId)
         {
             return;
         }
 
-        _localRoleSubRoundId = subRoundId;
+        _localRoleTakeId = takeId;
         LocalIsAssassin = isAssassin;
         LocalIsKing = isKing;
         if (announce && GameModeManager.IsActive(GameMode.Assassin)
             && GameModeManager.Phase == GameModePhase.ActiveRound
-            && !GameModeManager.IsMatchOver && _localRoleAnnouncedSubRoundId != subRoundId)
+            && !GameModeManager.IsMatchOver && _localRoleAnnouncedTakeId != takeId)
         {
-            _localRoleAnnouncedSubRoundId = subRoundId;
+            _localRoleAnnouncedTakeId = takeId;
             string roleText = isAssassin
                 ? "You are the <color=#CC2222><b>ASSASSIN</b></color>."
                 : isKing
@@ -430,7 +430,7 @@ internal static class AssassinState
         }
     }
 
-    private static void StartSubRound()
+    private static void StartTake()
     {
         if (WinnerId >= 0 || !MyceliumNetwork.IsHost)
         {
@@ -450,12 +450,12 @@ internal static class AssassinState
         {
             AssassinPlayerId = -1;
             KingPlayerId = -1;
-            ScheduleStartSubRoundRetry();
+            ScheduleStartTakeRetry();
             return;
         }
 
-        _subRoundId++;
-        _subRoundEnding = false;
+        _takeId++;
+        _takeEnding = false;
         WeaponsUnlocked = false;
         _nextLoadoutCheckTime = 0f;
         PendingLoadouts.Clear();
@@ -484,13 +484,13 @@ internal static class AssassinState
 
         if (Plugin.Instance != null)
         {
-            int token = _subRoundId;
+            int token = _takeId;
             Plugin.Instance.StartCoroutine(UnlockWeaponsAfterDelay(token, SessionState.Generation,
                 GameModeManager.RoundId));
         }
     }
 
-    private static void ScheduleStartSubRoundRetry()
+    private static void ScheduleStartTakeRetry()
     {
         if (_startRetryPending || Plugin.Instance == null)
         {
@@ -498,24 +498,24 @@ internal static class AssassinState
         }
 
         _startRetryPending = true;
-        Plugin.Instance.StartCoroutine(RetryStartSubRound(SessionState.Generation,
-            GameModeManager.RoundId, _subRoundId));
+        Plugin.Instance.StartCoroutine(RetryStartTake(SessionState.Generation,
+            GameModeManager.RoundId, _takeId));
     }
 
-    private static IEnumerator RetryStartSubRound(int sessionGeneration, int roundId,
-        int previousSubRoundId)
+    private static IEnumerator RetryStartTake(int sessionGeneration, int roundId,
+        int previousTakeId)
     {
         for (int attempt = 0; attempt < 20; attempt++)
         {
             yield return new WaitForSeconds(0.25f);
             if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
-                || WinnerId >= 0 || _subRoundEnding || !GameModeManager.IsActive(GameMode.Assassin))
+                || WinnerId >= 0 || _takeEnding || !GameModeManager.IsActive(GameMode.Assassin))
             {
                 break;
             }
 
-            StartSubRound();
-            if (_subRoundId > previousSubRoundId)
+            StartTake();
+            if (_takeId > previousTakeId)
             {
                 break;
             }
@@ -528,7 +528,7 @@ internal static class AssassinState
     {
         yield return new WaitForSeconds(WeaponDelaySeconds);
         if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
-            || token != _subRoundId || _subRoundEnding || WinnerId >= 0
+            || token != _takeId || _takeEnding || WinnerId >= 0
             || !GameModeManager.IsActive(GameMode.Assassin))
         {
             yield break;
@@ -539,7 +539,7 @@ internal static class AssassinState
         BroadcastLiveState();
     }
 
-    private static void FinishSubRound()
+    private static void FinishTake()
     {
         BroadcastLiveState();
         if (WinnerId >= 0)
@@ -548,17 +548,17 @@ internal static class AssassinState
             return;
         }
 
-        BeginNextSubRound();
+        BeginNextTake();
     }
 
-    private static void BeginNextSubRound()
+    private static void BeginNextTake()
     {
-        if (_subRoundEnding || Plugin.Instance == null)
+        if (_takeEnding || Plugin.Instance == null)
         {
             return;
         }
 
-        _subRoundEnding = true;
+        _takeEnding = true;
         WeaponsUnlocked = false;
         ClearCurrentWeapons();
         foreach (ClientInstance client in ClientInstance.playerInstances.Values)
@@ -569,12 +569,12 @@ internal static class AssassinState
             }
         }
 
-        Plugin.Instance.StartCoroutine(StartNextSubRoundAfterRespawn(
+        Plugin.Instance.StartCoroutine(StartNextTakeAfterRespawn(
             GameModeManager.EffectiveRespawnDelaySeconds + 0.75f,
             SessionState.Generation, GameModeManager.RoundId));
     }
 
-    private static IEnumerator StartNextSubRoundAfterRespawn(float delay, int sessionGeneration,
+    private static IEnumerator StartNextTakeAfterRespawn(float delay, int sessionGeneration,
         int roundId)
     {
         yield return new WaitForSeconds(delay);
@@ -584,7 +584,7 @@ internal static class AssassinState
             yield break;
         }
 
-        StartSubRound();
+        StartTake();
     }
 
     private static void GiveWeapon(int playerId)
@@ -694,7 +694,7 @@ internal static class AssassinState
 
         if (ClientInstance.Instance != null)
         {
-            ApplyLocalRole(MyceliumNetwork.LobbyHost, _subRoundId,
+            ApplyLocalRole(MyceliumNetwork.LobbyHost, _takeId,
                 ClientInstance.Instance.PlayerId == AssassinPlayerId,
                 ClientInstance.Instance.PlayerId == KingPlayerId, announce);
         }
@@ -708,7 +708,7 @@ internal static class AssassinState
         }
 
         MyceliumNetwork.RPCTarget(Plugin.AssassinModId, nameof(Plugin.SyncAssassinRole), target,
-            ReliableType.Reliable, MyceliumNetwork.LobbyHost, _subRoundId,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, _takeId,
             playerId == AssassinPlayerId, playerId == KingPlayerId, announce);
     }
 
@@ -724,7 +724,7 @@ internal static class AssassinState
         return -1;
     }
 
-    private static bool SubRoundIsActive() => _subRoundId > 0 && !_subRoundEnding;
+    private static bool TakeIsActive() => _takeId > 0 && !_takeEnding;
 
     private static Weapon? GetWeapon(GameObject? heldObject)
     {
@@ -740,10 +740,10 @@ internal static class AssassinState
             int revision = Sync.NextLiveRevision();
             ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
                 GameModeManager.RoundId, revision, KingPlayerId.ToString(), SerializeScores(),
-                WinnerId.ToString(), _subRoundId.ToString(), WeaponsUnlocked ? "1" : "0");
+                WinnerId.ToString(), _takeId.ToString(), WeaponsUnlocked ? "1" : "0");
             MyceliumNetwork.RPC(Plugin.AssassinModId, nameof(Plugin.SyncAssassinLiveState),
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, KingPlayerId, SerializeScores(),
-                WinnerId, _subRoundId, WeaponsUnlocked, GameModeManager.RoundId, revision);
+                WinnerId, _takeId, WeaponsUnlocked, GameModeManager.RoundId, revision);
         }
     }
 
@@ -767,13 +767,13 @@ internal static class AssassinState
             out int roundId, out int revision, out string[] fields)
             || !int.TryParse(fields[0], out int kingPlayerId)
             || !int.TryParse(fields[2], out int winnerId)
-            || !int.TryParse(fields[3], out int subRoundId)
+            || !int.TryParse(fields[3], out int takeId)
             || !LobbySnapshotCodec.TryParseBool(fields[4], out bool weaponsUnlocked))
         {
             return;
         }
 
-        ApplyLiveState(hostId, kingPlayerId, fields[1], winnerId, subRoundId,
+        ApplyLiveState(hostId, kingPlayerId, fields[1], winnerId, takeId,
             weaponsUnlocked, roundId, revision, ModeLobbyDataSync.Source("assassin", "live"));
     }
 

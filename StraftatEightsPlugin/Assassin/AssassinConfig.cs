@@ -45,19 +45,19 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncAssassinLiveState(CSteamID hostId, int kingPlayerId, string scoresData,
-        int winnerId, int subRoundId, bool weaponsUnlocked, int roundId, int revision, RPCInfo info)
+        int winnerId, int takeId, bool weaponsUnlocked, int roundId, int revision, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info) || !GameModeManager.IsActive(GameMode.Assassin))
         {
             return;
         }
 
-        AssassinState.ApplyLiveState(hostId, kingPlayerId, scoresData, winnerId, subRoundId,
+        AssassinState.ApplyLiveState(hostId, kingPlayerId, scoresData, winnerId, takeId,
             weaponsUnlocked, roundId, revision);
     }
 
     [CustomRPC]
-    public void SyncAssassinRole(CSteamID hostId, int subRoundId, bool isAssassin,
+    public void SyncAssassinRole(CSteamID hostId, int takeId, bool isAssassin,
         bool isKing, bool announce, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
@@ -65,7 +65,7 @@ public partial class Plugin
             return;
         }
 
-        AssassinState.ApplyLocalRole(hostId, subRoundId, isAssassin, isKing, announce);
+        AssassinState.ApplyLocalRole(hostId, takeId, isAssassin, isKing, announce);
     }
 
     [CustomRPC]

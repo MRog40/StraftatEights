@@ -111,20 +111,20 @@ an action that must be retried.
 
 - The host keeps the Infidel identity private by sending each peer only its own role. The identity is
   not included in the broadcast live-state payload.
-- Each sub-round chooses one Infidel, keeps all other players as Terrorists, and gives no weapons for
+- Each take chooses one Infidel, keeps all other players as Terrorists, and gives no weapons for
   10 seconds. After the delay, active players receive the exact `AK-K` prefab with two spare magazines.
 - The Infidel has 200 health; Terrorists have 100 health. Global health and regeneration settings are
   ignored while the mode is active. Movement is 70 percent with sliding and wall jumping disabled.
-- The Infidel's death ends the sub-round immediately. The Infidel earns 10 points per Terrorist kill.
+- The Infidel's death ends the take immediately. The Infidel earns 10 points per Terrorist kill.
   A Terrorist-on-Terrorist kill awards 0 points to the killer and 10 points to the Infidel. Killing
   the Infidel awards the killer 10 points for each Terrorist still alive after the kill. All players
-  then respawn for a new sub-round, and scores persist until a player reaches 100 points.
+  then respawn for a new take, and scores persist until a player reaches 100 points.
 
 ## Hardpoint
 
 - The host assigns teams at each official round start. Three teams are used only when the current
   player count is divisible by three; otherwise two teams are used. Assignments stay stable through
-  sub-rounds, and an active-round late joiner is added to the smallest existing team.
+  takes, and an active-round late joiner is added to the smallest existing team.
 - Team origins come from the map definition. With three teams, the third origin is selected from the
   map spawn candidates farthest from the first two origins. Respawn candidates are then selected by
   maximum distance from active enemies on the host.

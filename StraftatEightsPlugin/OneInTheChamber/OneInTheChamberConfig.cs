@@ -48,7 +48,7 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncOneInTheChamberLiveState(CSteamID hostId, string aliveData, string bulletsData,
-        string scoresData, int subRoundId, int winnerId, float loadoutSecondsRemaining,
+        string scoresData, int takeId, int winnerId, float loadoutSecondsRemaining,
         int roundId, int revision, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
@@ -60,7 +60,7 @@ public partial class Plugin
             return;
         }
         OneInTheChamberState.ApplyLiveState(hostId, aliveData, bulletsData, scoresData,
-            subRoundId, winnerId, loadoutSecondsRemaining, roundId, revision);
+            takeId, winnerId, loadoutSecondsRemaining, roundId, revision);
     }
 
     [CustomRPC]

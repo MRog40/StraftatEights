@@ -20,9 +20,9 @@ internal static class SearchAndDestroyRules
     internal const float FuseDurationSeconds = 30f;
     internal const float InteractionRadius = 2f;
     internal const float PlantSiteRadius = 3f;
-    internal const float BetweenSubRoundDelaySeconds = 3f;
+    internal const float BetweenTakeDelaySeconds = 3f;
 
-    internal static float GetSubRoundTimeLimit(int scoreLimit)
+    internal static float GetTakeTimeLimit(int scoreLimit)
     {
         return Math.Max(1, scoreLimit);
     }
@@ -38,9 +38,9 @@ internal static class SearchAndDestroyRules
         return assignments;
     }
 
-    internal static int GetOffensiveTeamId(int subRoundId)
+    internal static int GetOffensiveTeamId(int takeId)
     {
-        return subRoundId % 2 == 1 ? 0 : 1;
+        return takeId % 2 == 1 ? 0 : 1;
     }
 
     internal static int GetOtherTeamId(int teamId)

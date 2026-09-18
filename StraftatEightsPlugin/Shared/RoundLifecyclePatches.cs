@@ -13,7 +13,10 @@ internal static class PauseManager_RoundLifecycle_Patch
             return;
         }
 
-        GameModeManager.BeginRound();
+        if (!GameModeManager.BeginRound())
+        {
+            return;
+        }
 
         switch (GameModeManager.ActiveMode)
         {

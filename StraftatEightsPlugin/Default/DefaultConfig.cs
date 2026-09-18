@@ -13,7 +13,7 @@ public partial class Plugin
     {
         const string section = "Game Mode Settings";
         DefaultGameModeEnabled = Config.Bind(section, "Default Game Mode Enabled", false,
-            "Host-controlled: uses map weapon spawners and default movement and health while awarding 50 points to players for each sub-round win.");
+            "Host-controlled: uses map weapon spawners and default movement and health while awarding 50 points to players for each take win.");
 
         DefaultGameModeEnabled.SettingChanged += (_, _) => GameModeManager.OnSettingsChanged();
 
@@ -28,7 +28,7 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncDefaultGameModeLiveState(CSteamID hostId, string scoresData,
-        string aliveData, int subRoundId, int winnerId, int roundId, int revision, RPCInfo info)
+        string aliveData, int takeId, int winnerId, int roundId, int revision, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
@@ -39,7 +39,7 @@ public partial class Plugin
             return;
         }
         DefaultGameModeState.ApplyLiveState(hostId, scoresData, aliveData,
-            subRoundId, winnerId, roundId, revision);
+            takeId, winnerId, roundId, revision);
     }
 
     [CustomRPC]

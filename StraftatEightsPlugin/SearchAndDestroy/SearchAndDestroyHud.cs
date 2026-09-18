@@ -17,7 +17,7 @@ internal static class SearchAndDestroyHud
         string timerText = bombPlanted
             ? "<color=#FF3B30><b>Bomb: "
                 + Mathf.CeilToInt(SearchAndDestroyState.FuseTimeRemaining) + "s</b></color>"
-            : "Timer: " + Mathf.CeilToInt(SearchAndDestroyState.SubRoundTimeRemaining) + "s";
+            : "Timer: " + Mathf.CeilToInt(SearchAndDestroyState.TakeTimeRemaining) + "s";
         return GameModeScoreboard.Build(GameMode.SearchAndDestroy, "SND",
             GameModeManager.EffectivePointsToWin, rows, timerText);
     }

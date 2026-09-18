@@ -231,10 +231,10 @@ Assert(SearchAndDestroyRules.GetOffensiveTeamId(1) == 0
     && SearchAndDestroyRules.GetOtherTeamId(0) == 1
     && SearchAndDestroyRules.GetOtherTeamId(1) == 0
     && SearchAndDestroyRules.GetOtherTeamId(2) == -1,
-    "Search and Destroy offense must alternate between sub-rounds.");
+    "Search and Destroy offense must alternate between takes.");
 Assert(SearchAndDestroyRules.PointsPerRoundWin == 40
-    && SearchAndDestroyRules.GetSubRoundTimeLimit(100) == 100f
-    && SearchAndDestroyRules.GetSubRoundTimeLimit(0) == 1f
+    && SearchAndDestroyRules.GetTakeTimeLimit(100) == 100f
+    && SearchAndDestroyRules.GetTakeTimeLimit(0) == 1f
     && SearchAndDestroyRules.PlantDurationSeconds == 5f
     && SearchAndDestroyRules.DefuseDurationSeconds == 7.5f
     && SearchAndDestroyRules.FuseDurationSeconds == 30f
@@ -407,11 +407,11 @@ Assert(InfidelRules.GetKillerAward(false, true) == 0
     "Ordinary kills and non-winning events must award no Infidel points.");
 Assert(InfidelRules.GetWinnerAward(true) == 50
     && InfidelRules.GetWinnerAward(true) == InfidelRules.PointsForInfidelWin,
-    "The Infidel must receive fifty points for winning the sub-round.");
+    "The Infidel must receive fifty points for winning the take.");
 Assert(AssassinRules.IsTerminalDeath(true, false)
     && AssassinRules.IsTerminalDeath(false, true)
     && !AssassinRules.IsTerminalDeath(false, false),
-    "Only King and Assassin deaths must end an Assassin sub-round.");
+    "Only King and Assassin deaths must end an Assassin take.");
 Assert(AssassinRules.GetAssassinAward(true) == 50
     && AssassinRules.GetAssassinAward(false) == 0
     && AssassinRules.GetAssassinAward(true) == AssassinRules.PointsForAssassinWin,

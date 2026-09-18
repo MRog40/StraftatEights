@@ -34,10 +34,10 @@ internal static class SearchAndDestroyState
     internal const int PointsPerRoundWin = SearchAndDestroyRules.PointsPerRoundWin;
 
     internal static bool Enabled;
-    internal static int SubRoundId { get; private set; }
+    internal static int TakeId { get; private set; }
     internal static int WinnerId { get; private set; } = -1;
-    internal static int SubRoundWinnerId { get; private set; } = -1;
-    internal static SearchAndDestroyWinReason SubRoundWinReason { get; private set; }
+    internal static int TakeWinnerId { get; private set; } = -1;
+    internal static SearchAndDestroyWinReason TakeWinReason { get; private set; }
     internal static int OffensiveTeamId { get; private set; } = 0;
     internal static int DefensiveTeamId => SearchAndDestroyRules.GetOtherTeamId(OffensiveTeamId);
     internal static int BombCarrierPlayerId { get; private set; } = -1;
@@ -47,7 +47,7 @@ internal static class SearchAndDestroyState
     internal static SearchAndDestroyBombStatus BombStatus { get; private set; }
     internal static float PlantProgress { get; private set; }
     internal static float DefuseProgress { get; private set; }
-    internal static float SubRoundTimeRemaining { get; private set; }
+    internal static float TakeTimeRemaining { get; private set; }
     internal static float FuseTimeRemaining { get; private set; }
     internal static Vector3 BombPosition { get; private set; }
     internal static int TeamCount => TeamAssignment.TeamCount;
@@ -65,8 +65,8 @@ internal static class SearchAndDestroyState
     private static bool _localInteractionHeld;
     private static bool _localLookingAtBomb;
     private static bool _roundStarted;
-    private static bool _subRoundEnding;
-    private static int _lastAnnouncedSubRoundId = -1;
+    private static bool _takeEnding;
+    private static int _lastAnnouncedTakeId = -1;
     private static float _lastLiveStateAppliedTime;
     private static float _lastLivePlantProgress;
     private static float _lastLiveDefuseProgress;
@@ -208,12 +208,12 @@ internal static class SearchAndDestroyState
         _localInteractionHeld = false;
         _localLookingAtBomb = false;
         _roundStarted = false;
-        _subRoundEnding = false;
-        SubRoundId = 0;
+        _takeEnding = false;
+        TakeId = 0;
         WinnerId = -1;
-        SubRoundWinnerId = -1;
-        SubRoundWinReason = SearchAndDestroyWinReason.None;
-        _lastAnnouncedSubRoundId = -1;
+        TakeWinnerId = -1;
+        TakeWinReason = SearchAndDestroyWinReason.None;
+        _lastAnnouncedTakeId = -1;
         OffensiveTeamId = 0;
         BombCarrierPlayerId = -1;
         PlantingPlayerId = -1;
@@ -222,7 +222,7 @@ internal static class SearchAndDestroyState
         BombStatus = SearchAndDestroyBombStatus.Home;
         PlantProgress = 0f;
         DefuseProgress = 0f;
-        SubRoundTimeRemaining = 0f;
+        TakeTimeRemaining = 0f;
         FuseTimeRemaining = 0f;
         BombPosition = default;
         _lastLiveStateAppliedTime = 0f;
@@ -258,7 +258,7 @@ internal static class SearchAndDestroyState
         Scores[0] = 0;
         Scores[1] = 0;
         PrepareTeamsForRound();
-        StartSubRound();
+        StartTake();
     }
 
     internal static void EnsureTeamsAssigned()
@@ -276,7 +276,7 @@ internal static class SearchAndDestroyState
         if (!Enabled || !MyceliumNetwork.IsHost
             || !GameModeManager.IsActive(GameMode.SearchAndDestroy)
             || GameModeManager.Phase != GameModePhase.ActiveRound
-            || WinnerId >= 0 || !_roundStarted || SubRoundId <= 0 || _subRoundEnding)
+            || WinnerId >= 0 || !_roundStarted || TakeId <= 0 || _takeEnding)
         {
             return;
         }
@@ -292,10 +292,10 @@ internal static class SearchAndDestroyState
         EnsureTeamsAssigned();
         if (BombStatus != SearchAndDestroyBombStatus.Planted)
         {
-            SubRoundTimeRemaining = Mathf.Max(0f, SubRoundTimeRemaining - elapsed);
-            if (SubRoundTimeRemaining <= 0f)
+            TakeTimeRemaining = Mathf.Max(0f, TakeTimeRemaining - elapsed);
+            if (TakeTimeRemaining <= 0f)
             {
-                CompleteSubRound(DefensiveTeamId, SearchAndDestroyWinReason.TimeExpired);
+                CompleteTake(DefensiveTeamId, SearchAndDestroyWinReason.TimeExpired);
                 return;
             }
         }
@@ -307,7 +307,7 @@ internal static class SearchAndDestroyState
             stateChanged = true;
             if (FuseTimeRemaining <= 0f)
             {
-                CompleteSubRound(OffensiveTeamId, SearchAndDestroyWinReason.BombExploded);
+                CompleteTake(OffensiveTeamId, SearchAndDestroyWinReason.BombExploded);
                 return;
             }
         }
@@ -327,7 +327,7 @@ internal static class SearchAndDestroyState
 
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
-        if (!MyceliumNetwork.IsHost || !_roundStarted || _subRoundEnding
+        if (!MyceliumNetwork.IsHost || !_roundStarted || _takeEnding
             || !AlivePlayers.Remove(deadPlayerId))
         {
             return;
@@ -358,7 +358,7 @@ internal static class SearchAndDestroyState
 
         if (TryResolveTeamWipe(out int winningTeamId))
         {
-            CompleteSubRound(winningTeamId, GetEliminationWinReason(winningTeamId));
+            CompleteTake(winningTeamId, GetEliminationWinReason(winningTeamId));
         }
         else
         {
@@ -394,7 +394,7 @@ internal static class SearchAndDestroyState
 
         if (TryResolveTeamWipe(out int winningTeamId))
         {
-            CompleteSubRound(winningTeamId, GetEliminationWinReason(winningTeamId));
+            CompleteTake(winningTeamId, GetEliminationWinReason(winningTeamId));
         }
         else
         {
@@ -669,7 +669,7 @@ internal static class SearchAndDestroyState
         }
 
         int playerId = FindPlayerId(manager);
-        return _subRoundEnding || AlivePlayers.Contains(playerId);
+        return _takeEnding || AlivePlayers.Contains(playerId);
     }
 
     private static void SetInteractionHeld(int playerId, int commandId, bool pressed,
@@ -698,7 +698,7 @@ internal static class SearchAndDestroyState
             playerId, commandId, pressed, lookingAtBomb);
     }
 
-    private static void StartSubRound()
+    private static void StartTake()
     {
         if (!MyceliumNetwork.IsHost || WinnerId >= 0)
         {
@@ -722,10 +722,10 @@ internal static class SearchAndDestroyState
             return;
         }
 
-        SubRoundId++;
-        OffensiveTeamId = SearchAndDestroyRules.GetOffensiveTeamId(SubRoundId);
-        SubRoundWinnerId = -1;
-        SubRoundWinReason = SearchAndDestroyWinReason.None;
+        TakeId++;
+        OffensiveTeamId = SearchAndDestroyRules.GetOffensiveTeamId(TakeId);
+        TakeWinnerId = -1;
+        TakeWinReason = SearchAndDestroyWinReason.None;
         AlivePlayers.Clear();
         HeldInteractions.Clear();
         LookingAtBomb.Clear();
@@ -746,11 +746,11 @@ internal static class SearchAndDestroyState
         DefuserPlayerId = -1;
         PlantProgress = 0f;
         DefuseProgress = 0f;
-        SubRoundTimeRemaining = SearchAndDestroyRules.GetSubRoundTimeLimit(
+        TakeTimeRemaining = SearchAndDestroyRules.GetTakeTimeLimit(
             GameModeManager.EffectivePointsToWin);
         FuseTimeRemaining = 0f;
         BombPosition = GetPlayerPosition(BombCarrierPlayerId);
-        _subRoundEnding = false;
+        _takeEnding = false;
         BroadcastLiveState();
     }
 
@@ -893,7 +893,7 @@ internal static class SearchAndDestroyState
                     FuseTimeRemaining = 0f;
                     DefuserPlayerId = -1;
                     DefuseProgress = 0f;
-                    CompleteSubRound(DefensiveTeamId, SearchAndDestroyWinReason.BombDefused);
+                    CompleteTake(DefensiveTeamId, SearchAndDestroyWinReason.BombDefused);
                     return true;
                 }
             }
@@ -924,19 +924,19 @@ internal static class SearchAndDestroyState
         return true;
     }
 
-    private static void CompleteSubRound(int winningTeamId, SearchAndDestroyWinReason reason)
+    private static void CompleteTake(int winningTeamId, SearchAndDestroyWinReason reason)
     {
-        if (_subRoundEnding || WinnerId >= 0 || winningTeamId < 0)
+        if (_takeEnding || WinnerId >= 0 || winningTeamId < 0)
         {
             return;
         }
 
-        _subRoundEnding = true;
-        SubRoundWinnerId = winningTeamId;
-        SubRoundWinReason = reason;
+        _takeEnding = true;
+        TakeWinnerId = winningTeamId;
+        TakeWinReason = reason;
         Scores.TryGetValue(winningTeamId, out int score);
         Scores[winningTeamId] = score + PointsPerRoundWin;
-        AnnounceSubRoundResult();
+        AnnounceTakeResult();
         BroadcastLiveState();
         if (SearchAndDestroyRules.IsMatchWon(Scores[winningTeamId],
             GameModeManager.EffectivePointsToWin))
@@ -949,8 +949,8 @@ internal static class SearchAndDestroyState
 
         if (Plugin.Instance != null)
         {
-            Plugin.Instance.StartCoroutine(StartNextSubRoundAfterDelay(
-                SearchAndDestroyRules.BetweenSubRoundDelaySeconds,
+            Plugin.Instance.StartCoroutine(StartNextTakeAfterDelay(
+                SearchAndDestroyRules.BetweenTakeDelaySeconds,
                 SessionState.Generation, GameModeManager.RoundId));
         }
     }
@@ -962,17 +962,17 @@ internal static class SearchAndDestroyState
             : SearchAndDestroyWinReason.AttackersEliminated;
     }
 
-    private static void AnnounceSubRoundResult()
+    private static void AnnounceTakeResult()
     {
-        if (SubRoundWinnerId < 0 || _lastAnnouncedSubRoundId == SubRoundId)
+        if (TakeWinnerId < 0 || _lastAnnouncedTakeId == TakeId)
         {
             return;
         }
 
-        _lastAnnouncedSubRoundId = SubRoundId;
-        TeamColorData teamColor = TeamRules.GetColor(SubRoundWinnerId);
+        _lastAnnouncedTakeId = TakeId;
+        TeamColorData teamColor = TeamRules.GetColor(TakeWinnerId);
         string teamColorMarkup = $"#{teamColor.Red:X2}{teamColor.Green:X2}{teamColor.Blue:X2}";
-        string reason = SubRoundWinReason switch
+        string reason = TakeWinReason switch
         {
             SearchAndDestroyWinReason.TimeExpired => "TIME EXPIRED",
             SearchAndDestroyWinReason.BombExploded => "BOMB EXPLODED",
@@ -981,19 +981,19 @@ internal static class SearchAndDestroyState
             SearchAndDestroyWinReason.DefendersEliminated => "ALL DEFENDERS ELIMINATED",
             _ => "ROUND COMPLETE"
         };
-        string resultText = SubRoundWinReason == SearchAndDestroyWinReason.BombExploded
+        string resultText = TakeWinReason == SearchAndDestroyWinReason.BombExploded
             ? $"<color=#FF5A36><b>BOOM! BOMB EXPLODED</b></color>\n"
-                + $"<color={teamColorMarkup}><b>TEAM {SubRoundWinnerId + 1} WON THE SUB-ROUND</b></color>"
-            : $"<color={teamColorMarkup}><b>TEAM {SubRoundWinnerId + 1} "
-                + $"WON THE SUB-ROUND</b></color>\n<i>{reason}</i>";
-        GameModeHud.BroadcastSubRoundResult(resultText,
-            SubRoundWinReason == SearchAndDestroyWinReason.BombExploded ? 4f : 3f);
+                + $"<color={teamColorMarkup}><b>TEAM {TakeWinnerId + 1} WON THE TAKE</b></color>"
+            : $"<color={teamColorMarkup}><b>TEAM {TakeWinnerId + 1} "
+                + $"WON THE TAKE</b></color>\n<i>{reason}</i>";
+        GameModeHud.BroadcastTakeResult(resultText,
+            TakeWinReason == SearchAndDestroyWinReason.BombExploded ? 4f : 3f);
 
         if (MyceliumNetwork.IsHost)
         {
             foreach (KeyValuePair<int, int> assignment in TeamAssignment.Current)
             {
-                if (assignment.Value == SubRoundWinnerId)
+                if (assignment.Value == TakeWinnerId)
                 {
                     GameModeHud.ShowScorePopupForPlayer(assignment.Key, PointsPerRoundWin);
                 }
@@ -1001,13 +1001,13 @@ internal static class SearchAndDestroyState
         }
         else if (ClientInstance.Instance != null
             && TeamAssignment.TryGetTeamId(ClientInstance.Instance.PlayerId, out int localTeamId)
-            && localTeamId == SubRoundWinnerId)
+            && localTeamId == TakeWinnerId)
         {
             GameModeHud.ShowScorePopup(PointsPerRoundWin);
         }
     }
 
-    private static IEnumerator StartNextSubRoundAfterDelay(float delay, int sessionGeneration,
+    private static IEnumerator StartNextTakeAfterDelay(float delay, int sessionGeneration,
         int roundId)
     {
         yield return new WaitForSeconds(delay);
@@ -1018,7 +1018,7 @@ internal static class SearchAndDestroyState
             yield break;
         }
 
-        StartSubRound();
+        StartTake();
         foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
         {
             GameModeRespawn.Schedule(playerId, 0f);
@@ -1206,12 +1206,12 @@ internal static class SearchAndDestroyState
         string stateData = SerializeState();
         ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
             GameModeManager.RoundId, revision, assignmentsData, TeamAssignment.TeamCount.ToString(
-                CultureInfo.InvariantCulture), scoresData, stateData, SubRoundId.ToString(
+                CultureInfo.InvariantCulture), scoresData, stateData, TakeId.ToString(
                 CultureInfo.InvariantCulture), WinnerId.ToString(CultureInfo.InvariantCulture));
         MyceliumNetwork.RPC(Plugin.SearchAndDestroyModId,
             nameof(Plugin.SyncSearchAndDestroyLiveState), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, assignmentsData, TeamAssignment.TeamCount, scoresData,
-            stateData, SubRoundId, WinnerId, GameModeManager.RoundId, revision);
+            stateData, TakeId, WinnerId, GameModeManager.RoundId, revision);
     }
 
     private static void SendLiveStateTo(CSteamID player)
@@ -1219,15 +1219,15 @@ internal static class SearchAndDestroyState
         MyceliumNetwork.RPCTarget(Plugin.SearchAndDestroyModId,
             nameof(Plugin.SyncSearchAndDestroyLiveState), player, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, TeamRules.SerializeAssignments(TeamAssignment.Current),
-            TeamAssignment.TeamCount, ScoreCodec.Serialize(Scores), SerializeState(), SubRoundId,
+            TeamAssignment.TeamCount, ScoreCodec.Serialize(Scores), SerializeState(), TakeId,
             WinnerId, GameModeManager.RoundId, Sync.LiveRevision);
     }
 
     internal static void ApplyLiveState(CSteamID hostId, string assignmentsData, int teamCount,
-        string scoresData, string stateData, int subRoundId, int winnerId, int roundId, int revision,
+        string scoresData, string stateData, int takeId, int winnerId, int roundId, int revision,
         string source = "rpc")
     {
-        if (teamCount != 2 || subRoundId < 0 || winnerId < -1 || winnerId > 1
+        if (teamCount != 2 || takeId < 0 || winnerId < -1 || winnerId > 1
             || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
@@ -1246,9 +1246,9 @@ internal static class SearchAndDestroyState
             return;
         }
 
-        SubRoundId = subRoundId;
+        TakeId = takeId;
         WinnerId = winnerId;
-        AnnounceSubRoundResult();
+        AnnounceTakeResult();
     }
 
     private static string SerializeState()
@@ -1261,8 +1261,8 @@ internal static class SearchAndDestroyState
             FuseTimeRemaining.ToString(CultureInfo.InvariantCulture),
             PlantProgress.ToString(CultureInfo.InvariantCulture),
             DefuseProgress.ToString(CultureInfo.InvariantCulture), DefuserPlayerId,
-            PlantingPlayerId, SubRoundWinnerId, (int)SubRoundWinReason,
-            SubRoundTimeRemaining.ToString(CultureInfo.InvariantCulture), aliveData);
+            PlantingPlayerId, TakeWinnerId, (int)TakeWinReason,
+            TakeTimeRemaining.ToString(CultureInfo.InvariantCulture), aliveData);
     }
 
     private static bool TryParseState(string data)
@@ -1280,9 +1280,9 @@ internal static class SearchAndDestroyState
             || !TryParseFloat(fields[9], out float defuse)
             || !int.TryParse(fields[10], out int defuserId)
             || !int.TryParse(fields[11], out int plantingId)
-            || !int.TryParse(fields[12], out int subRoundWinner)
+            || !int.TryParse(fields[12], out int takeWinner)
             || !int.TryParse(fields[13], out int winReason)
-            || !TryParseFloat(fields[14], out float subRoundTimeRemaining))
+            || !TryParseFloat(fields[14], out float takeTimeRemaining))
         {
             return false;
         }
@@ -1290,11 +1290,11 @@ internal static class SearchAndDestroyState
         if (offenseTeam < 0 || offenseTeam > 1 || bombStatus < 0 || bombStatus > 3
             || siteIndex < -1 || siteIndex > 1 || fuse < 0f || fuse > FuseDurationSeconds
             || plant < 0f || plant > PlantDurationSeconds || defuse < 0f
-            || defuse > DefuseDurationSeconds || subRoundWinner < -1 || subRoundWinner > 1
+            || defuse > DefuseDurationSeconds || takeWinner < -1 || takeWinner > 1
             || winReason < (int)SearchAndDestroyWinReason.None
             || winReason > (int)SearchAndDestroyWinReason.DefendersEliminated
-            || subRoundTimeRemaining < 0f
-            || subRoundTimeRemaining > SearchAndDestroyRules.GetSubRoundTimeLimit(
+            || takeTimeRemaining < 0f
+            || takeTimeRemaining > SearchAndDestroyRules.GetTakeTimeLimit(
                 GameModeManager.EffectivePointsToWin))
         {
             return false;
@@ -1308,11 +1308,11 @@ internal static class SearchAndDestroyState
         FuseTimeRemaining = fuse;
         PlantProgress = plant;
         DefuseProgress = defuse;
-        SubRoundTimeRemaining = subRoundTimeRemaining;
+        TakeTimeRemaining = takeTimeRemaining;
         DefuserPlayerId = defuserId;
         PlantingPlayerId = plantingId;
-        SubRoundWinnerId = subRoundWinner;
-        SubRoundWinReason = (SearchAndDestroyWinReason)winReason;
+        TakeWinnerId = takeWinner;
+        TakeWinReason = (SearchAndDestroyWinReason)winReason;
         _lastLiveStateAppliedTime = Time.unscaledTime;
         _lastLivePlantProgress = PlantProgress;
         _lastLiveDefuseProgress = DefuseProgress;
@@ -1356,13 +1356,13 @@ internal static class SearchAndDestroyState
         if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 6, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !int.TryParse(fields[1], out int teamCount)
-            || !int.TryParse(fields[4], out int subRoundId)
+            || !int.TryParse(fields[4], out int takeId)
             || !int.TryParse(fields[5], out int winnerId))
         {
             return;
         }
 
-        ApplyLiveState(hostId, fields[0], teamCount, fields[2], fields[3], subRoundId,
+        ApplyLiveState(hostId, fields[0], teamCount, fields[2], fields[3], takeId,
             winnerId, roundId, revision, ModeLobbyDataSync.Source("snd", "live"));
     }
 

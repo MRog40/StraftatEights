@@ -13,7 +13,7 @@ public partial class Plugin
     {
         const string section = "Game Mode Settings";
         SearchAndDestroyEnabled = Config.Bind(section, "Search and Destroy Enabled", false,
-            "Host-controlled: two teams attack and defend bomb sites with one life per sub-round.");
+            "Host-controlled: two teams attack and defend bomb sites with one life per take.");
         SearchAndDestroyEnabled.SettingChanged += (_, _) =>
         {
             SearchAndDestroyState.PushSettingsIfHost();
@@ -46,7 +46,7 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncSearchAndDestroyLiveState(CSteamID hostId, string assignmentsData,
-        int teamCount, string scoresData, string stateData, int subRoundId, int winnerId,
+        int teamCount, string scoresData, string stateData, int takeId, int winnerId,
         int roundId, int revision, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info)
@@ -56,7 +56,7 @@ public partial class Plugin
         }
 
         SearchAndDestroyState.ApplyLiveState(hostId, assignmentsData, teamCount, scoresData,
-            stateData, subRoundId, winnerId, roundId, revision);
+            stateData, takeId, winnerId, roundId, revision);
     }
 
     [CustomRPC]

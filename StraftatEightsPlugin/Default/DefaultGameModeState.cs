@@ -12,14 +12,14 @@ internal static class DefaultGameModeState
     internal const string LiveLobbyDataKey = "StraftatEights_Default_Live";
     internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
     internal static int AliveCount => AlivePlayers.Count;
-    internal static int SubRoundId { get; private set; }
+    internal static int TakeId { get; private set; }
     internal static int WinnerId { get; private set; } = -1;
     internal static readonly Dictionary<int, int> Scores = new();
 
     private static readonly HashSet<int> AlivePlayers = new();
     private static readonly HashSet<int> RoundPlayers = new();
     private static readonly ModeSyncState Sync = new();
-    private static bool _subRoundEnding;
+    private static bool _takeEnding;
     private static bool _startRetryPending;
 
     internal static void PeriodicPushIfHost()
@@ -63,9 +63,9 @@ internal static class DefaultGameModeState
     internal static void ResetMatchState()
     {
         Sync.ResetLiveState();
-        SubRoundId = 0;
+        TakeId = 0;
         WinnerId = -1;
-        _subRoundEnding = false;
+        _takeEnding = false;
         _startRetryPending = false;
         AlivePlayers.Clear();
         RoundPlayers.Clear();
@@ -81,10 +81,10 @@ internal static class DefaultGameModeState
 
         MyceliumNetwork.RPCTarget(Plugin.DefaultGameModeModId,
             nameof(Plugin.SyncDefaultGameModeLiveState), player, ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, SerializeScores(), SerializeAlive(), SubRoundId,
+            MyceliumNetwork.LobbyHost, SerializeScores(), SerializeAlive(), TakeId,
             WinnerId, GameModeManager.RoundId, Sync.LiveRevision);
 
-        if (SubRoundId > 0 && WinnerId < 0 && !_subRoundEnding)
+        if (TakeId > 0 && WinnerId < 0 && !_takeEnding)
         {
             int playerId = FindPlayerId(player);
             if (playerId >= 0)
@@ -109,7 +109,7 @@ internal static class DefaultGameModeState
         bool changed = playerId >= 0 && (wasAlive || RoundPlayers.Remove(playerId)
             || Scores.Remove(playerId));
         if (wasAlive && GameModeManager.IsActive(GameMode.Default)
-            && WinnerId < 0 && !_subRoundEnding)
+            && WinnerId < 0 && !_takeEnding)
         {
             OnServerKill(playerId);
         }
@@ -135,20 +135,20 @@ internal static class DefaultGameModeState
         }
 
         ResetMatchState();
-        StartSubRound();
+        StartTake();
     }
 
     internal static void ApplyLiveState(CSteamID hostId, string scoresData, string aliveData,
-        int subRoundId, int winnerId, int roundId, int revision, string source = "rpc")
+        int takeId, int winnerId, int roundId, int revision, string source = "rpc")
     {
         int previousRoundId = Sync.LastLiveRoundId;
-        if (subRoundId < 0 || winnerId < -1
+        if (takeId < 0 || winnerId < -1
             || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
 
-        SubRoundId = roundId != previousRoundId ? subRoundId : Math.Max(SubRoundId, subRoundId);
+        TakeId = roundId != previousRoundId ? takeId : Math.Max(TakeId, takeId);
         WinnerId = winnerId;
         Scores.Clear();
         foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(scoresData, PointsToWin))
@@ -166,7 +166,7 @@ internal static class DefaultGameModeState
     internal static void OnServerKill(int deadPlayerId)
     {
         if (!Plugin.DefaultGameModeEnabled.Value || !GameModeManager.IsActive(GameMode.Default)
-            || WinnerId >= 0 || _subRoundEnding)
+            || WinnerId >= 0 || _takeEnding)
         {
             return;
         }
@@ -192,8 +192,8 @@ internal static class DefaultGameModeState
         string winnerLabel = winners.Count == 1
             ? PlayerLookup.GetPlayerNameTag(winners[0])
             : "TEAM " + (winningTeamId + 1);
-        GameModeHud.BroadcastSubRoundResult("<b>" + winnerLabel
-            + " WON THE SUB-ROUND</b>\n<i>LAST TEAM STANDING</i>");
+        GameModeHud.BroadcastTakeResult("<b>" + winnerLabel
+            + " WON THE TAKE</b>\n<i>LAST TEAM STANDING</i>");
         BroadcastLiveState();
         if (WinnerId >= 0)
         {
@@ -205,10 +205,10 @@ internal static class DefaultGameModeState
             return;
         }
 
-        BeginNextSubRound();
+        BeginNextTake();
     }
 
-    private static void StartSubRound()
+    private static void StartTake()
     {
         if (WinnerId >= 0 || !MyceliumNetwork.IsHost)
         {
@@ -230,8 +230,8 @@ internal static class DefaultGameModeState
             return;
         }
 
-        SubRoundId++;
-        _subRoundEnding = false;
+        TakeId++;
+        _takeEnding = false;
         AlivePlayers.Clear();
         RoundPlayers.Clear();
         foreach (int playerId in players)
@@ -244,14 +244,14 @@ internal static class DefaultGameModeState
         BroadcastLiveState();
     }
 
-    private static void BeginNextSubRound()
+    private static void BeginNextTake()
     {
-        if (_subRoundEnding || Plugin.Instance == null)
+        if (_takeEnding || Plugin.Instance == null)
         {
             return;
         }
 
-        _subRoundEnding = true;
+        _takeEnding = true;
         foreach (int playerId in RoundPlayers)
         {
             if (ClientInstance.playerInstances.ContainsKey(playerId))
@@ -260,12 +260,12 @@ internal static class DefaultGameModeState
             }
         }
 
-        Plugin.Instance.StartCoroutine(StartNextSubRoundAfterRespawn(
+        Plugin.Instance.StartCoroutine(StartNextTakeAfterRespawn(
             GameModeManager.EffectiveRespawnDelaySeconds + 0.75f,
             SessionState.Generation, GameModeManager.RoundId));
     }
 
-    private static IEnumerator StartNextSubRoundAfterRespawn(float delay, int sessionGeneration,
+    private static IEnumerator StartNextTakeAfterRespawn(float delay, int sessionGeneration,
         int roundId)
     {
         yield return new WaitForSeconds(delay);
@@ -275,7 +275,7 @@ internal static class DefaultGameModeState
             yield break;
         }
 
-        StartSubRound();
+        StartTake();
     }
 
     private static void ScheduleStartRetry()
@@ -286,12 +286,12 @@ internal static class DefaultGameModeState
         }
 
         _startRetryPending = true;
-        Plugin.Instance.StartCoroutine(RetryStartSubRound(SessionState.Generation,
-            GameModeManager.RoundId, SubRoundId));
+        Plugin.Instance.StartCoroutine(RetryStartTake(SessionState.Generation,
+            GameModeManager.RoundId, TakeId));
     }
 
-    private static IEnumerator RetryStartSubRound(int sessionGeneration, int roundId,
-        int previousSubRoundId)
+    private static IEnumerator RetryStartTake(int sessionGeneration, int roundId,
+        int previousTakeId)
     {
         for (int attempt = 0; attempt < 20; attempt++)
         {
@@ -302,8 +302,8 @@ internal static class DefaultGameModeState
                 break;
             }
 
-            StartSubRound();
-            if (SubRoundId > previousSubRoundId)
+            StartTake();
+            if (TakeId > previousTakeId)
             {
                 break;
             }
@@ -395,10 +395,10 @@ internal static class DefaultGameModeState
             int revision = Sync.NextLiveRevision();
             ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
                 GameModeManager.RoundId, revision, SerializeScores(), SerializeAlive(),
-                SubRoundId.ToString(), WinnerId.ToString());
+                TakeId.ToString(), WinnerId.ToString());
             MyceliumNetwork.RPC(Plugin.DefaultGameModeModId,
                 nameof(Plugin.SyncDefaultGameModeLiveState), ReliableType.Reliable,
-                MyceliumNetwork.LobbyHost, SerializeScores(), SerializeAlive(), SubRoundId,
+                MyceliumNetwork.LobbyHost, SerializeScores(), SerializeAlive(), TakeId,
                 WinnerId, GameModeManager.RoundId, revision);
         }
     }
@@ -407,13 +407,13 @@ internal static class DefaultGameModeState
     {
         if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 4, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
-            || !int.TryParse(fields[2], out int subRoundId)
+            || !int.TryParse(fields[2], out int takeId)
             || !int.TryParse(fields[3], out int winnerId))
         {
             return;
         }
 
-        ApplyLiveState(hostId, fields[0], fields[1], subRoundId, winnerId, roundId, revision,
+        ApplyLiveState(hostId, fields[0], fields[1], takeId, winnerId, roundId, revision,
             ModeLobbyDataSync.Source("default", "live"));
     }
 

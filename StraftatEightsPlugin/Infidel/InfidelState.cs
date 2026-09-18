@@ -32,11 +32,11 @@ internal static class InfidelState
     private static readonly Dictionary<int, float> PendingLoadouts = new();
     private static float _nextLoadoutCheckTime;
     private static readonly ModeSyncState Sync = new();
-    private static int _subRoundId;
-    private static int _localRoleSubRoundId = -1;
-    private static int _localRoleAnnouncedSubRoundId = -1;
+    private static int _takeId;
+    private static int _localRoleTakeId = -1;
+    private static int _localRoleAnnouncedTakeId = -1;
     private static bool _startRetryPending;
-    private static bool _subRoundEnding;
+    private static bool _takeEnding;
 
     internal static void ApplySettings(bool enabled)
     {
@@ -136,9 +136,9 @@ internal static class InfidelState
             Plugin.InfidelEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.InfidelModId, nameof(Plugin.SyncInfidelLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeScores(), WinnerId,
-            _subRoundId, WeaponsUnlocked, GameModeManager.RoundId, Sync.LiveRevision);
+            _takeId, WeaponsUnlocked, GameModeManager.RoundId, Sync.LiveRevision);
 
-        if (InfidelPlayerId >= 0 && SubRoundIsActive())
+        if (InfidelPlayerId >= 0 && TakeIsActive())
         {
             int playerId = player.m_SteamID == 0 ? -1 : FindPlayerId(player);
             if (playerId >= 0)
@@ -161,7 +161,7 @@ internal static class InfidelState
         int playerId = PlayerLookup.FindPlayerId(player);
         bool wasAlive = playerId >= 0 && AlivePlayers.Contains(playerId);
         if (wasAlive && GameModeManager.IsActive(GameMode.Infidel)
-            && WinnerId < 0 && !_subRoundEnding)
+            && WinnerId < 0 && !_takeEnding)
         {
             OnServerKill(playerId, -1);
         }
@@ -189,14 +189,14 @@ internal static class InfidelState
 
     internal static void ResetMatchState()
     {
-        StopSubRoundTransition();
+        StopTakeTransition();
         Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
-        _subRoundId = 0;
-        _localRoleSubRoundId = -1;
-        _localRoleAnnouncedSubRoundId = -1;
+        _takeId = 0;
+        _localRoleTakeId = -1;
+        _localRoleAnnouncedTakeId = -1;
         _startRetryPending = false;
-        _subRoundEnding = false;
+        _takeEnding = false;
         InfidelPlayerId = -1;
         WinnerId = -1;
         WeaponsUnlocked = false;
@@ -208,7 +208,7 @@ internal static class InfidelState
     }
 
     internal static void ApplyLiveState(CSteamID hostId, string scoresData, int winnerId,
-        int subRoundId, bool weaponsUnlocked, int roundId, int revision, string source = "rpc")
+        int takeId, bool weaponsUnlocked, int roundId, int revision, string source = "rpc")
     {
         int previousRoundId = Sync.LastLiveRoundId;
         if (winnerId < -1 || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
@@ -217,9 +217,9 @@ internal static class InfidelState
         }
 
         WinnerId = winnerId;
-        _subRoundId = roundId != previousRoundId
-            ? subRoundId
-            : Math.Max(_subRoundId, subRoundId);
+        _takeId = roundId != previousRoundId
+            ? takeId
+            : Math.Max(_takeId, takeId);
         WeaponsUnlocked = weaponsUnlocked;
         Scores.Clear();
         foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(scoresData, KillsToWin))
@@ -237,13 +237,13 @@ internal static class InfidelState
 
         Scores.Clear();
         WinnerId = -1;
-        StartSubRound();
+        StartTake();
     }
 
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.Infidel)
-            || WinnerId >= 0 || _subRoundEnding)
+            || WinnerId >= 0 || _takeEnding)
         {
             return;
         }
@@ -272,14 +272,14 @@ internal static class InfidelState
         BroadcastLiveState();
         if (deadWasInfidel)
         {
-            GameModeHud.BroadcastSubRoundResult(
-                "<b>THE TERRORISTS WON THE SUB-ROUND</b>\n<i>THE INFIDEL WAS ELIMINATED</i>");
+            GameModeHud.BroadcastTakeResult(
+                "<b>THE TERRORISTS WON THE TAKE</b>\n<i>THE INFIDEL WAS ELIMINATED</i>");
         }
         else if (infidelWon)
         {
-            GameModeHud.BroadcastSubRoundResult("<b>"
+            GameModeHud.BroadcastTakeResult("<b>"
                 + PlayerLookup.GetPlayerNameTag(InfidelPlayerId)
-                + " WON THE SUB-ROUND</b>\n<i>ALL TERRORISTS WERE ELIMINATED</i>");
+                + " WON THE TAKE</b>\n<i>ALL TERRORISTS WERE ELIMINATED</i>");
         }
         if (WinnerId >= 0)
         {
@@ -291,7 +291,7 @@ internal static class InfidelState
 
         if (deadWasInfidel || (!deadWasInfidel && AlivePlayers.Count == 1))
         {
-            BeginNextSubRound();
+            BeginNextTake();
         }
     }
 
@@ -366,32 +366,32 @@ internal static class InfidelState
             && weapon.name.StartsWith(WeaponName, StringComparison.Ordinal);
     }
 
-    internal static void ApplyLocalRole(CSteamID hostId, int subRoundId, bool isInfidel, bool announce)
+    internal static void ApplyLocalRole(CSteamID hostId, int takeId, bool isInfidel, bool announce)
     {
-        if (hostId != MyceliumNetwork.LobbyHost || subRoundId < _localRoleSubRoundId)
+        if (hostId != MyceliumNetwork.LobbyHost || takeId < _localRoleTakeId)
         {
             return;
         }
 
-        _localRoleSubRoundId = subRoundId;
+        _localRoleTakeId = takeId;
         LocalIsInfidel = isInfidel;
         if (announce && GameModeManager.IsActive(GameMode.Infidel)
             && GameModeManager.Phase == GameModePhase.ActiveRound
-            && !GameModeManager.IsMatchOver && _localRoleAnnouncedSubRoundId != subRoundId)
+            && !GameModeManager.IsMatchOver && _localRoleAnnouncedTakeId != takeId)
         {
-            _localRoleAnnouncedSubRoundId = subRoundId;
+            _localRoleAnnouncedTakeId = takeId;
             GameModeHud.AnnounceTarget(isInfidel
                 ? "You are the <color=#CC2222><b>INFIDEL</b></color>."
                 : "You are a <color=#4D9BFF><b>TERRORIST</b></color>.", RoleAnnouncementDuration);
         }
     }
 
-    private static bool SubRoundIsActive()
+    private static bool TakeIsActive()
     {
-        return _subRoundId > 0 && !_subRoundEnding;
+        return _takeId > 0 && !_takeEnding;
     }
 
-    private static void StartSubRound()
+    private static void StartTake()
     {
         if (WinnerId >= 0 || !MyceliumNetwork.IsHost)
         {
@@ -410,12 +410,12 @@ internal static class InfidelState
         if (players.Count == 0)
         {
             InfidelPlayerId = -1;
-            ScheduleStartSubRoundRetry();
+            ScheduleStartTakeRetry();
             return;
         }
 
-        _subRoundId++;
-        _subRoundEnding = false;
+        _takeId++;
+        _takeEnding = false;
         WeaponsUnlocked = false;
         _nextLoadoutCheckTime = 0f;
         PendingLoadouts.Clear();
@@ -434,13 +434,13 @@ internal static class InfidelState
 
         if (Plugin.Instance != null)
         {
-            int token = _subRoundId;
+            int token = _takeId;
             Plugin.Instance.StartCoroutine(UnlockWeaponsAfterDelay(token, SessionState.Generation,
                 GameModeManager.RoundId));
         }
     }
 
-    private static void ScheduleStartSubRoundRetry()
+    private static void ScheduleStartTakeRetry()
     {
         if (_startRetryPending || Plugin.Instance == null)
         {
@@ -448,24 +448,24 @@ internal static class InfidelState
         }
 
         _startRetryPending = true;
-        Plugin.Instance.StartCoroutine(RetryStartSubRound(SessionState.Generation,
-            GameModeManager.RoundId, _subRoundId));
+        Plugin.Instance.StartCoroutine(RetryStartTake(SessionState.Generation,
+            GameModeManager.RoundId, _takeId));
     }
 
-    private static IEnumerator RetryStartSubRound(int sessionGeneration, int roundId,
-        int previousSubRoundId)
+    private static IEnumerator RetryStartTake(int sessionGeneration, int roundId,
+        int previousTakeId)
     {
         for (int attempt = 0; attempt < 20; attempt++)
         {
             yield return new WaitForSeconds(0.25f);
             if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
-                || WinnerId >= 0 || _subRoundEnding || !GameModeManager.IsActive(GameMode.Infidel))
+                || WinnerId >= 0 || _takeEnding || !GameModeManager.IsActive(GameMode.Infidel))
             {
                 break;
             }
 
-            StartSubRound();
-            if (_subRoundId > previousSubRoundId)
+            StartTake();
+            if (_takeId > previousTakeId)
             {
                 break;
             }
@@ -478,7 +478,7 @@ internal static class InfidelState
     {
         yield return new WaitForSeconds(WeaponDelaySeconds);
         if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
-            || token != _subRoundId || _subRoundEnding || WinnerId >= 0
+            || token != _takeId || _takeEnding || WinnerId >= 0
             || !GameModeManager.IsActive(GameMode.Infidel))
         {
             yield break;
@@ -489,14 +489,14 @@ internal static class InfidelState
         BroadcastLiveState();
     }
 
-    private static void BeginNextSubRound()
+    private static void BeginNextTake()
     {
-        if (_subRoundEnding || Plugin.Instance == null)
+        if (_takeEnding || Plugin.Instance == null)
         {
             return;
         }
 
-        _subRoundEnding = true;
+        _takeEnding = true;
         WeaponsUnlocked = false;
         ClearCurrentWeapons();
         foreach (ClientInstance client in ClientInstance.playerInstances.Values)
@@ -507,12 +507,12 @@ internal static class InfidelState
             }
         }
 
-        Plugin.Instance.StartCoroutine(StartNextSubRoundAfterRespawn(
+        Plugin.Instance.StartCoroutine(StartNextTakeAfterRespawn(
             GameModeManager.EffectiveRespawnDelaySeconds + 0.75f,
             SessionState.Generation, GameModeManager.RoundId));
     }
 
-    private static IEnumerator StartNextSubRoundAfterRespawn(float delay, int sessionGeneration, int roundId)
+    private static IEnumerator StartNextTakeAfterRespawn(float delay, int sessionGeneration, int roundId)
     {
         yield return new WaitForSeconds(delay);
         if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
@@ -521,12 +521,12 @@ internal static class InfidelState
             yield break;
         }
 
-        StartSubRound();
+        StartTake();
     }
 
-    private static void StopSubRoundTransition()
+    private static void StopTakeTransition()
     {
-        _subRoundEnding = false;
+        _takeEnding = false;
     }
 
     private static void ClearCurrentWeapons()
@@ -639,7 +639,7 @@ internal static class InfidelState
 
         if (ClientInstance.Instance != null)
         {
-            ApplyLocalRole(MyceliumNetwork.LobbyHost, _subRoundId,
+            ApplyLocalRole(MyceliumNetwork.LobbyHost, _takeId,
                 ClientInstance.Instance.PlayerId == InfidelPlayerId, announce);
         }
     }
@@ -652,7 +652,7 @@ internal static class InfidelState
         }
 
         MyceliumNetwork.RPCTarget(Plugin.InfidelModId, nameof(Plugin.SyncInfidelRole), target,
-            ReliableType.Reliable, MyceliumNetwork.LobbyHost, _subRoundId,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, _takeId,
             playerId == InfidelPlayerId, announce);
     }
 
@@ -682,9 +682,9 @@ internal static class InfidelState
             int revision = Sync.NextLiveRevision();
             ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
                 GameModeManager.RoundId, revision, SerializeScores(), WinnerId.ToString(),
-                _subRoundId.ToString(), WeaponsUnlocked ? "1" : "0");
+                _takeId.ToString(), WeaponsUnlocked ? "1" : "0");
             MyceliumNetwork.RPC(Plugin.InfidelModId, nameof(Plugin.SyncInfidelLiveState), ReliableType.Reliable,
-                MyceliumNetwork.LobbyHost, SerializeScores(), WinnerId, _subRoundId,
+                MyceliumNetwork.LobbyHost, SerializeScores(), WinnerId, _takeId,
                 WeaponsUnlocked, GameModeManager.RoundId, revision);
         }
     }
@@ -708,13 +708,13 @@ internal static class InfidelState
         if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 4, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !int.TryParse(fields[1], out int winnerId)
-            || !int.TryParse(fields[2], out int subRoundId)
+            || !int.TryParse(fields[2], out int takeId)
             || !LobbySnapshotCodec.TryParseBool(fields[3], out bool weaponsUnlocked))
         {
             return;
         }
 
-        ApplyLiveState(hostId, fields[0], winnerId, subRoundId, weaponsUnlocked,
+        ApplyLiveState(hostId, fields[0], winnerId, takeId, weaponsUnlocked,
             roundId, revision, ModeLobbyDataSync.Source("infidel", "live"));
     }
 

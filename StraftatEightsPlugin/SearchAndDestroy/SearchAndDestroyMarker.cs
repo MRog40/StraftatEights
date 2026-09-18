@@ -24,7 +24,7 @@ internal static class SearchAndDestroyMarker
     private static AudioClip? _bombExplosionClip;
     private static float _nextBombBeepTime;
     private static bool _bombWasPlanted;
-    private static int _lastExplosionSubRoundId = -1;
+    private static int _lastExplosionTakeId = -1;
     private static Material? _electricMaterial;
 
     internal static void Update()
@@ -161,11 +161,11 @@ internal static class SearchAndDestroyMarker
         UpdateElectricArcs(SearchAndDestroyState.PlantingPlayerId >= 0
             || SearchAndDestroyState.DefuserPlayerId >= 0);
 
-        if (SearchAndDestroyState.SubRoundWinReason == SearchAndDestroyWinReason.BombExploded)
+        if (SearchAndDestroyState.TakeWinReason == SearchAndDestroyWinReason.BombExploded)
         {
-            if (_lastExplosionSubRoundId != SearchAndDestroyState.SubRoundId)
+            if (_lastExplosionTakeId != SearchAndDestroyState.TakeId)
             {
-                _lastExplosionSubRoundId = SearchAndDestroyState.SubRoundId;
+                _lastExplosionTakeId = SearchAndDestroyState.TakeId;
                 PlayExplosion(_bomb.transform.position + Vector3.up * 0.2f);
             }
 
@@ -492,7 +492,7 @@ internal static class SearchAndDestroyMarker
 
     private static void Clear()
     {
-        _lastExplosionSubRoundId = -1;
+        _lastExplosionTakeId = -1;
         UpdateElectricArcs(false);
         ElectricArcs.Clear();
         for (int index = 0; index < SiteMarkers.Length; index++)

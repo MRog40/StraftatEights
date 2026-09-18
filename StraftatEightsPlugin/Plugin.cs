@@ -155,7 +155,7 @@ public partial class Plugin : BaseUnityPlugin
         SearchAndDestroyState.ApplyLocalMovementLock();
         GlobalModifiersState.PeriodicPushIfHost();
         HealthSettingsState.PeriodicPushIfHost();
-        GameModeHud.PeriodicPushSubRoundResult();
+        GameModeHud.PeriodicPushTakeResult();
         HealthSettingsState.ServerTick();
         WeaponSettingsState.UpdateLocalCycle();
         WeaponSettingsState.PeriodicPushIfHost();

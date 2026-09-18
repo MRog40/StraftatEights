@@ -9,7 +9,7 @@ Write these decisions before writing code:
 - What state is authoritative on the FishNet server?
 - Which settings come from the host config?
 - Which global systems does the mode override: health, weapons, movement, respawn, HUD, or outlines?
-- What starts and ends a round or sub-round?
+- What starts and ends a round or take?
 - What happens on death, respawn, scene change, lobby join, lobby leave, and late join?
 - Which state is public to all peers, and which state must be private to one player?
 - What is the exact win condition and score limit?
@@ -40,13 +40,13 @@ Do not grow one existing mode into a shared miscellaneous file. Put reusable beh
 
 ### Assassin mode contract
 
-Assassin uses a host-authoritative sub-round state. One player is the private Assassin, one player is the public King, and all remaining players are Bodyguards. Each player receives only their own private role announcement. The King ID is public through the shared green outline state; the Assassin ID is never included in public live snapshots.
+Assassin uses a host-authoritative take state. One player is the private Assassin, one player is the public King, and all remaining players are Bodyguards. Each player receives only their own private role announcement. The King ID is public through the shared green outline state; the Assassin ID is never included in public live snapshots.
 
 The King receives `Taser` immediately. After 15 seconds, the Assassin receives `Silenzzio` and Bodyguards receive `Glock`. The role weapons use the shared authoritative weapon service and unlimited-ammo path. Other weapons are blocked while the mode is active.
 
-The Assassin receives 50 points when the King dies, including a friendly-fire King death. When the Assassin dies, the King receives 30 points, every Bodyguard receives 10 points, and the Bodyguard who made the kill receives an additional 20 points. Other deaths do not end the sub-round. Scores persist between sub-rounds and use the shared `Points To Win` setting. The Assassin identity is announced publicly only after the sub-round resolves.
+The Assassin receives 50 points when the King dies, including a friendly-fire King death. When the Assassin dies, the King receives 30 points, every Bodyguard receives 10 points, and the Bodyguard who made the kill receives an additional 20 points. Other deaths do not end the take. Scores persist between takes and use the shared `Points To Win` setting. The Assassin identity is announced publicly only after the take resolves.
 
-Assassin does not override global health or movement settings. Its custom behavior is limited to roles, weapons, scoring, public King presentation, and sub-round respawns.
+Assassin does not override global health or movement settings. Its custom behavior is limited to roles, weapons, scoring, public King presentation, and take respawns.
 
 ### Hardpoint mode contract
 
@@ -57,7 +57,7 @@ scores are host-authoritative and are sent in revisioned live snapshots with a l
 The first two team origins come from the map definition. If three teams are needed, the third origin
 is selected from the map spawn candidates to maximize its distance from the authored origins. Respawn
 selection then chooses the farthest valid team candidate from active enemies. Team assignments remain
-stable through sub-rounds and are rebuilt for each official map or mode round.
+stable through takes and are rebuilt for each official map or mode round.
 
 Hardpoints use the map definition order, rotate every 30 seconds, and warn five seconds before the
 next point. A team scores one point per uncontested second inside the two-unit vertical zone from
@@ -160,7 +160,7 @@ Live state includes values such as scores, roles, alive players, current holder,
 
 - a new lobby;
 - a new match;
-- a new round or sub-round;
+- a new round or take;
 - a mode change;
 - a scene transition;
 - a late-join state replacement when the snapshot advances the round.

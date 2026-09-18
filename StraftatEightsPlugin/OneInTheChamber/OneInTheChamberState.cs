@@ -19,7 +19,7 @@ internal static class OneInTheChamberState
     internal static bool Enabled;
     internal static int AliveCount => AlivePlayers.Count;
     internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
-    internal static int SubRoundId { get; private set; }
+    internal static int TakeId { get; private set; }
     internal static int WinnerId { get; private set; } = -1;
     internal static readonly HashSet<int> AlivePlayers = new();
     internal static readonly Dictionary<int, int> ReserveBullets = new();
@@ -32,7 +32,7 @@ internal static class OneInTheChamberState
     private static readonly Dictionary<int, float> PendingRightLoadouts = new();
     private static readonly Dictionary<int, float> PendingLeftLoadouts = new();
     private static bool _startRetryPending;
-    private static bool _subRoundEnding;
+    private static bool _takeEnding;
     private static float _nextClientLivePollTime;
     private static float _loadoutCountdownEndsAt;
 
@@ -139,10 +139,10 @@ internal static class OneInTheChamberState
             Plugin.OneInTheChamberEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.OneInTheChamberModId, nameof(Plugin.SyncOneInTheChamberLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeAlive(), SerializeBullets(),
-            SerializeScores(), SubRoundId, WinnerId, GetLoadoutCountdownSeconds(),
+            SerializeScores(), TakeId, WinnerId, GetLoadoutCountdownSeconds(),
             GameModeManager.RoundId, Sync.LiveRevision);
 
-        if (SubRoundId > 0 && WinnerId < 0 && !_subRoundEnding)
+        if (TakeId > 0 && WinnerId < 0 && !_takeEnding)
         {
             int playerId = FindPlayerId(player);
             if (playerId >= 0)
@@ -166,7 +166,7 @@ internal static class OneInTheChamberState
         int playerId = PlayerLookup.FindPlayerId(player);
         bool wasAlive = playerId >= 0 && AlivePlayers.Contains(playerId);
         if (wasAlive && GameModeManager.IsActive(GameMode.OneInTheChamber)
-            && WinnerId < 0 && !_subRoundEnding)
+            && WinnerId < 0 && !_takeEnding)
         {
             OnServerKill(playerId, -1);
         }
@@ -190,13 +190,13 @@ internal static class OneInTheChamberState
 
     internal static void ResetMatchState()
     {
-        StopSubRoundTransition();
+        StopTakeTransition();
         Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
         _loadoutsAvailableAt = 0f;
         _loadoutCountdownEndsAt = 0f;
         _startRetryPending = false;
-        SubRoundId = 0;
+        TakeId = 0;
         WinnerId = -1;
         AlivePlayers.Clear();
         RoundPlayers.Clear();
@@ -207,21 +207,21 @@ internal static class OneInTheChamberState
     }
 
     internal static void ApplyLiveState(CSteamID hostId, string aliveData, string bulletsData,
-        string scoresData, int subRoundId, int winnerId, float loadoutSecondsRemaining,
+        string scoresData, int takeId, int winnerId, float loadoutSecondsRemaining,
         int roundId, int revision,
         string source = "rpc")
     {
         int previousRoundId = Sync.LastLiveRoundId;
-        if (subRoundId < 0 || winnerId < -1 || loadoutSecondsRemaining < 0f
+        if (takeId < 0 || winnerId < -1 || loadoutSecondsRemaining < 0f
             || float.IsNaN(loadoutSecondsRemaining) || float.IsInfinity(loadoutSecondsRemaining)
             || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
 
-        SubRoundId = roundId != previousRoundId
-            ? subRoundId
-            : Math.Max(SubRoundId, subRoundId);
+        TakeId = roundId != previousRoundId
+            ? takeId
+            : Math.Max(TakeId, takeId);
         WinnerId = winnerId;
         AlivePlayers.Clear();
         foreach (int playerId in ParseIds(aliveData))
@@ -253,13 +253,13 @@ internal static class OneInTheChamberState
         }
 
         ResetMatchState();
-        StartSubRound();
+        StartTake();
     }
 
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.OneInTheChamber)
-            || WinnerId >= 0 || _subRoundEnding)
+            || WinnerId >= 0 || _takeEnding)
         {
             return;
         }
@@ -281,9 +281,9 @@ internal static class OneInTheChamberState
             if (roundWinnerId >= 0)
             {
                 AwardScore(roundWinnerId, PointsPerRoundWin);
-                GameModeHud.BroadcastSubRoundResult("<b>"
+                GameModeHud.BroadcastTakeResult("<b>"
                     + PlayerLookup.GetPlayerNameTag(roundWinnerId)
-                    + " WON THE SUB-ROUND</b>\n<i>LAST PLAYER STANDING</i>");
+                    + " WON THE TAKE</b>\n<i>LAST PLAYER STANDING</i>");
             }
 
             if (WinnerId >= 0)
@@ -292,7 +292,7 @@ internal static class OneInTheChamberState
             }
             else
             {
-                BeginNextSubRound();
+                BeginNextTake();
             }
             return;
         }
@@ -304,7 +304,7 @@ internal static class OneInTheChamberState
     internal static void RequestLoadout(int playerId)
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.OneInTheChamber)
-            || !MyceliumNetwork.IsHost || WinnerId >= 0 || _subRoundEnding
+            || !MyceliumNetwork.IsHost || WinnerId >= 0 || _takeEnding
             || Time.unscaledTime < _loadoutsAvailableAt)
         {
             return;
@@ -384,7 +384,7 @@ internal static class OneInTheChamberState
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.OneInTheChamber)
             || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost || WeaponService.IsFinalGameScreen
-            || WinnerId >= 0 || _subRoundEnding || Time.unscaledTime < _loadoutsAvailableAt
+            || WinnerId >= 0 || _takeEnding || Time.unscaledTime < _loadoutsAvailableAt
             || Time.unscaledTime < _nextLoadoutCheckTime)
         {
             return;
@@ -524,12 +524,12 @@ internal static class OneInTheChamberState
         return -1;
     }
 
-    private static void StopSubRoundTransition()
+    private static void StopTakeTransition()
     {
-        _subRoundEnding = false;
+        _takeEnding = false;
     }
 
-    private static void StartSubRound()
+    private static void StartTake()
     {
         if (WinnerId >= 0 || !MyceliumNetwork.IsHost)
         {
@@ -547,12 +547,12 @@ internal static class OneInTheChamberState
 
         if (players.Count == 0)
         {
-            ScheduleStartSubRoundRetry();
+            ScheduleStartTakeRetry();
             return;
         }
 
-        SubRoundId++;
-        _subRoundEnding = false;
+        TakeId++;
+        _takeEnding = false;
         _nextLoadoutCheckTime = 0f;
         _loadoutsAvailableAt = Time.unscaledTime + LoadoutDelaySeconds;
         _loadoutCountdownEndsAt = _loadoutsAvailableAt;
@@ -591,7 +591,7 @@ internal static class OneInTheChamberState
             : string.Empty;
     }
 
-    private static void ScheduleStartSubRoundRetry()
+    private static void ScheduleStartTakeRetry()
     {
         if (_startRetryPending || Plugin.Instance == null)
         {
@@ -599,25 +599,25 @@ internal static class OneInTheChamberState
         }
 
         _startRetryPending = true;
-        Plugin.Instance.StartCoroutine(RetryStartSubRound(SessionState.Generation,
-            GameModeManager.RoundId, SubRoundId));
+        Plugin.Instance.StartCoroutine(RetryStartTake(SessionState.Generation,
+            GameModeManager.RoundId, TakeId));
     }
 
-    private static IEnumerator RetryStartSubRound(int sessionGeneration, int roundId,
-        int previousSubRoundId)
+    private static IEnumerator RetryStartTake(int sessionGeneration, int roundId,
+        int previousTakeId)
     {
         for (int attempt = 0; attempt < 20; attempt++)
         {
             yield return new WaitForSeconds(0.25f);
             if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
-                || WinnerId >= 0 || _subRoundEnding
+                || WinnerId >= 0 || _takeEnding
                 || !GameModeManager.IsActive(GameMode.OneInTheChamber))
             {
                 break;
             }
 
-            StartSubRound();
-            if (SubRoundId > previousSubRoundId)
+            StartTake();
+            if (TakeId > previousTakeId)
             {
                 break;
             }
@@ -626,14 +626,14 @@ internal static class OneInTheChamberState
         _startRetryPending = false;
     }
 
-    private static void BeginNextSubRound()
+    private static void BeginNextTake()
     {
-        if (_subRoundEnding || Plugin.Instance == null)
+        if (_takeEnding || Plugin.Instance == null)
         {
             return;
         }
 
-        _subRoundEnding = true;
+        _takeEnding = true;
         ClearCurrentWeapons();
         foreach (int playerId in RoundPlayers)
         {
@@ -643,12 +643,12 @@ internal static class OneInTheChamberState
             }
         }
 
-        Plugin.Instance.StartCoroutine(StartNextSubRoundAfterRespawn(
+        Plugin.Instance.StartCoroutine(StartNextTakeAfterRespawn(
             GameModeManager.EffectiveRespawnDelaySeconds + 0.75f,
             SessionState.Generation, GameModeManager.RoundId));
     }
 
-    private static IEnumerator StartNextSubRoundAfterRespawn(float delay, int sessionGeneration,
+    private static IEnumerator StartNextTakeAfterRespawn(float delay, int sessionGeneration,
         int roundId)
     {
         yield return new WaitForSeconds(delay);
@@ -658,7 +658,7 @@ internal static class OneInTheChamberState
             yield break;
         }
 
-        StartSubRound();
+        StartTake();
     }
 
     private static void ClearCurrentWeapons()
@@ -745,12 +745,12 @@ internal static class OneInTheChamberState
             float loadoutSecondsRemaining = GetLoadoutCountdownSeconds();
             ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
                 GameModeManager.RoundId, revision, SerializeAlive(), SerializeBullets(),
-                SerializeScores(), SubRoundId.ToString(), WinnerId.ToString(),
+                SerializeScores(), TakeId.ToString(), WinnerId.ToString(),
                 loadoutSecondsRemaining.ToString(
                     System.Globalization.CultureInfo.InvariantCulture));
             MyceliumNetwork.RPC(Plugin.OneInTheChamberModId, nameof(Plugin.SyncOneInTheChamberLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, SerializeAlive(), SerializeBullets(), SerializeScores(),
-                SubRoundId, WinnerId, loadoutSecondsRemaining, GameModeManager.RoundId, revision);
+                TakeId, WinnerId, loadoutSecondsRemaining, GameModeManager.RoundId, revision);
         }
     }
 
@@ -779,7 +779,7 @@ internal static class OneInTheChamberState
     {
         if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 6, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
-            || !int.TryParse(fields[3], out int subRoundId)
+            || !int.TryParse(fields[3], out int takeId)
             || !int.TryParse(fields[4], out int winnerId)
             || !float.TryParse(fields[5], System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out float loadoutSecondsRemaining))
@@ -787,7 +787,7 @@ internal static class OneInTheChamberState
             return;
         }
 
-        ApplyLiveState(hostId, fields[0], fields[1], fields[2], subRoundId, winnerId,
+        ApplyLiveState(hostId, fields[0], fields[1], fields[2], takeId, winnerId,
             loadoutSecondsRemaining, roundId, revision,
             ModeLobbyDataSync.Source("one-in-the-chamber", "live"));
     }
