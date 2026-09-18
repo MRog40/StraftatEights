@@ -15,7 +15,6 @@ internal static class HealthSettingsTuning
         public float LastDamageTime;
         public float RegenAccumulator;
         public float LastRegenWriteTime;
-        public float LastLoggedHealth = -1f;
         public bool LastModeSpecificHealth;
         public int LastAppliedHealthCompensationVersion = -1;
         public int LastAppliedPlayerId = -1;
@@ -191,19 +190,6 @@ internal static class HealthSettingsTuning
             ApplyingPassiveHealth = false;
         }
         memory.LastObservedHealth = controller.sync___get_value_health();
-    }
-
-    internal static void ObserveHealth(PlayerHealth controller)
-    {
-        Memory memory = MemoryByInstance.GetOrCreateValue(controller);
-        float health = controller.sync___get_value_health();
-        if (Mathf.Approximately(memory.LastLoggedHealth, health))
-        {
-            return;
-        }
-
-        DebugLog.Info($"[HealthSettings] Health observed: owner={controller.IsOwner} server={controller.IsServer} health={health:0.###} fullHealth={controller.fullHealth:0.###}");
-        memory.LastLoggedHealth = health;
     }
 
     internal static Memory GetMemory(PlayerHealth controller)

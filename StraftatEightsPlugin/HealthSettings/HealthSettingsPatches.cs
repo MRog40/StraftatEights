@@ -12,7 +12,6 @@ internal static class PlayerHealth_HealthSettings_Patch
             return;
         }
 
-        HealthSettingsTuning.ObserveHealth(__instance);
         HealthSettingsTuning.ApplyIfChanged(__instance, HealthSettingsState.MaxHealthMultiplier, HealthSettingsState.TuningVersion);
         HealthSettingsTuning.RegenerateIfNeeded(__instance, HealthSettingsTuning.GetMemory(__instance));
     }

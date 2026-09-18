@@ -269,8 +269,6 @@ internal static class GameModeManager
 
     internal static void Initialize()
     {
-        Plugin.DebugLogging = Plugin.Instance.Config.Bind("Global Settings", "Debug Logging", false,
-            "Enable detailed multiplayer, scene, HUD, and snapshot diagnostics.");
         EnableMapOverrides = Plugin.Instance.Config.Bind("Global Settings", "Enable Map Overrides", true,
             "Host-controlled: use the plugin's mode-specific map overrides instead of the normal lobby map playlist.");
         EnableMapOverrides.SettingChanged += (_, _) => OnGlobalSettingsChanged();

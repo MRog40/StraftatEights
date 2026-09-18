@@ -31,8 +31,8 @@ internal sealed class GameModeHud : MonoBehaviour
     private const int PanelTextureSize = 64;
     private const int PanelCornerRadius = 12;
     private const int PanelBorderWidth = 2;
-    private static readonly Color32 ScoreboardTextColor = new(183, 244, 122, 255);
-    private static readonly Color32 ScoreboardGlowColor = new(67, 103, 44, 220);
+    private static readonly Color32 ScoreboardTextColor = new(225, 238, 220, 255);
+    private static readonly Color32 ScoreboardGlowColor = new(92, 105, 84, 180);
     private static readonly Color32 ScoreboardPanelBorderColor = new(138, 116, 58, 230);
     private static readonly Color32 ScoreboardPanelFillColor = new(28, 35, 33, 248);
     private sealed class PendingTakeResult
@@ -209,8 +209,8 @@ internal sealed class GameModeHud : MonoBehaviour
         panelImage.type = Image.Type.Sliced;
         panelImage.color = Color.white;
         Shadow panelShadow = _panel.AddComponent<Shadow>();
-        panelShadow.effectColor = new Color(0f, 0f, 0f, 0.72f);
-        panelShadow.effectDistance = new Vector2(6f, -6f);
+        panelShadow.effectColor = new Color(0f, 0f, 0f, 0.4f);
+        panelShadow.effectDistance = new Vector2(3f, -3f);
         panelShadow.useGraphicAlpha = true;
         Outline panelOutline = _panel.AddComponent<Outline>();
         panelOutline.effectColor = new Color(0.72f, 0.58f, 0.24f, 0.3f);

@@ -757,6 +757,7 @@ internal static class PlayerManager_CustomRespawnSpawn_Patch
 
     private static void Postfix(PlayerManager __instance)
     {
+        PlayerLookup.RegisterSpawnedPlayer(__instance);
         TeamWeaponLoadouts.OnPlayerSpawned(__instance);
     }
 }

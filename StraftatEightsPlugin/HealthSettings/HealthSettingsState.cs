@@ -18,23 +18,37 @@ internal static class HealthSettingsState
 
     internal static void Apply(bool enabled, int maxHealthPercent, bool regenEnabled, int regenDelaySeconds, int regenRate)
     {
-        Enabled = enabled;
-        if (!enabled)
+        float nextMaxHealthMultiplier = enabled
+            ? Mathf.Clamp(maxHealthPercent, 10, 400) / 100f
+            : 1f;
+        bool nextRegenEnabled = enabled && regenEnabled;
+        float nextRegenDelaySeconds = enabled
+            ? Mathf.Clamp(regenDelaySeconds, 2f, 15f)
+            : 5f;
+        float nextRegenRate = enabled ? NormalizeRegenRate(regenRate) : 25f;
+        if (Enabled == enabled
+            && Mathf.Approximately(MaxHealthMultiplier, nextMaxHealthMultiplier)
+            && RegenEnabled == nextRegenEnabled
+            && Mathf.Approximately(RegenDelaySeconds, nextRegenDelaySeconds)
+            && Mathf.Approximately(RegenRate, nextRegenRate))
         {
-            MaxHealthMultiplier = 1f;
-            RegenEnabled = false;
-            RegenDelaySeconds = 5f;
-            RegenRate = 25f;
-            TuningVersion++;
-            DebugLog.Info("[HealthSettings] Apply: disabled - all values reset to stock");
             return;
         }
-        MaxHealthMultiplier = Mathf.Clamp(maxHealthPercent, 10, 400) / 100f;
-        RegenEnabled = regenEnabled;
-        RegenDelaySeconds = Mathf.Clamp(regenDelaySeconds, 2f, 15f);
-        RegenRate = NormalizeRegenRate(regenRate);
+
+        Enabled = enabled;
+        MaxHealthMultiplier = nextMaxHealthMultiplier;
+        RegenEnabled = nextRegenEnabled;
+        RegenDelaySeconds = nextRegenDelaySeconds;
+        RegenRate = nextRegenRate;
         TuningVersion++;
-        DebugLog.Info($"[HealthSettings] Apply: maxHealthMultiplier={MaxHealthMultiplier:0.##} enabled={RegenEnabled} delay={RegenDelaySeconds:0.##} rate={RegenRate:0.##} version={TuningVersion}");
+        if (!enabled)
+        {
+            DebugLog.Info("[HealthSettings] Apply: disabled - all values reset to stock");
+        }
+        else
+        {
+            DebugLog.Info($"[HealthSettings] Apply: maxHealthMultiplier={MaxHealthMultiplier:0.##} enabled={RegenEnabled} delay={RegenDelaySeconds:0.##} rate={RegenRate:0.##} version={TuningVersion}");
+        }
     }
 
     private static void ApplyFromHostConfig()

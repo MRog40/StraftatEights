@@ -19,7 +19,6 @@ namespace StraftatEightsPlugin;
 public partial class Plugin : BaseUnityPlugin
 {
     internal static new ManualLogSource Logger = null!;
-    internal static ConfigEntry<bool> DebugLogging = null!;
 
     // Used by feature modules that need a persistent MonoBehaviour to host coroutines (e.g. delayed
     // auto-respawn) or attach child components (e.g. a HUD) to - the plugin object outlives scenes.
@@ -35,12 +34,12 @@ public partial class Plugin : BaseUnityPlugin
         Instance = this;
         Logger = base.Logger;
         DebugLog.Reset();
-        DebugLog.Info($"Startup: version={MyPluginInfo.PLUGIN_VERSION} scene={SceneManager.GetActiveScene().name}");
 
         InitializeSafely("compatibility checks", FishNetCompatibility.LogPreflight);
         InitializeSafely("Mycelium transport recovery", MyceliumTransportRecovery.Initialize);
         InitializeSafely("weapon service", WeaponService.Initialize);
         InitializeSafely("game mode manager", GameModeManager.Initialize);
+        InitializeSafely("shared player lookup", PlayerLookup.Initialize);
         InitializeSafely("ModMenu integration", ModMenuIntegration.Initialize);
         InitializeSafely("shared player outline", PlayerOutline.Initialize);
 
@@ -135,16 +134,6 @@ public partial class Plugin : BaseUnityPlugin
     private void Update()
     {
         PositionMarkerDebug.Update();
-        DebugLog.Every("plugin-heartbeat", 2f,
-            $"Heartbeat: lobby={MyceliumNetworking.MyceliumNetwork.InLobby} "
-            + $"host={MyceliumNetworking.MyceliumNetwork.IsHost} "
-            + $"lobbyHost={MyceliumNetworking.MyceliumNetwork.LobbyHost.m_SteamID} "
-            + $"localPlayer={ClientInstance.Instance?.PlayerId ?? -1} "
-            + $"players={PlayerLookup.GetConnectedPlayerIds().Count} "
-            + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} "
-            + $"round={GameModeManager.RoundId} scene={SceneManager.GetActiveScene().name} "
-            + $"mainMenu={PauseManager.Instance?.inMainMenu.ToString() ?? "missing"} "
-            + $"victoryMenu={PauseManager.Instance?.inVictoryMenu.ToString() ?? "missing"}");
         MyceliumTransportRecovery.Update();
         GameModeManager.EnsureVanillaScene();
         GameModeManager.PeriodicPushIfHost();
