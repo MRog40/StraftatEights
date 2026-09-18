@@ -273,7 +273,7 @@ internal static class GameModeManager
     internal static ConfigEntry<bool> EnableMapOverrides = null!;
     internal static float EffectiveRespawnDelaySeconds { get; set; } = 3f;
     internal static int EffectivePointsToWin { get; private set; } = ScoreRules.PointsToWin;
-    internal static bool EffectiveMapOverrides { get; private set; } = true;
+    internal static bool EffectiveMapOverrides { get; private set; }
     private static readonly ModeSyncState Sync = new();
     private static readonly Dictionary<GameMode, string> LastMapByMode = new();
     private static List<MapPlaylistEntry<GameMode>> _mapPlaylist = new();
@@ -287,7 +287,7 @@ internal static class GameModeManager
     {
         Plugin.DebugLogging = Plugin.Instance.Config.Bind("Global Settings", "Debug Logging", false,
             "Enable detailed multiplayer, scene, HUD, and snapshot diagnostics.");
-        EnableMapOverrides = Plugin.Instance.Config.Bind("Global Settings", "Enable Map Overrides", true,
+        EnableMapOverrides = Plugin.Instance.Config.Bind("Global Settings", "Enable Map Overrides", false,
             "Host-controlled: use the plugin's mode-specific map overrides instead of the normal lobby map playlist.");
         EnableMapOverrides.SettingChanged += (_, _) => OnGlobalSettingsChanged();
         RespawnDelaySeconds = Plugin.Instance.Config.Bind("Global Settings", "Respawn Delay (seconds)", 3f,
