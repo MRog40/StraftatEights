@@ -18,7 +18,7 @@ internal static class InfidelState
     internal const float TerroristHealth = 100f / 25f;
     internal const float MovementMultiplier = 0.7f;
     internal const float WeaponDelaySeconds = 10f;
-    internal const float DefaultTakeTimeLimitSeconds = 90f;
+    internal const float DefaultTakeTimeLimitSeconds = ModeTimeoutRules.DefaultRoundSeconds;
     internal const float RoleAnnouncementDuration = WeaponDelaySeconds + 10f;
 
     internal static bool Enabled;

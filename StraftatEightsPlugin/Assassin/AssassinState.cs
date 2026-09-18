@@ -22,7 +22,7 @@ internal static class AssassinState
     internal const int PointsForKingSurvival = AssassinRules.PointsForKingSurvival;
     internal const int PointsForBodyguardSurvival = AssassinRules.PointsForBodyguardSurvival;
     internal const int PointsForBodyguardKill = AssassinRules.PointsForBodyguardKill;
-    internal const float DefaultTakeTimeLimitSeconds = AssassinRules.DefaultTakeTimeLimitSeconds;
+    internal const float DefaultTakeTimeLimitSeconds = ModeTimeoutRules.DefaultRoundSeconds;
 
     internal static bool Enabled;
     internal static int KingPlayerId { get; private set; } = -1;

@@ -7,9 +7,9 @@ namespace StraftatEightsPlugin;
 internal static class FloatingObjectiveMarker
 {
     private const int RingSegments = 64;
-    private const float InnerRadiusRatio = 0.975f;
+    private const float InnerRadiusRatio = 0.9875f;
     private const float RingThicknessRatio = 1f - InnerRadiusRatio;
-    internal const float RingGroundClearance = 0.1f;
+    internal const float RingGroundClearance = 0f;
     private const float GroundProbeStartOffset = 4f;
     private const float GroundProbeDistance = 8f;
     internal const float OverheadMarkerHeight = 3f;

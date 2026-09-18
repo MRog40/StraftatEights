@@ -801,8 +801,7 @@ internal static class SearchAndDestroyState
         DefuserPlayerId = -1;
         PlantProgress = 0f;
         DefuseProgress = 0f;
-        TakeTimeRemaining = SearchAndDestroyRules.GetTakeTimeLimit(
-            GameModeManager.EffectivePointsToWin);
+        TakeTimeRemaining = SearchAndDestroyRules.TakeTimeLimitSeconds;
         FuseTimeRemaining = 0f;
         BombPosition = GetPlayerPosition(BombCarrierPlayerId);
         _takeEnding = false;
@@ -1421,8 +1420,7 @@ internal static class SearchAndDestroyState
             || winReason < (int)SearchAndDestroyWinReason.None
             || winReason > (int)SearchAndDestroyWinReason.DefendersEliminated
             || takeTimeRemaining < 0f
-            || takeTimeRemaining > SearchAndDestroyRules.GetTakeTimeLimit(
-                GameModeManager.EffectivePointsToWin))
+            || takeTimeRemaining > SearchAndDestroyRules.TakeTimeLimitSeconds)
         {
             return false;
         }

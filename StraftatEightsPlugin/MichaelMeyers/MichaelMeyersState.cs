@@ -18,7 +18,6 @@ internal static class MichaelMeyersState
     private const float SurvivorWeaponDelaySeconds = 3f;
     internal const float MovementMultiplier = 1.05f;
     internal const float RoundTimeLimitSeconds = MichaelMeyersRules.RoundTimeLimitSeconds;
-    internal const int PointsForSurvivorTimeout = MichaelMeyersRules.PointsForSurvivorTimeout;
     internal static bool Enabled;
     internal static int CurrentMichaelPlayerId = -1;
     internal static int SurvivorCount { get; private set; }
@@ -448,22 +447,14 @@ internal static class MichaelMeyersState
             return;
         }
 
-        List<int> survivors = GetAliveSurvivors();
-        if (!MichaelMeyersRules.ShouldResolveTimeout(survivors.Count))
+        if (!MichaelMeyersRules.ShouldEndTimeoutWithoutWinner(AlivePlayers.Count))
         {
             return;
         }
 
-        foreach (int playerId in survivors)
-        {
-            AwardScore(playerId, PointsForSurvivorTimeout);
-        }
-
-        _winnerId = survivors[0];
-        Announce("The survivors won the <b>Michael Meyers</b> round!\n<i>Time expired</i>");
-        GameModeHud.BroadcastTakeResult("<b>The survivors won the take</b>\n<i>Michael ran out of time</i>");
+        GameModeHud.BroadcastTakeResult("<b>The Michael Meyers round ended</b>\n<i>Time expired</i>");
         BroadcastLiveState();
-        GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(_winnerId), false);
+        GameModeManager.CompleteCustomRound(GameModeManager.NoWinningTeamId, false);
     }
 
     internal static bool IsMichael(PlayerHealth health)
@@ -591,19 +582,6 @@ internal static class MichaelMeyersState
     {
         return AlivePlayers.Count - (CurrentMichaelPlayerId >= 0
             && AlivePlayers.Contains(CurrentMichaelPlayerId) ? 1 : 0);
-    }
-
-    private static List<int> GetAliveSurvivors()
-    {
-        List<int> survivors = new();
-        foreach (int playerId in AlivePlayers)
-        {
-            if (MichaelMeyersRules.IsTimeoutRecipient(playerId, CurrentMichaelPlayerId, AlivePlayers))
-            {
-                survivors.Add(playerId);
-            }
-        }
-        return survivors;
     }
 
     private static void AwardScore(int playerId, int amount)

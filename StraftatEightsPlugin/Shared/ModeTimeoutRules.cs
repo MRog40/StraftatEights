@@ -5,7 +5,7 @@ namespace StraftatEightsPlugin;
 
 internal static class ModeTimeoutRules
 {
-    internal const float DefaultRoundSeconds = 250f;
+    internal const float DefaultRoundSeconds = 90f;
 
     internal static bool TryGetUniqueLeader(IReadOnlyDictionary<int, int> scores,
         out int leaderId)

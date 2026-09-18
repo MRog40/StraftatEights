@@ -200,7 +200,7 @@ internal static class PlayerOutline
                 continue;
             }
 
-            PlayerHealth? health = PlayerLookup.FindPlayerHealthById(playerId);
+            PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(playerId);
             if (health != null && health.gameObject.activeInHierarchy)
             {
                 currentTargets[playerId] = health;

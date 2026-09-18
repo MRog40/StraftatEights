@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -21,11 +20,7 @@ internal static class SearchAndDestroyRules
     internal const float InteractionRadius = 2f;
     internal const float PlantSiteRadius = 3f;
     internal const float BetweenTakeDelaySeconds = 3f;
-
-    internal static float GetTakeTimeLimit(int scoreLimit)
-    {
-        return Math.Max(1, scoreLimit);
-    }
+    internal const float TakeTimeLimitSeconds = ModeTimeoutRules.DefaultRoundSeconds;
 
     internal static Dictionary<int, int> AssignStrictTwoTeams(IReadOnlyList<int> playerIds)
     {

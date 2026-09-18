@@ -63,6 +63,6 @@ public partial class Plugin
         {
             return;
         }
-        GameModeHud.ReceiveAnnouncement(text, 2f, true);
+        GameModeHud.ReceiveAnnouncement(text, GameModeHud.AnnouncementDuration, true);
     }
 }

@@ -44,7 +44,7 @@ internal static class GameModeScoreboard
         {
             string score = row.Score.ToString().PadLeft(ScoreColumnWidth);
             text.Append('\n');
-            text.Append(IsLocalRow(row) ? "> " : "  ");
+            text.Append(IsLocalRow(row) ? "> " : "   ");
             if (row.TeamId >= 0)
             {
                 TeamColorData color = TeamRules.GetColor(row.TeamId);

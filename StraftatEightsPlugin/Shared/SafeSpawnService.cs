@@ -34,12 +34,16 @@ internal static class SafeSpawnService
 
         bool isHardpoint = GameModeManager.IsActive(GameMode.Hardpoint);
         bool isCaptureTheFlag = GameModeManager.IsActive(GameMode.CaptureTheFlag);
+        bool isTeamDeathmatch = GameModeManager.IsActive(GameMode.TeamDeathmatch);
         int teamId = -1;
         bool hasTeam = GameModeManager.IsTeamBased
             && TeamAssignment.TryGetTeamId(playerId, out teamId);
-        List<TeamPoint> candidates = SelectCandidateSample(candidatePositions);
+        List<TeamPoint> candidates = isTeamDeathmatch
+            ? ToTeamPoints(candidatePositions)
+            : SelectCandidateSample(candidatePositions);
         List<TeamPoint> teammates = new();
         List<PlayerHealth> enemies = new();
+        List<TeamPoint> enemyPositions = new();
 
         foreach (ClientInstance client in ClientInstance.playerInstances.Values)
         {
@@ -65,7 +69,17 @@ internal static class SafeSpawnService
             else
             {
                 enemies.Add(health);
+                enemyPositions.Add(playerPosition);
             }
+        }
+
+        if (isTeamDeathmatch && enemyPositions.Count > 0)
+        {
+            TeamPoint farthest = TeamRules.SelectFarthestFromEnemies(candidates,
+                enemyPositions);
+            position = new Vector3(farthest.X, farthest.Y, farthest.Z);
+            RememberSpawn(playerId, farthest);
+            return true;
         }
 
         TeamPoint? objective = null;

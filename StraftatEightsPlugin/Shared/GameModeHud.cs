@@ -14,7 +14,7 @@ namespace StraftatEightsPlugin;
 internal sealed class GameModeHud : MonoBehaviour
 {
     private const float RefreshInterval = 0.1f;
-    private const float AnnouncementDuration = 2f;
+    internal const float AnnouncementDuration = 3f;
     private const float AnnouncementTopMargin = 0.12f;
     private const float AnnouncementWidth = 600f;
     private const float AnnouncementGap = 8f;
@@ -474,7 +474,9 @@ internal sealed class GameModeHud : MonoBehaviour
             return;
         }
 
-        ShowTakeResult(ClientInstance.ReplaceAllPlayerNameTags(text), durationSeconds);
+        string displayText = ClientInstance.ReplaceAllPlayerNameTags(text);
+        WriteKillfeedAnnouncement(GetTakeResultKillfeedText(displayText));
+        ShowTakeResult(displayText, durationSeconds);
     }
 
     internal static void PeriodicPushTakeResult()
@@ -530,10 +532,17 @@ internal sealed class GameModeHud : MonoBehaviour
         }
 
         _nextTakeResultPushTime = Time.unscaledTime + TakeResultRetryInterval;
-        PublishAnnouncement(text, effectiveDuration, showHud: false);
-        ShowTakeResult(ClientInstance.ReplaceAllPlayerNameTags(text), effectiveDuration);
+        string displayText = ClientInstance.ReplaceAllPlayerNameTags(text);
+        WriteKillfeedAnnouncement(GetTakeResultKillfeedText(displayText));
+        ShowTakeResult(displayText, effectiveDuration);
         MyceliumNetwork.RPC(GameModeManager.ModId, nameof(Plugin.SyncTakeResult),
             ReliableType.Reliable, resultId, text, effectiveDuration);
+    }
+
+    private static string GetTakeResultKillfeedText(string text)
+    {
+        int reasonStart = text.IndexOf("\n<i>", StringComparison.Ordinal);
+        return reasonStart >= 0 ? text.Substring(0, reasonStart) : text;
     }
 
     internal static void ReceiveAnnouncement(string text, float durationSeconds, bool showHud)

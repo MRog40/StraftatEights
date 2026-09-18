@@ -303,8 +303,10 @@ internal static class HotPotatoState
             }
 
             PlayerPickup? pickup = client.PlayerSpawner.player.playerPickupScript;
-            Weapon? heldWeapon = GetWeapon(pickup?.objInHand);
-            if (heldWeapon != null && IsAllowedWeapon(heldWeapon, client.PlayerId))
+            Weapon? rightHandWeapon = GetWeapon(pickup?.objInHand);
+            Weapon? leftHandWeapon = GetWeapon(pickup?.objInLeftHand);
+            if ((rightHandWeapon != null && IsAllowedWeapon(rightHandWeapon, client.PlayerId))
+                || (leftHandWeapon != null && IsAllowedWeapon(leftHandWeapon, client.PlayerId)))
             {
                 PendingLoadouts.Remove(client.PlayerId);
                 continue;

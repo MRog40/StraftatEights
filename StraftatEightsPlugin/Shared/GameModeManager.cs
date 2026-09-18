@@ -1361,7 +1361,7 @@ internal static class GameModeManager
     private static readonly HashSet<int> PendingDeaths = new();
     private static bool _customRoundTransitionPending;
     private static bool _skipRoundTransitionPending;
-    private const int NoWinningTeamId = int.MinValue;
+    internal const int NoWinningTeamId = int.MinValue;
 
     internal static void CompleteCustomRound(int winningTeamId, bool awardRoundPoint = true)
     {
@@ -1592,7 +1592,7 @@ public partial class Plugin
     public void SyncGameModeAnnouncement(string text, float durationSeconds, bool showHud,
         RPCInfo info)
     {
-        if (!NetworkAuthority.IsHostSender(info)
+        if (MyceliumNetwork.IsHost || !NetworkAuthority.IsHostSender(info)
             || string.IsNullOrWhiteSpace(text)
             || float.IsNaN(durationSeconds) || float.IsInfinity(durationSeconds))
         {
@@ -1605,7 +1605,7 @@ public partial class Plugin
     [CustomRPC]
     public void SyncTakeResult(int resultId, string text, float durationSeconds, RPCInfo info)
     {
-        if (!NetworkAuthority.IsHostSender(info)
+        if (MyceliumNetwork.IsHost || !NetworkAuthority.IsHostSender(info)
             || resultId < 0 || string.IsNullOrWhiteSpace(text)
             || float.IsNaN(durationSeconds) || float.IsInfinity(durationSeconds))
         {

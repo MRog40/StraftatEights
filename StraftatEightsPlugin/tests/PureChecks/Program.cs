@@ -144,24 +144,19 @@ Assert(ScoreRules.PointsToWin == 100 && ScoreRules.PointsPerRoundWin == 50
     && ScoreRules.PointsPerHVTSurvivalSecond == 3,
     "Shared score rules must use the 100-point target and mode award values.");
 Dictionary<int, int> timeoutScores = new() { [4] = 60, [9] = 40 };
-Assert(ModeTimeoutRules.DefaultRoundSeconds == 250f
+Assert(ModeTimeoutRules.DefaultRoundSeconds == 90f
     && ModeTimeoutRules.TryGetUniqueLeader(timeoutScores, out int timeoutLeader)
     && timeoutLeader == 4
     && !ModeTimeoutRules.TryGetUniqueLeader(
         new Dictionary<int, int> { [4] = 60, [9] = 60 }, out _)
     && !ModeTimeoutRules.TryGetUniqueLeader(new Dictionary<int, int>(), out _),
     "A timed score mode must select a unique leader and treat ties or empty scores as sudden death.");
-Assert(AssassinRules.DefaultTakeTimeLimitSeconds == 90f,
-    "Assassin takes must always use a ninety-second time limit.");
-HashSet<int> michaelAlivePlayers = new() { 2, 5, 9 };
-Assert(MichaelMeyersRules.RoundTimeLimitSeconds == 90f
-    && MichaelMeyersRules.PointsForSurvivorTimeout == 25
-    && !MichaelMeyersRules.ShouldResolveTimeout(1)
-    && MichaelMeyersRules.ShouldResolveTimeout(2)
-    && MichaelMeyersRules.IsTimeoutRecipient(2, 5, michaelAlivePlayers)
-    && !MichaelMeyersRules.IsTimeoutRecipient(5, 5, michaelAlivePlayers)
-    && !MichaelMeyersRules.IsTimeoutRecipient(7, 5, michaelAlivePlayers),
-    "Michael Meyers timeout awards must require two survivors and exclude Michael and dead players.");
+Assert(AssassinRules.DefaultTakeTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds,
+    "Assassin takes must use the shared ninety-second time limit.");
+Assert(MichaelMeyersRules.RoundTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds
+    && !MichaelMeyersRules.ShouldEndTimeoutWithoutWinner(1)
+    && MichaelMeyersRules.ShouldEndTimeoutWithoutWinner(2),
+    "Michael Meyers must use the full round timer and end multi-player timeouts without a winner.");
 Assert(TeamRules.GetTeamCount(2) == 2 && TeamRules.GetTeamCount(3) == 3
     && TeamRules.GetTeamCount(4) == 2 && TeamRules.GetTeamCount(6) == 3,
     "Team count must use three teams only for player counts divisible by three.");
@@ -278,8 +273,7 @@ Assert(SearchAndDestroyRules.GetOffensiveTeamId(1) == 0
     && SearchAndDestroyRules.GetOtherTeamId(2) == -1,
     "Search and Destroy offense must alternate between takes.");
 Assert(SearchAndDestroyRules.PointsPerRoundWin == 40
-    && SearchAndDestroyRules.GetTakeTimeLimit(100) == 100f
-    && SearchAndDestroyRules.GetTakeTimeLimit(0) == 1f
+    && SearchAndDestroyRules.TakeTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds
     && SearchAndDestroyRules.PlantDurationSeconds == 5f
     && SearchAndDestroyRules.DefuseDurationSeconds == 7.5f
     && SearchAndDestroyRules.FuseDurationSeconds == 30f
@@ -440,9 +434,9 @@ Assert(alivePlayers.Count == 1 && alivePlayers.Contains(1),
     "The last remaining player must be the round winner.");
 Assert(Math.Abs(OneInTheChamberRules.PlayerHealth - 0.4f) < 0.001f,
     "One in the Chamber must use ten displayed health for every player.");
-Assert(HotPotatoRules.IsAllowedWeapon("HandGrenade(Clone)", true)
+Assert(HotPotatoRules.IsAllowedWeapon("GlandGrenade(Clone)", true)
     && HotPotatoRules.IsAllowedWeapon("Shotgun(Clone)", false),
-    "Hot Potato must use the HandGrenade and Shotgun prefabs.");
+    "Hot Potato must use the GlandGrenade and Shotgun prefabs.");
 Assert(!HotPotatoRules.IsAllowedWeapon("Glock(Clone)", false),
     "Hot Potato must reject unrelated weapons.");
 Assert(HotPotatoRules.ResolvePotato(-1, 5, 2) == 2,

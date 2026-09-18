@@ -104,7 +104,7 @@ internal static class HotPotatoRules
 {
     internal static bool IsAllowedWeapon(string weaponName, bool hasPotato)
     {
-        string expected = hasPotato ? "HandGrenade" : "Shotgun";
+        string expected = hasPotato ? "GlandGrenade" : "Shotgun";
         return weaponName.StartsWith(expected, StringComparison.Ordinal);
     }
 
@@ -139,24 +139,17 @@ internal static class InfidelRules
 
 internal static class MichaelMeyersRules
 {
-    internal const float RoundTimeLimitSeconds = 90f;
-    internal const int PointsForSurvivorTimeout = ScoreRules.PointsPerRoundWin / 2;
+    internal const float RoundTimeLimitSeconds = ModeTimeoutRules.DefaultRoundSeconds;
 
-    internal static bool ShouldResolveTimeout(int survivorCount)
+    internal static bool ShouldEndTimeoutWithoutWinner(int alivePlayerCount)
     {
-        return survivorCount >= 2;
-    }
-
-    internal static bool IsTimeoutRecipient(int playerId, int michaelPlayerId,
-        IReadOnlyCollection<int> alivePlayers)
-    {
-        return playerId >= 0 && playerId != michaelPlayerId && alivePlayers.Contains(playerId);
+        return alivePlayerCount > 1;
     }
 }
 
 internal static class AssassinRules
 {
-    internal const float DefaultTakeTimeLimitSeconds = 90f;
+    internal const float DefaultTakeTimeLimitSeconds = ModeTimeoutRules.DefaultRoundSeconds;
     internal const int PointsForAssassinWin = 50;
     internal const int PointsForKingSurvival = 30;
     internal const int PointsForBodyguardSurvival = 10;
