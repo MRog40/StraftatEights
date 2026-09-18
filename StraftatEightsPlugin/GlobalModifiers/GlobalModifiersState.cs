@@ -19,6 +19,7 @@ internal static class GlobalModifiersState
     internal static float GravityMultiplier = 1f;
     internal static float MomentumPercent = 100f;
     internal static float AirSpeedRatioPercent = MovementTuning.StockAirSpeedRatioPercent;
+    internal static float ShootingSpeedMultiplier = 1f;
 
     internal static float EffectiveMomentumPercent => GameModeManager.ShouldIgnoreGlobalMovementSettings
         ? 100f
@@ -36,7 +37,7 @@ internal static class GlobalModifiersState
     // so the individual sliders are ignored entirely and movement is pure stock Straftat.
     private static readonly ModeSyncState Sync = new();
 
-    internal static void Apply(bool enabled, bool wallJump, bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent, int gravityPercent, int momentumPercent, int airSpeedRatioPercent)
+    internal static void Apply(bool enabled, bool wallJump, bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent, int gravityPercent, int momentumPercent, int airSpeedRatioPercent, int shootingSpeedPercent)
     {
         Enabled = enabled;
         if (!enabled)
@@ -50,6 +51,7 @@ internal static class GlobalModifiersState
             GravityMultiplier = 1f;
             MomentumPercent = 100f;
             AirSpeedRatioPercent = MovementTuning.StockAirSpeedRatioPercent;
+            ShootingSpeedMultiplier = 1f;
             TuningVersion++;
             DebugLog.Info("[GlobalModifiers] Apply: disabled - all values reset to stock");
             return;
@@ -60,6 +62,7 @@ internal static class GlobalModifiersState
         gravityPercent = Mathf.Clamp(gravityPercent, 10, 100);
         momentumPercent = Mathf.Clamp(momentumPercent, 10, 400);
         airSpeedRatioPercent = Mathf.Clamp(airSpeedRatioPercent, 50, 200);
+        shootingSpeedPercent = Mathf.Clamp(shootingSpeedPercent, 10, 100);
         WallJumpEnabled = wallJump;
         SlidingEnabled = sliding;
         SlideBoostEnabled = slideBoost;
@@ -69,13 +72,14 @@ internal static class GlobalModifiersState
         GravityMultiplier = gravityPercent / 100f;
         MomentumPercent = momentumPercent;
         AirSpeedRatioPercent = airSpeedRatioPercent;
+        ShootingSpeedMultiplier = shootingSpeedPercent / 100f;
         TuningVersion++;
-        DebugLog.Info($"[MovementSettings] Apply: SpeedMultiplier={SpeedMultiplier:0.00} AdsSpeedMultiplier={AdsSpeedMultiplier:0.00} GravityMultiplier={GravityMultiplier:0.00} MomentumPercent={MomentumPercent} AirSpeedRatioPercent={AirSpeedRatioPercent} TuningVersion={TuningVersion}");
+        DebugLog.Info($"[MovementSettings] Apply: SpeedMultiplier={SpeedMultiplier:0.00} AdsSpeedMultiplier={AdsSpeedMultiplier:0.00} GravityMultiplier={GravityMultiplier:0.00} MomentumPercent={MomentumPercent} AirSpeedRatioPercent={AirSpeedRatioPercent} ShootingSpeedMultiplier={ShootingSpeedMultiplier:0.00} TuningVersion={TuningVersion}");
     }
 
     private static void ApplyFromHostConfig()
     {
-        Apply(Plugin.MovementTweaksEnabled.Value, Plugin.WallJumpEnabled.Value, Plugin.SlidingEnabled.Value, Plugin.SlideBoostEnabled.Value, Plugin.WallJumpBoostEnabled.Value, Plugin.MoveSpeedPercent.Value, Plugin.AdsSpeedPercent.Value, Plugin.GravityPercent.Value, Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value);
+        Apply(Plugin.MovementTweaksEnabled.Value, Plugin.WallJumpEnabled.Value, Plugin.SlidingEnabled.Value, Plugin.SlideBoostEnabled.Value, Plugin.WallJumpBoostEnabled.Value, Plugin.MoveSpeedPercent.Value, Plugin.AdsSpeedPercent.Value, Plugin.GravityPercent.Value, Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value, Plugin.ShootingSpeedPercent.Value);
     }
 
     internal static void PushIfHost()
@@ -118,7 +122,7 @@ internal static class GlobalModifiersState
     internal static void ResetForLobbyLeft()
     {
         Sync.ResetForLobby();
-        Apply(false, true, true, true, true, 100, 100, 100, 100, Mathf.RoundToInt(MovementTuning.StockAirSpeedRatioPercent));
+        Apply(false, true, true, true, true, 100, 100, 100, 100, Mathf.RoundToInt(MovementTuning.StockAirSpeedRatioPercent), 100);
     }
 
     // Late joiners won't have received earlier broadcasts, so catch them up directly
@@ -149,7 +153,7 @@ internal static class GlobalModifiersState
             Plugin.MovementTweaksEnabled.Value,
             Plugin.WallJumpEnabled.Value, Plugin.SlidingEnabled.Value, Plugin.SlideBoostEnabled.Value, Plugin.WallJumpBoostEnabled.Value,
             Plugin.MoveSpeedPercent.Value, Plugin.AdsSpeedPercent.Value, Plugin.GravityPercent.Value,
-            Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value
+            Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value, Plugin.ShootingSpeedPercent.Value
         };
     }
 }

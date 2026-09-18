@@ -113,7 +113,10 @@ internal static class FirstPersonController_Speed_Patch
         else
         {
             float adsFactor = __instance.isAiming ? GlobalModifiersState.AdsSpeedMultiplier : 1f;
-            __instance.movementFactor = GlobalModifiersState.SpeedMultiplier * adsFactor;
+            float shootingFactor = MovementTuning.IsShooting(__instance)
+                ? GlobalModifiersState.ShootingSpeedMultiplier
+                : 1f;
+            __instance.movementFactor = GlobalModifiersState.SpeedMultiplier * adsFactor * shootingFactor;
             __instance.gravityMultiplier = GlobalModifiersState.GravityMultiplier;
         }
 

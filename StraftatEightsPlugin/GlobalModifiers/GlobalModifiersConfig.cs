@@ -21,6 +21,7 @@ public partial class Plugin
     internal static ConfigEntry<int> GravityPercent = null!;
     internal static ConfigEntry<int> MomentumPercent = null!;
     internal static ConfigEntry<int> AirSpeedRatioPercent = null!;
+    internal static ConfigEntry<int> ShootingSpeedPercent = null!;
 
     private void InitializeGlobalModifiers()
     {
@@ -51,6 +52,9 @@ public partial class Plugin
                 "Host-controlled: air move speed (not air control) as a percent of ground move speed. Stock Straftat is " +
                 "already faster sprinting in the air than on the ground (the default reflects that real ratio). Lower this to slow players down in the air.",
                 new AcceptableValueRange<int>(50, 200)));
+        ShootingSpeedPercent = Config.Bind("Movement Settings", "Shooting Speed %", 100,
+            new ConfigDescription("Host-controlled: movement speed while shooting as a percent of normal. 100% = no slowdown.",
+                new AcceptableValueRange<int>(10, 100)));
 
         WallJumpEnabled.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
         MovementTweaksEnabled.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
@@ -62,6 +66,7 @@ public partial class Plugin
         GravityPercent.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
         MomentumPercent.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
         AirSpeedRatioPercent.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
+        ShootingSpeedPercent.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
 
         MyceliumNetwork.RegisterNetworkObject(this, GlobalModifiersModId);
         // LobbyCreated fires for the host (Steam LobbyCreated_t); LobbyEntered only fires for
@@ -76,7 +81,7 @@ public partial class Plugin
     [CustomRPC]
     public void SyncMovementSettings(CSteamID hostId, int roundId, int revision, bool enabled, bool wallJump,
         bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent,
-        int gravityPercent, int momentumPercent, int airSpeedRatioPercent, RPCInfo info)
+        int gravityPercent, int momentumPercent, int airSpeedRatioPercent, int shootingSpeedPercent, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
@@ -86,7 +91,7 @@ public partial class Plugin
         {
             return;
         }
-        DebugLog.Info($"[MovementSettings] Received sync: enabled={enabled} wallJump={wallJump} sliding={sliding} slideBoost={slideBoost} wallJumpBoost={wallJumpBoost} moveSpeed%={moveSpeedPercent} adsSpeed%={adsSpeedPercent} gravity%={gravityPercent} momentum%={momentumPercent} airSpeed%={airSpeedRatioPercent}");
-        GlobalModifiersState.Apply(enabled, wallJump, sliding, slideBoost, wallJumpBoost, moveSpeedPercent, adsSpeedPercent, gravityPercent, momentumPercent, airSpeedRatioPercent);
+        DebugLog.Info($"[MovementSettings] Received sync: enabled={enabled} wallJump={wallJump} sliding={sliding} slideBoost={slideBoost} wallJumpBoost={wallJumpBoost} moveSpeed%={moveSpeedPercent} adsSpeed%={adsSpeedPercent} gravity%={gravityPercent} momentum%={momentumPercent} airSpeed%={airSpeedRatioPercent} shootingSpeed%={shootingSpeedPercent}");
+        GlobalModifiersState.Apply(enabled, wallJump, sliding, slideBoost, wallJumpBoost, moveSpeedPercent, adsSpeedPercent, gravityPercent, momentumPercent, airSpeedRatioPercent, shootingSpeedPercent);
     }
 }

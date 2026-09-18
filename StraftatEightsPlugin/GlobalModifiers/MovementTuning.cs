@@ -108,6 +108,31 @@ internal static class MovementTuning
         return GetSprintSpeed(controller) * GlobalModifiersState.SpeedMultiplier;
     }
 
+    internal static bool IsShooting(FirstPersonController controller)
+    {
+        PlayerPickup? pickup = controller.playerPickupScript;
+        return IsWeaponFiring(pickup?.objInHand, controller)
+            || IsWeaponFiring(pickup?.objInLeftHand, controller);
+    }
+
+    private static bool IsWeaponFiring(GameObject? heldObject, FirstPersonController controller)
+    {
+        if (heldObject == null || !heldObject)
+        {
+            return false;
+        }
+
+        Weapon? weapon = heldObject.GetComponent<Weapon>();
+        if (weapon == null)
+        {
+            return false;
+        }
+
+        bool useFire2 = weapon.inRightHand ? weapon.invertFire : !weapon.invertFire;
+        var fireAction = useFire2 ? controller.fire2 : controller.fire1;
+        return fireAction != null && fireAction.ReadValue<float>() > 0.1f;
+    }
+
     // WASD-axis smoothing alone doesn't cover camera-driven direction changes (e.g. spinning 180 while
     // still holding forward) since moveDirection is recomputed fresh from facing every frame with no
     // persisted world-space velocity. This blends the resulting horizontal direction/speed across
