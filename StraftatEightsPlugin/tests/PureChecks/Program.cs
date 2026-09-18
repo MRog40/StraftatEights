@@ -318,6 +318,9 @@ Assert(SearchAndDestroyRules.TryStartDefuse(SearchAndDestroyBombStatus.Planted,
         SearchAndDestroyRules.DefuseDurationSeconds, out SearchAndDestroyBombStatus defusedBomb)
     && defusedBomb == SearchAndDestroyBombStatus.Home,
     "Defusing must require a defender and the full defuse duration.");
+Assert(0f - SearchAndDestroyRules.PlantSiteMinVerticalOffset >= 1f
+    && SearchAndDestroyRules.PlantSiteMaxVerticalOffset == 2f,
+    "SnD planting must use a bounded vertical site window.");
 Assert(TeamRules.ResolveController(Array.Empty<int>()) == -1
     && TeamRules.ResolveController(new[] { 1, 1 }) == 1
     && TeamRules.ResolveController(new[] { 1, 2 }) == -2,
@@ -331,6 +334,21 @@ TeamPoint respawn = TeamRules.SelectFarthestFromEnemies(
     new[] { new TeamPoint(0f, 0f, 0f), new TeamPoint(10f, 0f, 0f), new TeamPoint(20f, 0f, 0f) },
     new[] { new TeamPoint(2f, 0f, 0f), new TeamPoint(4f, 0f, 0f) });
 Assert(respawn.X == 20f, "Respawn selection must maximize distance from the nearest enemy.");
+TeamPoint deterministicRandomizedRespawn = TeamRules.SelectRandomizedFarthestFromEnemies(
+    new[] { new TeamPoint(0f, 0f, 0f), new TeamPoint(10f, 0f, 0f), new TeamPoint(20f, 0f, 0f) },
+    new[] { new TeamPoint(2f, 0f, 0f), new TeamPoint(4f, 0f, 0f) }, 0f, 0);
+Assert(deterministicRandomizedRespawn.X == 20f,
+    "Zero spawn randomness must keep the safest TDM spawn.");
+TeamPoint partiallyRandomizedRespawn = TeamRules.SelectRandomizedFarthestFromEnemies(
+    new[] { new TeamPoint(0f, 0f, 0f), new TeamPoint(10f, 0f, 0f), new TeamPoint(20f, 0f, 0f) },
+    new[] { new TeamPoint(2f, 0f, 0f), new TeamPoint(4f, 0f, 0f) }, 0.5f, 1);
+Assert(partiallyRandomizedRespawn.X == 10f,
+    "Partial spawn randomness must select within the safest ranked pool.");
+TeamPoint fullyRandomizedRespawn = TeamRules.SelectRandomizedFarthestFromEnemies(
+    new[] { new TeamPoint(0f, 0f, 0f), new TeamPoint(10f, 0f, 0f), new TeamPoint(20f, 0f, 0f) },
+    new[] { new TeamPoint(2f, 0f, 0f), new TeamPoint(4f, 0f, 0f) }, 1f, 2);
+Assert(fullyRandomizedRespawn.X == 0f,
+    "Full spawn randomness must allow the least-safe candidate.");
 List<SpawnCandidate> coveredSpawnCandidates = new()
 {
     new SpawnCandidate(new TeamPoint(10f, 0f, 0f),

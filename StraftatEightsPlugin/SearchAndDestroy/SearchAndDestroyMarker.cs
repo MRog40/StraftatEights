@@ -15,6 +15,7 @@ internal static class SearchAndDestroyMarker
     private const float BombGroundMarkerHeight = 0.01f;
     private const int ElectricArcCount = 4;
     private const int ElectricArcPointCount = 7;
+    private static readonly Color SiteLineColor = new(0f, 0f, 0f, 0.8f);
     private static readonly GameObject?[] SiteMarkers = new GameObject?[2];
     private static readonly List<LineRenderer> ElectricArcs = new();
     private static GameObject? _bomb;
@@ -72,7 +73,7 @@ internal static class SearchAndDestroyMarker
     {
         GameObject root = new($"SearchAndDestroySite_{siteIndex}");
         GameObject ring = FloatingObjectiveMarker.CreateRing("BombSiteRing",
-            new Color(1f, 1f, 1f, 0.8f));
+            SiteLineColor);
         ring.transform.SetParent(root.transform, false);
 
         GameObject marker = siteIndex == 0
@@ -150,14 +151,8 @@ internal static class SearchAndDestroyMarker
         }
         else
         {
-            float groundY = position.y;
-            if (FloatingObjectiveMarker.TryGetGroundY(position, position.y, out float sampledGroundY))
-            {
-                groundY = sampledGroundY;
-            }
-
             _bomb.transform.SetPositionAndRotation(
-                new Vector3(position.x, groundY + BombGroundMarkerHeight, position.z),
+                new Vector3(position.x, position.y + BombGroundMarkerHeight, position.z),
                 Quaternion.identity);
             _bomb.transform.localScale = Vector3.one;
         }

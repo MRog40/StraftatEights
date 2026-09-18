@@ -17,6 +17,7 @@ internal static class CaptureTheFlagMarker
     private static readonly Renderer?[] MarkerRenderers = new Renderer?[2];
     private static readonly Renderer?[] PoleRenderers = new Renderer?[2];
     private static readonly Renderer?[] RingRenderers = new Renderer?[2];
+    private static readonly int[] AttachedCarrierIds = { -1, -1 };
 
     internal static void Update()
     {
@@ -90,17 +91,27 @@ internal static class CaptureTheFlagMarker
         marker.SetActive(true);
         bool carried = CaptureTheFlagState.GetFlagStatus(flagIndex)
             == CaptureTheFlagFlagStatus.Carried;
+        int carrierId = carried ? CaptureTheFlagState.GetFlagCarrier(flagIndex) : -1;
         PlayerHealth? carrier = carried
-            ? PlayerLookup.FindActivePlayerHealthById(CaptureTheFlagState.GetFlagCarrier(flagIndex))
+            ? PlayerLookup.FindActivePlayerHealthById(carrierId)
             : null;
         if (carrier != null && carrier && carrier.gameObject.activeInHierarchy)
         {
             marker.transform.SetParent(carrier.transform, false);
             marker.transform.localPosition = Vector3.zero;
             marker.transform.localRotation = Quaternion.identity;
+            AttachedCarrierIds[flagIndex] = carrierId;
+        }
+        else if (carried && AttachedCarrierIds[flagIndex] == carrierId
+            && marker.transform.parent != null && marker.transform.parent
+            && marker.transform.parent.gameObject.activeInHierarchy)
+        {
+            marker.transform.localPosition = Vector3.zero;
+            marker.transform.localRotation = Quaternion.identity;
         }
         else
         {
+            AttachedCarrierIds[flagIndex] = -1;
             marker.transform.SetParent(null, true);
             float groundY = flagPosition.y;
             if (!carried && TryGetGroundY(flagPosition, flagPosition.y, out float sampledGroundY))
@@ -263,6 +274,7 @@ internal static class CaptureTheFlagMarker
             MarkerRenderers[flagIndex] = null;
             PoleRenderers[flagIndex] = null;
             RingRenderers[flagIndex] = null;
+            AttachedCarrierIds[flagIndex] = -1;
         }
     }
 }

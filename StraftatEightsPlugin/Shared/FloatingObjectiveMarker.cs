@@ -10,7 +10,7 @@ internal static class FloatingObjectiveMarker
     private const float InnerRadiusRatio = 0.9875f;
     private const float RingThicknessRatio = 1f - InnerRadiusRatio;
     internal const float RingGroundClearance = 0f;
-    private const float GroundProbeStartOffset = 4f;
+    private const float GroundProbeStartOffset = 1f;
     private const float GroundProbeDistance = 8f;
     internal const float OverheadMarkerHeight = 3f;
     private static readonly Dictionary<GameObject, Vector3> ConformedPositions = new();

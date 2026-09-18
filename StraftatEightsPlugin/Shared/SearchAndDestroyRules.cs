@@ -19,6 +19,8 @@ internal static class SearchAndDestroyRules
     internal const float FuseDurationSeconds = 30f;
     internal const float InteractionRadius = 2f;
     internal const float PlantSiteRadius = 3f;
+    internal const float PlantSiteMinVerticalOffset = -1f;
+    internal const float PlantSiteMaxVerticalOffset = 2f;
     internal const float BetweenTakeDelaySeconds = 3f;
     internal const float TakeTimeLimitSeconds = ModeTimeoutRules.DefaultRoundSeconds;
 

@@ -4,7 +4,7 @@ namespace StraftatEightsPlugin;
 
 internal static class CaptureTheFlagHud
 {
-    internal static string BuildScoreboard()
+    internal static GameModeScoreboardLayout BuildScoreboard()
     {
         GameModeScoreboardRow[] rows = new GameModeScoreboardRow[2];
         for (int teamId = 0; teamId < 2; teamId++)

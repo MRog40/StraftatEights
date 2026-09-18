@@ -239,10 +239,23 @@ internal static class RespawnProtection
             }
         }
 
-        if (!player.IsOwner)
+        if (IsLocalPlayer(player))
+        {
+            PlayerOutline.ClearTemporary(player, OutlineColor, OutlineWidth);
+        }
+        else if (!player.IsOwner)
         {
             PlayerOutline.ApplyTemporary(player, OutlineColor, OutlineWidth);
         }
+    }
+
+    private static bool IsLocalPlayer(PlayerHealth player)
+    {
+        int localPlayerId = ClientInstance.Instance == null
+            ? -1
+            : ClientInstance.Instance.PlayerId;
+        return localPlayerId >= 0
+            && player.playerValues?.playerClient?.PlayerId == localPlayerId;
     }
 
     private static void Apply(PlayerHealth player)

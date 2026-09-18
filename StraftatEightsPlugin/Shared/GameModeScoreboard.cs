@@ -20,55 +20,59 @@ internal readonly struct GameModeScoreboardRow
     internal int PlayerId { get; }
 }
 
+internal readonly struct GameModeScoreboardLayout
+{
+    internal GameModeScoreboardLayout(string nameColumnText, string scoreColumnText)
+    {
+        NameColumnText = nameColumnText;
+        ScoreColumnText = scoreColumnText;
+    }
+
+    internal string NameColumnText { get; }
+    internal string ScoreColumnText { get; }
+}
+
 internal static class GameModeScoreboard
 {
-    private const int ScoreColumnWidth = 4;
-    private const string ScoreColumnGap = "  ";
-    internal static string Build(GameMode mode, string? labelOverride, int? pointsToWin,
+    internal static GameModeScoreboardLayout Build(GameMode mode, string? labelOverride, int? pointsToWin,
         IReadOnlyList<GameModeScoreboardRow> rows, string? timerText = null)
     {
-        int labelWidth = 0;
-        foreach (GameModeScoreboardRow row in rows)
-        {
-            labelWidth = Math.Max(labelWidth, PlayerNameMarkup.VisibleLength(row.Label));
-        }
-
-        StringBuilder text = new();
-        text.Append(GameModeManager.GetScoreboardModeLabelMarkup(mode, labelOverride));
+        StringBuilder nameColumn = new();
+        StringBuilder scoreColumn = new("\n");
+        nameColumn.Append(GameModeManager.GetScoreboardModeLabelMarkup(mode, labelOverride));
         if (pointsToWin.HasValue)
         {
-            text.Append(" - ").Append(pointsToWin.Value);
+            nameColumn.Append(" - ").Append(pointsToWin.Value);
         }
 
         foreach (GameModeScoreboardRow row in rows)
         {
-            string score = row.Score.ToString().PadLeft(ScoreColumnWidth);
-            text.Append('\n');
-            text.Append(IsLocalRow(row) ? "> " : "   ");
+            nameColumn.Append('\n');
+            nameColumn.Append(IsLocalRow(row) ? "> " : "   ");
             if (row.TeamId >= 0)
             {
                 TeamColorData color = TeamRules.GetColor(row.TeamId);
-                text.Append("<color=#").Append(color.Red.ToString("X2"))
+                nameColumn.Append("<color=#").Append(color.Red.ToString("X2"))
                     .Append(color.Green.ToString("X2"))
                     .Append(color.Blue.ToString("X2"))
                     .Append(">");
             }
 
-            text.Append(row.Label);
-            text.Append(' ', labelWidth - PlayerNameMarkup.VisibleLength(row.Label));
+            nameColumn.Append(row.Label);
             if (row.TeamId >= 0)
             {
-                text.Append("</color>");
+                nameColumn.Append("</color>");
             }
 
-            text.Append(ScoreColumnGap).Append(score);
+            scoreColumn.Append('\n').Append(row.Score);
         }
 
         if (!string.IsNullOrEmpty(timerText))
         {
-            text.Append("\n<i>").Append(timerText).Append("</i>");
+            nameColumn.Append("\n<i>").Append(timerText).Append("</i>");
+            scoreColumn.Append('\n');
         }
-        return text.ToString();
+        return new GameModeScoreboardLayout(nameColumn.ToString(), scoreColumn.ToString());
     }
 
     private static bool IsLocalTeam(int teamId)

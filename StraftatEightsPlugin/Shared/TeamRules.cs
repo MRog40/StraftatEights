@@ -60,6 +60,18 @@ internal static class TeamRules
     internal const int VermillionTeamId = 1;
     internal const int GreenTeamId = 2;
 
+    private readonly struct RankedCandidate
+    {
+        internal RankedCandidate(int index, float distance)
+        {
+            Index = index;
+            Distance = distance;
+        }
+
+        internal int Index { get; }
+        internal float Distance { get; }
+    }
+
     internal static int GetTeamCount(int playerCount)
     {
         if (playerCount <= 0)
@@ -220,6 +232,47 @@ internal static class TeamRules
         }
 
         return SelectFarthestFromOrigins(candidates, enemies);
+    }
+
+    internal static TeamPoint SelectRandomizedFarthestFromEnemies(
+        IReadOnlyList<TeamPoint> candidates, IReadOnlyList<TeamPoint> enemies,
+        float randomness, int randomIndex)
+    {
+        if (candidates.Count == 0)
+        {
+            throw new ArgumentException("At least one spawn candidate is required.", nameof(candidates));
+        }
+
+        if (enemies.Count == 0)
+        {
+            return candidates[0];
+        }
+
+        List<RankedCandidate> rankedCandidates = new(candidates.Count);
+        for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
+        {
+            float distance = GetNearestDistanceSquared(candidates[candidateIndex], enemies);
+            int insertionIndex = rankedCandidates.Count;
+            while (insertionIndex > 0
+                && distance > rankedCandidates[insertionIndex - 1].Distance)
+            {
+                insertionIndex--;
+            }
+
+            rankedCandidates.Insert(insertionIndex,
+                new RankedCandidate(candidateIndex, distance));
+        }
+
+        float clampedRandomness = Math.Max(0f, Math.Min(1f, randomness));
+        int poolSize = 1 + (int)Math.Floor((candidates.Count - 1) * clampedRandomness);
+        int selectedRank = GetRandomIndex(randomIndex, poolSize);
+        return candidates[rankedCandidates[selectedRank].Index];
+    }
+
+    private static int GetRandomIndex(int randomIndex, int count)
+    {
+        int normalizedIndex = randomIndex % count;
+        return normalizedIndex < 0 ? normalizedIndex + count : normalizedIndex;
     }
 
     internal static string SerializeAssignments(IReadOnlyDictionary<int, int> assignments)

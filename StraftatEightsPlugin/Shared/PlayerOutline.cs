@@ -104,7 +104,7 @@ internal static class PlayerOutline
             return;
         }
 
-        PlayerHealth? target = PlayerLookup.FindPlayerHealthById(_rolePlayerId);
+        PlayerHealth? target = PlayerLookup.FindActivePlayerHealthById(_rolePlayerId);
         ApplySingleTarget(ref _singleTarget, target, GetColor(activeMode));
     }
 

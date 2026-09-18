@@ -75,8 +75,9 @@ internal static class SafeSpawnService
 
         if (isTeamDeathmatch && enemyPositions.Count > 0)
         {
-            TeamPoint farthest = TeamRules.SelectFarthestFromEnemies(candidates,
-                enemyPositions);
+            TeamPoint farthest = TeamRules.SelectRandomizedFarthestFromEnemies(candidates,
+                enemyPositions, Plugin.TeamDeathmatchSpawnRandomness.Value,
+                UnityEngine.Random.Range(0, int.MaxValue));
             position = new Vector3(farthest.X, farthest.Y, farthest.Z);
             RememberSpawn(playerId, farthest);
             return true;

@@ -4,7 +4,7 @@ namespace StraftatEightsPlugin;
 
 internal static class HardpointHud
 {
-    internal static string BuildScoreboard()
+    internal static GameModeScoreboardLayout BuildScoreboard()
     {
         float rotationRemaining = Mathf.Max(0f, HardpointState.ObjectiveDurationSeconds
             - HardpointState.ObjectiveElapsedSeconds);

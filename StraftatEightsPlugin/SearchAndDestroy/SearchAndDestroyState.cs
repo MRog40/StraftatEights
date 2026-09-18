@@ -1255,6 +1255,13 @@ internal static class SearchAndDestroyState
                 continue;
             }
 
+            float verticalOffset = playerPosition.y - sitePosition.y;
+            if (verticalOffset < SearchAndDestroyRules.PlantSiteMinVerticalOffset
+                || verticalOffset > SearchAndDestroyRules.PlantSiteMaxVerticalOffset)
+            {
+                continue;
+            }
+
             Vector3 horizontalOffset = playerPosition - sitePosition;
             horizontalOffset.y = 0f;
             float distance = horizontalOffset.sqrMagnitude;

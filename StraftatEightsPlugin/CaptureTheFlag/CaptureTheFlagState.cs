@@ -354,8 +354,9 @@ internal static class CaptureTheFlagState
         float elapsed = _serverTickAccumulator;
         _serverTickAccumulator = 0f;
         EnsureTeamsAssigned();
-        bool stateChanged = EnsureFlagOwnership();
-        stateChanged |= ProcessFlagInteractions();
+        bool flagStateChanged = EnsureFlagOwnership();
+        flagStateChanged |= ProcessFlagInteractions();
+        bool stateChanged = flagStateChanged;
         stateChanged |= UpdateCarriedFlagPositions();
         if (!_roundCompletionRequested && !IsSuddenDeath)
         {
@@ -379,9 +380,16 @@ internal static class CaptureTheFlagState
             }
         }
 
-        if (stateChanged)
+        if (stateChanged && !_roundCompletionRequested)
         {
-            BroadcastLiveStateWhenDue();
+            if (flagStateChanged || IsSuddenDeath)
+            {
+                BroadcastLiveState();
+            }
+            else
+            {
+                BroadcastLiveStateWhenDue();
+            }
         }
     }
 

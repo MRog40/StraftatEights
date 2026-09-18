@@ -27,6 +27,8 @@ internal sealed class GameModeHud : MonoBehaviour
     private const int MaxPendingTakeResults = 8;
     private const int MaxReceivedTakeResults = 32;
     private const int MaxDisplayedNameLength = 14;
+    private const float ScoreboardColumnGap = 8f;
+    private const float ScoreboardScoreColumnWidth = 60f;
     private const int PanelTextureSize = 64;
     private const int PanelCornerRadius = 12;
     private const int PanelBorderWidth = 2;
@@ -54,6 +56,7 @@ internal sealed class GameModeHud : MonoBehaviour
     private TextMeshProUGUI _interactionPrompt = null!;
     private TextMeshProUGUI _scorePopup = null!;
     private TextMeshProUGUI _scoreboard = null!;
+    private TextMeshProUGUI _scoreboardScores = null!;
     private TextMeshProUGUI _respawnProtectionMarker = null!;
     private RectTransform _scorePopupRect = null!;
     private CanvasGroup _scorePopupCanvas = null!;
@@ -67,7 +70,8 @@ internal sealed class GameModeHud : MonoBehaviour
     private bool _hasLoggedVisibility;
     private bool _lastVisible;
     private string _lastVisibilityReason = string.Empty;
-    private string _lastScoreboardText = string.Empty;
+    private string _lastScoreboardNameText = string.Empty;
+    private string _lastScoreboardScoreText = string.Empty;
     private string _lastObjectiveStatusText = string.Empty;
     private string _lastInteractionPromptText = string.Empty;
     private bool _scoreboardLayoutDirty = true;
@@ -226,9 +230,24 @@ internal sealed class GameModeHud : MonoBehaviour
         fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
+        GameObject scoreboardContentObject = new("GameModeScoreboardContent", typeof(RectTransform));
+        scoreboardContentObject.transform.SetParent(_panel.transform, false);
+        LayoutElement scoreboardContentLayout = scoreboardContentObject.AddComponent<LayoutElement>();
+        scoreboardContentLayout.minWidth = 396f;
+        scoreboardContentLayout.preferredWidth = 396f;
+        HorizontalLayoutGroup scoreboardColumns = scoreboardContentObject.AddComponent<HorizontalLayoutGroup>();
+        scoreboardColumns.spacing = ScoreboardColumnGap;
+        scoreboardColumns.childAlignment = TextAnchor.UpperLeft;
+        scoreboardColumns.childControlWidth = true;
+        scoreboardColumns.childControlHeight = true;
+        scoreboardColumns.childForceExpandWidth = false;
+        scoreboardColumns.childForceExpandHeight = false;
+
         GameObject scoreboardObject = new("GameModeScoreboard", typeof(RectTransform));
-        scoreboardObject.transform.SetParent(_panel.transform, false);
+        scoreboardObject.transform.SetParent(scoreboardContentObject.transform, false);
         _scoreboard = scoreboardObject.AddComponent<TextMeshProUGUI>();
+        LayoutElement scoreboardNameLayout = scoreboardObject.AddComponent<LayoutElement>();
+        scoreboardNameLayout.flexibleWidth = 1f;
         _scoreboard.fontSize = 22f;
         _scoreboard.color = ScoreboardTextColor;
         _scoreboard.richText = true;
@@ -237,6 +256,20 @@ internal sealed class GameModeHud : MonoBehaviour
         _scoreboard.outlineWidth = 0.16f;
         _scoreboard.outlineColor = ScoreboardGlowColor;
         _scoreboard.raycastTarget = false;
+
+        GameObject scoreboardScoresObject = new("GameModeScoreboardScores", typeof(RectTransform));
+        scoreboardScoresObject.transform.SetParent(scoreboardContentObject.transform, false);
+        _scoreboardScores = scoreboardScoresObject.AddComponent<TextMeshProUGUI>();
+        LayoutElement scoreboardScoreLayout = scoreboardScoresObject.AddComponent<LayoutElement>();
+        scoreboardScoreLayout.minWidth = ScoreboardScoreColumnWidth;
+        scoreboardScoreLayout.preferredWidth = ScoreboardScoreColumnWidth;
+        _scoreboardScores.fontSize = 22f;
+        _scoreboardScores.color = ScoreboardTextColor;
+        _scoreboardScores.alignment = TextAlignmentOptions.TopRight;
+        _scoreboardScores.enableWordWrapping = false;
+        _scoreboardScores.outlineWidth = 0.16f;
+        _scoreboardScores.outlineColor = ScoreboardGlowColor;
+        _scoreboardScores.raycastTarget = false;
 
         GameObject respawnProtectionObject = new("RespawnProtectionCursor");
         respawnProtectionObject.transform.SetParent(transform, false);
@@ -930,15 +963,18 @@ internal sealed class GameModeHud : MonoBehaviour
             pointsToWin, rows, timerText));
     }
 
-    private void SetScoreboardText(string text)
+    private void SetScoreboardText(GameModeScoreboardLayout layout)
     {
-        if (_lastScoreboardText == text)
+        if (_lastScoreboardNameText == layout.NameColumnText
+            && _lastScoreboardScoreText == layout.ScoreColumnText)
         {
             return;
         }
 
-        _lastScoreboardText = text;
-        _scoreboard.text = text;
+        _lastScoreboardNameText = layout.NameColumnText;
+        _lastScoreboardScoreText = layout.ScoreColumnText;
+        _scoreboard.text = layout.NameColumnText;
+        _scoreboardScores.text = layout.ScoreColumnText;
         _scoreboardLayoutDirty = true;
     }
 }

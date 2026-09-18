@@ -5,6 +5,8 @@ namespace StraftatEightsPlugin;
 internal static class HardpointMarker
 {
     private const float ActiveAlpha = 0.8f;
+    private const float NextMarkerMinAlpha = 0.35f;
+    private const float NextMarkerMaxAlpha = 0.75f;
     private const float OverheadMarkerSize = 0.525f;
     private static GameObject? _activeMarker;
     private static GameObject? _activeOverheadMarker;
@@ -39,7 +41,7 @@ internal static class HardpointMarker
             if (_nextMarker == null || !_nextMarker)
             {
                 _nextMarker = CreateMarker("HardpointNextMarker",
-                    new Color(1f, 1f, 1f, 0.08f));
+                    new Color(1f, 1f, 1f, NextMarkerMinAlpha));
                 _nextRenderer = _nextMarker.GetComponent<Renderer>();
             }
             else if (_nextRenderer == null || !_nextRenderer)
@@ -47,7 +49,8 @@ internal static class HardpointMarker
                 _nextRenderer = _nextMarker.GetComponent<Renderer>();
             }
 
-            float pulse = 0.04f + (Mathf.Sin(Time.unscaledTime * 7f) + 1f) * 0.03f;
+            float pulse = Mathf.Lerp(NextMarkerMinAlpha, NextMarkerMaxAlpha,
+                (Mathf.Sin(Time.unscaledTime * 7f) + 1f) * 0.5f);
             PositionMarker(_nextMarker, next, new Color(1f, 1f, 1f, pulse));
         }
         else if (_nextMarker != null && _nextMarker)
