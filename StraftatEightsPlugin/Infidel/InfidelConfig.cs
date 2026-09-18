@@ -67,17 +67,4 @@ public partial class Plugin
         InfidelState.ApplyLocalRole(hostId, takeId, isInfidel, announce);
     }
 
-    [CustomRPC]
-    public void InfidelAnnounce(string text, RPCInfo info)
-    {
-        if (!NetworkAuthority.IsHostSender(info))
-        {
-            return;
-        }
-        if (MatchLogs.Instance != null)
-        {
-            MatchLogs.Instance.WriteLocalLog(ClientInstance.ReplaceAllPlayerNameTags(text));
-        }
-        GameModeHud.ShowTakeResult(ClientInstance.ReplaceAllPlayerNameTags(text), 3f);
-    }
 }

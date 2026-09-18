@@ -796,7 +796,6 @@ internal static class InfidelState
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
             GameModeHud.BroadcastTakeResult(text);
-            MyceliumNetwork.RPC(Plugin.InfidelModId, nameof(Plugin.InfidelAnnounce), ReliableType.Reliable, text);
         }
     }
 }

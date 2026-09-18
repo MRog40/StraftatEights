@@ -48,7 +48,7 @@ internal static class TeamWeaponLoadouts
     internal static void EnsureLoadouts()
     {
         if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
-            || !GameModeManager.IsTeamBased
+            || (!GameModeManager.IsTeamBased && !GameModeManager.IsActive(GameMode.FreeForAll))
             || GameModeManager.Phase != GameModePhase.ActiveRound
             || WeaponService.IsFinalGameScreen)
         {
@@ -63,7 +63,7 @@ internal static class TeamWeaponLoadouts
         }
 
         EnsureRoundState();
-        foreach (KeyValuePair<int, int> assignment in TeamAssignment.Current.OrderBy(entry => entry.Key))
+        foreach (KeyValuePair<int, int> assignment in GetLoadoutAssignments())
         {
             if (!ClientInstance.playerInstances.TryGetValue(assignment.Key,
                 out ClientInstance client)
@@ -105,7 +105,7 @@ internal static class TeamWeaponLoadouts
         }
 
         Dictionary<int, List<int>> playersByTeam = new();
-        foreach (KeyValuePair<int, int> assignment in TeamAssignment.Current)
+        foreach (KeyValuePair<int, int> assignment in GetLoadoutAssignments())
         {
             if (!playersByTeam.TryGetValue(assignment.Value, out List<int>? players))
             {
@@ -133,6 +133,25 @@ internal static class TeamWeaponLoadouts
         }
 
         _assignmentVersion = TeamAssignment.HealthCompensationVersion;
+    }
+
+    private static IEnumerable<KeyValuePair<int, int>> GetLoadoutAssignments()
+    {
+        if (GameModeManager.IsActive(GameMode.FreeForAll))
+        {
+            foreach (int playerId in PlayerLookup.GetConnectedPlayerIds().OrderBy(id => id))
+            {
+                yield return new KeyValuePair<int, int>(playerId, playerId);
+            }
+
+            yield break;
+        }
+
+        foreach (KeyValuePair<int, int> assignment in TeamAssignment.Current
+            .OrderBy(entry => entry.Key))
+        {
+            yield return assignment;
+        }
     }
 
     private static void EnsurePlayerLoadout(int playerId, int teamId,

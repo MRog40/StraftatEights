@@ -139,8 +139,10 @@ internal static class GameModeManager
             pollLiveState: DefaultGameModeState.PollLiveStateIfClient),
         [GameMode.FreeForAll] = new ModeDescriptor("FFA", new Color32(85, 204, 255, 255),
             () => Plugin.FFAEnabled.Value, FfaReset,
-            GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
-                    FFAState.PeriodicPushIfHost, periodicSettingsPush: FFAState.PeriodicPushSettingsIfHost,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.SafeRespawn,
+                FFAState.PeriodicPushIfHost, TeamWeaponLoadouts.EnsureLoadouts,
+                periodicSettingsPush: FFAState.PeriodicPushSettingsIfHost,
                     pollLiveState: FFAState.PollLiveStateIfClient),
         [GameMode.Juggernaut] = new ModeDescriptor("JUGGERNAUT", new Color32(255, 106, 0, 255),
             () => Plugin.JuggernautEnabled.Value, JuggernautReset,
@@ -301,6 +303,7 @@ internal static class GameModeManager
 
         MyceliumNetwork.RegisterNetworkObject(Plugin.Instance, ModId);
         ModeLobbyDataSync.RegisterKeys(ActiveModeLobbyDataKey);
+        PlayerNameSync.Initialize();
         MyceliumNetwork.LobbyCreated += OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += OnLobbyEntered;
         MyceliumNetwork.LobbyLeft += OnLobbyLeft;
@@ -658,7 +661,7 @@ internal static class GameModeManager
     internal static bool IsCustomMode => !IsVanillaScene && HasCapability(GameModeCapabilities.CustomRound);
     internal static bool UsesSafeRespawn => !IsVanillaScene && HasCapability(GameModeCapabilities.SafeRespawn);
     internal static bool IsTeamBased => !IsVanillaScene && HasCapability(GameModeCapabilities.TeamBased);
-    internal static bool UsesTeamWeaponLoadouts => IsTeamBased;
+    internal static bool UsesTeamWeaponLoadouts => IsTeamBased || IsActive(GameMode.FreeForAll);
     internal static bool ShouldHideCustomHud => !IsVanillaScene && HasCapability(GameModeCapabilities.HideHud);
     internal static bool ShouldClearPlayerOutlines => !IsVanillaScene && HasCapability(GameModeCapabilities.ClearOutlines);
     internal static bool IsVanillaScene => SceneMotor.Instance != null && SceneMotor.Instance.testMap

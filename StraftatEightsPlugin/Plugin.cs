@@ -149,6 +149,8 @@ public partial class Plugin : BaseUnityPlugin
         GameModeManager.PeriodicPushIfHost();
         GameModeManager.PeriodicActiveModePushIfHost();
         GameModeManager.PollLobbyStateIfClient();
+        PlayerNameSync.PeriodicPushIfHost();
+        PlayerNameSync.PollIfClient();
         CaptureTheFlagState.ServerTick(Time.unscaledDeltaTime);
         MichaelMeyersState.ServerTick(Time.unscaledDeltaTime);
         MichaelMeyersState.ClientTick(Time.unscaledDeltaTime);

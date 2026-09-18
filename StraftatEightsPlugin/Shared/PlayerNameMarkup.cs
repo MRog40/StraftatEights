@@ -93,6 +93,30 @@ internal static class PlayerNameMarkup
         return result.ToString();
     }
 
+    internal static int VisibleLength(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return 0;
+        }
+
+        int visibleCharacters = 0;
+        int index = 0;
+        while (index < text.Length)
+        {
+            if (TryReadTag(text, index, out int tagEnd, out _, out _, out _))
+            {
+                index = tagEnd + 1;
+                continue;
+            }
+
+            visibleCharacters++;
+            index++;
+        }
+
+        return visibleCharacters;
+    }
+
     private static bool TryReadTag(string text, int start, out int tagEnd,
         out string tagName, out bool isClosing, out bool isSelfClosing)
     {

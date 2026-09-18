@@ -24,10 +24,19 @@ internal static class GameModeScoreboard
 {
     private const int ScoreColumnWidth = 4;
     private const string ScoreColumnGap = "  ";
+    private const string MonospaceStart = "<mspace=0.55em>";
+    private const string MonospaceEnd = "</mspace>";
     internal static string Build(GameMode mode, string? labelOverride, int? pointsToWin,
         IReadOnlyList<GameModeScoreboardRow> rows, string? timerText = null)
     {
-        StringBuilder text = new(GameModeManager.GetScoreboardModeLabelMarkup(mode, labelOverride));
+        int labelWidth = 0;
+        foreach (GameModeScoreboardRow row in rows)
+        {
+            labelWidth = Math.Max(labelWidth, PlayerNameMarkup.VisibleLength(row.Label));
+        }
+
+        StringBuilder text = new(MonospaceStart);
+        text.Append(GameModeManager.GetScoreboardModeLabelMarkup(mode, labelOverride));
         if (pointsToWin.HasValue)
         {
             text.Append(" - ").Append(pointsToWin.Value);
@@ -48,6 +57,7 @@ internal static class GameModeScoreboard
             }
 
             text.Append(row.Label);
+            text.Append(' ', labelWidth - PlayerNameMarkup.VisibleLength(row.Label));
             if (row.TeamId >= 0)
             {
                 text.Append("</color>");
@@ -61,6 +71,7 @@ internal static class GameModeScoreboard
             text.Append("\n<i>").Append(timerText).Append("</i>");
         }
 
+        text.Append(MonospaceEnd);
         return text.ToString();
     }
 

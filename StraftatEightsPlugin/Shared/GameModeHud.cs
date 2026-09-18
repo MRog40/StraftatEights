@@ -23,7 +23,17 @@ internal sealed class GameModeHud : MonoBehaviour
     private const float ScorePopupEndScale = 0.72f;
     private const float ScorePopupRise = 18f;
     private const float ScorePopupVerticalOffset = -70f;
+    private const float TakeResultRetryInterval = 0.5f;
+    private const int MaxPendingTakeResults = 8;
+    private const int MaxReceivedTakeResults = 32;
     private const int MaxDisplayedNameLength = 14;
+    private sealed class PendingTakeResult
+    {
+        internal int ResultId;
+        internal string Text = string.Empty;
+        internal float ExpiresAt;
+    }
+
     private static GameModeHud? _instance;
     private GameObject _panel = null!;
     private RectTransform _panelRect = null!;
@@ -35,6 +45,7 @@ internal sealed class GameModeHud : MonoBehaviour
     private TextMeshProUGUI _interactionPrompt = null!;
     private TextMeshProUGUI _scorePopup = null!;
     private TextMeshProUGUI _scoreboard = null!;
+    private TextMeshProUGUI _respawnProtectionMarker = null!;
     private RectTransform _scorePopupRect = null!;
     private CanvasGroup _scorePopupCanvas = null!;
     private Vector2 _scorePopupBasePosition;
@@ -48,10 +59,9 @@ internal sealed class GameModeHud : MonoBehaviour
     private bool _lastVisible;
     private string _lastVisibilityReason = string.Empty;
     private static int _nextTakeResultId;
-    private static int _lastReceivedTakeResultId = -1;
-    private static int _pendingTakeResultId = -1;
-    private static string _pendingTakeResultText = string.Empty;
-    private static float _pendingTakeResultUntil;
+    private static readonly List<PendingTakeResult> PendingTakeResults = new();
+    private static readonly HashSet<int> ReceivedTakeResultIds = new();
+    private static readonly Queue<int> ReceivedTakeResultOrder = new();
     private static float _nextTakeResultPushTime;
 
     private void Awake()
@@ -204,6 +214,25 @@ internal sealed class GameModeHud : MonoBehaviour
         _scoreboard.enableWordWrapping = false;
         _scoreboard.alignment = TextAlignmentOptions.TopLeft;
         _scoreboard.raycastTarget = false;
+
+        GameObject respawnProtectionObject = new("RespawnProtectionCursor");
+        respawnProtectionObject.transform.SetParent(transform, false);
+        RectTransform respawnProtectionRect = respawnProtectionObject.AddComponent<RectTransform>();
+        respawnProtectionRect.anchorMin = new Vector2(0.5f, 0.5f);
+        respawnProtectionRect.anchorMax = new Vector2(0.5f, 0.5f);
+        respawnProtectionRect.pivot = new Vector2(0.5f, 0.5f);
+        respawnProtectionRect.sizeDelta = new Vector2(64f, 64f);
+        _respawnProtectionMarker = respawnProtectionObject.AddComponent<TextMeshProUGUI>();
+        _respawnProtectionMarker.text = "X";
+        _respawnProtectionMarker.fontSize = 34f;
+        _respawnProtectionMarker.fontStyle = FontStyles.Bold;
+        _respawnProtectionMarker.color = new Color32(255, 48, 48, 255);
+        _respawnProtectionMarker.alignment = TextAlignmentOptions.Center;
+        _respawnProtectionMarker.enableWordWrapping = false;
+        _respawnProtectionMarker.outlineWidth = 0.25f;
+        _respawnProtectionMarker.outlineColor = new Color(0f, 0f, 0f, 0.9f);
+        _respawnProtectionMarker.raycastTarget = false;
+        respawnProtectionObject.SetActive(false);
         _panel.SetActive(false);
     }
 
@@ -215,6 +244,11 @@ internal sealed class GameModeHud : MonoBehaviour
         }
 
         PauseManager? pauseManager = PauseManager.Instance;
+        bool showRespawnProtectionMarker = RespawnProtection.IsLocalPlayerProtected()
+            && !GameModeManager.IsMatchOver
+            && pauseManager?.inMainMenu != true
+            && pauseManager?.inVictoryMenu != true;
+        _respawnProtectionMarker.gameObject.SetActive(showRespawnProtectionMarker);
         bool targetAnnouncementCanContinueAfterRound = GameModeManager.Phase == GameModePhase.EndingRound
             && _targetAnnouncementAllowsEndingRound;
         bool hideTargetAnnouncement = !GameModeManager.IsCustomMode
@@ -393,28 +427,44 @@ internal sealed class GameModeHud : MonoBehaviour
 
     internal static void ReceiveTakeResult(int resultId, string text, float durationSeconds)
     {
-        if (resultId <= _lastReceivedTakeResultId)
+        if (resultId < 0 || string.IsNullOrWhiteSpace(text)
+            || !RememberTakeResult(resultId))
         {
             return;
         }
 
-        _lastReceivedTakeResultId = resultId;
         ShowTakeResult(ClientInstance.ReplaceAllPlayerNameTags(text), durationSeconds);
     }
 
     internal static void PeriodicPushTakeResult()
     {
-        if (!MyceliumNetwork.IsHost || _pendingTakeResultId < 0
-            || Time.unscaledTime >= _pendingTakeResultUntil
+        if (!MyceliumNetwork.IsHost || PendingTakeResults.Count == 0
             || Time.unscaledTime < _nextTakeResultPushTime)
         {
             return;
         }
 
-        _nextTakeResultPushTime = Time.unscaledTime + 0.5f;
-        MyceliumNetwork.RPC(GameModeManager.ModId, nameof(Plugin.SyncTakeResult),
-            ReliableType.Reliable, _pendingTakeResultId, _pendingTakeResultText,
-            _pendingTakeResultUntil - Time.unscaledTime);
+        float now = Time.unscaledTime;
+        for (int index = PendingTakeResults.Count - 1; index >= 0; index--)
+        {
+            if (PendingTakeResults[index].ExpiresAt <= now)
+            {
+                PendingTakeResults.RemoveAt(index);
+            }
+        }
+
+        if (PendingTakeResults.Count == 0)
+        {
+            return;
+        }
+
+        _nextTakeResultPushTime = now + TakeResultRetryInterval;
+        foreach (PendingTakeResult result in PendingTakeResults)
+        {
+            MyceliumNetwork.RPC(GameModeManager.ModId, nameof(Plugin.SyncTakeResult),
+                ReliableType.Reliable, result.ResultId, result.Text,
+                Mathf.Max(0f, result.ExpiresAt - now));
+        }
     }
 
     internal static void BroadcastTakeResult(string text, float durationSeconds = 3f)
@@ -426,14 +476,38 @@ internal sealed class GameModeHud : MonoBehaviour
         }
 
         int resultId = ++_nextTakeResultId;
-        _pendingTakeResultId = resultId;
-        _pendingTakeResultText = text;
-        _pendingTakeResultUntil = Time.unscaledTime + Mathf.Max(1f, durationSeconds);
-        _nextTakeResultPushTime = Time.unscaledTime + 0.5f;
-        string resolvedText = ClientInstance.ReplaceAllPlayerNameTags(text);
-        ShowTakeResult(resolvedText, durationSeconds);
+        float effectiveDuration = Mathf.Clamp(durationSeconds, 1f, 8f);
+        PendingTakeResults.Add(new PendingTakeResult
+        {
+            ResultId = resultId,
+            Text = text,
+            ExpiresAt = Time.unscaledTime + effectiveDuration
+        });
+        if (PendingTakeResults.Count > MaxPendingTakeResults)
+        {
+            PendingTakeResults.RemoveAt(0);
+        }
+
+        _nextTakeResultPushTime = Time.unscaledTime + TakeResultRetryInterval;
+        ShowTakeResult(ClientInstance.ReplaceAllPlayerNameTags(text), effectiveDuration);
         MyceliumNetwork.RPC(GameModeManager.ModId, nameof(Plugin.SyncTakeResult),
-            ReliableType.Reliable, resultId, text, durationSeconds);
+            ReliableType.Reliable, resultId, text, effectiveDuration);
+    }
+
+    private static bool RememberTakeResult(int resultId)
+    {
+        if (!ReceivedTakeResultIds.Add(resultId))
+        {
+            return false;
+        }
+
+        ReceivedTakeResultOrder.Enqueue(resultId);
+        while (ReceivedTakeResultOrder.Count > MaxReceivedTakeResults)
+        {
+            ReceivedTakeResultIds.Remove(ReceivedTakeResultOrder.Dequeue());
+        }
+
+        return true;
     }
 
     internal static void ShowTakeResult(string text, float durationSeconds)
@@ -719,8 +793,7 @@ internal sealed class GameModeHud : MonoBehaviour
         {
             scores.TryGetValue(playerId, out int score);
             string playerName = PlayerNameMarkup.Truncate(
-                ClientInstance.ReplaceAllPlayerNameTags(PlayerLookup.GetPlayerNameTag(playerId)),
-                MaxDisplayedNameLength);
+                PlayerNameSync.GetDisplayName(playerId), MaxDisplayedNameLength);
 
             bool isCrown = crownFirst && playerId == crownPlayerId;
             if (isCrown)

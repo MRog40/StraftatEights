@@ -23,7 +23,7 @@ internal static class WeaponPolicy
             return true;
         }
 
-        if (GameModeManager.IsTeamBased)
+        if (GameModeManager.UsesTeamWeaponLoadouts)
         {
             if (WeaponSettingsState.Allowed.Count == 0)
             {
@@ -110,7 +110,8 @@ internal static class WeaponPolicy
                     : KillTheRatState.IsHumanWeapon(weapon);
             case GameMode.MichaelMeyers:
                 return health != null
-                    && (MichaelMeyersState.IsFlashlight(weapon)
+                    && ((!MichaelMeyersState.CanHoldCouperet(health)
+                            && MichaelMeyersState.IsFlashlight(weapon))
                         || (MichaelMeyersState.CanHoldCouperet(health)
                             && MichaelMeyersState.IsCouperet(weapon))
                         || (MichaelMeyersState.CanHoldSurvivorWeapon(health)
@@ -139,7 +140,7 @@ internal static class WeaponPolicy
 
     private static void InitializeGlobalPickupAmmo(GameObject obj)
     {
-        if ((!GameModeManager.IsTeamBased
+        if ((!GameModeManager.UsesTeamWeaponLoadouts
                 && (GameModeManager.ShouldIgnoreGlobalWeaponSettings || !WeaponSettingsState.Enabled))
             || obj == null)
         {

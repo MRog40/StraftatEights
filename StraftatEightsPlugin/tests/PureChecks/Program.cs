@@ -55,6 +55,23 @@ Assert(PlayerNameMarkup.Truncate("<gradient=\"Sunset\"><b>PlayerName</b></gradie
 Assert(PlayerNameMarkup.Truncate("<color=#ffffff>Player</color>", 20)
     == "<color=#ffffff>Player</color>",
     "Untruncated TMP color markup must remain unchanged.");
+Assert(PlayerNameMarkup.VisibleLength("<color=#ffffff>Player</color>") == 6
+    && PlayerNameMarkup.VisibleLength("<g=Sunset>ABC</g>") == 3,
+    "Visible name length must ignore TMP markup tags.");
+Dictionary<int, string> displayNames = new()
+{
+    [9] = "<g=Sunset>Remote;Name=Two</g>",
+    [2] = "Host"
+};
+string displayNamePayload = PlayerNameSnapshotCodec.Serialize(displayNames);
+Assert(PlayerNameSnapshotCodec.TryDeserialize(displayNamePayload,
+        out Dictionary<int, string> parsedDisplayNames)
+    && parsedDisplayNames.Count == 2
+    && parsedDisplayNames[9] == displayNames[9]
+    && parsedDisplayNames[2] == displayNames[2],
+    "Player display-name snapshots must preserve rich text and delimiters.");
+Assert(!PlayerNameSnapshotCodec.TryDeserialize("9=not-base64", out _),
+    "Malformed player display-name snapshots must be rejected.");
 
 List<string> parsed = WeaponListParser.Parse(
     " Glock; SMG, Glock, Invalid, ;SMG ",

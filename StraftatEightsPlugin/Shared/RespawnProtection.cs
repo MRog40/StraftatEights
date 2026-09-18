@@ -87,6 +87,19 @@ internal static class RespawnProtection
         return false;
     }
 
+    internal static bool IsLocalPlayerProtected()
+    {
+        foreach (Protection protection in ActiveProtections)
+        {
+            if (protection.Player != null && protection.Player.IsOwner)
+            {
+                return Time.unscaledTime < protection.ExpiresAt;
+            }
+        }
+
+        return false;
+    }
+
     internal static bool IsProtected(Weapon weapon)
     {
         if (weapon == null)
@@ -138,7 +151,10 @@ internal static class RespawnProtection
             }
         }
 
-        PlayerOutline.ApplyTemporary(player, OutlineColor, OutlineWidth);
+        if (!player.IsOwner)
+        {
+            PlayerOutline.ApplyTemporary(player, OutlineColor, OutlineWidth);
+        }
     }
 
     private static void Apply(PlayerHealth player)
