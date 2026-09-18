@@ -29,11 +29,11 @@ public partial class Plugin
             "Host-controlled: master switch. Turn off for pure stock Straftat movement.");
         WallJumpEnabled = Config.Bind("Movement Settings", "Enable Wall Jump", true,
             "Host-controlled: allows wall jumping for everyone in the lobby.");
-        WallJumpBoostEnabled = Config.Bind("Movement Settings", "Enable Wall Jump Speed Boost", true,
+        WallJumpBoostEnabled = Config.Bind("Movement Settings", "Enable Wall Jump Speed Boost", false,
             "Host-controlled: whether wall jumping gives the usual Straftat horizontal speed kick (chaining wall jumps for extra speed).");
         SlidingEnabled = Config.Bind("Movement Settings", "Enable Sliding", true,
             "Host-controlled: allows crouch-sliding for everyone in the lobby.");
-        SlideBoostEnabled = Config.Bind("Movement Settings", "Enable Slide Speed Boost", true,
+        SlideBoostEnabled = Config.Bind("Movement Settings", "Enable Slide Speed Boost", false,
             "Host-controlled: whether sliding gives the usual Straftat speed boost. Disable to slide like most other games.");
         MoveSpeedPercent = Config.Bind("Movement Settings", "Move Speed %", 100,
             new ConfigDescription("Host-controlled: overall movement speed as a percent of normal.", new AcceptableValueRange<int>(50, 200)));

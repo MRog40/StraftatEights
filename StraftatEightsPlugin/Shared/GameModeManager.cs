@@ -289,7 +289,7 @@ internal static class GameModeManager
     {
         Plugin.DebugLogging = Plugin.Instance.Config.Bind("Global Settings", "Debug Logging", false,
             "Enable detailed multiplayer, scene, HUD, and snapshot diagnostics.");
-        EnableMapOverrides = Plugin.Instance.Config.Bind("Global Settings", "Enable Map Overrides", false,
+        EnableMapOverrides = Plugin.Instance.Config.Bind("Global Settings", "Enable Map Overrides", true,
             "Host-controlled: use the plugin's mode-specific map overrides instead of the normal lobby map playlist.");
         EnableMapOverrides.SettingChanged += (_, _) => OnGlobalSettingsChanged();
         RespawnDelaySeconds = Plugin.Instance.Config.Bind("Global Settings", "Respawn Delay (seconds)", 2.5f,

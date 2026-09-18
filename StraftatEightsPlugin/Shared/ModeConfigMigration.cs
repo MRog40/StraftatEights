@@ -1,3 +1,4 @@
+using System.Linq;
 using BepInEx.Configuration;
 
 namespace StraftatEightsPlugin;
@@ -9,10 +10,12 @@ internal static class ModeConfigMigration
     {
         string legacyKey = key + " Enabled";
         ConfigDefinition legacyDefinition = new(section, legacyKey);
-        ConfigEntry<bool> legacyEntry = config.Bind(section, legacyKey, false, description);
-        ConfigEntry<bool> entry = config.Bind(section, key, legacyEntry.Value, description);
+        bool hasLegacyValue = config.Keys.Contains(legacyDefinition);
+        ConfigEntry<bool> legacyEntry = config.Bind(section, legacyKey, true, description);
+        ConfigEntry<bool> entry = config.Bind(section, key,
+            hasLegacyValue ? legacyEntry.Value : true, description);
 
-        if (legacyEntry.Value && !entry.Value)
+        if (hasLegacyValue && legacyEntry.Value && !entry.Value)
         {
             entry.Value = true;
         }
