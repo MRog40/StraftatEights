@@ -228,7 +228,24 @@ internal static class TeamAssignment
 
     internal static bool TryGetTeamId(int playerId, out int teamId)
     {
-        return Assignments.TryGetValue(playerId, out teamId);
+        if (Assignments.TryGetValue(playerId, out teamId))
+        {
+            return true;
+        }
+
+        if (GameModeManager.IsActive(GameMode.CaptureTheFlag)
+            && GameModeManager.Phase == GameModePhase.ActiveRound
+            && ScoreManager.Instance != null
+            && ScoreManager.Instance.PlayerIdToTeamId.TryGetValue(playerId,
+                out int nativeTeamId)
+            && nativeTeamId >= 0 && nativeTeamId < 2)
+        {
+            teamId = nativeTeamId;
+            return true;
+        }
+
+        teamId = -1;
+        return false;
     }
 
     internal static bool TryGetInitialSpawnPosition(int playerId, out Vector3 position)

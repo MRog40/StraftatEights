@@ -303,20 +303,30 @@ internal static class CaptureTheFlagState
 
     internal static void EnsureTeamsAssigned()
     {
-        if (!MyceliumNetwork.IsHost || TeamAssignment.TeamCount < 2)
+        if (!MyceliumNetwork.IsHost)
         {
             return;
         }
 
-        if (TeamAssignment.Current.Count == 0)
+        if (TeamAssignment.TeamCount != 2 || TeamAssignment.Current.Count == 0)
         {
-            PrepareTeamsForRound();
+            if (TeamAssignment.AssignCaptureTheFlagRound())
+            {
+                BroadcastLiveState();
+            }
+
             return;
         }
 
+        bool changed = false;
         foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
         {
-            TeamAssignment.AssignLatePlayer(playerId);
+            changed |= TeamAssignment.AssignLatePlayer(playerId);
+        }
+
+        if (changed)
+        {
+            BroadcastLiveState();
         }
     }
 
@@ -383,23 +393,16 @@ internal static class CaptureTheFlagState
         }
 
         PlayerHealth? deadHealth = PlayerLookup.FindPlayerHealthById(deadPlayerId);
-        Vector3 dropPosition = deadHealth != null && deadHealth
-            ? deadHealth.transform.position
-            : Vector3.zero;
         bool changed = false;
         for (int flagIndex = 0; flagIndex < FlagCarriers.Length; flagIndex++)
         {
             if (FlagStatuses[flagIndex] == CaptureTheFlagFlagStatus.Carried
                 && FlagCarriers[flagIndex] == deadPlayerId)
             {
-                if (CaptureTheFlagRules.TryDrop(FlagStatuses[flagIndex],
-                    out CaptureTheFlagFlagStatus droppedStatus))
-                {
-                    FlagStatuses[flagIndex] = droppedStatus;
-                    FlagCarriers[flagIndex] = -1;
-                    FlagPositions[flagIndex] = dropPosition;
-                    changed = true;
-                }
+                Vector3 dropPosition = deadHealth != null && deadHealth
+                    ? deadHealth.transform.position
+                    : FlagPositions[flagIndex];
+                changed |= DropFlag(flagIndex, dropPosition);
             }
         }
 
@@ -579,15 +582,41 @@ internal static class CaptureTheFlagState
             }
 
             int carrierId = FlagCarriers[flagIndex];
-            if (!TeamAssignment.TryGetTeamId(carrierId, out _)
-                || PlayerLookup.FindActivePlayerHealthById(carrierId) == null)
+            if (!TeamAssignment.TryGetTeamId(carrierId, out int carrierTeamId))
             {
                 ReturnFlagHome(flagIndex);
                 changed = true;
+                continue;
+            }
+
+            if (FlagTeamIds[flagIndex] == carrierTeamId)
+            {
+                ReturnFlagHome(flagIndex);
+                changed = true;
+                continue;
+            }
+
+            if (PlayerLookup.FindActivePlayerHealthById(carrierId) == null)
+            {
+                changed |= DropFlag(flagIndex, FlagPositions[flagIndex]);
             }
         }
 
         return changed;
+    }
+
+    private static bool DropFlag(int flagIndex, Vector3 position)
+    {
+        if (!CaptureTheFlagRules.TryDrop(FlagStatuses[flagIndex],
+            out CaptureTheFlagFlagStatus droppedStatus))
+        {
+            return false;
+        }
+
+        FlagStatuses[flagIndex] = droppedStatus;
+        FlagCarriers[flagIndex] = -1;
+        FlagPositions[flagIndex] = position;
+        return true;
     }
 
     private static bool UpdateCarriedFlagPositions()
