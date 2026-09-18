@@ -33,7 +33,8 @@ internal static class GameModeScoreboard
 
     internal static string ApplyPlayerNameGradient(string playerName)
     {
-        if (string.IsNullOrEmpty(playerName))
+        playerName = StripRichTextTags(playerName);
+        if (playerName.Length == 0)
         {
             return playerName;
         }
@@ -49,17 +50,6 @@ internal static class GameModeScoreboard
         int index = 0;
         while (index < playerName.Length)
         {
-            if (playerName[index] == '<')
-            {
-                int tagEnd = playerName.IndexOf('>', index);
-                if (tagEnd >= index)
-                {
-                    gradient.Append(playerName, index, tagEnd - index + 1);
-                    index = tagEnd + 1;
-                    continue;
-                }
-            }
-
             int red = Interpolate(NameGradientStartRed, NameGradientEndRed,
                 visibleIndex, visibleCharacterCount - 1);
             int green = Interpolate(NameGradientStartGreen, NameGradientEndGreen,
@@ -74,6 +64,34 @@ internal static class GameModeScoreboard
         }
 
         return gradient.ToString();
+    }
+
+    internal static string StripRichTextTags(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return string.Empty;
+        }
+
+        StringBuilder plainText = new(text.Length);
+        int index = 0;
+        while (index < text.Length)
+        {
+            if (text[index] == '<')
+            {
+                int tagEnd = text.IndexOf('>', index);
+                if (tagEnd >= index)
+                {
+                    index = tagEnd + 1;
+                    continue;
+                }
+            }
+
+            plainText.Append(text[index]);
+            index++;
+        }
+
+        return plainText.ToString();
     }
 
     internal static string Build(GameMode mode, string? labelOverride, int? pointsToWin,
@@ -137,16 +155,6 @@ internal static class GameModeScoreboard
         int index = 0;
         while (index < text.Length)
         {
-            if (text[index] == '<')
-            {
-                int tagEnd = text.IndexOf('>', index);
-                if (tagEnd >= index)
-                {
-                    index = tagEnd + 1;
-                    continue;
-                }
-            }
-
             count++;
             index++;
         }

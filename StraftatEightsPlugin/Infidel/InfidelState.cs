@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
@@ -24,6 +25,7 @@ internal static class InfidelState
     internal static int InfidelPlayerId { get; private set; } = -1;
     internal static int WinnerId { get; private set; } = -1;
     internal static int KillsToWin => GameModeManager.EffectivePointsToWin;
+    internal static float TakeTimeRemaining => Mathf.Max(0f, _takeTimeRemaining);
     internal static bool WeaponsUnlocked { get; private set; }
     internal static bool LocalIsInfidel { get; private set; }
     internal static readonly Dictionary<int, int> Scores = new();
@@ -138,7 +140,8 @@ internal static class InfidelState
             Plugin.InfidelEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.InfidelModId, nameof(Plugin.SyncInfidelLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeScores(), WinnerId,
-            _takeId, WeaponsUnlocked, GameModeManager.RoundId, Sync.LiveRevision);
+            _takeId, WeaponsUnlocked, _takeTimeRemaining, GameModeManager.RoundId,
+            Sync.LiveRevision);
 
         if (InfidelPlayerId >= 0 && TakeIsActive())
         {
@@ -211,18 +214,27 @@ internal static class InfidelState
     }
 
     internal static void ApplyLiveState(CSteamID hostId, string scoresData, int winnerId,
-        int takeId, bool weaponsUnlocked, int roundId, int revision, string source = "rpc")
+        int takeId, bool weaponsUnlocked, float takeTimeRemaining, int roundId, int revision,
+        string source = "rpc")
     {
         int previousRoundId = Sync.LastLiveRoundId;
-        if (winnerId < -1 || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
+        if (winnerId < -1 || takeTimeRemaining < 0f
+            || float.IsNaN(takeTimeRemaining) || float.IsInfinity(takeTimeRemaining)
+            || takeTimeRemaining > DefaultTakeTimeLimitSeconds
+            || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
         }
 
         WinnerId = winnerId;
-        _takeId = roundId != previousRoundId
-            ? takeId
-            : Math.Max(_takeId, takeId);
+        bool isCurrentOrNewTake = roundId != previousRoundId || takeId >= _takeId;
+        if (isCurrentOrNewTake)
+        {
+            _takeId = roundId != previousRoundId
+                ? takeId
+                : Math.Max(_takeId, takeId);
+            _takeTimeRemaining = takeTimeRemaining;
+        }
         WeaponsUnlocked = weaponsUnlocked;
         Scores.Clear();
         foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(scoresData, KillsToWin))
@@ -258,6 +270,19 @@ internal static class InfidelState
         {
             CompleteTimeoutWin();
         }
+    }
+
+    internal static void ClientTick(float deltaTime)
+    {
+        if (MyceliumNetwork.IsHost || !Enabled
+            || !GameModeManager.IsActive(GameMode.Infidel)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || WinnerId >= 0 || !TakeIsActive())
+        {
+            return;
+        }
+
+        _takeTimeRemaining = Mathf.Max(0f, _takeTimeRemaining - Mathf.Max(0f, deltaTime));
     }
 
     internal static void OnServerKill(int deadPlayerId, int killerId)
@@ -436,7 +461,7 @@ internal static class InfidelState
 
         _takeId++;
         _takeEnding = false;
-        _takeTimeRemaining = Mathf.Max(1f, Plugin.InfidelTakeTimeLimit.Value);
+        _takeTimeRemaining = DefaultTakeTimeLimitSeconds;
         WeaponsUnlocked = false;
         _nextLoadoutCheckTime = 0f;
         PendingLoadouts.Clear();
@@ -727,10 +752,11 @@ internal static class InfidelState
             int revision = Sync.NextLiveRevision();
             ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
                 GameModeManager.RoundId, revision, SerializeScores(), WinnerId.ToString(),
-                _takeId.ToString(), WeaponsUnlocked ? "1" : "0");
+                _takeId.ToString(), WeaponsUnlocked ? "1" : "0",
+                _takeTimeRemaining.ToString(CultureInfo.InvariantCulture));
             MyceliumNetwork.RPC(Plugin.InfidelModId, nameof(Plugin.SyncInfidelLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, SerializeScores(), WinnerId, _takeId,
-                WeaponsUnlocked, GameModeManager.RoundId, revision);
+                WeaponsUnlocked, _takeTimeRemaining, GameModeManager.RoundId, revision);
         }
     }
 
@@ -750,23 +776,26 @@ internal static class InfidelState
 
     private static void ApplyLobbyLiveSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 4, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 5, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !int.TryParse(fields[1], out int winnerId)
             || !int.TryParse(fields[2], out int takeId)
-            || !LobbySnapshotCodec.TryParseBool(fields[3], out bool weaponsUnlocked))
+            || !LobbySnapshotCodec.TryParseBool(fields[3], out bool weaponsUnlocked)
+            || !float.TryParse(fields[4], NumberStyles.Float, CultureInfo.InvariantCulture,
+                out float takeTimeRemaining))
         {
             return;
         }
 
         ApplyLiveState(hostId, fields[0], winnerId, takeId, weaponsUnlocked,
-            roundId, revision, ModeLobbyDataSync.Source("infidel", "live"));
+            takeTimeRemaining, roundId, revision, ModeLobbyDataSync.Source("infidel", "live"));
     }
 
     private static void Announce(string text)
     {
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
         {
+            GameModeHud.BroadcastTakeResult(text);
             MyceliumNetwork.RPC(Plugin.InfidelModId, nameof(Plugin.InfidelAnnounce), ReliableType.Reliable, text);
         }
     }

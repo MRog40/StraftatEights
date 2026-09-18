@@ -41,6 +41,7 @@ internal sealed class GameModeHud : MonoBehaviour
     private float _nextRefreshTime;
     private float _announcementUntil;
     private float _targetAnnouncementUntil;
+    private bool _targetAnnouncementAllowsEndingRound;
     private float _scorePopupUntil;
     private float _scorePopupStartedAt;
     private bool _hasLoggedVisibility;
@@ -214,8 +215,11 @@ internal sealed class GameModeHud : MonoBehaviour
         }
 
         PauseManager? pauseManager = PauseManager.Instance;
+        bool targetAnnouncementCanContinueAfterRound = GameModeManager.Phase == GameModePhase.EndingRound
+            && _targetAnnouncementAllowsEndingRound;
         bool hideTargetAnnouncement = !GameModeManager.IsCustomMode
-            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || (GameModeManager.Phase != GameModePhase.ActiveRound
+                && !targetAnnouncementCanContinueAfterRound)
             || GameModeManager.IsMatchOver
             || pauseManager?.inMainMenu == true
             || pauseManager?.inVictoryMenu == true;
@@ -382,6 +386,7 @@ internal sealed class GameModeHud : MonoBehaviour
 
         _instance.UpdateAnnouncementLayout();
         _instance._targetAnnouncement.text = text;
+        _instance._targetAnnouncementAllowsEndingRound = false;
         _instance._targetAnnouncementUntil = Time.unscaledTime + Mathf.Max(0f, durationSeconds);
         _instance._targetAnnouncement.gameObject.SetActive(true);
     }
@@ -443,6 +448,7 @@ internal sealed class GameModeHud : MonoBehaviour
 
         _instance.UpdateAnnouncementLayout();
         _instance._targetAnnouncement.text = text;
+        _instance._targetAnnouncementAllowsEndingRound = true;
         _instance._targetAnnouncementUntil = Time.unscaledTime + Mathf.Max(0f, durationSeconds);
         _instance._targetAnnouncement.gameObject.SetActive(true);
     }
@@ -616,6 +622,7 @@ internal sealed class GameModeHud : MonoBehaviour
         Dictionary<int, int> scores;
         bool crownFirst;
         int pointsToWin;
+        string? timerText = null;
         if (GameModeManager.IsActive(GameMode.FreeForAll))
         {
             pointsToWin = FFAState.KillsToWin;
@@ -657,6 +664,9 @@ internal sealed class GameModeHud : MonoBehaviour
             pointsToWin = InfidelState.KillsToWin;
             scores = InfidelState.Scores;
             crownFirst = false;
+            timerText = InfidelState.TakeTimeRemaining > 0f
+                ? "Timer: " + Mathf.CeilToInt(InfidelState.TakeTimeRemaining) + "s"
+                : string.Empty;
         }
         else if (GameModeManager.IsActive(GameMode.Assassin))
         {
@@ -706,7 +716,8 @@ internal sealed class GameModeHud : MonoBehaviour
         foreach (int playerId in playerIds)
         {
             scores.TryGetValue(playerId, out int score);
-            string playerName = ClientInstance.ReplaceAllPlayerNameTags(PlayerLookup.GetPlayerNameTag(playerId));
+            string playerName = GameModeScoreboard.StripRichTextTags(
+                ClientInstance.ReplaceAllPlayerNameTags(PlayerLookup.GetPlayerNameTag(playerId)));
             if (playerName.Length > MaxDisplayedNameLength)
             {
                 playerName = playerName.Substring(0, MaxDisplayedNameLength);
@@ -722,6 +733,6 @@ internal sealed class GameModeHud : MonoBehaviour
         }
 
         _scoreboard.text = GameModeScoreboard.Build(GameModeManager.ActiveMode, null,
-            pointsToWin, rows);
+            pointsToWin, rows, timerText);
     }
 }
