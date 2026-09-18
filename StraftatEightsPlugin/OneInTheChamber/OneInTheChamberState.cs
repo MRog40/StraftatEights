@@ -283,7 +283,7 @@ internal static class OneInTheChamberState
                 AwardScore(roundWinnerId, PointsPerRoundWin);
                 GameModeHud.BroadcastTakeResult("<b>"
                     + PlayerLookup.GetPlayerNameTag(roundWinnerId)
-                    + " WON THE TAKE</b>\n<i>LAST PLAYER STANDING</i>");
+                    + " won the take</b>\n<i>Last player standing</i>");
             }
 
             if (WinnerId >= 0)
@@ -715,7 +715,7 @@ internal static class OneInTheChamberState
             return;
         }
 
-        Announce(PlayerLookup.GetPlayerNameTag(winnerId) + " won the <b>ONE IN THE CHAMBER</b> match!");
+        Announce(PlayerLookup.GetPlayerNameTag(winnerId) + " won the <b>One in the Chamber</b> match!");
         BroadcastLiveState();
         GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(winnerId));
     }

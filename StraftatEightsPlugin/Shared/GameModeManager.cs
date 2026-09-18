@@ -4,6 +4,7 @@ using Steamworks;
 using BepInEx.Configuration;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using FishNet;
 using FishNetSceneLoadData = FishNet.Managing.Scened.SceneLoadData;
 using FishNetReplaceOption = FishNet.Managing.Scened.ReplaceOption;
@@ -696,11 +697,22 @@ internal static class GameModeManager
     {
         if (!Modes.TryGetValue(mode, out ModeDescriptor? descriptor))
         {
-            return "<b>UNKNOWN</b>";
+            return "<b>Unknown</b>";
         }
 
-        string label = labelOverride ?? descriptor.Label;
+        string label = ToReadableModeLabel(labelOverride ?? descriptor.Label);
         return $"<b><color=#{ColorUtility.ToHtmlStringRGB(descriptor.Color)}>{label}</color></b>";
+    }
+
+    private static string ToReadableModeLabel(string label)
+    {
+        return label switch
+        {
+            "FFA" => "FFA",
+            "HVT" => "HVT",
+            "TDM" => "TDM",
+            _ => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(label.ToLowerInvariant())
+        };
     }
 
     internal static string GetScoreboardModeLabelMarkup(GameMode mode, string? labelOverride)

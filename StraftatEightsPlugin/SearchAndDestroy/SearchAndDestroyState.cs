@@ -27,6 +27,8 @@ internal static class SearchAndDestroyState
     internal const float PlantDurationSeconds = SearchAndDestroyRules.PlantDurationSeconds;
     internal const float DefuseDurationSeconds = SearchAndDestroyRules.DefuseDurationSeconds;
     internal const float FuseDurationSeconds = SearchAndDestroyRules.FuseDurationSeconds;
+    internal const float BombExplosionDelaySeconds = 2f;
+    internal const float BombExplosionRadius = 35f;
     internal const float InteractionRadius = SearchAndDestroyRules.InteractionRadius;
     internal const float PlantSiteRadius = SearchAndDestroyRules.PlantSiteRadius;
     internal const float ServerTickIntervalSeconds = 0.05f;
@@ -55,7 +57,7 @@ internal static class SearchAndDestroyState
     internal static readonly HashSet<int> AlivePlayers = new();
     internal static readonly Dictionary<int, int> Scores = new();
 
-    private static readonly ModeSyncState Sync = new(livePushInterval: 1f);
+    private static readonly ModeSyncState Sync = new(livePushInterval: 0.1f);
     private static readonly Dictionary<int, bool> HeldInteractions = new();
     private static readonly Dictionary<int, bool> LookingAtBomb = new();
     private static readonly NetworkCommandTracker InteractionCommands = new();
@@ -66,6 +68,7 @@ internal static class SearchAndDestroyState
     private static bool _localLookingAtBomb;
     private static bool _roundStarted;
     private static bool _takeEnding;
+    private static bool _bombExplosionPending;
     private static int _lastAnnouncedTakeId = -1;
     private static float _lastLiveStateAppliedTime;
     private static float _lastLivePlantProgress;
@@ -214,6 +217,7 @@ internal static class SearchAndDestroyState
         _localLookingAtBomb = false;
         _roundStarted = false;
         _takeEnding = false;
+        _bombExplosionPending = false;
         TakeId = 0;
         WinnerId = -1;
         TakeWinnerId = -1;
@@ -319,6 +323,11 @@ internal static class SearchAndDestroyState
             }
         }
 
+        if (_bombExplosionPending)
+        {
+            return;
+        }
+
         bool stateChanged = ProcessBombInteractions(elapsed, out bool broadcastImmediately);
         if (BombStatus == SearchAndDestroyBombStatus.Planted)
         {
@@ -326,7 +335,7 @@ internal static class SearchAndDestroyState
             stateChanged = true;
             if (FuseTimeRemaining <= 0f)
             {
-                CompleteTake(OffensiveTeamId, SearchAndDestroyWinReason.BombExploded);
+                BeginBombExplosion();
                 return;
             }
         }
@@ -375,7 +384,7 @@ internal static class SearchAndDestroyState
             CancelDefusing();
         }
 
-        if (TryResolveTeamWipe(out int winningTeamId))
+        if (!_bombExplosionPending && TryResolveTeamWipe(out int winningTeamId))
         {
             CompleteTake(winningTeamId, GetEliminationWinReason(winningTeamId));
         }
@@ -416,7 +425,7 @@ internal static class SearchAndDestroyState
 
         TeamAssignment.RemovePlayer(playerId);
 
-        if (TryResolveTeamWipe(out int winningTeamId))
+        if (!_bombExplosionPending && TryResolveTeamWipe(out int winningTeamId))
         {
             CompleteTake(winningTeamId, GetEliminationWinReason(winningTeamId));
         }
@@ -777,6 +786,7 @@ internal static class SearchAndDestroyState
         FuseTimeRemaining = 0f;
         BombPosition = GetPlayerPosition(BombCarrierPlayerId);
         _takeEnding = false;
+        _bombExplosionPending = false;
         BroadcastLiveState();
     }
 
@@ -851,8 +861,11 @@ internal static class SearchAndDestroyState
                     if (SearchAndDestroyRules.TryCompletePlant(BombStatus, PlantProgress,
                         out SearchAndDestroyBombStatus plantedStatus))
                     {
+                        if (TryGetPlayerPosition(BombCarrierPlayerId, out Vector3 plantedPosition))
+                        {
+                            BombPosition = plantedPosition;
+                        }
                         BombStatus = plantedStatus;
-                        BombPosition = GetSitePositionOrDefault(BombSiteIndex);
                         BombSiteIndex = Math.Max(0, BombSiteIndex);
                         BombCarrierPlayerId = -1;
                         PlantingPlayerId = -1;
@@ -981,6 +994,71 @@ internal static class SearchAndDestroyState
         }
     }
 
+    private static void BeginBombExplosion()
+    {
+        if (_bombExplosionPending || _takeEnding)
+        {
+            return;
+        }
+
+        _bombExplosionPending = true;
+        FuseTimeRemaining = 0f;
+        TakeWinReason = SearchAndDestroyWinReason.BombExploded;
+        TriggerBombBlastPlayers();
+        BroadcastLiveState();
+
+        if (Plugin.Instance != null)
+        {
+            Plugin.Instance.StartCoroutine(CompleteBombExplosionAfterDelay(
+                SessionState.Generation, GameModeManager.RoundId));
+        }
+        else
+        {
+            CompleteTake(OffensiveTeamId, SearchAndDestroyWinReason.BombExploded);
+        }
+    }
+
+    private static IEnumerator CompleteBombExplosionAfterDelay(int sessionGeneration, int roundId)
+    {
+        yield return new WaitForSeconds(BombExplosionDelaySeconds);
+        if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
+            || !GameModeManager.IsActive(GameMode.SearchAndDestroy) || WinnerId >= 0
+            || !_bombExplosionPending)
+        {
+            yield break;
+        }
+
+        _bombExplosionPending = false;
+        CompleteTake(OffensiveTeamId, SearchAndDestroyWinReason.BombExploded);
+    }
+
+    private static void TriggerBombBlastPlayers()
+    {
+        float radiusSquared = BombExplosionRadius * BombExplosionRadius;
+        foreach (int playerId in AlivePlayers.ToArray())
+        {
+            PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(playerId);
+            if (health == null || !health || health.health <= 0f
+                || (health.transform.position - BombPosition).sqrMagnitude > radiusSquared)
+            {
+                continue;
+            }
+
+            Vector3 ejectDirection = health.transform.position - BombPosition;
+            if (ejectDirection.sqrMagnitude < 0.001f)
+            {
+                ejectDirection = Vector3.up;
+            }
+            else
+            {
+                ejectDirection.Normalize();
+            }
+
+            health.Explode(true, false, string.Empty, ejectDirection, 35f, BombPosition);
+            FishNetCompatibility.TryRemoveHealth(health, health.health + 1f);
+        }
+    }
+
     private static SearchAndDestroyWinReason GetEliminationWinReason(int winningTeamId)
     {
         return winningTeamId == OffensiveTeamId
@@ -1000,18 +1078,18 @@ internal static class SearchAndDestroyState
         string teamColorMarkup = $"#{teamColor.Red:X2}{teamColor.Green:X2}{teamColor.Blue:X2}";
         string reason = TakeWinReason switch
         {
-            SearchAndDestroyWinReason.TimeExpired => "TIME EXPIRED",
-            SearchAndDestroyWinReason.BombExploded => "BOMB EXPLODED",
-            SearchAndDestroyWinReason.BombDefused => "BOMB DEFUSED",
-            SearchAndDestroyWinReason.AttackersEliminated => "ALL ATTACKERS ELIMINATED",
-            SearchAndDestroyWinReason.DefendersEliminated => "ALL DEFENDERS ELIMINATED",
-            _ => "ROUND COMPLETE"
+            SearchAndDestroyWinReason.TimeExpired => "Time expired",
+            SearchAndDestroyWinReason.BombExploded => "Bomb exploded",
+            SearchAndDestroyWinReason.BombDefused => "Bomb defused",
+            SearchAndDestroyWinReason.AttackersEliminated => "All attackers eliminated",
+            SearchAndDestroyWinReason.DefendersEliminated => "All defenders eliminated",
+            _ => "Round complete"
         };
         string resultText = TakeWinReason == SearchAndDestroyWinReason.BombExploded
-            ? $"<color=#FF5A36><b>BOOM! BOMB EXPLODED</b></color>\n"
-                + $"<color={teamColorMarkup}><b>TEAM {TakeWinnerId + 1} WON THE TAKE</b></color>"
-            : $"<color={teamColorMarkup}><b>TEAM {TakeWinnerId + 1} "
-                + $"WON THE TAKE</b></color>\n<i>{reason}</i>";
+            ? $"<color=#FF5A36><b>Boom! Bomb exploded</b></color>\n"
+                + $"<color={teamColorMarkup}><b>Team {TakeWinnerId + 1} won the take</b></color>"
+            : $"<color={teamColorMarkup}><b>Team {TakeWinnerId + 1} "
+                + $"won the take</b></color>\n<i>{reason}</i>";
         GameModeHud.BroadcastTakeResult(resultText,
             TakeWinReason == SearchAndDestroyWinReason.BombExploded ? 4f : 3f);
 

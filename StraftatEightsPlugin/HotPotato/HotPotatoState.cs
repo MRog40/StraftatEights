@@ -229,14 +229,14 @@ internal static class HotPotatoState
         if (PotatoPlayerId < 0)
         {
             PotatoPlayerId = deadPlayerId;
-            Announce(PlayerLookup.GetPlayerNameTag(deadPlayerId) + " got the <b>HOT POTATO</b>!");
+            Announce(PlayerLookup.GetPlayerNameTag(deadPlayerId) + " got the <b>Hot Potato</b>!");
         }
         else if (validKiller && killerId == PotatoPlayerId)
         {
             PotatoPlayerId = deadPlayerId;
             PendingLoadouts.Remove(killerId);
             WeaponService.GiveWeapon(killerId, ShotgunWeaponName, unlimitedAmmo: true);
-            Announce(PlayerLookup.GetPlayerNameTag(deadPlayerId) + " got the <b>HOT POTATO</b>!");
+            Announce(PlayerLookup.GetPlayerNameTag(deadPlayerId) + " got the <b>Hot Potato</b>!");
         }
 
         if (validKiller && totalKills >= KillsToWin)

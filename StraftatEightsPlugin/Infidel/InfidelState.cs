@@ -293,13 +293,13 @@ internal static class InfidelState
         if (deadWasInfidel)
         {
             GameModeHud.BroadcastTakeResult(
-                "<b>THE TERRORISTS WON THE TAKE</b>\n<i>THE INFIDEL WAS ELIMINATED</i>");
+                "<b>The terrorists won the take</b>\n<i>The Infidel was eliminated</i>");
         }
         else if (infidelWon)
         {
             GameModeHud.BroadcastTakeResult("<b>"
                 + PlayerLookup.GetPlayerNameTag(InfidelPlayerId)
-                + " WON THE TAKE</b>\n<i>ALL TERRORISTS WERE ELIMINATED</i>");
+                + " won the take</b>\n<i>All terrorists were eliminated</i>");
         }
         if (WinnerId >= 0)
         {
@@ -401,8 +401,8 @@ internal static class InfidelState
         {
             _localRoleAnnouncedTakeId = takeId;
             GameModeHud.AnnounceTarget(isInfidel
-                ? "You are the <color=#CC2222><b>INFIDEL</b></color>."
-                : "You are a <color=#4D9BFF><b>TERRORIST</b></color>.", RoleAnnouncementDuration);
+                ? "You are the <color=#CC2222><b>Infidel</b></color>."
+                : "You are a <color=#4D9BFF><b>terrorist</b></color>.", RoleAnnouncementDuration);
         }
     }
 
@@ -543,7 +543,7 @@ internal static class InfidelState
         AwardScore(InfidelPlayerId, InfidelRules.GetWinnerAward(true));
         GameModeHud.BroadcastTakeResult("<b>"
             + PlayerLookup.GetPlayerNameTag(InfidelPlayerId)
-            + " WON THE TAKE</b>\n<i>THE TERRORISTS RAN OUT OF TIME</i>");
+            + " won the take</b>\n<i>The terrorists ran out of time</i>");
         BroadcastLiveState();
 
         if (WinnerId >= 0)

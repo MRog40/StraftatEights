@@ -12,10 +12,11 @@ namespace StraftatEightsPlugin;
 
 internal sealed class GameModeHud : MonoBehaviour
 {
-    private const float RefreshInterval = 0.25f;
+    private const float RefreshInterval = 0.1f;
     private const float AnnouncementDuration = 2f;
-    private const float AnnouncementVerticalOffset = 260f;
-    private const float TargetAnnouncementVerticalOffset = 110f;
+    private const float AnnouncementHorizontalMargin = 18f;
+    private const float AnnouncementWidth = 600f;
+    private const float AnnouncementGap = 16f;
     private const float ScorePopupDuration = 0.65f;
     private const float ScorePopupImpactDuration = 0.12f;
     private const float ScorePopupStartScale = 1.18f;
@@ -25,8 +26,11 @@ internal sealed class GameModeHud : MonoBehaviour
     private const int MaxDisplayedNameLength = 14;
     private static GameModeHud? _instance;
     private GameObject _panel = null!;
+    private RectTransform _panelRect = null!;
     private TextMeshProUGUI _announcement = null!;
     private TextMeshProUGUI _targetAnnouncement = null!;
+    private RectTransform _announcementRect = null!;
+    private RectTransform _targetAnnouncementRect = null!;
     private TextMeshProUGUI _objectiveStatus = null!;
     private TextMeshProUGUI _interactionPrompt = null!;
     private TextMeshProUGUI _scorePopup = null!;
@@ -62,17 +66,18 @@ internal sealed class GameModeHud : MonoBehaviour
         GameObject announcementObject = new("GameModeAnnouncement");
         announcementObject.transform.SetParent(transform, false);
         RectTransform announcementRect = announcementObject.AddComponent<RectTransform>();
-        announcementRect.anchorMin = new Vector2(0.5f, 0.5f);
-        announcementRect.anchorMax = new Vector2(0.5f, 0.5f);
-        announcementRect.pivot = new Vector2(0.5f, 0.5f);
-        announcementRect.sizeDelta = new Vector2(1000f, 140f);
-        announcementRect.anchoredPosition = new Vector2(0f, AnnouncementVerticalOffset);
+        _announcementRect = announcementRect;
+        announcementRect.anchorMin = new Vector2(0f, 1f);
+        announcementRect.anchorMax = new Vector2(0f, 1f);
+        announcementRect.pivot = new Vector2(0f, 1f);
+        announcementRect.sizeDelta = new Vector2(AnnouncementWidth, 110f);
+        announcementRect.anchoredPosition = new Vector2(AnnouncementHorizontalMargin, -320f);
         _announcement = announcementObject.AddComponent<TextMeshProUGUI>();
-        _announcement.fontSize = 64f;
+        _announcement.fontSize = 40f;
         _announcement.fontStyle = FontStyles.Bold;
         _announcement.richText = true;
-        _announcement.alignment = TextAlignmentOptions.Center;
-        _announcement.enableWordWrapping = false;
+        _announcement.alignment = TextAlignmentOptions.TopLeft;
+        _announcement.enableWordWrapping = true;
         _announcement.outlineWidth = 0.2f;
         _announcement.outlineColor = new Color(0f, 0f, 0f, 0.9f);
         _announcement.raycastTarget = false;
@@ -81,16 +86,17 @@ internal sealed class GameModeHud : MonoBehaviour
         GameObject targetAnnouncementObject = new("GameModeTargetAnnouncement");
         targetAnnouncementObject.transform.SetParent(transform, false);
         RectTransform targetAnnouncementRect = targetAnnouncementObject.AddComponent<RectTransform>();
-        targetAnnouncementRect.anchorMin = new Vector2(0.5f, 0.5f);
-        targetAnnouncementRect.anchorMax = new Vector2(0.5f, 0.5f);
-        targetAnnouncementRect.pivot = new Vector2(0.5f, 0.5f);
-        targetAnnouncementRect.sizeDelta = new Vector2(1200f, 160f);
-        targetAnnouncementRect.anchoredPosition = new Vector2(0f, TargetAnnouncementVerticalOffset);
+        _targetAnnouncementRect = targetAnnouncementRect;
+        targetAnnouncementRect.anchorMin = new Vector2(0f, 1f);
+        targetAnnouncementRect.anchorMax = new Vector2(0f, 1f);
+        targetAnnouncementRect.pivot = new Vector2(0f, 1f);
+        targetAnnouncementRect.sizeDelta = new Vector2(AnnouncementWidth, 170f);
+        targetAnnouncementRect.anchoredPosition = new Vector2(AnnouncementHorizontalMargin, -446f);
         _targetAnnouncement = targetAnnouncementObject.AddComponent<TextMeshProUGUI>();
-        _targetAnnouncement.fontSize = 56f;
+        _targetAnnouncement.fontSize = 36f;
         _targetAnnouncement.fontStyle = FontStyles.Bold;
         _targetAnnouncement.richText = true;
-        _targetAnnouncement.alignment = TextAlignmentOptions.Center;
+        _targetAnnouncement.alignment = TextAlignmentOptions.TopLeft;
         _targetAnnouncement.enableWordWrapping = true;
         _targetAnnouncement.outlineWidth = 0.2f;
         _targetAnnouncement.outlineColor = new Color(0f, 0f, 0f, 0.9f);
@@ -169,6 +175,7 @@ internal sealed class GameModeHud : MonoBehaviour
         _panel = new GameObject("GameModePanel");
         _panel.transform.SetParent(transform, false);
         RectTransform panelRect = _panel.AddComponent<RectTransform>();
+        _panelRect = panelRect;
         panelRect.anchorMin = new Vector2(0f, 1f);
         panelRect.anchorMax = new Vector2(0f, 1f);
         panelRect.pivot = new Vector2(0f, 1f);
@@ -318,6 +325,7 @@ internal sealed class GameModeHud : MonoBehaviour
         {
             RefreshScoreboard();
         }
+        UpdateAnnouncementLayout();
 
         string objectiveStatus = visible && GameModeManager.IsActive(GameMode.SearchAndDestroy)
             ? SearchAndDestroyState.GetLocalBombStatusText()
@@ -350,6 +358,7 @@ internal sealed class GameModeHud : MonoBehaviour
             return;
         }
 
+        _instance.UpdateAnnouncementLayout();
         _instance._announcement.text = GameModeManager.GetModeLabelMarkup(GameModeManager.ActiveMode);
         _instance._announcementUntil = Time.unscaledTime + AnnouncementDuration;
         _instance._announcement.gameObject.SetActive(true);
@@ -371,6 +380,7 @@ internal sealed class GameModeHud : MonoBehaviour
             return;
         }
 
+        _instance.UpdateAnnouncementLayout();
         _instance._targetAnnouncement.text = text;
         _instance._targetAnnouncementUntil = Time.unscaledTime + Mathf.Max(0f, durationSeconds);
         _instance._targetAnnouncement.gameObject.SetActive(true);
@@ -431,9 +441,25 @@ internal sealed class GameModeHud : MonoBehaviour
             return;
         }
 
+        _instance.UpdateAnnouncementLayout();
         _instance._targetAnnouncement.text = text;
         _instance._targetAnnouncementUntil = Time.unscaledTime + Mathf.Max(0f, durationSeconds);
         _instance._targetAnnouncement.gameObject.SetActive(true);
+    }
+
+    private void UpdateAnnouncementLayout()
+    {
+        if (_panelRect == null || _announcementRect == null || _targetAnnouncementRect == null)
+        {
+            return;
+        }
+
+        float scoreboardHeight = _panel != null && _panel.activeSelf ? _panelRect.rect.height : 0f;
+        float announcementTop = _panelRect.anchoredPosition.y - scoreboardHeight - AnnouncementGap;
+        _announcementRect.anchoredPosition = new Vector2(AnnouncementHorizontalMargin,
+            announcementTop);
+        _targetAnnouncementRect.anchoredPosition = new Vector2(AnnouncementHorizontalMargin,
+            announcementTop - _announcementRect.sizeDelta.y - AnnouncementGap);
     }
 
     internal static void ShowScorePopupForPlayer(int playerId, int amount)
@@ -685,6 +711,7 @@ internal sealed class GameModeHud : MonoBehaviour
             {
                 playerName = playerName.Substring(0, MaxDisplayedNameLength);
             }
+            playerName = GameModeScoreboard.ApplyPlayerNameGradient(playerName);
 
             bool isCrown = crownFirst && playerId == crownPlayerId;
             if (isCrown)

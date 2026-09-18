@@ -7,6 +7,11 @@ internal static class WeaponPolicy
 {
     internal static bool PrepareItemSpawn(ItemSpawner spawner)
     {
+        if (GameModeManager.IsActive(GameMode.SearchAndDestroy))
+        {
+            return false;
+        }
+
         if (GameModeManager.IsTeamBased)
         {
             if (WeaponSettingsState.Allowed.Count == 0)

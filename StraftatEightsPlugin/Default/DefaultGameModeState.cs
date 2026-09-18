@@ -193,7 +193,7 @@ internal static class DefaultGameModeState
             ? PlayerLookup.GetPlayerNameTag(winners[0])
             : "TEAM " + (winningTeamId + 1);
         GameModeHud.BroadcastTakeResult("<b>" + winnerLabel
-            + " WON THE TAKE</b>\n<i>LAST TEAM STANDING</i>");
+            + " won the take</b>\n<i>Last team standing</i>");
         BroadcastLiveState();
         if (WinnerId >= 0)
         {

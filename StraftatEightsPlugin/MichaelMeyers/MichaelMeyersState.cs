@@ -172,7 +172,7 @@ internal static class MichaelMeyersState
                 CurrentMichaelPlayerId = candidates[UnityEngine.Random.Range(0, candidates.Count)];
                 PrepareOneVsOneSurvivor();
                 Announce(PlayerLookup.GetPlayerNameTag(CurrentMichaelPlayerId)
-                    + " is <color=#CC2222><b>MICHAEL MEYERS</b></color>!");
+                    + " is <color=#CC2222><b>Michael Meyers</b></color>!");
                 GiveStartingWeapon(CurrentMichaelPlayerId);
             }
         }
@@ -274,7 +274,7 @@ internal static class MichaelMeyersState
 
         CurrentMichaelPlayerId = candidates[UnityEngine.Random.Range(0, candidates.Count)];
         PrepareOneVsOneSurvivor();
-        Announce(PlayerLookup.GetPlayerNameTag(CurrentMichaelPlayerId) + " is <color=#CC2222><b>MICHAEL MEYERS</b></color>!");
+        Announce(PlayerLookup.GetPlayerNameTag(CurrentMichaelPlayerId) + " is <color=#CC2222><b>Michael Meyers</b></color>!");
         BroadcastLiveState();
         GiveStartingWeapon(CurrentMichaelPlayerId);
     }
@@ -489,7 +489,7 @@ internal static class MichaelMeyersState
         }
 
         _winnerId = winnerId;
-        Announce(PlayerLookup.GetPlayerNameTag(winnerId) + " won the <b>MICHAEL MEYERS</b> round!");
+        Announce(PlayerLookup.GetPlayerNameTag(winnerId) + " won the <b>Michael Meyers</b> round!");
         BroadcastLiveState();
         GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(winnerId));
     }
@@ -516,7 +516,7 @@ internal static class MichaelMeyersState
             _oneVsOneSurvivorId = playerId;
             OneVsOne = true;
             PendingLoadouts[playerId] = Time.unscaledTime + SurvivorWeaponDelaySeconds;
-            Announce(PlayerLookup.GetPlayerNameTag(playerId) + " will receive a <b>COUPERET</b> for the final fight!");
+            Announce(PlayerLookup.GetPlayerNameTag(playerId) + " will receive a <b>Couperet</b> for the final fight!");
             return;
         }
     }
