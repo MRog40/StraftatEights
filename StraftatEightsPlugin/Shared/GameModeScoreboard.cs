@@ -5,16 +5,18 @@ namespace StraftatEightsPlugin;
 
 internal readonly struct GameModeScoreboardRow
 {
-    internal GameModeScoreboardRow(string label, int score, int teamId = -1)
+    internal GameModeScoreboardRow(string label, int score, int teamId = -1, int playerId = -1)
     {
         Label = label;
         Score = score;
         TeamId = teamId;
+        PlayerId = playerId;
     }
 
     internal string Label { get; }
     internal int Score { get; }
     internal int TeamId { get; }
+    internal int PlayerId { get; }
 }
 
 internal static class GameModeScoreboard
@@ -35,6 +37,7 @@ internal static class GameModeScoreboard
         {
             string score = row.Score.ToString().PadLeft(ScoreColumnWidth);
             text.Append('\n');
+            text.Append(IsLocalRow(row) ? "> " : "  ");
             if (row.TeamId >= 0)
             {
                 TeamColorData color = TeamRules.GetColor(row.TeamId);
@@ -47,11 +50,6 @@ internal static class GameModeScoreboard
             text.Append(row.Label);
             if (row.TeamId >= 0)
             {
-                if (IsLocalTeam(row.TeamId))
-                {
-                    text.Append(" <b>[YOU]</b>");
-                }
-
                 text.Append("</color>");
             }
 
@@ -71,5 +69,13 @@ internal static class GameModeScoreboard
         int localPlayerId = ClientInstance.Instance == null ? -1 : ClientInstance.Instance.PlayerId;
         return TeamAssignment.TryGetTeamId(localPlayerId, out int localTeamId)
             && localTeamId == teamId;
+    }
+
+    private static bool IsLocalRow(GameModeScoreboardRow row)
+    {
+        return row.TeamId >= 0
+            ? IsLocalTeam(row.TeamId)
+            : row.PlayerId >= 0 && ClientInstance.Instance != null
+                && ClientInstance.Instance.PlayerId == row.PlayerId;
     }
 }

@@ -691,7 +691,7 @@ internal sealed class GameModeHud : MonoBehaviour
             {
                 playerName += hvtCrown ? "  HVT" : "  JUG";
             }
-            rows.Add(new GameModeScoreboardRow(playerName, score));
+            rows.Add(new GameModeScoreboardRow(playerName, score, playerId: playerId));
         }
 
         _scoreboard.text = GameModeScoreboard.Build(GameModeManager.ActiveMode, null,
