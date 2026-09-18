@@ -7,7 +7,10 @@ namespace StraftatEightsPlugin;
 // this only makes retry timing independent of a particular game-mode update hook.
 internal static class HostSettingsSync
 {
-    internal static bool IsDue(ref float nextPushTime, float intervalSeconds = 3f)
+    internal const float SettingsHeartbeatIntervalSeconds = 0.75f;
+
+    internal static bool IsDue(ref float nextPushTime,
+        float intervalSeconds = SettingsHeartbeatIntervalSeconds)
     {
         if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
         {

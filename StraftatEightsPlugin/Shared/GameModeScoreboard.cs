@@ -38,7 +38,7 @@ internal static class GameModeScoreboard
         IReadOnlyList<GameModeScoreboardRow> rows, string? timerText = null)
     {
         StringBuilder nameColumn = new();
-        StringBuilder scoreColumn = new("\n");
+        StringBuilder scoreColumn = new();
         nameColumn.Append(GameModeManager.GetScoreboardModeLabelMarkup(mode, labelOverride));
         if (pointsToWin.HasValue)
         {

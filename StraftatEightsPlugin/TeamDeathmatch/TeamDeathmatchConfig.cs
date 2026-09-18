@@ -7,8 +7,8 @@ namespace StraftatEightsPlugin;
 public partial class Plugin
 {
     internal const uint TeamDeathmatchModId = 1618033997u;
+    internal const float TeamDeathmatchSpawnRandomness = 0.35f;
     internal static ConfigEntry<bool> TeamDeathmatchEnabled = null!;
-    internal static ConfigEntry<float> TeamDeathmatchSpawnRandomness = null!;
 
     private void InitializeTeamDeathmatch()
     {
@@ -16,9 +16,6 @@ public partial class Plugin
         TeamDeathmatchEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Team Deathmatch",
             "Host-controlled: teams score ten points per kill and respawn after death.");
-        TeamDeathmatchSpawnRandomness = Config.Bind(section, "TDM Spawn Randomness", 0.35f,
-            new ConfigDescription("Host-controlled: 0 keeps the safest spawn selection; 1 allows any team spawn candidate.",
-                new AcceptableValueRange<float>(0f, 1f)));
         TeamDeathmatchEnabled.SettingChanged += (_, _) =>
         {
             TeamDeathmatchState.PushSettingsIfHost();

@@ -227,7 +227,7 @@ internal sealed class GameModeHud : MonoBehaviour
         layout.childForceExpandHeight = false;
 
         ContentSizeFitter fitter = _panel.AddComponent<ContentSizeFitter>();
-        fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         GameObject scoreboardContentObject = new("GameModeScoreboardContent", typeof(RectTransform));

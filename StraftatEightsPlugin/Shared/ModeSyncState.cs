@@ -14,7 +14,9 @@ internal sealed class ModeSyncState
     internal int LiveRevision { get; private set; }
     internal int LastLiveRoundId { get; private set; } = -1;
 
-    internal ModeSyncState(float settingsPushInterval = 3f, float livePushInterval = 3f)
+    internal ModeSyncState(
+        float settingsPushInterval = HostSettingsSync.SettingsHeartbeatIntervalSeconds,
+        float livePushInterval = 3f)
     {
         _settingsPushInterval = settingsPushInterval;
         _livePushInterval = livePushInterval;

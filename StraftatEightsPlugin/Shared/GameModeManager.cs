@@ -474,7 +474,8 @@ internal static class GameModeManager
             return;
         }
 
-        _nextClientLobbyPollTime = Time.unscaledTime + 1f;
+        _nextClientLobbyPollTime = Time.unscaledTime
+            + HostSettingsSync.SettingsHeartbeatIntervalSeconds;
         ApplyLobbyActiveModeSnapshot();
         ModeTimeoutState.PollLiveStateIfClient();
         if (Modes.TryGetValue(ActiveMode, out ModeDescriptor? descriptor))

@@ -150,7 +150,12 @@ internal static class MyceliumTransportRecovery
             }
             catch (Exception exception)
             {
+                pending.LastFailureReason = exception.GetBaseException().Message;
                 result = EResult.k_EResultNoConnection;
+            }
+            if (result != EResult.k_EResultOK && pending.LastFailureReason.Length == 0)
+            {
+                pending.LastFailureReason = result.ToString();
             }
             if (result == EResult.k_EResultOK)
             {
@@ -161,6 +166,9 @@ internal static class MyceliumTransportRecovery
             pending.Attempt++;
             if (pending.Attempt >= MaxAttempts)
             {
+                Plugin.Logger.LogWarning($"[Mycelium] Dropped queued message after "
+                    + $"{pending.Attempt} attempts to {pending.Target.m_SteamID}: "
+                    + pending.LastFailureReason);
                 PendingMessages.RemoveAt(index);
                 continue;
             }
@@ -240,9 +248,11 @@ internal static class MyceliumTransportRecovery
 
     private static void Enqueue(byte[] data, CSteamID target, ReliableType reliable, string reason)
     {
-        if (PendingMessages.Any(pending => pending.Target == target
-            && pending.Reliable == reliable && pending.Data.SequenceEqual(data)))
+        PendingMessage? existing = PendingMessages.FirstOrDefault(pending => pending.Target == target
+            && pending.Reliable == reliable && pending.Data.SequenceEqual(data));
+        if (existing != null)
         {
+            existing.LastFailureReason = reason;
             return;
         }
 
@@ -252,7 +262,7 @@ internal static class MyceliumTransportRecovery
         }
 
         PendingMessages.Add(new PendingMessage(data.ToArray(), target, reliable,
-            Time.unscaledTime + RetryDelays[0]));
+            Time.unscaledTime + RetryDelays[0], reason));
     }
 
     private static EResult SendRaw(byte[] data, CSteamID target, ReliableType reliable)
@@ -293,13 +303,16 @@ internal static class MyceliumTransportRecovery
         internal readonly ReliableType Reliable;
         internal int Attempt = 1;
         internal float NextAttempt;
+        internal string LastFailureReason { get; set; }
 
-        internal PendingMessage(byte[] data, CSteamID target, ReliableType reliable, float nextAttempt)
+        internal PendingMessage(byte[] data, CSteamID target, ReliableType reliable,
+            float nextAttempt, string failureReason)
         {
             Data = data;
             Target = target;
             Reliable = reliable;
             NextAttempt = nextAttempt;
+            LastFailureReason = failureReason;
         }
     }
 
