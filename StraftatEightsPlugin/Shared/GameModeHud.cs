@@ -5,7 +5,6 @@ using MyceliumNetworking;
 using Steamworks;
 using TMPro;
 using UnityEngine;
-using UnityEngine.TextCore.LowLevel;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
@@ -43,8 +42,6 @@ internal sealed class GameModeHud : MonoBehaviour
     }
 
     private static GameModeHud? _instance;
-    private static TMP_FontAsset? _pluginFont;
-    private static bool _fontFallbackLogged;
     private static Sprite? _scoreboardPanelSprite;
     private static Texture2D? _scoreboardPanelTexture;
     private GameObject _panel = null!;
@@ -101,7 +98,6 @@ internal sealed class GameModeHud : MonoBehaviour
         announcementRect.sizeDelta = new Vector2(AnnouncementWidth, 110f);
         announcementRect.anchoredPosition = new Vector2(0f, -129.6f);
         _announcement = announcementObject.AddComponent<TextMeshProUGUI>();
-        ApplyPluginFont(_announcement);
         _announcement.fontSize = 40f;
         _announcement.fontStyle = FontStyles.Bold;
         _announcement.richText = true;
@@ -122,7 +118,6 @@ internal sealed class GameModeHud : MonoBehaviour
         targetAnnouncementRect.sizeDelta = new Vector2(AnnouncementWidth, 170f);
         targetAnnouncementRect.anchoredPosition = new Vector2(0f, -129.6f);
         _targetAnnouncement = targetAnnouncementObject.AddComponent<TextMeshProUGUI>();
-        ApplyPluginFont(_targetAnnouncement);
         _targetAnnouncement.fontSize = 36f;
         _targetAnnouncement.fontStyle = FontStyles.Bold;
         _targetAnnouncement.richText = true;
@@ -142,7 +137,6 @@ internal sealed class GameModeHud : MonoBehaviour
         objectiveStatusRect.sizeDelta = new Vector2(900f, 90f);
         objectiveStatusRect.anchoredPosition = new Vector2(0f, -255f);
         _objectiveStatus = objectiveStatusObject.AddComponent<TextMeshProUGUI>();
-        ApplyPluginFont(_objectiveStatus);
         _objectiveStatus.fontSize = 32f;
         _objectiveStatus.fontStyle = FontStyles.Bold;
         _objectiveStatus.color = new Color32(255, 211, 74, 255);
@@ -163,7 +157,6 @@ internal sealed class GameModeHud : MonoBehaviour
         interactionPromptRect.sizeDelta = new Vector2(900f, 90f);
         interactionPromptRect.anchoredPosition = new Vector2(0f, -325f);
         _interactionPrompt = interactionPromptObject.AddComponent<TextMeshProUGUI>();
-        ApplyPluginFont(_interactionPrompt);
         _interactionPrompt.fontSize = 32f;
         _interactionPrompt.fontStyle = FontStyles.Bold;
         _interactionPrompt.color = Color.white;
@@ -186,7 +179,6 @@ internal sealed class GameModeHud : MonoBehaviour
         _scorePopupRect = scorePopupRect;
         _scorePopupBasePosition = scorePopupRect.anchoredPosition;
         _scorePopup = scorePopupObject.AddComponent<TextMeshProUGUI>();
-        ApplyPluginFont(_scorePopup);
         _scorePopup.fontSize = 48f;
         _scorePopup.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
         _scorePopup.color = new Color32(255, 190, 55, 255);
@@ -237,7 +229,6 @@ internal sealed class GameModeHud : MonoBehaviour
         GameObject scoreboardObject = new("GameModeScoreboard", typeof(RectTransform));
         scoreboardObject.transform.SetParent(_panel.transform, false);
         _scoreboard = scoreboardObject.AddComponent<TextMeshProUGUI>();
-        ApplyPluginFont(_scoreboard);
         _scoreboard.fontSize = 22f;
         _scoreboard.color = ScoreboardTextColor;
         _scoreboard.richText = true;
@@ -255,7 +246,6 @@ internal sealed class GameModeHud : MonoBehaviour
         respawnProtectionRect.pivot = new Vector2(0.5f, 0.5f);
         respawnProtectionRect.sizeDelta = new Vector2(64f, 64f);
         _respawnProtectionMarker = respawnProtectionObject.AddComponent<TextMeshProUGUI>();
-        ApplyPluginFont(_respawnProtectionMarker);
         _respawnProtectionMarker.text = "X";
         _respawnProtectionMarker.fontSize = 34f;
         _respawnProtectionMarker.fontStyle = FontStyles.Bold;
@@ -716,96 +706,6 @@ internal sealed class GameModeHud : MonoBehaviour
         _scorePopupRect.localScale = Vector3.one * scale;
         _scorePopupRect.anchoredPosition = _scorePopupBasePosition + Vector2.up * rise;
         _scorePopupCanvas.alpha = alpha;
-    }
-
-    private static void ApplyPluginFont(TextMeshProUGUI text)
-    {
-        TMP_FontAsset? font = ResolvePluginFont();
-        if (font != null)
-        {
-            text.font = font;
-        }
-    }
-
-    private static TMP_FontAsset? ResolvePluginFont()
-    {
-        if (_pluginFont != null)
-        {
-            return _pluginFont;
-        }
-
-        foreach (TMP_FontAsset font in Resources.FindObjectsOfTypeAll<TMP_FontAsset>())
-        {
-            if (font.name.IndexOf("MajorMonoDisplay", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                _pluginFont = font;
-                return _pluginFont;
-            }
-        }
-
-        string[] resourceNames =
-        {
-            "MajorMonoDisplay-Regular",
-            "Fonts/MajorMonoDisplay-Regular"
-        };
-        foreach (string resourceName in resourceNames)
-        {
-            UnityEngine.Font? font = Resources.Load<UnityEngine.Font>(resourceName);
-            if (font == null)
-            {
-                continue;
-            }
-
-            _pluginFont = CreateDynamicPluginFont(font);
-            if (_pluginFont != null)
-            {
-                return _pluginFont;
-            }
-        }
-
-        foreach (UnityEngine.Font font in Resources.FindObjectsOfTypeAll<UnityEngine.Font>())
-        {
-            if (font.name.IndexOf("MajorMonoDisplay", StringComparison.OrdinalIgnoreCase) < 0)
-            {
-                continue;
-            }
-
-            _pluginFont = CreateDynamicPluginFont(font);
-            if (_pluginFont != null)
-            {
-                return _pluginFont;
-            }
-        }
-
-        _pluginFont = TMP_Settings.defaultFontAsset;
-        if (!_fontFallbackLogged)
-        {
-            _fontFallbackLogged = true;
-            Plugin.Logger.LogWarning("[GameModeHud] Major Mono Display was not available; "
-                + "using the default TMP font.");
-        }
-
-        return _pluginFont;
-    }
-
-    private static TMP_FontAsset? CreateDynamicPluginFont(UnityEngine.Font font)
-    {
-        try
-        {
-            TMP_FontAsset? fontAsset = TMP_FontAsset.CreateFontAsset(font, 90, 9,
-                GlyphRenderMode.SDFAA, 1024, 1024, AtlasPopulationMode.Dynamic, true);
-            if (fontAsset != null)
-            {
-                fontAsset.name = "StraftatEights Major Mono Display";
-            }
-            return fontAsset;
-        }
-        catch (Exception exception)
-        {
-            Plugin.Logger.LogWarning("[GameModeHud] Could not create Major Mono Display TMP asset: "
-                + exception.GetBaseException().Message);
-            return null;
-        }
     }
 
     private static Sprite GetScoreboardPanelSprite()

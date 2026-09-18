@@ -378,13 +378,16 @@ TeamPoint farVisibleSpawn = SafeSpawnRules.SelectBest(visibleSpawnCandidates,
     Array.Empty<TeamPoint>(), null, out _);
 Assert(farVisibleSpawn.X == 30f,
     "When all candidates are visible, enemy distance must remain the fallback priority.");
-Assert(HardpointRules.GetContestTimeLimit(100) == 50
+Assert(HardpointRules.GetContestTimeLimit(250) == 300
+    && HardpointRules.GetContestTimeLimit(100) == 120
     && HardpointRules.GetContestTimeLimit(1) == 1,
-    "The Hardpoint contest clock must be half the score limit with a one-second minimum.");
+    "The Hardpoint contest clock must use 1.2 seconds per point with a one-second minimum.");
 Assert(HardpointRules.GetNextObjectiveIndex(0, 3) == 1
     && HardpointRules.GetNextObjectiveIndex(2, 3) == 0
-    && HardpointRules.IsWarningActive(25f, 30f, 5f),
-    "Hardpoint objectives must rotate in order and warn five seconds before rotation.");
+    && HardpointRules.NextObjectiveWarningSeconds == 10f
+    && HardpointRules.IsWarningActive(20f, 30f,
+        HardpointRules.NextObjectiveWarningSeconds),
+    "Hardpoint objectives must rotate in order and warn ten seconds before rotation.");
 Dictionary<int, int> hardpointScores = new() { [0] = 99, [1] = 20 };
 Assert(HardpointRules.TryAwardPoint(hardpointScores, 0, 100, false, out int scoreWinner)
     && scoreWinner == 0 && hardpointScores[0] == 100,

@@ -12,7 +12,7 @@ internal static class HardpointState
     internal const string SettingsLobbyDataKey = "StraftatEights_Hardpoint_Settings";
     internal const string LiveLobbyDataKey = "StraftatEights_Hardpoint_Live";
     internal const float ObjectiveDurationSeconds = 50f;
-    internal const float WarningDurationSeconds = 5f;
+    internal const float WarningDurationSeconds = HardpointRules.NextObjectiveWarningSeconds;
     internal const float ServerTickIntervalSeconds = 0.1f;
     internal const float ClientLivePollIntervalSeconds = 0.25f;
 

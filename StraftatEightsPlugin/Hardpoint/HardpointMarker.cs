@@ -39,7 +39,7 @@ internal static class HardpointMarker
             if (_nextMarker == null || !_nextMarker)
             {
                 _nextMarker = CreateMarker("HardpointNextMarker",
-                    new Color(1f, 0.75f, 0.1f, 0.08f));
+                    new Color(1f, 1f, 1f, 0.08f));
                 _nextRenderer = _nextMarker.GetComponent<Renderer>();
             }
             else if (_nextRenderer == null || !_nextRenderer)
@@ -48,7 +48,7 @@ internal static class HardpointMarker
             }
 
             float pulse = 0.04f + (Mathf.Sin(Time.unscaledTime * 7f) + 1f) * 0.03f;
-            PositionMarker(_nextMarker, next, new Color(1f, 0.75f, 0.1f, pulse));
+            PositionMarker(_nextMarker, next, new Color(1f, 1f, 1f, pulse));
         }
         else if (_nextMarker != null && _nextMarker)
         {

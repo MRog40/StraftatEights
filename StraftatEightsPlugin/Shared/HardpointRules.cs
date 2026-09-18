@@ -6,9 +6,11 @@ namespace StraftatEightsPlugin;
 
 internal static class HardpointRules
 {
+    internal const float NextObjectiveWarningSeconds = 10f;
+
     internal static int GetContestTimeLimit(int scoreLimit)
     {
-        return Math.Max(1, scoreLimit / 2);
+        return Math.Max(1, (int)(scoreLimit * 1.2f));
     }
 
     internal static int GetNextObjectiveIndex(int currentIndex, int objectiveCount)
