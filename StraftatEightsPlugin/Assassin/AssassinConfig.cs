@@ -47,7 +47,7 @@ public partial class Plugin
     public void SyncAssassinLiveState(CSteamID hostId, int kingPlayerId, string scoresData,
         int winnerId, int takeId, bool weaponsUnlocked, int roundId, int revision, RPCInfo info)
     {
-        if (!NetworkAuthority.IsHostSender(info) || !GameModeManager.IsActive(GameMode.Assassin))
+        if (!NetworkAuthority.IsHostSender(info))
         {
             return;
         }

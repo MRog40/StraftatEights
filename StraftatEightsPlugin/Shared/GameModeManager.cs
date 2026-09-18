@@ -1588,6 +1588,29 @@ internal static class GameManager_GameModeDeath_Patch
     }
 }
 
+[HarmonyLib.HarmonyPatch]
+internal static class GameManager_RecordPlayerDeath_Patch
+{
+    private static System.Reflection.MethodBase? TargetMethod()
+    {
+        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance
+            | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+        return typeof(GameManager).GetMethod("RecordPlayerDeath", flags);
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
+    private static bool Prefix(GameManager __instance, int playerId)
+    {
+        if (!__instance.IsServer || !GameModeManager.IsCustomMode)
+        {
+            return true;
+        }
+
+        return !GameModeManager.HandleServerDeath(playerId);
+    }
+}
+
 public partial class Plugin
 {
     [CustomRPC]

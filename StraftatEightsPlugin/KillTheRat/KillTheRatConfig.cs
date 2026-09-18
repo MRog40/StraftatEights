@@ -52,10 +52,6 @@ public partial class Plugin
         {
             return;
         }
-        if (!GameModeManager.IsActive(GameMode.KillTheRat))
-        {
-            return;
-        }
         KillTheRatState.ApplyLiveState(hostId, ratPlayerId, pointsData, winnerId, roundId, revision);
     }
 

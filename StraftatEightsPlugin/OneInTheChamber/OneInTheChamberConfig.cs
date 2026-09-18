@@ -55,10 +55,6 @@ public partial class Plugin
         {
             return;
         }
-        if (!GameModeManager.IsActive(GameMode.OneInTheChamber))
-        {
-            return;
-        }
         OneInTheChamberState.ApplyLiveState(hostId, aliveData, bulletsData, scoresData,
             takeId, winnerId, loadoutSecondsRemaining, roundId, revision);
     }

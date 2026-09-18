@@ -53,10 +53,6 @@ public partial class Plugin
         {
             return;
         }
-        if (!GameModeManager.IsActive(GameMode.SniperBattle))
-        {
-            return;
-        }
         SniperBattleState.ApplyLiveState(hostId, pointsData, winnerId, roundId, revision, "rpc");
     }
 

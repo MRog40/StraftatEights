@@ -55,10 +55,6 @@ public partial class Plugin
         {
             return;
         }
-        if (!GameModeManager.IsActive(GameMode.GunGame))
-        {
-            return;
-        }
         DebugLog.Info($"GunGame live state received source=rpc host={hostId.m_SteamID} round={roundId} "
             + $"revision={revision} payloadLength={progressData?.Length ?? 0}");
         GunGameState.ApplyLiveState(hostId, progressData ?? string.Empty, roundId, revision, "gun-game-rpc");

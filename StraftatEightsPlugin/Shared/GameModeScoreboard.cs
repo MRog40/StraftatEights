@@ -47,6 +47,11 @@ internal static class GameModeScoreboard
             text.Append(row.Label);
             if (row.TeamId >= 0)
             {
+                if (IsLocalTeam(row.TeamId))
+                {
+                    text.Append(" <b>[YOU]</b>");
+                }
+
                 text.Append("</color>");
             }
 
@@ -59,5 +64,12 @@ internal static class GameModeScoreboard
         }
 
         return text.ToString();
+    }
+
+    private static bool IsLocalTeam(int teamId)
+    {
+        int localPlayerId = ClientInstance.Instance == null ? -1 : ClientInstance.Instance.PlayerId;
+        return TeamAssignment.TryGetTeamId(localPlayerId, out int localTeamId)
+            && localTeamId == teamId;
     }
 }

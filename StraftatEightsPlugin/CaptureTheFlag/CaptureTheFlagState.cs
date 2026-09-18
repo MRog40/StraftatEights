@@ -837,12 +837,12 @@ internal static class CaptureTheFlagState
 
     private static void ApplyLobbyLiveSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 7, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 6, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !int.TryParse(fields[1], out int teamCount)
-            || !float.TryParse(fields[5], NumberStyles.Float, CultureInfo.InvariantCulture,
+            || !float.TryParse(fields[4], NumberStyles.Float, CultureInfo.InvariantCulture,
                 out float matchTimeRemaining)
-            || !LobbySnapshotCodec.TryParseBool(fields[6], out bool suddenDeath))
+            || !LobbySnapshotCodec.TryParseBool(fields[5], out bool suddenDeath))
         {
             return;
         }

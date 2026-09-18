@@ -50,8 +50,7 @@ public partial class Plugin
         string scoresData, int objectiveIndex, float objectiveElapsed, float contestTimeRemaining,
         int controller, bool suddenDeath, int roundId, int revision, RPCInfo info)
     {
-        if (!NetworkAuthority.IsHostSender(info)
-            || !GameModeManager.IsActive(GameMode.Hardpoint))
+        if (!NetworkAuthority.IsHostSender(info))
         {
             return;
         }

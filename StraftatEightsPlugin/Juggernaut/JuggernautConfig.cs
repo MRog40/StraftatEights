@@ -59,10 +59,6 @@ public partial class Plugin
         {
             return;
         }
-        if (!GameModeManager.IsActive(GameMode.Juggernaut))
-        {
-            return;
-        }
         JuggernautState.ApplyLiveState(hostId, juggernautPlayerId, juggernautKills, pointsData,
             roundId, revision);
     }

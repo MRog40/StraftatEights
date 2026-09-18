@@ -320,6 +320,14 @@ TeamPoint noContextSpawn = SafeSpawnRules.SelectBest(teammateSpawnCandidates,
     Array.Empty<TeamPoint>(), null, out _);
 Assert(noContextSpawn.X == 5f,
     "Spawn selection without threats, teammates, or an objective must be deterministic.");
+TeamPoint randomizedSpawn = SafeSpawnRules.SelectRandomized(teammateSpawnCandidates,
+    Array.Empty<TeamPoint>(), null, Array.Empty<TeamPoint>(), 1, out _);
+Assert(randomizedSpawn.X == 25f,
+    "Randomized spawn selection must use the host-selected candidate index.");
+TeamPoint freshRandomizedSpawn = SafeSpawnRules.SelectRandomized(teammateSpawnCandidates,
+    Array.Empty<TeamPoint>(), null, new[] { new TeamPoint(5f, 0f, 0f) }, 0, out _);
+Assert(freshRandomizedSpawn.X == 25f,
+    "Randomized spawn selection must avoid a recent point when a safe alternative exists.");
 List<SpawnCandidate> visibleSpawnCandidates = new()
 {
     new SpawnCandidate(new TeamPoint(5f, 0f, 0f),

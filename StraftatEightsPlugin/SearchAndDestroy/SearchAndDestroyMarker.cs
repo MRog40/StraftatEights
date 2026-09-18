@@ -195,17 +195,18 @@ internal static class SearchAndDestroyMarker
     {
         if (_bomb != null && _bomb)
         {
-            _bomb.GetComponent<AudioSource>()?.PlayOneShot(GetBombExplosionClip(), 4f);
+            _bomb.GetComponent<AudioSource>()?.PlayOneShot(GetBombExplosionClip(), 20f);
         }
 
         GameObject burstObject = new("SearchAndDestroyBombExplosion");
         burstObject.transform.position = position;
+        burstObject.transform.localScale = Vector3.one * 5f;
         ParticleSystem particles = burstObject.AddComponent<ParticleSystem>();
         ParticleSystem.MainModule main = particles.main;
-        main.duration = 0.8f;
+        main.duration = 1.6f;
         main.loop = false;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, 0.9f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(15f, 45f);
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.7f, 1.8f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(7.5f, 22.5f);
         main.startSize = new ParticleSystem.MinMaxCurve(0.8f, 2.2f);
         main.startColor = new Color(1f, 0.32f, 0.06f, 1f);
         main.simulationSpace = ParticleSystemSimulationSpace.World;
@@ -232,11 +233,11 @@ internal static class SearchAndDestroyMarker
         Light light = lightObject.AddComponent<Light>();
         light.type = LightType.Point;
         light.color = new Color(1f, 0.24f, 0.04f);
-        light.range = 80f;
-        light.intensity = 5f;
+        light.range = 400f;
+        light.intensity = 25f;
         particles.Play();
-        Object.Destroy(burstObject, 2f);
-        Object.Destroy(lightObject, 0.2f);
+        Object.Destroy(burstObject, 4f);
+        Object.Destroy(lightObject, 0.6f);
     }
 
     private static AudioClip GetBombBeepClip()

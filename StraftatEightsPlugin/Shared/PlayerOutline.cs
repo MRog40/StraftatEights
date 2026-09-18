@@ -351,7 +351,7 @@ internal static class PlayerOutline
 
     internal static void Apply(PlayerHealth player, Color color)
     {
-        if (player == null)
+        if (player == null || player.IsOwner)
         {
             return;
         }

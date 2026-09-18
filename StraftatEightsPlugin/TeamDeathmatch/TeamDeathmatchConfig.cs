@@ -48,8 +48,7 @@ public partial class Plugin
     public void SyncTeamDeathmatchLiveState(CSteamID hostId, string assignmentsData,
         int teamCount, string scoresData, int roundId, int revision, RPCInfo info)
     {
-        if (!NetworkAuthority.IsHostSender(info)
-            || !GameModeManager.IsActive(GameMode.TeamDeathmatch))
+        if (!NetworkAuthority.IsHostSender(info))
         {
             return;
         }

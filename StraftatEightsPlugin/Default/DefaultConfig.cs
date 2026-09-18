@@ -34,10 +34,6 @@ public partial class Plugin
         {
             return;
         }
-        if (!GameModeManager.IsActive(GameMode.Default))
-        {
-            return;
-        }
         DefaultGameModeState.ApplyLiveState(hostId, scoresData, aliveData,
             takeId, winnerId, roundId, revision);
     }

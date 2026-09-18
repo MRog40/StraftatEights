@@ -533,7 +533,9 @@ internal static class SearchAndDestroyState
 
         if (BombStatus == SearchAndDestroyBombStatus.Planted
             && IsDefensePlayer(playerId)
-            && IsNearPlayer(playerId, BombPosition))
+            && DefuserPlayerId < 0
+            && IsNearPlayer(playerId, BombPosition)
+            && IsLocalPlayerLookingAtBomb())
         {
             return "Hold P to defuse";
         }
@@ -1111,7 +1113,9 @@ internal static class SearchAndDestroyState
 
         return BombStatus == SearchAndDestroyBombStatus.Planted
             && IsDefensePlayer(playerId)
-            && IsNearPlayer(playerId, BombPosition);
+            && DefuserPlayerId < 0
+            && IsNearPlayer(playerId, BombPosition)
+            && IsLocalPlayerLookingAtBomb();
     }
 
     private static int FindNearbySite(int playerId)

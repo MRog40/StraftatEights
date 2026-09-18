@@ -52,10 +52,6 @@ public partial class Plugin
         {
             return;
         }
-        if (!GameModeManager.IsActive(GameMode.MichaelMeyers))
-        {
-            return;
-        }
         MichaelMeyersState.ApplyLiveState(hostId, michaelPlayerId, survivorCount, oneVsOne, roundId, revision);
     }
 

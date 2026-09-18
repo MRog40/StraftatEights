@@ -61,6 +61,52 @@ internal static class SafeSpawnRules
         return candidates[selectedIndex].Position;
     }
 
+    internal static TeamPoint SelectRandomized(IReadOnlyList<SpawnCandidate> candidates,
+        IReadOnlyList<TeamPoint> teammates, TeamPoint? objective,
+        IReadOnlyList<TeamPoint> recentPositions, int randomIndex, out float selectedScore)
+    {
+        if (candidates.Count == 0)
+        {
+            throw new ArgumentException("At least one spawn candidate is required.", nameof(candidates));
+        }
+
+        float[] scores = new float[candidates.Count];
+        float bestScore = float.MinValue;
+        for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
+        {
+            float score = Score(candidates[candidateIndex], teammates, objective);
+            scores[candidateIndex] = score;
+            if (score > bestScore)
+            {
+                bestScore = score;
+            }
+        }
+
+        List<int> eligibleIndexes = new();
+        List<int> freshIndexes = new();
+        float minimumScore = bestScore * 0.75f;
+        for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
+        {
+            if (scores[candidateIndex] < minimumScore)
+            {
+                continue;
+            }
+
+            eligibleIndexes.Add(candidateIndex);
+            if (!WasRecentlyUsed(candidates[candidateIndex].Position, recentPositions))
+            {
+                freshIndexes.Add(candidateIndex);
+            }
+        }
+
+        IReadOnlyList<int> selectionPool = freshIndexes.Count > 0
+            ? freshIndexes
+            : eligibleIndexes;
+        int selectedIndex = selectionPool[GetRandomIndex(randomIndex, selectionPool.Count)];
+        selectedScore = scores[selectedIndex];
+        return candidates[selectedIndex].Position;
+    }
+
     internal static float Score(SpawnCandidate candidate,
         IReadOnlyList<TeamPoint> teammates, TeamPoint? objective)
     {
@@ -76,6 +122,26 @@ internal static class SafeSpawnRules
             + cover * CoverWeight
             + teammateProximity * TeammateWeight
             + objectiveProximity * ObjectiveWeight;
+    }
+
+    private static bool WasRecentlyUsed(TeamPoint candidate,
+        IReadOnlyList<TeamPoint> recentPositions)
+    {
+        foreach (TeamPoint recentPosition in recentPositions)
+        {
+            if (candidate.HorizontalDistanceSquared(recentPosition) <= 0.01f)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static int GetRandomIndex(int randomIndex, int count)
+    {
+        int normalizedIndex = randomIndex % count;
+        return normalizedIndex < 0 ? normalizedIndex + count : normalizedIndex;
     }
 
     private static float GetEnemySafety(TeamPoint candidate,

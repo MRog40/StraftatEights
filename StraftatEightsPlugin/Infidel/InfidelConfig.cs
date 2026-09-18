@@ -52,10 +52,6 @@ public partial class Plugin
         {
             return;
         }
-        if (!GameModeManager.IsActive(GameMode.Infidel))
-        {
-            return;
-        }
         InfidelState.ApplyLiveState(hostId, scoresData, winnerId, takeId,
             weaponsUnlocked, roundId, revision);
     }

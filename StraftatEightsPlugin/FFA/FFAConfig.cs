@@ -49,10 +49,6 @@ public partial class Plugin
         {
             return;
         }
-        if (!GameModeManager.IsActive(GameMode.FreeForAll))
-        {
-            return;
-        }
         FFAState.ApplyLiveState(hostId, killsData, winnerId, roundId, revision);
     }
 

@@ -52,10 +52,6 @@ public partial class Plugin
         {
             return;
         }
-        if (!GameModeManager.IsActive(GameMode.HotPotato))
-        {
-            return;
-        }
         HotPotatoState.ApplyLiveState(hostId, killsData, potatoPlayerId, winnerId, roundId, revision);
     }
 

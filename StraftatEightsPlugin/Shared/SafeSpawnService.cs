@@ -7,11 +7,18 @@ namespace StraftatEightsPlugin;
 internal static class SafeSpawnService
 {
     private const float EyeHeight = 1.4f;
+    private const int RecentSpawnHistoryLength = 4;
     private const int DroppedWeaponLayer = 7;
     private const int SuppressionLayer = 17;
     private static readonly int LineOfSightMask = Physics.DefaultRaycastLayers
         & ~(1 << DroppedWeaponLayer)
         & ~(1 << SuppressionLayer);
+    private static readonly Dictionary<int, List<TeamPoint>> RecentSpawnPositions = new();
+
+    internal static void Reset()
+    {
+        RecentSpawnPositions.Clear();
+    }
 
     internal static bool TryChoose(int playerId, IReadOnlyList<Vector3> candidatePositions,
         out Vector3 position)
@@ -84,6 +91,7 @@ internal static class SafeSpawnService
             {
                 TeamPoint fallback = TeamRules.SelectFarthestFromOrigins(candidates, origins);
                 position = new Vector3(fallback.X, fallback.Y, fallback.Z);
+                RememberSpawn(playerId, fallback);
                 return true;
             }
         }
@@ -101,10 +109,28 @@ internal static class SafeSpawnService
             scoredCandidates.Add(new SpawnCandidate(candidate, threats));
         }
 
-        TeamPoint selected = SafeSpawnRules.SelectBest(scoredCandidates, teammates,
-            objective, out _);
+        RecentSpawnPositions.TryGetValue(playerId, out List<TeamPoint>? recentPositions);
+        TeamPoint selected = SafeSpawnRules.SelectRandomized(scoredCandidates, teammates,
+            objective, recentPositions ?? new List<TeamPoint>(),
+            UnityEngine.Random.Range(0, int.MaxValue), out _);
         position = new Vector3(selected.X, selected.Y, selected.Z);
+        RememberSpawn(playerId, selected);
         return true;
+    }
+
+    private static void RememberSpawn(int playerId, TeamPoint position)
+    {
+        if (!RecentSpawnPositions.TryGetValue(playerId, out List<TeamPoint>? recentPositions))
+        {
+            recentPositions = new List<TeamPoint>(RecentSpawnHistoryLength);
+            RecentSpawnPositions[playerId] = recentPositions;
+        }
+
+        recentPositions.Add(position);
+        if (recentPositions.Count > RecentSpawnHistoryLength)
+        {
+            recentPositions.RemoveAt(0);
+        }
     }
 
     private static bool HasLineOfSight(Vector3 candidate, PlayerHealth enemy)

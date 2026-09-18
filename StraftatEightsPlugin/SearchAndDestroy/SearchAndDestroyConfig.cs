@@ -49,8 +49,7 @@ public partial class Plugin
         int teamCount, string scoresData, string stateData, int takeId, int winnerId,
         int roundId, int revision, RPCInfo info)
     {
-        if (!NetworkAuthority.IsHostSender(info)
-            || !GameModeManager.IsActive(GameMode.SearchAndDestroy))
+        if (!NetworkAuthority.IsHostSender(info))
         {
             return;
         }

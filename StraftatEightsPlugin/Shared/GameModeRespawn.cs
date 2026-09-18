@@ -38,6 +38,7 @@ internal static class GameModeRespawn
         InitialTeamSpawnsApplied.Clear();
         PendingRespawnCosmetics.Clear();
         _initialControlsReleaseRoundId = -1;
+        SafeSpawnService.Reset();
         ClearMapCenterCache();
     }
 
@@ -48,6 +49,7 @@ internal static class GameModeRespawn
         InitialTeamSpawnsApplied.Clear();
         PendingRespawnCosmetics.Clear();
         _initialControlsReleaseRoundId = -1;
+        SafeSpawnService.Reset();
         ClearMapCenterCache();
     }
 

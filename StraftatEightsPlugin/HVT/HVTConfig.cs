@@ -52,10 +52,6 @@ public partial class Plugin
         {
             return;
         }
-        if (!GameModeManager.IsActive(GameMode.HVT))
-        {
-            return;
-        }
         HVTState.ApplyLiveState(hostId, hvtPlayerId, pointsData, winnerId, roundId, revision);
     }
 
