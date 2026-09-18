@@ -146,25 +146,38 @@ Assert(teamDeathmatchAssignments.Values.Distinct().Count() == 2
     && !teamDeathmatchAssignments.Values.Contains(2),
     "Team Deathmatch must use a balanced two-team assignment for six players.");
 Assert(TeamRules.GetHardpointTeamCount(4) == 2
-    && TeamRules.GetHardpointTeamCount(5) == 3
-    && TeamRules.GetHardpointTeamCount(7) == 3,
-    "Hardpoint team count must use three teams for five and seven players.");
-Dictionary<int, int> hardpointFiveAssignments =
-    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5 });
-Dictionary<int, int> hardpointSevenAssignments =
-    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5, 6, 7 });
-Assert(hardpointFiveAssignments.Values.Count(teamId => teamId == 0) == 2
-    && hardpointFiveAssignments.Values.Count(teamId => teamId == 1) == 2
-    && hardpointFiveAssignments.Values.Count(teamId => teamId == 2) == 1,
-    "Hardpoint five-player assignment must be 2v2v1.");
-Assert(hardpointSevenAssignments.Values.Count(teamId => teamId == 0) == 3
-    && hardpointSevenAssignments.Values.Count(teamId => teamId == 1) == 2
-    && hardpointSevenAssignments.Values.Count(teamId => teamId == 2) == 2,
-    "Hardpoint seven-player assignment must be 3v2v2.");
-Assert(Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointFiveAssignments, 3) - 2f) < 0.001f
-    && Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointSevenAssignments, 2) - 1.5f) < 0.001f
-    && Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointSevenAssignments, 1) - 1f) < 0.001f,
-    "Uneven teams must receive health compensation based on player counts.");
+    && TeamRules.GetHardpointTeamCount(6) == 2
+    && TeamRules.GetHardpointTeamCount(8) == 2
+    && TeamRules.GetHardpointTeamCount(9) == 3
+    && TeamRules.GetHardpointTeamCount(10) == 3,
+    "Hardpoint must use two teams through eight players and three teams from nine players.");
+Dictionary<int, int> hardpointSixAssignments =
+    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5, 6 });
+Dictionary<int, int> hardpointEightAssignments =
+    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5, 6, 7, 8 });
+Dictionary<int, int> hardpointNineAssignments =
+    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+Dictionary<int, int> hardpointTenAssignments =
+    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+Assert(hardpointSixAssignments.Values.Count(teamId => teamId == 0) == 3
+    && hardpointSixAssignments.Values.Count(teamId => teamId == 1) == 3
+    && !hardpointSixAssignments.Values.Contains(2)
+    && hardpointEightAssignments.Values.Count(teamId => teamId == 0) == 4
+    && hardpointEightAssignments.Values.Count(teamId => teamId == 1) == 4
+    && !hardpointEightAssignments.Values.Contains(2),
+    "Hardpoint six- and eight-player assignments must use balanced two-team matches.");
+Assert(hardpointNineAssignments.Values.Count(teamId => teamId == 0) == 3
+    && hardpointNineAssignments.Values.Count(teamId => teamId == 1) == 3
+    && hardpointNineAssignments.Values.Count(teamId => teamId == 2) == 3
+    && hardpointTenAssignments.Values.Count(teamId => teamId == 0) == 4
+    && hardpointTenAssignments.Values.Count(teamId => teamId == 1) == 3
+    && hardpointTenAssignments.Values.Count(teamId => teamId == 2) == 3,
+    "Hardpoint nine- and ten-player assignments must use balanced three-team matches.");
+Assert(Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointEightAssignments, 2) - 1f) < 0.001f
+    && Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointEightAssignments, 1) - 1f) < 0.001f
+    && Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointTenAssignments, 2) - 1.3333333f) < 0.001f
+    && Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointTenAssignments, 1) - 1f) < 0.001f,
+    "Uneven Hardpoint teams must receive health compensation based on player counts.");
 Dictionary<int, int> unevenTwoTeams = new() { [1] = 0, [2] = 0, [3] = 1 };
 Assert(Math.Abs(TeamRules.GetTeamHealthMultiplier(unevenTwoTeams, 3) - 2f) < 0.001f,
     "A one-player team must receive 100 percent extra health.");

@@ -8,13 +8,39 @@ namespace StraftatEightsPlugin;
 
 internal static class ModeMapCatalog
 {
-    private static readonly IReadOnlyList<string> FreeForAllMaps =
-        new[] { "Chateaux_06_NoGrass", "Basket_Swirly", "Basket_Swirly_Alt", "Republic_08" };
+    private static readonly IReadOnlyList<string> TeamObjectiveMaps =
+        new[]
+        {
+            MapDefinitions.Barren01AltName,
+            MapDefinitions.DragonflyNeighbourhoodName,
+            MapDefinitions.Bazaar03Name,
+            MapDefinitions.Drain01Name,
+            MapDefinitions.TheSamePlace11Name,
+            MapDefinitions.Bazaar02Name,
+            MapDefinitions.TheSamePlace14Name,
+            MapDefinitions.DragonflyVestigeName,
+            MapDefinitions.TheSamePlace04AltName,
+            MapDefinitions.Corridor11Name,
+            MapDefinitions.Garden02Name,
+            MapDefinitions.Chateaux06NoGrassName,
+            MapDefinitions.BasketSwirlyName,
+            MapDefinitions.BasketSwirlyAltName,
+            MapDefinitions.Republic08Name
+        };
+    private static readonly IReadOnlyList<string> FreeForAllMaps = TeamObjectiveMaps;
     private static readonly IReadOnlyList<string> JuggernautMaps =
         new[] { "Arena_11_Alt", "Arena_10", "Arena_10_Alt", "Basket_Junglegym" };
     private static readonly IReadOnlyList<string> GunGameMaps = FreeForAllMaps;
     private static readonly IReadOnlyList<string> SniperBattleMaps =
-        new[] { "Adobe_02", "Arena_Shadow_08", "Garden_01", "Chateaux_01" };
+        new[]
+        {
+            MapDefinitions.Adobe02Name,
+            MapDefinitions.Adobe02AltName,
+            MapDefinitions.ArenaShadow08Name,
+            MapDefinitions.Garden01Name,
+            MapDefinitions.Garden01AltName,
+            MapDefinitions.Chateaux01Name
+        };
     private static readonly IReadOnlyList<string> MichaelMeyersMaps =
         new[]
         {
@@ -44,10 +70,10 @@ internal static class ModeMapCatalog
             [GameMode.Infidel] = InfidelMaps,
             [GameMode.HVT] = Barren01AltOnly,
             [GameMode.Assassin] = Barren01AltOnly,
-            [GameMode.Hardpoint] = Barren01AltOnly,
-            [GameMode.CaptureTheFlag] = Barren01AltOnly,
-            [GameMode.SearchAndDestroy] = Barren01AltOnly,
-            [GameMode.TeamDeathmatch] = Barren01AltOnly
+            [GameMode.Hardpoint] = TeamObjectiveMaps,
+            [GameMode.CaptureTheFlag] = TeamObjectiveMaps,
+            [GameMode.SearchAndDestroy] = TeamObjectiveMaps,
+            [GameMode.TeamDeathmatch] = TeamObjectiveMaps
         };
 
     internal static IReadOnlyList<string> GetMapNames(GameMode mode)
@@ -57,7 +83,7 @@ internal static class ModeMapCatalog
 
     internal static IReadOnlyList<string> GetMapNames(GameMode mode, bool mapOverridesEnabled)
     {
-        if (!mapOverridesEnabled)
+        if (!mapOverridesEnabled && !RequiresMapOverride(mode))
         {
             IReadOnlyList<string> mapNames = GetNormalLobbyMapNames();
             return RequiresMapDefinition(mode)
@@ -66,6 +92,12 @@ internal static class ModeMapCatalog
         }
 
         return GetOverrideMapNames(mode);
+    }
+
+    internal static bool RequiresMapOverride(GameMode mode)
+    {
+        return mode == GameMode.CaptureTheFlag || mode == GameMode.Hardpoint
+            || mode == GameMode.SearchAndDestroy;
     }
 
     private static IReadOnlyList<string> GetOverrideMapNames(GameMode mode)
@@ -145,7 +177,7 @@ internal static class ModeMapCatalog
     private static bool RequiresMapDefinition(GameMode mode)
     {
         return mode == GameMode.Hardpoint || mode == GameMode.CaptureTheFlag
-            || mode == GameMode.SearchAndDestroy || mode == GameMode.TeamDeathmatch;
+            || mode == GameMode.SearchAndDestroy;
     }
 
     private static bool HasRequiredDefinition(GameMode mode, string mapName)
@@ -161,8 +193,6 @@ internal static class ModeMapCatalog
             GameMode.Hardpoint => definition.HardpointObjectives.Count > 0,
             GameMode.CaptureTheFlag => definition.CaptureTheFlagObjectives.Count == 2,
             GameMode.SearchAndDestroy => definition.SndObjectives.Count == 2,
-            GameMode.TeamDeathmatch => definition.SpawnPoints.Count > 0
-                && definition.TeamOrigins.Count >= 2,
             _ => true
         };
     }
@@ -234,7 +264,7 @@ internal static class ModeMapCatalog
                 return false;
             }
 
-            return mapOverridesEnabled
+            return mapOverridesEnabled || RequiresMapOverride(mode)
                 ? GetOverrideMapNames(mode).Contains(mapName, StringComparer.Ordinal)
                 : !RequiresMapDefinition(mode) || HasRequiredDefinition(mode, mapName);
         }

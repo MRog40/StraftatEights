@@ -512,11 +512,6 @@ internal static class GameModeManager
         }
         _customRoundTransitionPending = false;
 
-        if (!EffectiveMapOverrides)
-        {
-            return false;
-        }
-
         if (!TrySelectNextPlaylistEntry(out MapPlaylistEntry<GameMode> entry))
         {
             GameMode nextMode = NextEnabledMode(ActiveMode);
@@ -572,16 +567,6 @@ internal static class GameModeManager
         if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
             || (ActiveMode != GameMode.None && Phase != GameModePhase.Lobby && !IsMatchOver))
         {
-            return;
-        }
-
-        if (!EffectiveMapOverrides)
-        {
-            if (!string.IsNullOrEmpty(_pendingNormalMapName))
-            {
-                SelectModeForNormalMap(_pendingNormalMapName);
-                _pendingNormalMapName = string.Empty;
-            }
             return;
         }
 
@@ -676,7 +661,8 @@ internal static class GameModeManager
     internal static bool UsesTeamWeaponLoadouts => IsTeamBased;
     internal static bool ShouldHideCustomHud => !IsVanillaScene && HasCapability(GameModeCapabilities.HideHud);
     internal static bool ShouldClearPlayerOutlines => !IsVanillaScene && HasCapability(GameModeCapabilities.ClearOutlines);
-    internal static bool IsVanillaScene => SceneManager.GetActiveScene().name == "TrainingRange_00"
+    internal static bool IsVanillaScene => SceneMotor.Instance != null && SceneMotor.Instance.testMap
+        || SceneManager.GetActiveScene().name == "TrainingRange_00"
         || SceneManager.GetActiveScene().name == "TutorialScene";
     internal static bool IsMatchOver => (PauseManager.Instance != null && PauseManager.Instance.inVictoryMenu)
         || SceneManager.GetActiveScene().name == "VictoryScene"
@@ -846,7 +832,7 @@ internal static class GameModeManager
     internal static bool TryPrepareInitialMap(out string mapName)
     {
         mapName = string.Empty;
-        if (IsVanillaScene || !EffectiveMapOverrides || !MyceliumNetwork.IsHost
+        if (IsVanillaScene || !MyceliumNetwork.IsHost
             || !MyceliumNetwork.InLobby)
         {
             return false;
@@ -882,7 +868,8 @@ internal static class GameModeManager
         }
 
         _mapPlaylistRandom = new System.Random(UnityEngine.Random.Range(0, int.MaxValue));
-        _mapPlaylist = MapPlaylist.Build(GetConfiguredModes(), ModeMapCatalog.GetMapNames,
+        _mapPlaylist = MapPlaylist.Build(GetConfiguredModes(),
+            mode => ModeMapCatalog.GetMapNames(mode, EffectiveMapOverrides),
             _mapPlaylistRandom);
         _mapPlaylistIndex = -1;
         LastMapByMode.Clear();
@@ -962,12 +949,13 @@ internal static class GameModeManager
         string mapName = entry.MapName;
         if (_mapPlaylistIndex >= 0 && LastMapByMode.TryGetValue(entry.Mode, out string? previousMap))
         {
-            mapName = MapPlaylist.SelectNextMap(ModeMapCatalog.GetMapNames(entry.Mode), previousMap,
+            mapName = MapPlaylist.SelectNextMap(
+                ModeMapCatalog.GetMapNames(entry.Mode, EffectiveMapOverrides), previousMap,
                 _mapPlaylistRandom);
         }
 
         if (string.IsNullOrEmpty(mapName)
-            || !ModeMapCatalog.IsSupported(entry.Mode, mapName))
+            || !ModeMapCatalog.IsSupported(entry.Mode, mapName, EffectiveMapOverrides))
         {
             entry = default;
             return false;
@@ -985,9 +973,9 @@ internal static class GameModeManager
     private static void SetDefaultMapForMode(GameMode mode)
     {
         SelectedMapName = string.Empty;
-        foreach (string mapName in ModeMapCatalog.GetMapNames(mode))
+        foreach (string mapName in ModeMapCatalog.GetMapNames(mode, EffectiveMapOverrides))
         {
-            if (ModeMapCatalog.IsSupported(mode, mapName))
+            if (ModeMapCatalog.IsSupported(mode, mapName, EffectiveMapOverrides))
             {
                 SelectedMapName = mapName;
                 break;
@@ -999,7 +987,6 @@ internal static class GameModeManager
     {
         if (!MyceliumNetwork.IsHost || SceneMotor.Instance == null
             || string.IsNullOrEmpty(SelectedMapName)
-            || !EffectiveMapOverrides
             || !ModeMapCatalog.IsSupported(ActiveMode, SelectedMapName, EffectiveMapOverrides)
             || InstanceFinder.SceneManager == null)
         {

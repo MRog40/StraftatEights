@@ -13,7 +13,7 @@ public partial class Plugin
     {
         const string section = "Game Mode Settings";
         CaptureTheFlagEnabled = Config.Bind(section, "Capture The Flag Enabled", false,
-            "Host-controlled: teams capture the enemy flag and return it to their base. Map Overrides Reccomended.");
+            "Host-controlled: teams capture the enemy flag and return it to their base. Uses the authored objective map automatically.");
         CaptureTheFlagEnabled.SettingChanged += (_, _) =>
         {
             CaptureTheFlagState.PushSettingsIfHost();

@@ -128,7 +128,7 @@ internal static class TeamRules
             return 0;
         }
 
-        return playerCount == 3 || playerCount >= 5 ? 3 : 2;
+        return playerCount >= 9 ? 3 : 2;
     }
 
     internal static float GetTeamHealthMultiplier(IReadOnlyDictionary<int, int> assignments,

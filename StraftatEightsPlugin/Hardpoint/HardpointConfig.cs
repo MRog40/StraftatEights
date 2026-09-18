@@ -14,7 +14,7 @@ public partial class Plugin
     {
         const string section = "Game Mode Settings";
         HardpointEnabled = Config.Bind(section, "Hardpoint Enabled", false,
-            "Host-controlled: teams fight for rotating hardpoints with one point per uncontested second.");
+            "Host-controlled: teams fight for rotating hardpoints with one point per uncontested second. Uses the authored objective map automatically.");
 
         HardpointEnabled.SettingChanged += (_, _) =>
         {

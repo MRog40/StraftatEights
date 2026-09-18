@@ -632,9 +632,10 @@ internal static class GameModeRespawn
         out Vector3 position)
     {
         position = default;
-        if (!GameModeManager.IsTeamBased
-            || GameModeManager.IsActive(GameMode.CaptureTheFlag)
-            || GameModeManager.IsActive(GameMode.SearchAndDestroy)
+        bool usesBackWallInitialSpawn = GameModeManager.IsActive(GameMode.TeamDeathmatch)
+            || GameModeManager.IsActive(GameMode.Hardpoint)
+            || GameModeManager.IsActive(GameMode.CaptureTheFlag);
+        if (!usesBackWallInitialSpawn
             || GameManager.Instance == null
             || !GameManager.Instance.IsServer)
         {

@@ -248,13 +248,46 @@ internal static class TeamAssignment
         return false;
     }
 
+    internal static bool TryGetTeamOrigin(MapDefinition definition, int teamId,
+        out Vector3 origin)
+    {
+        origin = default;
+        if (teamId < 0)
+        {
+            return false;
+        }
+
+        if (teamId < definition.TeamOrigins.Count)
+        {
+            origin = definition.TeamOrigins[teamId];
+            return true;
+        }
+
+        if (teamId != 2 || definition.TeamOrigins.Count != 2
+            || definition.SpawnPoints.Count == 0)
+        {
+            return false;
+        }
+
+        List<TeamPoint> candidates = definition.SpawnPoints
+            .Select(ToTeamPoint)
+            .ToList();
+        List<TeamPoint> authoredOrigins = definition.TeamOrigins
+            .Select(ToTeamPoint)
+            .ToList();
+        TeamPoint selected = TeamRules.SelectFarthestFromOrigins(candidates,
+            authoredOrigins);
+        origin = new Vector3(selected.X, selected.Y, selected.Z);
+        return true;
+    }
+
     internal static bool TryGetInitialSpawnPosition(int playerId, out Vector3 position)
     {
         position = default;
         if (!TryGetTeamId(playerId, out int teamId)
             || !InitialSpawnEligiblePlayers.Contains(playerId)
             || !GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition)
-            || teamId < 0 || teamId >= 2 || teamId >= definition.TeamOrigins.Count)
+            || !TryGetTeamOrigin(definition, teamId, out Vector3 teamOrigin))
         {
             return false;
         }
@@ -275,16 +308,83 @@ internal static class TeamAssignment
             return false;
         }
 
-        Vector3[] cardinalOffsets =
+        List<Vector3> candidates = GetInitialSpawnCandidates(definition, teamId);
+        if (candidates.Count == 0)
         {
-            Vector3.forward * 0.5f,
-            Vector3.right * 0.5f,
-            Vector3.back * 0.5f,
-            Vector3.left * 0.5f
-        };
-        position = definition.TeamOrigins[teamId]
-            + cardinalOffsets[playerIndex % cardinalOffsets.Length];
+            return false;
+        }
+
+        position = candidates[playerIndex % candidates.Count];
         return true;
+    }
+
+    private static List<Vector3> GetInitialSpawnCandidates(MapDefinition definition, int teamId)
+    {
+        int activeTeamCount = TeamCount < 2 ? 2 : TeamCount;
+        List<Vector3> teamOrigins = new(activeTeamCount);
+        for (int originTeamId = 0; originTeamId < activeTeamCount; originTeamId++)
+        {
+            if (!TryGetTeamOrigin(definition, originTeamId, out Vector3 teamOrigin))
+            {
+                return new List<Vector3>();
+            }
+
+            teamOrigins.Add(teamOrigin);
+        }
+
+        if (teamId < 0 || teamId >= teamOrigins.Count)
+        {
+            return new List<Vector3>();
+        }
+
+        Vector3 ownOrigin = teamOrigins[teamId];
+        List<Vector3> candidates = new();
+        foreach (Vector3 candidate in definition.SpawnPoints)
+        {
+            if (HorizontalDistanceSquared(candidate, ownOrigin) <= 0.01f)
+            {
+                continue;
+            }
+
+            bool isClosestToOwnOrigin = true;
+            for (int otherTeamId = 0; otherTeamId < teamOrigins.Count; otherTeamId++)
+            {
+                if (otherTeamId == teamId)
+                {
+                    continue;
+                }
+
+                float ownDistance = HorizontalDistanceSquared(candidate, ownOrigin);
+                float otherDistance = HorizontalDistanceSquared(candidate,
+                    teamOrigins[otherTeamId]);
+                if (otherDistance < ownDistance
+                    || (Mathf.Approximately(otherDistance, ownDistance)
+                        && otherTeamId < teamId))
+                {
+                    isClosestToOwnOrigin = false;
+                    break;
+                }
+            }
+
+            if (isClosestToOwnOrigin)
+            {
+                candidates.Add(candidate);
+            }
+        }
+
+        candidates.Sort((first, second) =>
+        {
+            int comparison = HorizontalDistanceSquared(second, ownOrigin)
+                .CompareTo(HorizontalDistanceSquared(first, ownOrigin));
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+
+            return GetNearestOtherOriginDistanceSquared(second, teamOrigins, teamId)
+                .CompareTo(GetNearestOtherOriginDistanceSquared(first, teamOrigins, teamId));
+        });
+        return candidates;
     }
 
     internal static bool TryGetSpawnCandidates(int playerId, out List<Vector3> candidates)
@@ -313,26 +413,58 @@ internal static class TeamAssignment
                 .ToList();
         }
 
-        if (teamId < 2 && teamId < definition.TeamOrigins.Count)
+        int activeTeamCount = TeamCount < 2 ? 2 : TeamCount;
+        List<Vector3> teamOrigins = new(activeTeamCount);
+        for (int originTeamId = 0; originTeamId < activeTeamCount; originTeamId++)
         {
-            Vector3 origin = definition.TeamOrigins[teamId];
-            List<Vector3> available = new(definition.SpawnPoints);
-            List<Vector3> teamCandidates = new() { origin };
-            Vector3 otherOrigin = definition.TeamOrigins[teamId == 0 ? 1 : 0];
-            foreach (Vector3 candidate in available)
+            if (!TryGetTeamOrigin(definition, originTeamId, out Vector3 candidateOrigin))
             {
-                if (HorizontalDistanceSquared(candidate, origin)
-                    <= HorizontalDistanceSquared(candidate, otherOrigin)
-                    && HorizontalDistanceSquared(candidate, origin) > 0.01f)
+                return new List<Vector3>(definition.SpawnPoints);
+            }
+            teamOrigins.Add(candidateOrigin);
+        }
+
+        if (teamId < 0 || teamId >= teamOrigins.Count)
+        {
+            return new List<Vector3>(definition.SpawnPoints);
+        }
+
+        Vector3 teamOrigin = teamOrigins[teamId];
+        List<Vector3> teamCandidates = new() { teamOrigin };
+        foreach (Vector3 candidate in definition.SpawnPoints)
+        {
+            float candidateDistance = HorizontalDistanceSquared(candidate, teamOrigin);
+            if (candidateDistance <= 0.01f)
+            {
+                continue;
+            }
+
+            bool isClosestOrigin = true;
+            for (int otherTeamId = 0; otherTeamId < teamOrigins.Count; otherTeamId++)
+            {
+                if (otherTeamId == teamId)
                 {
-                    teamCandidates.Add(candidate);
+                    continue;
+                }
+
+                float otherDistance = HorizontalDistanceSquared(candidate,
+                    teamOrigins[otherTeamId]);
+                if (otherDistance < candidateDistance
+                    || (Mathf.Approximately(otherDistance, candidateDistance)
+                        && otherTeamId < teamId))
+                {
+                    isClosestOrigin = false;
+                    break;
                 }
             }
 
-            return teamCandidates;
+            if (isClosestOrigin)
+            {
+                teamCandidates.Add(candidate);
+            }
         }
 
-        return new List<Vector3>(definition.SpawnPoints);
+        return teamCandidates;
     }
 
     private static float HorizontalDistanceSquared(Vector3 first, Vector3 second)
@@ -340,6 +472,29 @@ internal static class TeamAssignment
         float x = first.x - second.x;
         float z = first.z - second.z;
         return x * x + z * z;
+    }
+
+    private static float GetNearestOtherOriginDistanceSquared(Vector3 position,
+        IReadOnlyList<Vector3> teamOrigins, int teamId)
+    {
+        float nearestDistance = float.MaxValue;
+        for (int originTeamId = 0; originTeamId < teamOrigins.Count; originTeamId++)
+        {
+            if (originTeamId == teamId)
+            {
+                continue;
+            }
+
+            nearestDistance = Mathf.Min(nearestDistance,
+                HorizontalDistanceSquared(position, teamOrigins[originTeamId]));
+        }
+
+        return nearestDistance;
+    }
+
+    private static TeamPoint ToTeamPoint(Vector3 position)
+    {
+        return new TeamPoint(position.x, position.y, position.z);
     }
 
     private static void ApplyNativeAssignments()

@@ -13,7 +13,7 @@ public partial class Plugin
     {
         const string section = "Game Mode Settings";
         SearchAndDestroyEnabled = Config.Bind(section, "Search and Destroy Enabled", false,
-            "Host-controlled: two teams attack and defend bomb sites with one life per take. Map Overrides Reccomended.");
+            "Host-controlled: two teams attack and defend bomb sites with one life per take. Uses the authored objective map automatically.");
         SearchAndDestroyEnabled.SettingChanged += (_, _) =>
         {
             SearchAndDestroyState.PushSettingsIfHost();

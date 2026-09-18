@@ -13,7 +13,7 @@ public partial class Plugin
     {
         const string section = "Game Mode Settings";
         TeamDeathmatchEnabled = Config.Bind(section, "Team Deathmatch Enabled", false,
-            "Host-controlled: teams score ten points per kill and respawn after death. Map Overrides Reccomended.");
+            "Host-controlled: teams score ten points per kill and respawn after death.");
         TeamDeathmatchEnabled.SettingChanged += (_, _) =>
         {
             TeamDeathmatchState.PushSettingsIfHost();
