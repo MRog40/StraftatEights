@@ -12,7 +12,7 @@ public partial class Plugin
     private void InitializeHVT()
     {
         const string section = "Game Mode Settings";
-        HVTEnabled = Config.Bind(section, "HVT", false,
+        HVTEnabled = ModeConfigMigration.BindModeEnabled(Config, section, "HVT",
             "Host-controlled: the first killer becomes the HVT, who gains three points per second alive.");
 
         HVTEnabled.SettingChanged += (_, _) =>

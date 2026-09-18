@@ -12,7 +12,7 @@ public partial class Plugin
     private void InitializeAssassin()
     {
         const string section = "Game Mode Settings";
-        AssassinEnabled = Config.Bind(section, "Assassin", false,
+        AssassinEnabled = ModeConfigMigration.BindModeEnabled(Config, section, "Assassin",
             "Host-controlled: one hidden Assassin, one public King, and delayed role loadouts.");
 
         AssassinEnabled.SettingChanged += (_, _) =>

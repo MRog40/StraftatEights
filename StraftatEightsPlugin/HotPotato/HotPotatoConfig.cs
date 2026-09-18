@@ -12,7 +12,7 @@ public partial class Plugin
     private void InitializeHotPotato()
     {
         const string section = "Game Mode Settings";
-        HotPotatoEnabled = Config.Bind(section, "Hot Potato", false,
+        HotPotatoEnabled = ModeConfigMigration.BindModeEnabled(Config, section, "Hot Potato",
             "Host-controlled: one player has a renewable HandGrenade, all other players have Shotgun, and kills score points.");
 
         HotPotatoEnabled.SettingChanged += (_, _) =>

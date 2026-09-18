@@ -12,7 +12,8 @@ public partial class Plugin
     private void InitializeOneInTheChamber()
     {
         const string section = "Game Mode Settings";
-        OneInTheChamberEnabled = Config.Bind(section, "One in the Chamber", false,
+        OneInTheChamberEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
+            "One in the Chamber",
             "Host-controlled: players get one Pistol shot, a Couperet, and no respawns; the last player alive wins.");
 
         OneInTheChamberEnabled.SettingChanged += (_, _) =>

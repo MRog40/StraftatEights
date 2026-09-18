@@ -12,7 +12,8 @@ public partial class Plugin
     private void InitializeSearchAndDestroy()
     {
         const string section = "Game Mode Settings";
-        SearchAndDestroyEnabled = Config.Bind(section, "Search and Destroy", false,
+        SearchAndDestroyEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
+            "Search and Destroy",
             "Host-controlled: two teams attack and defend bomb sites with one life per take. Uses the authored objective map automatically.");
         SearchAndDestroyEnabled.SettingChanged += (_, _) =>
         {

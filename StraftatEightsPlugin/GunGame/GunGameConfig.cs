@@ -13,7 +13,7 @@ public partial class Plugin
     private void InitializeGunGame()
     {
         const string section = "Game Mode Settings";
-        GunGameEnabled = Config.Bind(section, "Gun Game", false,
+        GunGameEnabled = ModeConfigMigration.BindModeEnabled(Config, section, "Gun Game",
             "Host-controlled: players advance through the weapon list with each kill.");
         GunGameWeaponOrder = Config.Bind(section, "Gun Game Weapon Order",
             "Glock, Webley, SMG, Bukanee, Shotgun, AR15, QCW05, HK_G11, M2000, Couperet",

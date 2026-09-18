@@ -63,6 +63,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("Capture the Flag", InitializeCaptureTheFlag);
         InitializeSafely("Search and Destroy", InitializeSearchAndDestroy);
         InitializeSafely("Team Deathmatch", InitializeTeamDeathmatch);
+        Config.Save();
 
         try
         {
