@@ -483,10 +483,6 @@ internal static class DefaultGameModeState
 
     private static void Announce(string text)
     {
-        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
-        {
-            MyceliumNetwork.RPC(Plugin.DefaultGameModeModId,
-                nameof(Plugin.DefaultGameModeAnnounce), ReliableType.Reliable, text);
-        }
+        GameModeHud.BroadcastAnnouncement(text);
     }
 }

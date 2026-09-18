@@ -795,9 +795,6 @@ internal static class OneInTheChamberState
 
     private static void Announce(string text)
     {
-        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
-        {
-            MyceliumNetwork.RPC(Plugin.OneInTheChamberModId, nameof(Plugin.OneInTheChamberAnnounce), ReliableType.Reliable, text);
-        }
+        GameModeHud.BroadcastAnnouncement(text);
     }
 }

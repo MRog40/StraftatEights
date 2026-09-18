@@ -67,9 +67,6 @@ public partial class Plugin
         {
             return;
         }
-        if (MatchLogs.Instance != null)
-        {
-            MatchLogs.Instance.WriteLocalLog(ClientInstance.ReplaceAllPlayerNameTags(text));
-        }
+        GameModeHud.ReceiveAnnouncement(text, 2f, true);
     }
 }

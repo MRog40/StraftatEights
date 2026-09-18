@@ -47,6 +47,6 @@ public partial class Plugin
         {
             return;
         }
-        GameModeHud.AnnounceTarget(ClientInstance.ReplaceAllPlayerNameTags(text));
+        GameModeHud.ReceiveAnnouncement(text, 2f, true);
     }
 }

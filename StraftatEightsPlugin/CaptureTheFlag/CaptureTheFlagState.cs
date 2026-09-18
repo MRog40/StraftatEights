@@ -745,7 +745,12 @@ internal static class CaptureTheFlagState
 
     private static void AnnounceSuddenDeath()
     {
-        GameModeHud.AnnounceTarget("<color=#FFCF4A><b>SUDDEN DEATH</b></color>\n"
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        GameModeHud.BroadcastAnnouncement("<color=#FFCF4A><b>SUDDEN DEATH</b></color>\n"
             + "<i>NEXT CAP WINS</i>", 4f);
     }
 

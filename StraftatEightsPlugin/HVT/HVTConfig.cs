@@ -62,9 +62,17 @@ public partial class Plugin
         {
             return;
         }
-        if (MatchLogs.Instance != null)
+        GameModeHud.ReceiveAnnouncement(text, 2f, true);
+    }
+
+    [CustomRPC]
+    public void HVTAnnounceTarget(string text, RPCInfo info)
+    {
+        if (!NetworkAuthority.IsHostSender(info))
         {
-            MatchLogs.Instance.WriteLocalLog(ClientInstance.ReplaceAllPlayerNameTags(text));
+            return;
         }
+
+        GameModeHud.AnnounceTarget(ClientInstance.ReplaceAllPlayerNameTags(text));
     }
 }

@@ -223,9 +223,6 @@ internal static class FFAState
 
     private static void Announce(string text)
     {
-        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
-        {
-            MyceliumNetwork.RPC(Plugin.FFAModId, nameof(Plugin.FFAAnnounce), ReliableType.Reliable, text);
-        }
+        GameModeHud.BroadcastAnnouncement(text);
     }
 }

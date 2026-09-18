@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
@@ -21,6 +22,7 @@ internal static class AssassinState
     internal const int PointsForKingSurvival = AssassinRules.PointsForKingSurvival;
     internal const int PointsForBodyguardSurvival = AssassinRules.PointsForBodyguardSurvival;
     internal const int PointsForBodyguardKill = AssassinRules.PointsForBodyguardKill;
+    internal const float DefaultTakeTimeLimitSeconds = AssassinRules.DefaultTakeTimeLimitSeconds;
 
     internal static bool Enabled;
     internal static int KingPlayerId { get; private set; } = -1;
@@ -28,6 +30,7 @@ internal static class AssassinState
     internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
     internal static bool WeaponsUnlocked { get; private set; }
     internal static int WeaponDelaySeconds { get; private set; } = DefaultWeaponDelaySeconds;
+    internal static float TakeTimeRemaining => Mathf.Max(0f, _takeTimeRemaining);
     internal static float RoleAnnouncementDuration => WeaponDelaySeconds + 10f;
     internal static bool LocalIsAssassin { get; private set; }
     internal static bool LocalIsKing { get; private set; }
@@ -39,6 +42,7 @@ internal static class AssassinState
     private static readonly ModeSyncState Sync = new();
     private static float _nextLoadoutCheckTime;
     private static float _nextClientLivePollTime;
+    private static float _takeTimeRemaining;
     private static int _takeId;
     private static int _localRoleTakeId = -1;
     private static int _localRoleAnnouncedTakeId = -1;
@@ -159,7 +163,7 @@ internal static class AssassinState
         MyceliumNetwork.RPCTarget(Plugin.AssassinModId, nameof(Plugin.SyncAssassinLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, KingPlayerId, SerializeScores(),
             WinnerId, _takeId, WeaponsUnlocked, WeaponDelaySeconds,
-            GameModeManager.RoundId, Sync.LiveRevision);
+            _takeTimeRemaining, GameModeManager.RoundId, Sync.LiveRevision);
 
         if (!TakeIsActive())
         {
@@ -221,6 +225,7 @@ internal static class AssassinState
     {
         Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
+        _takeTimeRemaining = 0f;
         _takeId = 0;
         WeaponDelaySeconds = DefaultWeaponDelaySeconds;
         _localRoleTakeId = -1;
@@ -240,12 +245,15 @@ internal static class AssassinState
 
     internal static void ApplyLiveState(CSteamID hostId, int kingPlayerId, string scoresData,
         int winnerId, int takeId, bool weaponsUnlocked, int weaponDelaySeconds,
-        int roundId, int revision, string source = "rpc")
+        float takeTimeRemaining, int roundId, int revision, string source = "rpc")
     {
         int previousRoundId = Sync.LastLiveRoundId;
         if (kingPlayerId < -1 || winnerId < -1
             || weaponDelaySeconds < MinWeaponDelaySeconds
             || weaponDelaySeconds > MaxWeaponDelaySeconds
+            || takeTimeRemaining < 0f
+            || float.IsNaN(takeTimeRemaining) || float.IsInfinity(takeTimeRemaining)
+            || takeTimeRemaining > DefaultTakeTimeLimitSeconds
             || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
@@ -258,6 +266,7 @@ internal static class AssassinState
         WinnerId = winnerId;
         WeaponsUnlocked = weaponsUnlocked;
         WeaponDelaySeconds = weaponDelaySeconds;
+        _takeTimeRemaining = takeTimeRemaining;
         Scores.Clear();
         foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(scoresData, PointsToWin))
         {
@@ -275,6 +284,36 @@ internal static class AssassinState
         Scores.Clear();
         WinnerId = -1;
         StartTake();
+    }
+
+    internal static void ServerTick(float deltaTime)
+    {
+        if (!Enabled || !MyceliumNetwork.IsHost
+            || !GameModeManager.IsActive(GameMode.Assassin)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || WinnerId >= 0 || !TakeIsActive())
+        {
+            return;
+        }
+
+        _takeTimeRemaining = Mathf.Max(0f, _takeTimeRemaining - Mathf.Max(0f, deltaTime));
+        if (_takeTimeRemaining <= 0f)
+        {
+            CompleteTimeoutWin();
+        }
+    }
+
+    internal static void ClientTick(float deltaTime)
+    {
+        if (MyceliumNetwork.IsHost || !Enabled
+            || !GameModeManager.IsActive(GameMode.Assassin)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || WinnerId >= 0 || !TakeIsActive())
+        {
+            return;
+        }
+
+        _takeTimeRemaining = Mathf.Max(0f, _takeTimeRemaining - Mathf.Max(0f, deltaTime));
     }
 
     internal static void OnServerKill(int deadPlayerId, int killerId)
@@ -472,6 +511,7 @@ internal static class AssassinState
 
         _takeId++;
         _takeEnding = false;
+        _takeTimeRemaining = DefaultTakeTimeLimitSeconds;
         WeaponDelaySeconds = UnityEngine.Random.Range(MinWeaponDelaySeconds,
             MaxWeaponDelaySeconds + 1);
         WeaponsUnlocked = false;
@@ -568,6 +608,32 @@ internal static class AssassinState
         }
 
         BeginNextTake();
+    }
+
+    private static void CompleteTimeoutWin()
+    {
+        if (_takeEnding || WinnerId >= 0)
+        {
+            return;
+        }
+
+        if (KingPlayerId >= 0 && AlivePlayers.Contains(KingPlayerId))
+        {
+            AwardScore(KingPlayerId, AssassinRules.GetKingAward(true));
+        }
+
+        foreach (int playerId in AlivePlayers)
+        {
+            if (playerId != KingPlayerId && playerId != AssassinPlayerId)
+            {
+                AwardScore(playerId, AssassinRules.GetBodyguardAward(true));
+            }
+        }
+
+        GameModeHud.BroadcastTakeResult("<b>The King and bodyguards won the take</b>\n"
+            + "<i>The Assassin ran out of time</i>");
+        Announce("The Assassin did not eliminate the King in time.");
+        FinishTake();
     }
 
     private static void BeginNextTake()
@@ -761,10 +827,11 @@ internal static class AssassinState
             ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
                 GameModeManager.RoundId, revision, KingPlayerId.ToString(), SerializeScores(),
                 WinnerId.ToString(), _takeId.ToString(), WeaponsUnlocked ? "1" : "0",
-                WeaponDelaySeconds.ToString());
+                WeaponDelaySeconds.ToString(),
+                _takeTimeRemaining.ToString(CultureInfo.InvariantCulture));
             MyceliumNetwork.RPC(Plugin.AssassinModId, nameof(Plugin.SyncAssassinLiveState),
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, KingPlayerId, SerializeScores(),
-                WinnerId, _takeId, WeaponsUnlocked, WeaponDelaySeconds,
+                WinnerId, _takeId, WeaponsUnlocked, WeaponDelaySeconds, _takeTimeRemaining,
                 GameModeManager.RoundId, revision);
         }
     }
@@ -785,29 +852,27 @@ internal static class AssassinState
 
     private static void ApplyLobbyLiveSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 6, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 7, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !int.TryParse(fields[0], out int kingPlayerId)
             || !int.TryParse(fields[2], out int winnerId)
             || !int.TryParse(fields[3], out int takeId)
             || !LobbySnapshotCodec.TryParseBool(fields[4], out bool weaponsUnlocked)
-            || !int.TryParse(fields[5], out int weaponDelaySeconds))
+            || !int.TryParse(fields[5], out int weaponDelaySeconds)
+            || !float.TryParse(fields[6], NumberStyles.Float, CultureInfo.InvariantCulture,
+                out float takeTimeRemaining))
         {
             return;
         }
 
         ApplyLiveState(hostId, kingPlayerId, fields[1], winnerId, takeId,
-            weaponsUnlocked, weaponDelaySeconds, roundId, revision,
+            weaponsUnlocked, weaponDelaySeconds, takeTimeRemaining, roundId, revision,
             ModeLobbyDataSync.Source("assassin", "live"));
     }
 
     private static void Announce(string text)
     {
-        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
-        {
-            MyceliumNetwork.RPC(Plugin.AssassinModId, nameof(Plugin.AssassinAnnounce),
-                ReliableType.Reliable, text);
-        }
+        GameModeHud.BroadcastAnnouncement(text);
     }
 
     private static void AnnounceResult(string text)

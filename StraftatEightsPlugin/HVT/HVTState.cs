@@ -254,6 +254,7 @@ internal static class HVTState
         CurrentHVTPlayerId = playerId;
         _survivalAccumulator = 0f;
         Announce(announcement);
+        AnnounceTarget(playerId, "<color=#FFD700><b>You are now the HVT!</b></color>");
         BroadcastLiveState();
     }
 
@@ -325,9 +326,26 @@ internal static class HVTState
 
     private static void Announce(string text)
     {
-        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
+        GameModeHud.BroadcastAnnouncement(text);
+    }
+
+    private static void AnnounceTarget(int playerId, string text)
+    {
+        if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
         {
-            MyceliumNetwork.RPC(Plugin.HVTModId, nameof(Plugin.HVTAnnounce), ReliableType.Reliable, text);
+            return;
+        }
+
+        if (ClientInstance.Instance != null && ClientInstance.Instance.PlayerId == playerId)
+        {
+            GameModeHud.AnnounceTarget(ClientInstance.ReplaceAllPlayerNameTags(text));
+        }
+
+        if (ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client)
+            && client != null && client && client.PlayerSteamID != 0)
+        {
+            MyceliumNetwork.RPCTarget(Plugin.HVTModId, nameof(Plugin.HVTAnnounceTarget),
+                new CSteamID(client.PlayerSteamID), ReliableType.Reliable, text);
         }
     }
 }

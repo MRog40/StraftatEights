@@ -157,6 +157,8 @@ public partial class Plugin : BaseUnityPlugin
         MichaelMeyersState.ClientTick(Time.unscaledDeltaTime);
         InfidelState.ServerTick(Time.unscaledDeltaTime);
         InfidelState.ClientTick(Time.unscaledDeltaTime);
+        AssassinState.ServerTick(Time.unscaledDeltaTime);
+        AssassinState.ClientTick(Time.unscaledDeltaTime);
         SearchAndDestroyState.ServerTick(Time.unscaledDeltaTime);
         ModeTimeoutState.ServerTick(Time.unscaledDeltaTime);
         ModeTimeoutState.ClientTick(Time.unscaledDeltaTime);

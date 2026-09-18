@@ -151,6 +151,8 @@ Assert(ModeTimeoutRules.DefaultRoundSeconds == 250f
         new Dictionary<int, int> { [4] = 60, [9] = 60 }, out _)
     && !ModeTimeoutRules.TryGetUniqueLeader(new Dictionary<int, int>(), out _),
     "A timed score mode must select a unique leader and treat ties or empty scores as sudden death.");
+Assert(AssassinRules.DefaultTakeTimeLimitSeconds == 90f,
+    "Assassin takes must always use a ninety-second time limit.");
 HashSet<int> michaelAlivePlayers = new() { 2, 5, 9 };
 Assert(MichaelMeyersRules.RoundTimeLimitSeconds == 90f
     && MichaelMeyersRules.PointsForSurvivorTimeout == 25

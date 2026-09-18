@@ -324,9 +324,6 @@ internal static class SniperBattleState
 
     private static void Announce(string text)
     {
-        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
-        {
-            MyceliumNetwork.RPC(Plugin.SniperBattleModId, nameof(Plugin.SniperBattleAnnounce), ReliableType.Reliable, text);
-        }
+        GameModeHud.BroadcastAnnouncement(text);
     }
 }

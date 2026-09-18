@@ -698,9 +698,6 @@ internal static class MichaelMeyersState
 
     private static void Announce(string text)
     {
-        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
-        {
-            MyceliumNetwork.RPC(Plugin.MichaelMeyersModId, nameof(Plugin.MichaelMeyersAnnounce), ReliableType.Reliable, text);
-        }
+        GameModeHud.BroadcastAnnouncement(text);
     }
 }

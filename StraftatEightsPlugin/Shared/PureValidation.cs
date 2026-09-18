@@ -156,6 +156,7 @@ internal static class MichaelMeyersRules
 
 internal static class AssassinRules
 {
+    internal const float DefaultTakeTimeLimitSeconds = 90f;
     internal const int PointsForAssassinWin = 50;
     internal const int PointsForKingSurvival = 30;
     internal const int PointsForBodyguardSurvival = 10;

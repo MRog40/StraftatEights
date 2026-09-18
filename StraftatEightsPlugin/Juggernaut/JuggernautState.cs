@@ -478,10 +478,6 @@ internal static class JuggernautState
 
     private static void Announce(string text)
     {
-        if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
-        {
-            return;
-        }
-        MyceliumNetwork.RPC(Plugin.JuggernautModId, nameof(Plugin.JuggernautAnnounce), ReliableType.Reliable, text);
+        GameModeHud.BroadcastAnnouncement(text);
     }
 }

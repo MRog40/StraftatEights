@@ -374,8 +374,8 @@ internal static class TeamAssignment
 
         candidates.Sort((first, second) =>
         {
-            int comparison = HorizontalDistanceSquared(second, ownOrigin)
-                .CompareTo(HorizontalDistanceSquared(first, ownOrigin));
+            int comparison = HorizontalDistanceSquared(first, ownOrigin)
+                .CompareTo(HorizontalDistanceSquared(second, ownOrigin));
             if (comparison != 0)
             {
                 return comparison;
