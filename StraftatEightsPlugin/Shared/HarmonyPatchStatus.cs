@@ -24,6 +24,7 @@ internal static class HarmonyPatchStatus
         typeof(PlayerManager_RespawnProtection_Patch),
         typeof(PlayerSetup_RespawnProtection_Patch),
         typeof(PlayerSetup_LocalHudRestore_Patch),
+        typeof(PlayerManager_CustomRoundStartScreen_Patch),
         typeof(Weapon_AmmoInitialization_Patch),
         typeof(FirstPersonController_MovementPolicy_Patch),
         typeof(Weapon_UpdatePolicy_Patch)

@@ -775,3 +775,19 @@ internal static class PlayerManager_SearchAndDestroyRespawn_Patch
         return true;
     }
 }
+
+[HarmonyPatch(typeof(PlayerManager), "WaitForRoundStartCoroutineStart")]
+internal static class PlayerManager_CustomRoundStartScreen_Patch
+{
+    private static bool Prefix(PlayerManager __instance)
+    {
+        if (!GameModeManager.IsCustomMode
+            || GameModeManager.Phase != GameModePhase.ActiveRound)
+        {
+            return true;
+        }
+
+        GameModeRespawn.SetPlayerMovable(__instance.player);
+        return false;
+    }
+}
