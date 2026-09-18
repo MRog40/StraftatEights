@@ -221,12 +221,12 @@ internal static class HardpointState
 
     internal static bool EnsureTeamsAssigned()
     {
-        if (!MyceliumNetwork.IsHost || TeamAssignment.TeamCount < 2)
+        if (!MyceliumNetwork.IsHost)
         {
             return false;
         }
 
-        if (TeamAssignment.Current.Count == 0)
+        if (TeamAssignment.TeamCount < 2 || TeamAssignment.Current.Count == 0)
         {
             return TeamAssignment.AssignForRound();
         }

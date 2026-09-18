@@ -129,8 +129,12 @@ internal static class SearchAndDestroyMarker
             AudioSource audio = _bomb.AddComponent<AudioSource>();
             audio.playOnAwake = false;
             audio.loop = false;
-            audio.spatialBlend = 0f;
-            audio.volume = 0.975f;
+            audio.spatialBlend = 1f;
+            audio.rolloffMode = AudioRolloffMode.Linear;
+            audio.minDistance = 2.5f;
+            audio.maxDistance = 55f;
+            audio.dopplerLevel = 0f;
+            audio.volume = 1f;
             CreateElectricArcs(_bomb.transform);
         }
 
@@ -195,7 +199,7 @@ internal static class SearchAndDestroyMarker
     {
         if (_bomb != null && _bomb)
         {
-            _bomb.GetComponent<AudioSource>()?.PlayOneShot(GetBombExplosionClip(), 20f);
+            _bomb.GetComponent<AudioSource>()?.PlayOneShot(GetBombExplosionClip());
         }
 
         GameObject burstObject = new("SearchAndDestroyBombExplosion");
@@ -272,6 +276,12 @@ internal static class SearchAndDestroyMarker
             return _bombExplosionClip;
         }
 
+        _bombExplosionClip = FindStockExplosionClip();
+        if (_bombExplosionClip != null)
+        {
+            return _bombExplosionClip;
+        }
+
         const int sampleRate = 44100;
         const float duration = 0.8f;
         int sampleCount = Mathf.RoundToInt(sampleRate * duration);
@@ -290,6 +300,54 @@ internal static class SearchAndDestroyMarker
             1, sampleRate, false);
         _bombExplosionClip.SetData(samples, 0);
         return _bombExplosionClip;
+    }
+
+    private static AudioClip? FindStockExplosionClip()
+    {
+        AudioClip? bestClip = null;
+        int bestScore = 0;
+        foreach (AudioClip clip in Resources.FindObjectsOfTypeAll<AudioClip>())
+        {
+            if (clip == null || !clip)
+            {
+                continue;
+            }
+
+            string name = clip.name.ToLowerInvariant();
+            int score = 0;
+            if (name.Contains("explosion"))
+            {
+                score += 100;
+            }
+            if (name.Contains("blast"))
+            {
+                score += 80;
+            }
+            if (name.Contains("grenade"))
+            {
+                score += 70;
+            }
+            if (name.Contains("rocket"))
+            {
+                score += 60;
+            }
+            if (name.Contains("impact"))
+            {
+                score += 40;
+            }
+            if (name.Contains("bomb"))
+            {
+                score += 30;
+            }
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestClip = clip;
+            }
+        }
+
+        return bestClip;
     }
 
     private static void ResetBombAudio()

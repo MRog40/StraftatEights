@@ -1722,9 +1722,9 @@ internal static class SceneMotor_GameModeStart_Patch
 {
     private static void Prefix(SceneMotor __instance)
     {
-        if (GameModeManager.TryPrepareInitialMap(out string mapName)
-            && __instance.PlayListMaps.Count == 0)
+        if (GameModeManager.TryPrepareInitialMap(out string mapName))
         {
+            __instance.PlayListMaps.Clear();
             __instance.PlayListMaps.Add(mapName);
         }
     }

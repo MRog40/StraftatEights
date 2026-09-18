@@ -173,6 +173,11 @@ internal static class SearchAndDestroyState
         {
             return;
         }
+        if (GameModeManager.Phase == GameModePhase.ActiveRound
+            && EnsureTeamsAssigned())
+        {
+            BroadcastLiveState();
+        }
 
         MyceliumNetwork.RPCTarget(Plugin.SearchAndDestroyModId,
             nameof(Plugin.SyncSearchAndDestroySettings), player, ReliableType.Reliable,
@@ -261,14 +266,25 @@ internal static class SearchAndDestroyState
         StartTake();
     }
 
-    internal static void EnsureTeamsAssigned()
+    internal static bool EnsureTeamsAssigned()
     {
-        if (!MyceliumNetwork.IsHost || TeamAssignment.TeamCount >= 2)
+        if (!MyceliumNetwork.IsHost)
         {
-            return;
+            return false;
         }
 
-        PrepareTeamsForRound();
+        if (TeamAssignment.TeamCount != 2 || TeamAssignment.Current.Count == 0)
+        {
+            return TeamAssignment.AssignSearchAndDestroyRound();
+        }
+
+        bool changed = false;
+        foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
+        {
+            changed |= TeamAssignment.AssignLatePlayer(playerId);
+        }
+
+        return changed;
     }
 
     internal static void ServerTick(float deltaTime)
@@ -289,7 +305,10 @@ internal static class SearchAndDestroyState
 
         float elapsed = _serverTickAccumulator;
         _serverTickAccumulator = 0f;
-        EnsureTeamsAssigned();
+        if (EnsureTeamsAssigned())
+        {
+            BroadcastLiveState();
+        }
         if (BombStatus != SearchAndDestroyBombStatus.Planted)
         {
             TakeTimeRemaining = Mathf.Max(0f, TakeTimeRemaining - elapsed);
@@ -388,6 +407,11 @@ internal static class SearchAndDestroyState
         {
             BombStatus = SearchAndDestroyBombStatus.Dropped;
             BombCarrierPlayerId = -1;
+            PlayerHealth? leavingHealth = PlayerLookup.FindPlayerHealthById(playerId);
+            if (leavingHealth != null && leavingHealth)
+            {
+                BombPosition = leavingHealth.transform.position;
+            }
         }
 
         TeamAssignment.RemovePlayer(playerId);
@@ -1049,7 +1073,7 @@ internal static class SearchAndDestroyState
         float duration)
     {
         float remaining = Mathf.Max(0f, duration - Mathf.Clamp(progress, 0f, duration));
-        return label + "\n" + remaining.ToString("F2", CultureInfo.InvariantCulture) + "s";
+        return label + "\n" + remaining.ToString("F1", CultureInfo.InvariantCulture) + "s";
     }
 
     private static string GetRoleLabel(int playerId)

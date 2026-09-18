@@ -233,12 +233,12 @@ internal static class TeamAssignment
             return true;
         }
 
-        if (GameModeManager.IsActive(GameMode.CaptureTheFlag)
+        if (GameModeManager.IsTeamBased
             && GameModeManager.Phase == GameModePhase.ActiveRound
             && ScoreManager.Instance != null
             && ScoreManager.Instance.PlayerIdToTeamId.TryGetValue(playerId,
                 out int nativeTeamId)
-            && nativeTeamId >= 0 && nativeTeamId < 2)
+            && nativeTeamId >= 0 && nativeTeamId < 3)
         {
             teamId = nativeTeamId;
             return true;
