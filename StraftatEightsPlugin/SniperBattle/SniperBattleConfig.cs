@@ -36,14 +36,11 @@ public partial class Plugin
         {
             return;
         }
-        DebugLog.Info($"SniperBattle settings received source=rpc host={hostId.m_SteamID} "
-            + $"round={roundId} revision={revision} enabled={enabled}");
         if (!SniperBattleState.TryAcceptSettingsSnapshot(hostId, roundId, revision, "sniper-battle-rpc"))
         {
             return;
         }
         SniperBattleState.ApplySettings(enabled);
-        DebugLog.Info($"[SniperBattle] Accepted settings via RPC: round={roundId} revision={revision}");
     }
 
     [CustomRPC]

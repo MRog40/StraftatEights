@@ -36,13 +36,10 @@ internal static class FishNetCompatibility
 
         MethodInfo? respawn = ResolveCmdRespawnLogic();
         MethodInfo? removeHealth = ResolveRemoveHealthLogic();
-        DebugLog.Info($"[Compatibility] Respawn={(respawn == null ? "missing" : respawn.Name)}, "
-            + $"RemoveHealth={(removeHealth == null ? "missing" : removeHealth.Name)}");
     }
 
     private static void LogAssembly(string label, Assembly assembly)
     {
-        DebugLog.Info($"[Compatibility] {label} assembly: {assembly.GetName().FullName}");
     }
 
     internal static bool TryInvokeRespawn(PlayerManager manager)

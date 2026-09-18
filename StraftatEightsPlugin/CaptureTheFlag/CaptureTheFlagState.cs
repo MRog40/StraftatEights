@@ -319,7 +319,7 @@ internal static class CaptureTheFlagState
         }
 
         bool changed = false;
-        foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
+        foreach (int playerId in PlayerLookup.GetConnectedPlayerIdsReadOnly())
         {
             changed |= TeamAssignment.AssignLatePlayer(playerId);
         }
@@ -488,7 +488,7 @@ internal static class CaptureTheFlagState
     private static bool ProcessFlagInteractions()
     {
         bool changed = false;
-        foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
+        foreach (int playerId in PlayerLookup.GetConnectedPlayerIdsReadOnly())
         {
             if (!TeamAssignment.TryGetTeamId(playerId, out int teamId))
             {

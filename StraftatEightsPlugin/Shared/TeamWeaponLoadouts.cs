@@ -62,8 +62,6 @@ internal static class TeamWeaponLoadouts
 
         if (WeaponSettingsState.Allowed.Count == 0)
         {
-            DebugLog.Every("team-weapons-empty", 10f,
-                $"[TeamWeapons] No allowed weapons for mode={GameModeManager.ActiveMode}");
             return;
         }
 
@@ -165,7 +163,7 @@ internal static class TeamWeaponLoadouts
     {
         if (GameModeManager.IsActive(GameMode.FreeForAll))
         {
-            foreach (int playerId in PlayerLookup.GetConnectedPlayerIds().OrderBy(id => id))
+            foreach (int playerId in PlayerLookup.GetConnectedPlayerIdsReadOnly())
             {
                 yield return new KeyValuePair<int, int>(playerId, playerId);
             }
@@ -222,8 +220,6 @@ internal static class TeamWeaponLoadouts
             string weaponName = GetWeaponAt(weaponIndex);
             PlayerObjectIds[playerId] = playerObjectId;
             LoadoutRequests[playerId] = new LoadoutRequest(playerObjectId, weaponName);
-            DebugLog.Info($"[TeamWeapons] Assigned player={playerId} team={teamId} "
-                + $"weapon={weaponName} index={weaponIndex} respawn={isRespawn}");
         }
 
         if (!LoadoutRequests.TryGetValue(playerId, out LoadoutRequest? request)

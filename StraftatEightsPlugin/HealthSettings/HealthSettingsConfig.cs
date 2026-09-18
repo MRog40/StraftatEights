@@ -56,7 +56,6 @@ public partial class Plugin
         {
             return;
         }
-        DebugLog.Info($"[HealthSettings] Received sync: tweaks={enabled} maxHealth%={maxHealthPercent} regen={regenEnabled} delay={regenDelaySeconds:0.##} rate={regenRate}");
         HealthSettingsState.Apply(enabled, maxHealthPercent, regenEnabled, regenDelaySeconds, regenRate);
     }
 }

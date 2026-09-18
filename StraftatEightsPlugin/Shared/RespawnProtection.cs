@@ -14,6 +14,7 @@ internal static class RespawnProtection
     private static readonly Color OutlineColor = new(0.5f, 0.5f, 0.5f);
     private static readonly List<Protection> ActiveProtections = new();
     private static readonly Dictionary<int, int> PendingRespawnPlayers = new();
+    private static readonly List<int> PendingRespawnPlayerIds = new();
 
     private sealed class Protection
     {
@@ -119,7 +120,13 @@ internal static class RespawnProtection
 
     internal static void Update()
     {
-        foreach (int playerId in new List<int>(PendingRespawnPlayers.Keys))
+        PendingRespawnPlayerIds.Clear();
+        foreach (int playerId in PendingRespawnPlayers.Keys)
+        {
+            PendingRespawnPlayerIds.Add(playerId);
+        }
+
+        foreach (int playerId in PendingRespawnPlayerIds)
         {
             PlayerHealth? player = PlayerLookup.FindPlayerHealthById(playerId);
             if (player != null && player && player.gameObject.activeInHierarchy

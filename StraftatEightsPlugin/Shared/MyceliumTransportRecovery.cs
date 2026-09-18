@@ -18,6 +18,7 @@ internal static class MyceliumTransportRecovery
     private static readonly float[] RetryDelays = { 0.35f, 0.75f, 1.5f, 3f, 6f };
     private static readonly List<PendingMessage> PendingMessages = new();
     private static readonly Dictionary<ulong, ProbeState> Probes = new();
+    private static readonly List<KeyValuePair<ulong, ProbeState>> ProbeEntries = new();
     private static readonly Dictionary<ulong, int> ProbeSendDepth = new();
     private static readonly Dictionary<ulong, float> NextSessionCloseTimes = new();
     private static int _nextProbeId;
@@ -86,7 +87,6 @@ internal static class MyceliumTransportRecovery
 
         Probes.Remove(sender.m_SteamID);
         NextSessionCloseTimes.Remove(sender.m_SteamID);
-        DebugLog.Info($"Mycelium session probe acknowledged peer={sender.m_SteamID} probe={probeId}");
     }
 
     internal static bool TrySend(byte[] data, CSteamID target, ReliableType reliable)
@@ -105,8 +105,6 @@ internal static class MyceliumTransportRecovery
         {
             if (IsProbeSend(target))
             {
-                DebugLog.Info($"Mycelium probe send exception peer={target.m_SteamID} "
-                    + $"error={exception.GetBaseException().Message}");
             }
             else
             {
@@ -121,7 +119,6 @@ internal static class MyceliumTransportRecovery
 
         if (IsProbeSend(target))
         {
-            DebugLog.Info($"Mycelium probe send failed peer={target.m_SteamID} result={result}");
         }
         else
         {
@@ -154,14 +151,10 @@ internal static class MyceliumTransportRecovery
             catch (Exception exception)
             {
                 result = EResult.k_EResultNoConnection;
-                DebugLog.Info($"Mycelium retry exception peer={pending.Target.m_SteamID} "
-                    + $"attempt={pending.Attempt} error={exception.GetBaseException().Message}");
             }
             if (result == EResult.k_EResultOK)
             {
                 PendingMessages.RemoveAt(index);
-                DebugLog.Info($"Mycelium retry delivered peer={pending.Target.m_SteamID} "
-                    + $"attempt={pending.Attempt}");
                 continue;
             }
 
@@ -169,8 +162,6 @@ internal static class MyceliumTransportRecovery
             if (pending.Attempt >= MaxAttempts)
             {
                 PendingMessages.RemoveAt(index);
-                DebugLog.Info($"Mycelium retry abandoned peer={pending.Target.m_SteamID} "
-                    + $"attempts={pending.Attempt} result={result}");
                 continue;
             }
 
@@ -181,7 +172,13 @@ internal static class MyceliumTransportRecovery
     private static void ProcessProbes()
     {
         float now = Time.unscaledTime;
-        foreach (KeyValuePair<ulong, ProbeState> entry in Probes.ToArray())
+        ProbeEntries.Clear();
+        foreach (KeyValuePair<ulong, ProbeState> entry in Probes)
+        {
+            ProbeEntries.Add(entry);
+        }
+
+        foreach (KeyValuePair<ulong, ProbeState> entry in ProbeEntries)
         {
             ProbeState probe = entry.Value;
             if (now < probe.NextAttempt)
@@ -198,7 +195,6 @@ internal static class MyceliumTransportRecovery
             if (probe.Attempt >= MaxAttempts)
             {
                 Probes.Remove(entry.Key);
-                DebugLog.Info($"Mycelium session probe abandoned peer={entry.Key} attempts={probe.Attempt}");
                 continue;
             }
 
@@ -212,14 +208,11 @@ internal static class MyceliumTransportRecovery
     {
         if (Probes.TryGetValue(target.m_SteamID, out ProbeState? existing))
         {
-            DebugLog.Info($"Mycelium session reset peer={target.m_SteamID} reason={reason} "
-                + $"probe={existing.ProbeId}");
             return;
         }
 
         int probeId = ++_nextProbeId;
         Probes[target.m_SteamID] = new ProbeState(target, probeId, Time.unscaledTime + RetryDelays[1]);
-        DebugLog.Info($"Mycelium session reset peer={target.m_SteamID} reason={reason} probe={probeId}");
     }
 
     private static void SendProbeRpc(CSteamID target, string methodName, int probeId)
@@ -260,8 +253,6 @@ internal static class MyceliumTransportRecovery
 
         PendingMessages.Add(new PendingMessage(data.ToArray(), target, reliable,
             Time.unscaledTime + RetryDelays[0]));
-        DebugLog.Info($"Mycelium send queued peer={target.m_SteamID} result={reason} "
-            + $"pending={PendingMessages.Count}");
     }
 
     private static EResult SendRaw(byte[] data, CSteamID target, ReliableType reliable)

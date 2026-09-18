@@ -320,7 +320,6 @@ internal static class WeaponService
         }
 
         PendingOwnerAttachments[playerId] = (byte)(pendingMask | handMask);
-        DebugLog.Info($"Weapon owner attachment queued player={playerId} hand={(rightHand ? "right" : "left")}");
         Plugin.Instance.StartCoroutine(AttachGrantedWeaponAfterSync(playerId, rightHand,
             SessionState.Generation));
     }
@@ -416,23 +415,15 @@ internal static class WeaponService
                 if (attached)
                 {
                     ClearPendingOwnerAttachment(playerId, rightHand);
-                    DebugLog.Info($"Weapon owner attachment completed player={playerId} "
-                        + $"hand={(rightHand ? "right" : "left")} attempt={attempt + 1}");
                     yield break;
                 }
             }
 
-            DebugLog.Every($"weapon-attachment-wait-{playerId}-{rightHand}", 1f,
-                $"Weapon owner attachment waiting player={playerId} "
-                + $"hand={(rightHand ? "right" : "left")} attempt={attempt + 1} "
-                + $"object={(expectedObject != null && expectedObject ? "ready" : "missing")}");
 
             yield return new WaitForSeconds(0.1f);
         }
 
         ClearPendingOwnerAttachment(playerId, rightHand);
-        DebugLog.Info($"Weapon owner attachment timed out player={playerId} "
-            + $"hand={(rightHand ? "right" : "left")}");
     }
 
     private static void ClearPendingOwnerAttachment(int playerId, bool rightHand)
@@ -496,7 +487,6 @@ internal static class WeaponService
             return;
         }
 
-        DebugLog.Info($"Weapon grant completed player={playerId} hand={(rightHand ? "right" : "left")}");
         if (ClientInstance.Instance != null && ClientInstance.Instance.PlayerId == playerId)
         {
             AttachGrantedWeaponForOwner(playerId, rightHand);

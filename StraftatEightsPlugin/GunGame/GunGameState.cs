@@ -24,8 +24,6 @@ internal static class GunGameState
     {
         List<string> nextWeaponOrder = WeaponService.ParseWeaponList(weaponOrder);
         bool changed = Enabled != enabled || !WeaponOrder.SequenceEqual(nextWeaponOrder, StringComparer.Ordinal);
-        DebugLog.Info($"GunGame settings applied enabled={enabled} weaponCount={nextWeaponOrder.Count} changed={changed} "
-            + $"previousEnabled={Enabled} previousWeaponCount={WeaponOrder.Count}");
         Enabled = enabled;
         WeaponOrder = nextWeaponOrder;
         if (changed) ResetMatchState();
@@ -50,8 +48,6 @@ internal static class GunGameState
        }
     internal static void OnLobbyEntered()
     {
-        DebugLog.Info($"GunGame lobby event host={MyceliumNetwork.IsHost} lobby={MyceliumNetwork.InLobby} "
-            + $"round={GameModeManager.RoundId} settingsRevision={Sync.SettingsRevision} liveRevision={Sync.LiveRevision}");
         Sync.ResetForLobby();
         if (MyceliumNetwork.IsHost)
         {
@@ -123,8 +119,6 @@ internal static class GunGameState
     }
     internal static void ResetMatchState()
     {
-        DebugLog.Info($"GunGame match reset round={GameModeManager.RoundId} progressCount={Progress.Count} "
-            + $"liveRevision={Sync.LiveRevision} lastLiveRound={Sync.LastLiveRoundId}");
         Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
         PendingLoadouts.Clear();
@@ -142,13 +136,9 @@ internal static class GunGameState
         {
             Progress[entry.Key] = entry.Value;
         }
-        DebugLog.Info($"[GunGame] Accepted live state via {source}: round={roundId} "
-            + $"revision={revision} players={Progress.Count}");
     }
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
-        DebugLog.Info($"GunGame server kill dead={deadPlayerId} killer={killerId} enabled={Enabled} "
-            + $"round={GameModeManager.RoundId} progressCount={Progress.Count}");
         if (!Enabled || killerId < 0 || killerId == deadPlayerId) return;
         Progress.TryGetValue(killerId, out int current);
         int next = current + ScoreRules.PointsPerKill;
@@ -246,9 +236,6 @@ internal static class GunGameState
         {
             int revision = Sync.NextLiveRevision();
             string progressData = SerializeProgress();
-            DebugLog.Info($"GunGame live broadcast host={MyceliumNetwork.LobbyHost.m_SteamID} "
-                + $"round={GameModeManager.RoundId} revision={revision} players={Progress.Count} "
-                + $"payloadLength={progressData.Length}");
             PublishLiveSnapshot(revision, progressData);
             MyceliumNetwork.RPC(Plugin.GunGameModId, nameof(Plugin.SyncGunGameLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, progressData, GameModeManager.RoundId, revision);
@@ -284,8 +271,6 @@ internal static class GunGameState
                 ModeLobbyDataSync.Source("gun-game", "settings")))
             {
                 ApplySettings(enabled, weaponOrder);
-                DebugLog.Info($"[GunGame] Accepted settings via lobby data: round={roundId} "
-                    + $"revision={revision}");
             }
         }
         catch (FormatException)

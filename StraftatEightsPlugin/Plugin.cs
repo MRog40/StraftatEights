@@ -1,4 +1,4 @@
-﻿using BepInEx;
+using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -33,7 +33,6 @@ public partial class Plugin : BaseUnityPlugin
     {
         Instance = this;
         Logger = base.Logger;
-        DebugLog.Reset();
 
         InitializeSafely("compatibility checks", FishNetCompatibility.LogPreflight);
         InitializeSafely("Mycelium transport recovery", MyceliumTransportRecovery.Initialize);
@@ -74,7 +73,6 @@ public partial class Plugin : BaseUnityPlugin
         }
 
         PatchAllSafely(new Harmony(MyPluginInfo.PLUGIN_GUID));
-        DebugLog.Info($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
     }
 
     private static void InitializeSafely(string featureName, Action initialize)
@@ -120,7 +118,6 @@ public partial class Plugin : BaseUnityPlugin
                     continue;
                 }
 
-                DebugLog.Info($"[Harmony] Patched {patchType.FullName} ({patchedCount} method(s)).");
             }
             catch (Exception exception)
             {
@@ -133,7 +130,6 @@ public partial class Plugin : BaseUnityPlugin
 
     private void Update()
     {
-        PositionMarkerDebug.Update();
         MyceliumTransportRecovery.Update();
         GameModeManager.EnsureVanillaScene();
         GameModeManager.PeriodicPushIfHost();

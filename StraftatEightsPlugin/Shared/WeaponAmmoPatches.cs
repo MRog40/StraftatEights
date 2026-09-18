@@ -57,9 +57,6 @@ internal static class PlayerSetup_WeaponAmmoHudReset_Patch
     private static void Prefix(PlayerSetup __instance)
     {
         SuppressRemoteHudCleanup = __instance != null && !__instance.IsOwner;
-        DebugLog.Info($"PlayerSetup disable owner={__instance?.IsOwner.ToString() ?? "missing"} "
-            + $"player={__instance?.GetComponent<PlayerHealth>()?.playerValues?.playerClient?.PlayerId.ToString() ?? "missing"} "
-            + $"suppressRemote={SuppressRemoteHudCleanup}");
     }
 
     private static void Postfix(PlayerSetup __instance)
@@ -68,8 +65,6 @@ internal static class PlayerSetup_WeaponAmmoHudReset_Patch
         SuppressRemoteHudCleanup = false;
         if (isOwner)
         {
-            DebugLog.Info("PlayerSetup disable owner HUD refresh scheduled.");
-            DebugLog.Info("[HUD] Local PlayerSetup disabled; scheduling owner HUD refresh.");
             WeaponAmmoTuning.ScheduleLocalAmmoHudRefresh();
         }
     }
@@ -91,14 +86,11 @@ internal static class PlayerSetup_LocalHudRestore_Patch
     {
         if (__instance != null && __instance.IsOwner)
         {
-            DebugLog.Info($"PlayerSetup start owner localPlayer={ClientInstance.Instance?.PlayerId ?? -1} "
-                + $"hideCustomHud={GameModeManager.ShouldHideCustomHud}");
             if (!GameModeManager.ShouldHideCustomHud)
             {
                 __instance.HideHUD(false);
             }
             WeaponAmmoTuning.ScheduleLocalAmmoHudRefresh();
-            DebugLog.Info("[HUD] Local PlayerSetup started; restored owner HUD and scheduled ammo refresh.");
         }
     }
 }

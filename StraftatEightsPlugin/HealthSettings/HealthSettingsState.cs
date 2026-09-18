@@ -43,11 +43,9 @@ internal static class HealthSettingsState
         TuningVersion++;
         if (!enabled)
         {
-            DebugLog.Info("[HealthSettings] Apply: disabled - all values reset to stock");
         }
         else
         {
-            DebugLog.Info($"[HealthSettings] Apply: maxHealthMultiplier={MaxHealthMultiplier:0.##} enabled={RegenEnabled} delay={RegenDelaySeconds:0.##} rate={RegenRate:0.##} version={TuningVersion}");
         }
     }
 
@@ -84,9 +82,13 @@ internal static class HealthSettingsState
             return;
         }
         _nextServerScanTime = Time.unscaledTime + 0.1f;
-        PlayerHealth[] players = UnityEngine.Object.FindObjectsOfType<PlayerHealth>(true);
-        foreach (PlayerHealth player in players)
+        foreach (PlayerHealth player in PlayerLookup.KnownPlayerHealths)
         {
+            if (player == null || !player)
+            {
+                continue;
+            }
+
             HealthSettingsTuning.ApplyIfChanged(player, MaxHealthMultiplier, TuningVersion);
             HealthSettingsTuning.RegenerateIfNeeded(player, HealthSettingsTuning.GetMemory(player));
         }

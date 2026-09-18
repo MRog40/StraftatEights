@@ -172,8 +172,6 @@ internal static class KillTheRatState
             return;
         }
 
-        DebugLog.Info($"KillTheRat live state accepted source={source} host={hostId.m_SteamID} "
-            + $"round={roundId} revision={revision} rat={ratPlayerId} points={Points.Count}");
 
         CurrentRatPlayerId = ratPlayerId;
         WinnerId = winnerId;

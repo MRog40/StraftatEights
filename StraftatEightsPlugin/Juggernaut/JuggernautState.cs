@@ -62,7 +62,6 @@ internal static class JuggernautState
             return;
         }
         ApplySettingsFromHostConfig();
-        DebugLog.Info($"[Juggernaut] Host broadcasting settings to {MyceliumNetwork.PlayerCount} player(s)");
         int revision = Sync.NextSettingsRevision();
         PublishSettingsSnapshot(revision);
         MyceliumNetwork.RPC(Plugin.JuggernautModId, nameof(Plugin.SyncJuggernautSettings), ReliableType.Reliable,
@@ -94,7 +93,6 @@ internal static class JuggernautState
     internal static void OnLobbyEntered()
     {
         Sync.ResetForLobby();
-        DebugLog.Info($"[Juggernaut] Lobby session started, IsHost={MyceliumNetwork.IsHost}");
         if (MyceliumNetwork.IsHost)
         {
             ApplySettingsFromHostConfig();
@@ -136,7 +134,6 @@ internal static class JuggernautState
         {
             return;
         }
-        DebugLog.Info($"[Juggernaut] Sending catch-up settings/state to newly joined player {player}");
         MyceliumNetwork.RPCTarget(Plugin.JuggernautModId, nameof(Plugin.SyncJuggernautSettings), player,
             ReliableType.Reliable, SettingsRpcArgs(Sync.SettingsRevision));
         MyceliumNetwork.RPCTarget(Plugin.JuggernautModId, nameof(Plugin.SyncJuggernautLiveState), player,

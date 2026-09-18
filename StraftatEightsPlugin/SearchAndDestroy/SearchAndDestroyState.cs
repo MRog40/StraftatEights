@@ -32,6 +32,7 @@ internal static class SearchAndDestroyState
     internal const float InteractionRadius = SearchAndDestroyRules.InteractionRadius;
     internal const float PlantSiteRadius = SearchAndDestroyRules.PlantSiteRadius;
     internal const float ServerTickIntervalSeconds = 0.05f;
+    private const float LiveLobbyDataPushIntervalSeconds = 1f;
     private const float BombAimRadius = 0.45f;
     private const float InteractionRequestResendSeconds = 0.25f;
     internal const int PointsPerRoundWin = SearchAndDestroyRules.PointsPerRoundWin;
@@ -70,6 +71,8 @@ internal static class SearchAndDestroyState
     private static bool _roundStarted;
     private static bool _takeEnding;
     private static bool _bombExplosionPending;
+    private static int _lastTeamAssignmentRevision = -1;
+    private static float _nextLiveLobbyDataPushTime;
     private static int _lastAnnouncedTakeId = -1;
     private static float _lastLiveStateAppliedTime;
     private static float _lastLivePlantProgress;
@@ -219,6 +222,8 @@ internal static class SearchAndDestroyState
         _roundStarted = false;
         _takeEnding = false;
         _bombExplosionPending = false;
+        _lastTeamAssignmentRevision = -1;
+        _nextLiveLobbyDataPushTime = 0f;
         TakeId = 0;
         WinnerId = -1;
         TakeWinnerId = -1;
@@ -278,17 +283,31 @@ internal static class SearchAndDestroyState
             return false;
         }
 
+        int playerRevision = PlayerLookup.ConnectedPlayerRevision;
+        if (_lastTeamAssignmentRevision == playerRevision
+            && TeamAssignment.TeamCount == 2
+            && TeamAssignment.Current.Count > 0)
+        {
+            return false;
+        }
+
         if (TeamAssignment.TeamCount != 2 || TeamAssignment.Current.Count == 0)
         {
-            return TeamAssignment.AssignSearchAndDestroyRound();
+            bool assigned = TeamAssignment.AssignSearchAndDestroyRound();
+            if (assigned)
+            {
+                _lastTeamAssignmentRevision = playerRevision;
+            }
+            return assigned;
         }
 
         bool changed = false;
-        foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
+        foreach (int playerId in PlayerLookup.GetConnectedPlayerIdsReadOnly())
         {
             changed |= TeamAssignment.AssignLatePlayer(playerId);
         }
 
+        _lastTeamAssignmentRevision = playerRevision;
         return changed;
     }
 
@@ -742,7 +761,7 @@ internal static class SearchAndDestroyState
         }
 
         PrepareTeamsForRound();
-        foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
+        foreach (int playerId in PlayerLookup.GetConnectedPlayerIdsReadOnly())
         {
             if (!TeamAssignment.Current.ContainsKey(playerId))
             {
@@ -750,7 +769,7 @@ internal static class SearchAndDestroyState
             }
         }
 
-        List<int> players = PlayerLookup.GetConnectedPlayerIds()
+        List<int> players = PlayerLookup.GetConnectedPlayerIdsReadOnly()
             .Where(playerId => TeamAssignment.Current.ContainsKey(playerId))
             .ToList();
         if (players.Count == 0)
@@ -1124,7 +1143,7 @@ internal static class SearchAndDestroyState
         }
 
         StartTake();
-        foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
+        foreach (int playerId in PlayerLookup.GetConnectedPlayerIdsReadOnly())
         {
             GameModeRespawn.Schedule(playerId, 0f, protectOnRespawn: false);
         }
@@ -1306,10 +1325,16 @@ internal static class SearchAndDestroyState
         string assignmentsData = TeamRules.SerializeAssignments(TeamAssignment.Current);
         string scoresData = ScoreCodec.Serialize(Scores);
         string stateData = SerializeState();
-        ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
-            GameModeManager.RoundId, revision, assignmentsData, TeamAssignment.TeamCount.ToString(
-                CultureInfo.InvariantCulture), scoresData, stateData, TakeId.ToString(
-                CultureInfo.InvariantCulture), WinnerId.ToString(CultureInfo.InvariantCulture));
+        if (Time.unscaledTime >= _nextLiveLobbyDataPushTime)
+        {
+            _nextLiveLobbyDataPushTime = Time.unscaledTime
+                + LiveLobbyDataPushIntervalSeconds;
+            ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+                GameModeManager.RoundId, revision, assignmentsData,
+                TeamAssignment.TeamCount.ToString(CultureInfo.InvariantCulture), scoresData,
+                stateData, TakeId.ToString(CultureInfo.InvariantCulture),
+                WinnerId.ToString(CultureInfo.InvariantCulture));
+        }
         MyceliumNetwork.RPC(Plugin.SearchAndDestroyModId,
             nameof(Plugin.SyncSearchAndDestroyLiveState), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, assignmentsData, TeamAssignment.TeamCount, scoresData,

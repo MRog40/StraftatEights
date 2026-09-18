@@ -13,8 +13,6 @@ internal static class CaptureTheFlagMarker
     private const float MarkerHeight = 3f;
     private const float MarkerSize = 0.7f;
     private const float PoleRadius = 0.045f;
-    private const float GroundProbeStartOffset = 4f;
-    private const float GroundProbeDistance = 8f;
     private static readonly GameObject?[] Markers = new GameObject?[2];
     private static readonly Renderer?[] MarkerRenderers = new Renderer?[2];
     private static readonly Renderer?[] PoleRenderers = new Renderer?[2];
@@ -241,29 +239,7 @@ internal static class CaptureTheFlagMarker
 
     private static bool TryGetGroundY(Vector3 position, float referenceY, out float groundY)
     {
-        groundY = referenceY;
-        Vector3 rayOrigin = new(position.x, referenceY + GroundProbeStartOffset, position.z);
-        RaycastHit[] hits = Physics.RaycastAll(rayOrigin, Vector3.down, GroundProbeDistance,
-            Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
-        float closestDifference = float.MaxValue;
-        bool foundGround = false;
-        foreach (RaycastHit hit in hits)
-        {
-            if (hit.collider == null || hit.collider.GetComponentInParent<PlayerHealth>() != null)
-            {
-                continue;
-            }
-
-            float difference = Mathf.Abs(hit.point.y - referenceY);
-            if (difference < closestDifference)
-            {
-                closestDifference = difference;
-                groundY = hit.point.y;
-                foundGround = true;
-            }
-        }
-
-        return foundGround;
+        return FloatingObjectiveMarker.TryGetGroundY(position, referenceY, out groundY);
     }
 
     private static void SetMarkerActive(int flagIndex, bool active)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
@@ -9,9 +10,11 @@ namespace StraftatEightsPlugin;
 internal static class PlayerOutline
 {
     private const string LiveLobbyDataKey = "StraftatEights_Outline_Live";
+    private const float VisualRefreshIntervalSeconds = 0.25f;
     private static readonly ModeSyncState Sync = new(livePushInterval: 1.5f);
-    private static readonly List<SkinnedMeshRenderer> AppliedRenderers = new();
+    private static readonly HashSet<SkinnedMeshRenderer> AppliedRenderers = new();
     private static readonly Dictionary<int, PlayerHealth> MultiTargets = new();
+    private static readonly ConditionalWeakTable<PlayerHealth, RendererCache> RendererCaches = new();
     private static readonly Color HvtColor = Color.blue;
     private static readonly Color JuggernautColor = new(1f, 0.42f, 0f);
     private static readonly Color KillTheRatColor = Color.yellow;
@@ -24,6 +27,13 @@ internal static class PlayerOutline
     private static int _publishedPlayerId = -1;
     private static int _publishedRoundId = -1;
     private static PlayerHealth? _singleTarget;
+    private static float _nextVisualRefreshTime;
+
+    private sealed class RendererCache
+    {
+        internal bool Initialized;
+        internal SkinnedMeshRenderer[] Renderers = Array.Empty<SkinnedMeshRenderer>();
+    }
 
     internal static void Initialize()
     {
@@ -46,6 +56,7 @@ internal static class PlayerOutline
         _publishedRoundId = -1;
         _singleTarget = null;
         MultiTargets.Clear();
+        _nextVisualRefreshTime = 0f;
     }
 
     internal static void EnforceOutline()
@@ -81,6 +92,12 @@ internal static class PlayerOutline
             return;
         }
 
+        if (Time.unscaledTime < _nextVisualRefreshTime)
+        {
+            return;
+        }
+        _nextVisualRefreshTime = Time.unscaledTime + VisualRefreshIntervalSeconds;
+
         if (activeMode == GameMode.MichaelMeyers)
         {
             EnforceMichaelMeyersOutline();
@@ -100,6 +117,7 @@ internal static class PlayerOutline
 
         ClearAll();
         _lastMode = activeMode;
+        _nextVisualRefreshTime = 0f;
         return true;
     }
 
@@ -114,8 +132,6 @@ internal static class PlayerOutline
 
         GameMode mode = (GameMode)modeValue;
         SetRoleState(mode, playerId);
-        DebugLog.Info($"[Outline] Accepted role state source={source} mode={mode} "
-            + $"host={hostId.m_SteamID} round={roundId} revision={revision} target={playerId}");
     }
 
     internal static void ApplySingleTarget(ref PlayerHealth? current, PlayerHealth? target, Color color)
@@ -177,7 +193,7 @@ internal static class PlayerOutline
         }
 
         Dictionary<int, PlayerHealth> currentTargets = new();
-        foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
+        foreach (int playerId in PlayerLookup.GetConnectedPlayerIdsReadOnly())
         {
             if (playerId == localPlayerId)
             {
@@ -236,6 +252,7 @@ internal static class PlayerOutline
             ClearApplied();
             _singleTarget = null;
             MultiTargets.Clear();
+            _nextVisualRefreshTime = 0f;
         }
 
         _roleMode = mode;
@@ -356,7 +373,7 @@ internal static class PlayerOutline
             return;
         }
 
-        foreach (SkinnedMeshRenderer renderer in player.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        foreach (SkinnedMeshRenderer renderer in GetRenderers(player))
         {
             if (renderer == null)
             {
@@ -378,10 +395,7 @@ internal static class PlayerOutline
                 renderer.materials = materials;
             }
 
-            if (!AppliedRenderers.Contains(renderer))
-            {
-                AppliedRenderers.Add(renderer);
-            }
+            AppliedRenderers.Add(renderer);
         }
     }
 
@@ -392,7 +406,7 @@ internal static class PlayerOutline
             return;
         }
 
-        foreach (SkinnedMeshRenderer renderer in player.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        foreach (SkinnedMeshRenderer renderer in GetRenderers(player))
         {
             ClearRenderer(renderer.gameObject);
         }
@@ -405,7 +419,7 @@ internal static class PlayerOutline
             return;
         }
 
-        foreach (SkinnedMeshRenderer renderer in player.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        foreach (SkinnedMeshRenderer renderer in GetRenderers(player))
         {
             if (renderer == null || !renderer.gameObject.activeInHierarchy)
             {
@@ -436,7 +450,7 @@ internal static class PlayerOutline
             return;
         }
 
-        foreach (SkinnedMeshRenderer renderer in player.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        foreach (SkinnedMeshRenderer renderer in GetRenderers(player))
         {
             if (renderer == null)
             {
@@ -499,6 +513,18 @@ internal static class PlayerOutline
             }
         }
         AppliedRenderers.Clear();
+    }
+
+    private static SkinnedMeshRenderer[] GetRenderers(PlayerHealth player)
+    {
+        RendererCache cache = RendererCaches.GetOrCreateValue(player);
+        if (!cache.Initialized)
+        {
+            cache.Renderers = player.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            cache.Initialized = true;
+        }
+
+        return cache.Renderers;
     }
 
     private static void ClearRenderer(GameObject meshObject)

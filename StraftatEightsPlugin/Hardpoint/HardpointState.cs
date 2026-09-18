@@ -232,7 +232,7 @@ internal static class HardpointState
         }
 
         bool changed = false;
-        foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
+        foreach (int playerId in PlayerLookup.GetConnectedPlayerIdsReadOnly())
         {
             changed |= TeamAssignment.AssignLatePlayer(playerId);
         }
@@ -254,9 +254,6 @@ internal static class HardpointState
         _serverDiagnosticsAccumulator += frameElapsed;
         if (_serverDiagnosticsAccumulator >= 5f)
         {
-            DebugLog.Info($"[Hardpoint] server updates={_serverFrameHookCount} "
-                + $"captureTicks={_serverProcessedTickCount} "
-                + $"captureInterval={ServerTickIntervalSeconds:0.00}s");
             _serverDiagnosticsAccumulator = 0f;
             _serverFrameHookCount = 0;
             _serverProcessedTickCount = 0;

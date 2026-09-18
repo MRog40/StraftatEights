@@ -47,7 +47,6 @@ public partial class Plugin
         {
             return;
         }
-        DebugLog.Info($"[Juggernaut] Received settings sync: enabled={enabled}");
         JuggernautState.ApplySettings(enabled);
     }
 

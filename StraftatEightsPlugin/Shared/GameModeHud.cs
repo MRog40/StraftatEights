@@ -70,6 +70,11 @@ internal sealed class GameModeHud : MonoBehaviour
     private bool _hasLoggedVisibility;
     private bool _lastVisible;
     private string _lastVisibilityReason = string.Empty;
+    private string _lastScoreboardText = string.Empty;
+    private string _lastObjectiveStatusText = string.Empty;
+    private string _lastInteractionPromptText = string.Empty;
+    private bool _scoreboardLayoutDirty = true;
+    private bool _lastPanelVisible;
     private static int _nextTakeResultId;
     private static readonly List<PendingTakeResult> PendingTakeResults = new();
     private static readonly HashSet<int> ReceivedTakeResultIds = new();
@@ -297,16 +302,11 @@ internal sealed class GameModeHud : MonoBehaviour
 
         if (GameModeManager.IsMatchOver)
         {
-            DebugLog.Info($"HUD match-over gate scene={SceneManager.GetActiveScene().name} "
-                + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} round={GameModeManager.RoundId}");
             if (!_hasLoggedVisibility || _lastVisible || _lastVisibilityReason != "match-over")
             {
                 _hasLoggedVisibility = true;
                 _lastVisible = false;
                 _lastVisibilityReason = "match-over";
-                DebugLog.Info($"[GameModeHud] visible=false reason=match-over "
-                    + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} "
-                    + $"round={GameModeManager.RoundId} players=0 scores={GunGameState.Progress.Count}");
             }
 
             _announcement.gameObject.SetActive(false);
@@ -350,7 +350,7 @@ internal sealed class GameModeHud : MonoBehaviour
         }
         else
         {
-            connectedPlayerCount = PlayerLookup.GetConnectedPlayerIds().Count;
+            connectedPlayerCount = PlayerLookup.GetConnectedPlayerIdsReadOnly().Count;
             bool activeRoundWithPlayers = GameModeManager.Phase == GameModePhase.ActiveRound
                 && connectedPlayerCount > 0;
             if (inMainMenu && !activeRoundWithPlayers)
@@ -369,24 +369,18 @@ internal sealed class GameModeHud : MonoBehaviour
         }
 
         bool visible = visibilityReason == "visible";
-        DebugLog.Every("hud-heartbeat", 1f,
-            $"HUD state visible={visible} reason={visibilityReason} panel={_panel.activeSelf} "
-            + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} round={GameModeManager.RoundId} "
-            + $"players={connectedPlayerCount} scores={GunGameState.Progress.Count} "
-            + $"scene={SceneManager.GetActiveScene().name} mainMenu={inMainMenu} "
-            + $"victoryMenu={inVictoryMenu} scoreboardLength={_scoreboard.text?.Length ?? 0}");
         if (!_hasLoggedVisibility || visible != _lastVisible || visibilityReason != _lastVisibilityReason)
         {
             _hasLoggedVisibility = true;
             _lastVisible = visible;
             _lastVisibilityReason = visibilityReason;
-            DebugLog.Info($"[GameModeHud] visible={visible} reason={visibilityReason} "
-                + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} "
-                + $"round={GameModeManager.RoundId} players={connectedPlayerCount} "
-                + $"scores={GunGameState.Progress.Count}");
         }
 
-        _panel.SetActive(visible);
+        if (_panel.activeSelf != visible)
+        {
+            _panel.SetActive(visible);
+            _scoreboardLayoutDirty = true;
+        }
         if (visible)
         {
             RefreshScoreboard();
@@ -396,13 +390,21 @@ internal sealed class GameModeHud : MonoBehaviour
         string objectiveStatus = visible && GameModeManager.IsActive(GameMode.SearchAndDestroy)
             ? SearchAndDestroyState.GetLocalBombStatusText()
             : string.Empty;
-        _objectiveStatus.text = objectiveStatus;
+        if (_lastObjectiveStatusText != objectiveStatus)
+        {
+            _lastObjectiveStatusText = objectiveStatus;
+            _objectiveStatus.text = objectiveStatus;
+        }
         _objectiveStatus.gameObject.SetActive(objectiveStatus.Length > 0);
 
         string interactionPrompt = visible && GameModeManager.IsActive(GameMode.SearchAndDestroy)
             ? SearchAndDestroyState.GetLocalInteractionPrompt()
             : string.Empty;
-        _interactionPrompt.text = interactionPrompt;
+        if (_lastInteractionPromptText != interactionPrompt)
+        {
+            _lastInteractionPromptText = interactionPrompt;
+            _interactionPrompt.text = interactionPrompt;
+        }
         _interactionPrompt.gameObject.SetActive(interactionPrompt.Length > 0);
 
         if (visible && GameModeManager.IsActive(GameMode.OneInTheChamber))
@@ -611,10 +613,13 @@ internal sealed class GameModeHud : MonoBehaviour
             return;
         }
 
-        if (_panel != null && _panel.activeSelf)
+        bool panelVisible = _panel != null && _panel.activeSelf;
+        if (panelVisible && (!_lastPanelVisible || _scoreboardLayoutDirty))
         {
             LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRect);
         }
+        _lastPanelVisible = panelVisible;
+        _scoreboardLayoutDirty = false;
 
         RectTransform? canvasRect = transform as RectTransform;
         float canvasHeight = canvasRect != null && canvasRect.rect.height > 0f
@@ -856,25 +861,25 @@ internal sealed class GameModeHud : MonoBehaviour
     {
         if (GameModeManager.IsActive(GameMode.CaptureTheFlag))
         {
-            _scoreboard.text = CaptureTheFlagHud.BuildScoreboard();
+            SetScoreboardText(CaptureTheFlagHud.BuildScoreboard());
             return;
         }
 
         if (GameModeManager.IsActive(GameMode.SearchAndDestroy))
         {
-            _scoreboard.text = SearchAndDestroyHud.BuildScoreboard();
+            SetScoreboardText(SearchAndDestroyHud.BuildScoreboard());
             return;
         }
 
         if (GameModeManager.IsActive(GameMode.TeamDeathmatch))
         {
-            _scoreboard.text = TeamDeathmatchHud.BuildScoreboard();
+            SetScoreboardText(TeamDeathmatchHud.BuildScoreboard());
             return;
         }
 
         if (GameModeManager.IsActive(GameMode.Hardpoint))
         {
-            _scoreboard.text = HardpointHud.BuildScoreboard();
+            SetScoreboardText(HardpointHud.BuildScoreboard());
             return;
         }
 
@@ -884,10 +889,10 @@ internal sealed class GameModeHud : MonoBehaviour
             {
                 new GameModeScoreboardRow("Survivors", MichaelMeyersState.SurvivorCount)
             };
-            _scoreboard.text = GameModeScoreboard.Build(GameMode.MichaelMeyers, null, null,
+                SetScoreboardText(GameModeScoreboard.Build(GameMode.MichaelMeyers, null, null,
                 survivorRows, MichaelMeyersState.TimeRemaining > 0f
                     ? "Timer: " + Mathf.CeilToInt(MichaelMeyersState.TimeRemaining) + "s"
-                    : string.Empty);
+                    : string.Empty));
             return;
         }
         Dictionary<int, int> scores;
@@ -1012,7 +1017,19 @@ internal sealed class GameModeHud : MonoBehaviour
             rows.Add(new GameModeScoreboardRow(playerName, score, playerId: playerId));
         }
 
-        _scoreboard.text = GameModeScoreboard.Build(GameModeManager.ActiveMode, null,
-            pointsToWin, rows, timerText);
+        SetScoreboardText(GameModeScoreboard.Build(GameModeManager.ActiveMode, null,
+            pointsToWin, rows, timerText));
+    }
+
+    private void SetScoreboardText(string text)
+    {
+        if (_lastScoreboardText == text)
+        {
+            return;
+        }
+
+        _lastScoreboardText = text;
+        _scoreboard.text = text;
+        _scoreboardLayoutDirty = true;
     }
 }

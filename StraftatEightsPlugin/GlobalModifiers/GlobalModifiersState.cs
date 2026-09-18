@@ -53,7 +53,6 @@ internal static class GlobalModifiersState
             AirSpeedRatioPercent = MovementTuning.StockAirSpeedRatioPercent;
             ShootingSpeedMultiplier = 1f;
             TuningVersion++;
-            DebugLog.Info("[GlobalModifiers] Apply: disabled - all values reset to stock");
             return;
         }
 
@@ -74,7 +73,6 @@ internal static class GlobalModifiersState
         AirSpeedRatioPercent = airSpeedRatioPercent;
         ShootingSpeedMultiplier = shootingSpeedPercent / 100f;
         TuningVersion++;
-        DebugLog.Info($"[MovementSettings] Apply: SpeedMultiplier={SpeedMultiplier:0.00} AdsSpeedMultiplier={AdsSpeedMultiplier:0.00} GravityMultiplier={GravityMultiplier:0.00} MomentumPercent={MomentumPercent} AirSpeedRatioPercent={AirSpeedRatioPercent} ShootingSpeedMultiplier={ShootingSpeedMultiplier:0.00} TuningVersion={TuningVersion}");
     }
 
     private static void ApplyFromHostConfig()
@@ -86,11 +84,9 @@ internal static class GlobalModifiersState
     {
         if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
         {
-            DebugLog.Info($"[GlobalModifiers] PushIfHost skipped: InLobby={MyceliumNetwork.InLobby} IsHost={MyceliumNetwork.IsHost}");
             return;
         }
         ApplyFromHostConfig();
-        DebugLog.Info($"[MovementSettings] Host broadcasting movement settings to {MyceliumNetwork.PlayerCount} player(s)");
         MyceliumNetwork.RPC(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), ReliableType.Reliable,
             RpcArgs(Sync.NextSettingsRevision()));
     }
@@ -111,7 +107,6 @@ internal static class GlobalModifiersState
 
     internal static void OnLobbyEntered()
     {
-        DebugLog.Info($"[GlobalModifiers] Lobby session started, IsHost={MyceliumNetwork.IsHost}");
         Sync.ResetForLobby();
         if (MyceliumNetwork.IsHost)
         {
@@ -132,7 +127,6 @@ internal static class GlobalModifiersState
         {
             return;
         }
-            DebugLog.Info($"[MovementSettings] Sending catch-up movement settings to newly joined player {player}");
         MyceliumNetwork.RPCTarget(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), player,
             ReliableType.Reliable, RpcArgs(Sync.SettingsRevision));
     }

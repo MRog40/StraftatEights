@@ -14,7 +14,6 @@ internal static class ModMenuIntegration
     {
         if (!Chainloader.PluginInfos.ContainsKey(ModMenuGuid))
         {
-            DebugLog.Info("[ModMenu] Not installed; skip-round button is unavailable.");
             return;
         }
 
@@ -27,7 +26,6 @@ internal static class ModMenuIntegration
             }
 
             ModMenuCustomisation.RegisterContentBuilder(BuildContent);
-            DebugLog.Info("[ModMenu] Registered skip-round button.");
         }
         catch (Exception exception)
         {

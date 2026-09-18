@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
@@ -16,6 +15,9 @@ internal static class PlayerLookup
     private static bool _connectedPlayerIdsDirty = true;
     private static int _cachedMappedPlayerCount = -1;
 
+    internal static ICollection<PlayerHealth> KnownPlayerHealths => CachedPlayerHealthById.Values;
+    internal static int ConnectedPlayerRevision { get; private set; }
+
     internal static void Initialize()
     {
         MyceliumNetwork.LobbyCreated += ResetCaches;
@@ -27,12 +29,24 @@ internal static class PlayerLookup
 
     internal static List<int> GetConnectedPlayerIds()
     {
+        RefreshConnectedPlayerCache();
+        return new List<int>(CachedConnectedPlayerIds);
+    }
+
+    internal static IReadOnlyList<int> GetConnectedPlayerIdsReadOnly()
+    {
+        RefreshConnectedPlayerCache();
+        return CachedConnectedPlayerIds;
+    }
+
+    private static void RefreshConnectedPlayerCache()
+    {
         try
         {
             int mappedPlayerCount = ClientInstance.playerInstances.Count;
             if (!_connectedPlayerIdsDirty && _cachedMappedPlayerCount == mappedPlayerCount)
             {
-                return new List<int>(CachedConnectedPlayerIds);
+                return;
             }
 
             HashSet<int> playerIds = new();
@@ -52,19 +66,37 @@ internal static class PlayerLookup
                 }
             }
 
+            bool membershipChanged = CachedConnectedPlayerIds.Count != playerIds.Count;
+            if (!membershipChanged)
+            {
+                foreach (int cachedPlayerId in CachedConnectedPlayerIds)
+                {
+                    if (!playerIds.Contains(cachedPlayerId))
+                    {
+                        membershipChanged = true;
+                        break;
+                    }
+                }
+            }
+
             CachedConnectedPlayerIds.Clear();
-            CachedConnectedPlayerIds.AddRange(playerIds);
+            foreach (int playerId in playerIds)
+            {
+                CachedConnectedPlayerIds.Add(playerId);
+            }
             CachedConnectedPlayerIds.Sort();
+            if (membershipChanged)
+            {
+                ConnectedPlayerRevision++;
+            }
             _cachedMappedPlayerCount = mappedPlayerCount;
             _connectedPlayerIdsDirty = false;
-            return new List<int>(CachedConnectedPlayerIds);
         }
         catch
         {
             CachedConnectedPlayerIds.Clear();
             _cachedMappedPlayerCount = -1;
             _connectedPlayerIdsDirty = true;
-            return new List<int>();
         }
     }
 
@@ -72,6 +104,7 @@ internal static class PlayerLookup
     {
         _connectedPlayerIdsDirty = true;
         _cachedMappedPlayerCount = -1;
+        ConnectedPlayerRevision++;
     }
 
     private static void InvalidateConnectedPlayerCache(CSteamID _)
@@ -81,12 +114,8 @@ internal static class PlayerLookup
 
     private static void OnPlayerLeft(CSteamID steamId)
     {
-        int playerId = FindPlayerId(steamId);
         InvalidateConnectedPlayerCache();
-        if (playerId >= 0)
-        {
-            CachedPlayerHealthById.Remove(playerId);
-        }
+        CachedPlayerHealthById.Clear();
     }
 
     private static void ResetCaches()
@@ -95,6 +124,7 @@ internal static class PlayerLookup
         CachedPlayerHealthById.Clear();
         _connectedPlayerIdsDirty = true;
         _cachedMappedPlayerCount = -1;
+        ConnectedPlayerRevision++;
     }
 
     internal static void RegisterSpawnedPlayer(PlayerManager manager)
@@ -126,6 +156,17 @@ internal static class PlayerLookup
         {
             return null;
         }
+
+        if (CachedPlayerHealthById.TryGetValue(playerId, out PlayerHealth? cachedHealth))
+        {
+            if (cachedHealth != null && IsPlayerHealthForId(cachedHealth, playerId))
+            {
+                return cachedHealth;
+            }
+
+            CachedPlayerHealthById.Remove(playerId);
+        }
+
         if (ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client) && client != null)
         {
             if (client.PlayerSpawner != null && client.PlayerSpawner.player != null)
@@ -149,56 +190,6 @@ internal static class PlayerLookup
                 return clientHealth;
             }
         }
-
-        if (CachedPlayerHealthById.TryGetValue(playerId, out PlayerHealth? cachedHealth))
-        {
-            if (IsPlayerHealthForId(cachedHealth, playerId))
-            {
-                return cachedHealth;
-            }
-
-            CachedPlayerHealthById.Remove(playerId);
-        }
-
-        foreach (PlayerHealth health in Object.FindObjectsOfType<PlayerHealth>(true))
-        {
-            if (IsPlayerHealthForId(health, playerId))
-            {
-                CachedPlayerHealthById[playerId] = health;
-                return health;
-            }
-        }
-
-        foreach (ClientInstance sceneClient in Object.FindObjectsOfType<ClientInstance>())
-        {
-            if (sceneClient == null || !sceneClient || sceneClient.PlayerId != playerId)
-            {
-                continue;
-            }
-
-            PlayerManager? playerSpawner = sceneClient.PlayerSpawner;
-            if (playerSpawner != null && playerSpawner.player != null)
-            {
-                PlayerHealth? health = playerSpawner.player.GetComponent<PlayerHealth>();
-                if (IsPlayerHealthForId(health, playerId))
-                {
-                    CachedPlayerHealthById[playerId] = health;
-                    return health;
-                }
-                if (IsMappedLivePlayerHealth(health, sceneClient))
-                {
-                    CachedPlayerHealthById[playerId] = health;
-                    return health;
-                }
-            }
-
-            PlayerHealth? sceneHealth = sceneClient.GetComponent<PlayerHealth>();
-            if (IsPlayerHealthForId(sceneHealth, playerId))
-            {
-                CachedPlayerHealthById[playerId] = sceneHealth;
-                return sceneHealth;
-            }
-        }
         return null;
     }
 
@@ -220,6 +211,18 @@ internal static class PlayerLookup
         if (playerId < 0)
         {
             return null;
+        }
+
+        if (CachedPlayerHealthById.TryGetValue(playerId, out PlayerHealth? cachedHealth))
+        {
+            if (cachedHealth != null && cachedHealth
+                && IsPlayerHealthForId(cachedHealth, playerId)
+                && cachedHealth.gameObject.activeInHierarchy)
+            {
+                return cachedHealth;
+            }
+
+            CachedPlayerHealthById.Remove(playerId);
         }
 
         if (ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client)
@@ -249,58 +252,6 @@ internal static class PlayerLookup
                 return clientHealth;
             }
         }
-
-        if (CachedPlayerHealthById.TryGetValue(playerId, out PlayerHealth? cachedHealth)
-            && cachedHealth != null && cachedHealth
-            && IsPlayerHealthForId(cachedHealth, playerId)
-            && cachedHealth.gameObject.activeInHierarchy)
-        {
-            return cachedHealth;
-        }
-        CachedPlayerHealthById.Remove(playerId);
-
-        foreach (PlayerHealth health in Object.FindObjectsOfType<PlayerHealth>())
-        {
-            if (IsPlayerHealthForId(health, playerId))
-            {
-                CachedPlayerHealthById[playerId] = health;
-                return health;
-            }
-        }
-
-        foreach (ClientInstance sceneClient in Object.FindObjectsOfType<ClientInstance>())
-        {
-            if (sceneClient == null || !sceneClient || sceneClient.PlayerId != playerId)
-            {
-                continue;
-            }
-
-            PlayerManager? playerSpawner = sceneClient.PlayerSpawner;
-            if (playerSpawner != null && playerSpawner
-                && playerSpawner.player != null && playerSpawner.player)
-            {
-                PlayerHealth? health = playerSpawner.player.GetComponent<PlayerHealth>();
-                if (IsPlayerHealthForId(health, playerId) && health.gameObject.activeInHierarchy)
-                {
-                    CachedPlayerHealthById[playerId] = health;
-                    return health;
-                }
-                if (IsMappedLivePlayerHealth(health, sceneClient))
-                {
-                    CachedPlayerHealthById[playerId] = health;
-                    return health;
-                }
-            }
-
-            PlayerHealth? sceneHealth = sceneClient.GetComponent<PlayerHealth>();
-            if (IsPlayerHealthForId(sceneHealth, playerId)
-                && sceneHealth.gameObject.activeInHierarchy)
-            {
-                CachedPlayerHealthById[playerId] = sceneHealth;
-                return sceneHealth;
-            }
-        }
-
         return null;
     }
 

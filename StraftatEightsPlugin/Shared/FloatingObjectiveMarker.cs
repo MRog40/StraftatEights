@@ -14,6 +14,9 @@ internal static class FloatingObjectiveMarker
     private const float GroundProbeDistance = 8f;
     internal const float OverheadMarkerHeight = 3f;
     private static readonly Dictionary<GameObject, Vector3> ConformedPositions = new();
+    private static readonly Dictionary<Vector3, Vector3> GroundedPositionCache = new();
+    private static readonly RaycastHit[] GroundProbeHits = new RaycastHit[32];
+    private static int _groundedPositionCacheFrame = -1;
 
     internal static GameObject CreateRing(string name, Color color)
     {
@@ -113,26 +116,40 @@ internal static class FloatingObjectiveMarker
 
     internal static Vector3 CalculateMarkerPosition(Vector3 objectivePosition)
     {
+        if (_groundedPositionCacheFrame != Time.frameCount)
+        {
+            GroundedPositionCache.Clear();
+            _groundedPositionCacheFrame = Time.frameCount;
+        }
+
+        if (GroundedPositionCache.TryGetValue(objectivePosition, out Vector3 cachedPosition))
+        {
+            return cachedPosition;
+        }
+
         float groundY = objectivePosition.y;
         if (TryGetGroundY(objectivePosition, objectivePosition.y, out float sampledGroundY))
         {
             groundY = sampledGroundY;
         }
 
-        return new Vector3(objectivePosition.x, groundY + RingGroundClearance,
+        Vector3 markerPosition = new(objectivePosition.x, groundY + RingGroundClearance,
             objectivePosition.z);
+        GroundedPositionCache[objectivePosition] = markerPosition;
+        return markerPosition;
     }
 
     internal static bool TryGetGroundY(Vector3 position, float referenceY, out float groundY)
     {
         groundY = referenceY;
         Vector3 rayOrigin = new(position.x, referenceY + GroundProbeStartOffset, position.z);
-        RaycastHit[] hits = Physics.RaycastAll(rayOrigin, Vector3.down, GroundProbeDistance,
-            Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        int hitCount = Physics.RaycastNonAlloc(rayOrigin, Vector3.down, GroundProbeHits,
+            GroundProbeDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
         float closestGroundDifference = float.MaxValue;
         bool foundGround = false;
-        foreach (RaycastHit hit in hits)
+        for (int index = 0; index < hitCount; index++)
         {
+            RaycastHit hit = GroundProbeHits[index];
             if (hit.collider == null || hit.collider.GetComponentInParent<PlayerHealth>() != null)
             {
                 continue;

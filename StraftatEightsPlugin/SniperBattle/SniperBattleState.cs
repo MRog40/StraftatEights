@@ -143,8 +143,6 @@ internal static class SniperBattleState
 
     internal static void ResetMatchState()
     {
-        DebugLog.Info($"SniperBattle match reset round={GameModeManager.RoundId} pointsCount={Points.Count} "
-            + $"liveRevision={Sync.LiveRevision} lastLiveRound={Sync.LastLiveRoundId}");
         Sync.ResetLiveState();
         WinnerId = -1;
         Points.Clear();
@@ -154,8 +152,6 @@ internal static class SniperBattleState
     internal static void ApplyLiveState(CSteamID hostId, string pointsData, int winnerId, int roundId,
         int revision, string source = "unknown")
     {
-        DebugLog.Info($"SniperBattle live state received source={source} host={hostId.m_SteamID} "
-            + $"round={roundId} revision={revision} winner={winnerId} payloadLength={pointsData?.Length ?? 0}");
         if (winnerId < -1)
         {
             return;
@@ -170,14 +166,10 @@ internal static class SniperBattleState
         {
             Points[entry.Key] = entry.Value;
         }
-        DebugLog.Info($"[SniperBattle] Accepted live state via {source}: round={roundId} "
-            + $"revision={revision} players={Points.Count}");
     }
 
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
-        DebugLog.Info($"SniperBattle server kill dead={deadPlayerId} killer={killerId} enabled={Enabled} "
-            + $"round={GameModeManager.RoundId} pointsCount={Points.Count}");
         if (!Enabled || WinnerId >= 0 || killerId < 0 || killerId == deadPlayerId)
         {
             return;
@@ -193,8 +185,6 @@ internal static class SniperBattleState
             Announce(PlayerLookup.GetPlayerNameTag(killerId) + " reached " + PointsToWin + " points and won the round!");
             GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(killerId));
         }
-        DebugLog.Info($"SniperBattle score updated killer={killerId} points={totalPoints} "
-            + $"round={GameModeManager.RoundId} winner={WinnerId}");
         BroadcastLiveState();
     }
 
@@ -271,9 +261,6 @@ internal static class SniperBattleState
         {
             int revision = Sync.NextLiveRevision();
             string pointsData = SerializePoints();
-            DebugLog.Info($"SniperBattle live broadcast host={MyceliumNetwork.LobbyHost.m_SteamID} "
-                + $"round={GameModeManager.RoundId} revision={revision} winner={WinnerId} "
-                + $"players={Points.Count} payloadLength={pointsData.Length}");
             PublishLiveSnapshot(revision, pointsData);
             MyceliumNetwork.RPC(Plugin.SniperBattleModId, nameof(Plugin.SyncSniperBattleLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, pointsData, WinnerId, GameModeManager.RoundId, revision);
@@ -303,8 +290,6 @@ internal static class SniperBattleState
 
         if (Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision, "sniper-battle-lobby-data"))
         {
-            DebugLog.Info($"SniperBattle settings accepted via lobby data round={roundId} "
-                + $"revision={revision} enabled={enabled}");
             ApplySettings(enabled);
         }
     }

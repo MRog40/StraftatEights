@@ -162,8 +162,6 @@ internal static class HVTState
             return;
         }
 
-        DebugLog.Info($"HVT live state accepted source={source} host={hostId.m_SteamID} "
-            + $"round={roundId} revision={revision} hvt={hvtPlayerId} points={Points.Count}");
 
         CurrentHVTPlayerId = hvtPlayerId;
         WinnerId = winnerId;
@@ -306,7 +304,6 @@ internal static class HVTState
             ModeLobbyDataSync.Source("hvt", "settings")))
         {
             ApplySettings(enabled);
-            DebugLog.Info($"[HVT] Accepted settings via lobby data: round={roundId} revision={revision}");
         }
     }
 

@@ -115,7 +115,6 @@ internal static class HealthSettingsTuning
         float previousFullHealth = controller.fullHealth;
         controller.fullHealth = scaledFullHealth;
 
-        DebugLog.Info($"[HealthSettings] Health apply: owner={controller.IsOwner} server={controller.IsServer} baseline={memory.BaselineFullHealth:0.##} fullHealth={previousFullHealth:0.##}->{scaledFullHealth:0.##} healthBefore={controller.health:0.##} multiplier={healthMultiplier:0.##} teamMultiplier={teamHealthMultiplier:0.##} version={version}");
 
         if (controller.IsServer)
         {
@@ -131,7 +130,6 @@ internal static class HealthSettingsTuning
                 {
                     ApplyingPassiveHealth = false;
                 }
-                DebugLog.Info($"[HealthSettings] Health server write: owner={controller.IsOwner} healthAfter={controller.health:0.##} bonus={bonus:0.##}");
             }
         }
     }

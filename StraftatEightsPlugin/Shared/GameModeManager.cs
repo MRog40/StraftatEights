@@ -513,8 +513,6 @@ internal static class GameModeManager
 
     internal static bool HandleSceneChange()
     {
-        DebugLog.Info($"Scene change requested host={MyceliumNetwork.IsHost} scene={SceneManager.GetActiveScene().name} "
-            + $"mode={ActiveMode} phase={Phase} round={RoundId} sceneIndex={SceneMotor.Instance?.sceneIndex ?? -1}");
         if (IsVanillaScene)
         {
             EnsureVanillaScene();
@@ -543,8 +541,6 @@ internal static class GameModeManager
 
     internal static void StartMatch()
     {
-        DebugLog.Info($"StartMatch called host={MyceliumNetwork.IsHost} lobby={MyceliumNetwork.InLobby} "
-            + $"mode={ActiveMode} phase={Phase} round={RoundId} matchOver={IsMatchOver}");
         if (IsVanillaScene)
         {
             EnsureVanillaScene();
@@ -570,8 +566,6 @@ internal static class GameModeManager
         if (!IsEnabled(entry.Mode)
             || !ModeMapCatalog.IsSupported(entry.Mode, entry.MapName, EffectiveMapOverrides))
         {
-            DebugLog.Info($"StartMatch ignored stale playlist entry mode={entry.Mode} "
-                + $"enabled={IsEnabled(entry.Mode)} map={entry.MapName}");
             if (!TrySelectNextPlaylistEntry(out entry))
             {
                 GameMode fallbackMode = NextEnabledMode(GameMode.None);
@@ -616,7 +610,6 @@ internal static class GameModeManager
 
     private static void EndMatch()
     {
-        DebugLog.Info($"EndMatch before reset mode={ActiveMode} phase={Phase} round={RoundId}");
         ResetMatchState();
         ActiveMode = GameMode.None;
         Phase = GameModePhase.Inactive;
@@ -731,8 +724,6 @@ internal static class GameModeManager
 
     private static void OnLobbyEntered()
     {
-        DebugLog.Info($"Lobby entered/created host={MyceliumNetwork.IsHost} lobby={MyceliumNetwork.InLobby} "
-            + $"lobbyHost={MyceliumNetwork.LobbyHost.m_SteamID} mode={ActiveMode} phase={Phase} round={RoundId}");
         Sync.ResetForLobby();
         SessionState.BeginLobby();
         ModeTimeoutState.OnLobbyEntered();
@@ -777,7 +768,6 @@ internal static class GameModeManager
 
     private static void OnLobbyLeft()
     {
-        DebugLog.Info($"Lobby left mode={ActiveMode} phase={Phase} round={RoundId}");
         SessionState.EndLobby();
         ResetMatchState();
         ActiveMode = GameMode.None;
@@ -798,8 +788,6 @@ internal static class GameModeManager
 
     private static void OnPlayerEntered(CSteamID player)
     {
-        DebugLog.Info($"Player entered player={player.m_SteamID} host={MyceliumNetwork.IsHost} "
-            + $"localPlayer={ClientInstance.Instance?.PlayerId ?? -1} mode={ActiveMode} round={RoundId}");
         if (MyceliumNetwork.IsHost)
         {
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncGlobalSettings), player,
@@ -865,10 +853,8 @@ internal static class GameModeManager
         _mapPlaylistIndex = -1;
         LastMapByMode.Clear();
         _mapPlaylistPrepared = true;
-        DebugLog.Info($"[MapPlaylist] Prepared entries={_mapPlaylist.Count}");
         foreach (MapPlaylistEntry<GameMode> entry in _mapPlaylist)
         {
-            DebugLog.Info($"[MapPlaylist] Candidate mode={entry.Mode} map={entry.MapName}");
         }
     }
 
@@ -906,8 +892,6 @@ internal static class GameModeManager
             int insertionWindow = Math.Min(3, insertionCount);
             int insertionIndex = insertionStart + _mapPlaylistRandom.Next(insertionWindow);
             _mapPlaylist.Insert(insertionIndex, new MapPlaylistEntry<GameMode>(mode, mapName));
-            DebugLog.Info($"[MapPlaylist] Added mode={mode} map={mapName} to active playlist "
-                + $"at index={insertionIndex}");
         }
     }
 
@@ -957,7 +941,6 @@ internal static class GameModeManager
         _mapPlaylistIndex = nextIndex;
         LastMapByMode[entry.Mode] = mapName;
         SelectedMapName = mapName;
-        DebugLog.Info($"[MapPlaylist] Selected index={_mapPlaylistIndex} mode={entry.Mode} map={mapName}");
         return true;
     }
 
@@ -1001,7 +984,6 @@ internal static class GameModeManager
             };
             InstanceFinder.SceneManager.LoadGlobalScenes(sceneLoadData);
             SceneMotor.Instance.IncrementScene();
-            DebugLog.Info($"[Map] Loading mode={ActiveMode} map={SelectedMapName} round={RoundId}");
             return true;
         }
         catch (Exception exception)
@@ -1095,11 +1077,8 @@ internal static class GameModeManager
 
     private static void ActivateMode(GameMode mode, bool forceReset)
     {
-        DebugLog.Info($"ActivateMode from={ActiveMode} to={mode} forceReset={forceReset} "
-            + $"beforePhase={Phase} beforeRound={RoundId} host={MyceliumNetwork.IsHost}");
         if (MyceliumNetwork.IsHost && mode != GameMode.None && !IsEnabled(mode))
         {
-            DebugLog.Info($"ActivateMode rejected disabled mode={mode}");
             mode = NextEnabledMode(mode);
             if (mode == GameMode.None)
             {
@@ -1157,8 +1136,6 @@ internal static class GameModeManager
     internal static void ApplyActiveMode(int mode, int roundId, int phase, string mapName,
         bool mapOverridesEnabled)
     {
-        DebugLog.Info($"ApplyActiveMode input mode={(GameMode)mode} round={roundId} phase={(GameModePhase)phase} "
-            + $"map={mapName} currentMode={ActiveMode} currentPhase={Phase} currentRound={RoundId}");
         if (IsVanillaScene)
         {
             EnsureVanillaScene();
@@ -1176,7 +1153,6 @@ internal static class GameModeManager
         if (nextMode != GameMode.None
             && !ModeMapCatalog.IsSupported(nextMode, mapName, EffectiveMapOverrides))
         {
-            DebugLog.Info($"[GameMode] Rejected active map mode={nextMode} map={mapName}");
             return;
         }
 
@@ -1192,7 +1168,6 @@ internal static class GameModeManager
 
         if (MyceliumNetwork.IsHost && nextMode != GameMode.None && !IsEnabled(nextMode))
         {
-            DebugLog.Info($"ApplyActiveMode rejected disabled host mode={nextMode}");
             EnsureActiveMode();
             return;
         }
@@ -1212,7 +1187,6 @@ internal static class GameModeManager
         SelectedMapName = nextMode == GameMode.None ? string.Empty : mapName;
         if (modeChanged || phaseChanged)
         {
-            DebugLog.Info($"[GameMode] Applied host state: mode={nextMode} round={roundId} phase={(GameModePhase)phase}");
         }
     }
 
@@ -1234,7 +1208,6 @@ internal static class GameModeManager
 
     internal static void ResetGameState()
     {
-        DebugLog.Info($"ResetGameState host={MyceliumNetwork.IsHost} mode={ActiveMode} phase={Phase} round={RoundId}");
         _roundLifecycleStarted = false;
         if (Phase == GameModePhase.EndingRound)
         {
@@ -1302,7 +1275,6 @@ internal static class GameModeManager
 
     internal static bool BeginRound()
     {
-        DebugLog.Info($"BeginRound host={MyceliumNetwork.IsHost} mode={ActiveMode} phase={Phase} round={RoundId}");
         if (IsVanillaScene || ActiveMode == GameMode.None)
         {
             return false;
@@ -1353,8 +1325,6 @@ internal static class GameModeManager
     private static void BroadcastActiveMode()
     {
         int revision = Sync.NextLiveRevision();
-        DebugLog.Info($"BroadcastActiveMode host={MyceliumNetwork.LobbyHost.m_SteamID} mode={ActiveMode} "
-            + $"map={SelectedMapName} phase={Phase} round={RoundId} revision={revision} players={MyceliumNetwork.PlayerCount}");
         PublishActiveModeSnapshot(revision);
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncActiveGameMode), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId, (int)Phase, revision,
@@ -1386,9 +1356,6 @@ internal static class GameModeManager
         }
 
         ApplyActiveMode(mode, roundId, phase, parts[5], mapOverridesEnabled);
-        DebugLog.Info($"[GameMode] Accepted active mode via lobby data: mode={(GameMode)mode} "
-            + $"map={parts[5]} round={roundId} phase={(GameModePhase)phase} "
-            + $"overrides={mapOverridesEnabled} revision={revision}");
     }
 
     private static readonly HashSet<int> PendingDeaths = new();
@@ -1488,7 +1455,6 @@ internal static class GameModeManager
 
         PlayerHealth? deadHealth = PlayerLookup.FindPlayerHealthById(playerId);
         int killerId = PlayerLookup.FindKillerId(deadHealth);
-        DebugLog.Info($"[GameMode] Server death: mode={mode} deadPlayer={playerId} killer={killerId}");
 
         switch (mode)
         {
@@ -1677,9 +1643,6 @@ public partial class Plugin
             return;
         }
         GameModeManager.ApplyActiveMode(mode, roundId, phase, mapName, mapOverridesEnabled);
-        DebugLog.Info($"[GameMode] Accepted active mode via RPC: mode={(GameMode)mode} "
-            + $"map={mapName} round={roundId} phase={(GameModePhase)phase} "
-            + $"overrides={mapOverridesEnabled} revision={revision}");
     }
 }
 
@@ -1688,8 +1651,6 @@ internal static class GameManager_GameModeReset_Patch
 {
     private static void Postfix()
     {
-        DebugLog.Info($"GameManager.ResetGame postfix host={MyceliumNetwork.IsHost} "
-            + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} round={GameModeManager.RoundId}");
         GameModeManager.ResetGameState();
         PlayerOutline.ResetState();
         TeammateMarker.ResetState();
@@ -1702,9 +1663,6 @@ internal static class SceneMotor_GameModeCycle_Patch
 {
     private static bool Prefix()
     {
-        DebugLog.Info($"SceneMotor.ChangeNetworkScene prefix scene={SceneManager.GetActiveScene().name} "
-            + $"host={MyceliumNetwork.IsHost} mode={GameModeManager.ActiveMode} "
-            + $"phase={GameModeManager.Phase} round={GameModeManager.RoundId}");
         return !GameModeManager.HandleSceneChange();
     }
 }
@@ -1747,9 +1705,6 @@ internal static class GameManager_GameModeStart_Patch
 {
     private static void Postfix()
     {
-        DebugLog.Info($"GameManager.StartGame postfix host={MyceliumNetwork.IsHost} "
-            + $"scene={SceneManager.GetActiveScene().name} mode={GameModeManager.ActiveMode} "
-            + $"phase={GameModeManager.Phase} round={GameModeManager.RoundId}");
         GameModeManager.StartMatch();
     }
 }

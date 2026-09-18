@@ -70,9 +70,6 @@ internal static class SessionState
             return false;
         }
 
-        DebugLog.Info($"Snapshot accepted source={source} host={hostId.m_SteamID} "
-            + $"round={roundId} revision={revision} previousRound={previousRoundId} "
-            + $"previousRevision={previousRevision}");
         return true;
     }
 
