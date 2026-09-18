@@ -8,12 +8,17 @@ public partial class Plugin
 {
     internal const uint InfidelModId = 2718281831u;
     internal static ConfigEntry<bool> InfidelEnabled = null!;
+    internal static ConfigEntry<float> InfidelTakeTimeLimit = null!;
 
     private void InitializeInfidel()
     {
         const string section = "Game Mode Settings";
         InfidelEnabled = Config.Bind(section, "Infidel Enabled", false,
             "Host-controlled: one private Infidel role, delayed AK loadouts, slow movement, and role-based scoring.");
+        InfidelTakeTimeLimit = Config.Bind(section, "Infidel Take Time Limit (seconds)",
+            InfidelState.DefaultTakeTimeLimitSeconds,
+            new ConfigDescription("Host-controlled: terrorists lose the take when this time expires.",
+                new AcceptableValueRange<float>(10f, 300f)));
 
         InfidelEnabled.SettingChanged += (_, _) =>
         {

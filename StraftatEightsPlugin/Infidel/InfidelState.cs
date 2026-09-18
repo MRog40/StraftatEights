@@ -17,6 +17,7 @@ internal static class InfidelState
     internal const float TerroristHealth = 100f / 25f;
     internal const float MovementMultiplier = 0.7f;
     internal const float WeaponDelaySeconds = 10f;
+    internal const float DefaultTakeTimeLimitSeconds = 90f;
     internal const float RoleAnnouncementDuration = WeaponDelaySeconds + 10f;
 
     internal static bool Enabled;
@@ -31,6 +32,7 @@ internal static class InfidelState
     private static readonly HashSet<int> PendingHealthResets = new();
     private static readonly Dictionary<int, float> PendingLoadouts = new();
     private static float _nextLoadoutCheckTime;
+    private static float _takeTimeRemaining;
     private static readonly ModeSyncState Sync = new();
     private static int _takeId;
     private static int _localRoleTakeId = -1;
@@ -192,6 +194,7 @@ internal static class InfidelState
         StopTakeTransition();
         Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
+        _takeTimeRemaining = 0f;
         _takeId = 0;
         _localRoleTakeId = -1;
         _localRoleAnnouncedTakeId = -1;
@@ -238,6 +241,23 @@ internal static class InfidelState
         Scores.Clear();
         WinnerId = -1;
         StartTake();
+    }
+
+    internal static void ServerTick(float deltaTime)
+    {
+        if (!Enabled || !MyceliumNetwork.IsHost
+            || !GameModeManager.IsActive(GameMode.Infidel)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || WinnerId >= 0 || !TakeIsActive())
+        {
+            return;
+        }
+
+        _takeTimeRemaining = Mathf.Max(0f, _takeTimeRemaining - Mathf.Max(0f, deltaTime));
+        if (_takeTimeRemaining <= 0f)
+        {
+            CompleteTimeoutWin();
+        }
     }
 
     internal static void OnServerKill(int deadPlayerId, int killerId)
@@ -416,6 +436,7 @@ internal static class InfidelState
 
         _takeId++;
         _takeEnding = false;
+        _takeTimeRemaining = Mathf.Max(1f, Plugin.InfidelTakeTimeLimit.Value);
         WeaponsUnlocked = false;
         _nextLoadoutCheckTime = 0f;
         PendingLoadouts.Clear();
@@ -510,6 +531,30 @@ internal static class InfidelState
         Plugin.Instance.StartCoroutine(StartNextTakeAfterRespawn(
             GameModeManager.EffectiveRespawnDelaySeconds + 0.75f,
             SessionState.Generation, GameModeManager.RoundId));
+    }
+
+    private static void CompleteTimeoutWin()
+    {
+        if (_takeEnding || WinnerId >= 0 || InfidelPlayerId < 0)
+        {
+            return;
+        }
+
+        AwardScore(InfidelPlayerId, InfidelRules.GetWinnerAward(true));
+        GameModeHud.BroadcastTakeResult("<b>"
+            + PlayerLookup.GetPlayerNameTag(InfidelPlayerId)
+            + " WON THE TAKE</b>\n<i>THE TERRORISTS RAN OUT OF TIME</i>");
+        BroadcastLiveState();
+
+        if (WinnerId >= 0)
+        {
+            Announce(PlayerLookup.GetPlayerNameTag(WinnerId) + " reached " + KillsToWin
+                + " points and won the round!");
+            GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(WinnerId));
+            return;
+        }
+
+        BeginNextTake();
     }
 
     private static IEnumerator StartNextTakeAfterRespawn(float delay, int sessionGeneration, int roundId)

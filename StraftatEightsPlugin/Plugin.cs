@@ -150,6 +150,7 @@ public partial class Plugin : BaseUnityPlugin
         GameModeManager.PeriodicActiveModePushIfHost();
         GameModeManager.PollLobbyStateIfClient();
         CaptureTheFlagState.ServerTick(Time.unscaledDeltaTime);
+        InfidelState.ServerTick(Time.unscaledDeltaTime);
         SearchAndDestroyState.ServerTick(Time.unscaledDeltaTime);
         SearchAndDestroyState.PollLocalInput();
         SearchAndDestroyState.ApplyLocalMovementLock();
