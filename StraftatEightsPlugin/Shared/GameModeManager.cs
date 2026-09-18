@@ -302,7 +302,7 @@ internal static class GameModeManager
         PointsToWin.SettingChanged += (_, _) => OnGlobalSettingsChanged();
 
         MyceliumNetwork.RegisterNetworkObject(Plugin.Instance, ModId);
-        ModeLobbyDataSync.RegisterKeys(ActiveModeLobbyDataKey);
+        ModeLobbyDataSync.RegisterKeys(ActiveModeLobbyDataKey, ModeTimeoutState.LiveLobbyDataKey);
         PlayerNameSync.Initialize();
         MyceliumNetwork.LobbyCreated += OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += OnLobbyEntered;
@@ -356,6 +356,7 @@ internal static class GameModeManager
 
     private static void ResetPointModeStates()
     {
+        ModeTimeoutState.ResetMatchState();
         DefaultGameModeState.ResetMatchState();
         FFAState.ResetMatchState();
         JuggernautState.ResetMatchState();
@@ -401,7 +402,8 @@ internal static class GameModeManager
         {
             if (client != null && client)
             {
-                GameModeRespawn.Schedule(client.PlayerId, EffectiveRespawnDelaySeconds);
+                GameModeRespawn.Schedule(client.PlayerId, EffectiveRespawnDelaySeconds,
+                    protectOnRespawn: false);
             }
         }
 
@@ -477,6 +479,7 @@ internal static class GameModeManager
             return;
         }
 
+        ModeTimeoutState.PeriodicPushIfHost();
         if (Modes.TryGetValue(ActiveMode, out ModeDescriptor? descriptor))
         {
             descriptor.PeriodicPush();
@@ -493,6 +496,7 @@ internal static class GameModeManager
 
         _nextClientLobbyPollTime = Time.unscaledTime + 1f;
         ApplyLobbyActiveModeSnapshot();
+        ModeTimeoutState.PollLiveStateIfClient();
         if (Modes.TryGetValue(ActiveMode, out ModeDescriptor? descriptor))
         {
             descriptor.PollLiveState();
@@ -754,6 +758,7 @@ internal static class GameModeManager
             + $"lobbyHost={MyceliumNetwork.LobbyHost.m_SteamID} mode={ActiveMode} phase={Phase} round={RoundId}");
         Sync.ResetForLobby();
         SessionState.BeginLobby();
+        ModeTimeoutState.OnLobbyEntered();
         _nextClientLobbyPollTime = 0f;
         if (MyceliumNetwork.IsHost)
         {
@@ -780,12 +785,17 @@ internal static class GameModeManager
     private static void OnLobbyDataUpdated(List<string> keys)
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
-            || !ModeLobbyDataSync.ContainsKey(keys, ActiveModeLobbyDataKey))
+            || (!ModeLobbyDataSync.ContainsKey(keys, ActiveModeLobbyDataKey)
+                && !ModeLobbyDataSync.ContainsKey(keys, ModeTimeoutState.LiveLobbyDataKey)))
         {
             return;
         }
 
-        ApplyLobbyActiveModeSnapshot();
+        if (ModeLobbyDataSync.ContainsKey(keys, ActiveModeLobbyDataKey))
+        {
+            ApplyLobbyActiveModeSnapshot();
+        }
+        ModeTimeoutState.OnLobbyDataUpdated(keys);
     }
 
     private static void OnLobbyLeft()
@@ -821,6 +831,7 @@ internal static class GameModeManager
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncActiveGameMode), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId,
                 (int)Phase, Sync.LiveRevision, SelectedMapName, EffectiveMapOverrides);
+            ModeTimeoutState.OnPlayerEntered(player);
         }
     }
 
@@ -1235,6 +1246,8 @@ internal static class GameModeManager
         _skipRoundTransitionPending = false;
         PendingDeaths.Clear();
         GameModeRespawn.ResetForMatch();
+        RespawnProtection.ResetState();
+        ModeTimeoutState.ResetMatchState();
         TeamWeaponLoadouts.ResetMatchState();
         foreach (ModeDescriptor descriptor in Modes.Values)
         {
@@ -1331,6 +1344,8 @@ internal static class GameModeManager
             RoundId++;
             BroadcastActiveMode();
         }
+
+        ModeTimeoutState.OnRoundStarted();
 
         return true;
     }

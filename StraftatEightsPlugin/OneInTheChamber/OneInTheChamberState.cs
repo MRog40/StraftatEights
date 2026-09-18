@@ -639,7 +639,8 @@ internal static class OneInTheChamberState
         {
             if (ClientInstance.playerInstances.ContainsKey(playerId))
             {
-                GameModeRespawn.Schedule(playerId, GameModeManager.EffectiveRespawnDelaySeconds);
+                GameModeRespawn.Schedule(playerId, GameModeManager.EffectiveRespawnDelaySeconds,
+                    protectOnRespawn: false);
             }
         }
 

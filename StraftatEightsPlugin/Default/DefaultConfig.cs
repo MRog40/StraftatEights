@@ -12,7 +12,7 @@ public partial class Plugin
     private void InitializeDefaultGameMode()
     {
         const string section = "Game Mode Settings";
-        DefaultGameModeEnabled = Config.Bind(section, "Default Game Mode Enabled", false,
+        DefaultGameModeEnabled = Config.Bind(section, "Default Game Mode", false,
             "Host-controlled: uses map weapon spawners and default movement and health while awarding 50 points to players for each take win.");
 
         DefaultGameModeEnabled.SettingChanged += (_, _) => GameModeManager.OnSettingsChanged();

@@ -12,7 +12,7 @@ public partial class Plugin
     private void InitializeTeamDeathmatch()
     {
         const string section = "Game Mode Settings";
-        TeamDeathmatchEnabled = Config.Bind(section, "Team Deathmatch Enabled", false,
+        TeamDeathmatchEnabled = Config.Bind(section, "Team Deathmatch", false,
             "Host-controlled: teams score ten points per kill and respawn after death.");
         TeamDeathmatchEnabled.SettingChanged += (_, _) =>
         {

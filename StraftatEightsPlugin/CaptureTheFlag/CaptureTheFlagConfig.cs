@@ -12,7 +12,7 @@ public partial class Plugin
     private void InitializeCaptureTheFlag()
     {
         const string section = "Game Mode Settings";
-        CaptureTheFlagEnabled = Config.Bind(section, "Capture The Flag Enabled", false,
+        CaptureTheFlagEnabled = Config.Bind(section, "Capture The Flag", false,
             "Host-controlled: teams capture the enemy flag and return it to their base. Uses the authored objective map automatically.");
         CaptureTheFlagEnabled.SettingChanged += (_, _) =>
         {

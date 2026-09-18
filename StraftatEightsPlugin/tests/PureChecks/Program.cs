@@ -143,6 +143,14 @@ Assert(ScoreRules.PointsToWin == 100 && ScoreRules.PointsPerRoundWin == 50
     && ScoreRules.PointsPerJuggernautCrown == 20 && ScoreRules.PointsPerRatSurvivalSecond == 3
     && ScoreRules.PointsPerHVTSurvivalSecond == 3,
     "Shared score rules must use the 100-point target and mode award values.");
+Dictionary<int, int> timeoutScores = new() { [4] = 60, [9] = 40 };
+Assert(ModeTimeoutRules.DefaultRoundSeconds == 250f
+    && ModeTimeoutRules.TryGetUniqueLeader(timeoutScores, out int timeoutLeader)
+    && timeoutLeader == 4
+    && !ModeTimeoutRules.TryGetUniqueLeader(
+        new Dictionary<int, int> { [4] = 60, [9] = 60 }, out _)
+    && !ModeTimeoutRules.TryGetUniqueLeader(new Dictionary<int, int>(), out _),
+    "A timed score mode must select a unique leader and treat ties or empty scores as sudden death.");
 HashSet<int> michaelAlivePlayers = new() { 2, 5, 9 };
 Assert(MichaelMeyersRules.RoundTimeLimitSeconds == 90f
     && MichaelMeyersRules.PointsForSurvivorTimeout == 25

@@ -157,6 +157,8 @@ public partial class Plugin : BaseUnityPlugin
         InfidelState.ServerTick(Time.unscaledDeltaTime);
         InfidelState.ClientTick(Time.unscaledDeltaTime);
         SearchAndDestroyState.ServerTick(Time.unscaledDeltaTime);
+        ModeTimeoutState.ServerTick(Time.unscaledDeltaTime);
+        ModeTimeoutState.ClientTick(Time.unscaledDeltaTime);
         SearchAndDestroyState.PollLocalInput();
         SearchAndDestroyState.ApplyLocalMovementLock();
         GlobalModifiersState.PeriodicPushIfHost();

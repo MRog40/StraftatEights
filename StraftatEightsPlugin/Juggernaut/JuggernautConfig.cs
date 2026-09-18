@@ -17,7 +17,7 @@ public partial class Plugin
     {
         const string section = "Game Mode Settings";
 
-        JuggernautEnabled = Config.Bind(section, "Juggernaut Enabled", false,
+        JuggernautEnabled = Config.Bind(section, "Juggernaut", false,
             "Host-controlled: first blood becomes the Juggernaut; everyone else hunts them for the crown.");
 
         JuggernautEnabled.SettingChanged += (_, _) => { JuggernautState.PushSettingsIfHost(); GameModeManager.OnSettingsChanged(); };

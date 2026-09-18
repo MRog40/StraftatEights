@@ -12,7 +12,7 @@ public partial class Plugin
     private void InitializeKillTheRat()
     {
         const string section = "Game Mode Settings";
-        KillTheRatEnabled = Config.Bind(section, "Kill The Rat Enabled", false,
+        KillTheRatEnabled = Config.Bind(section, "Kill The Rat", false,
             "Host-controlled: the Rat gains three points per second; players gain ten points for killing the Rat.");
 
         KillTheRatEnabled.SettingChanged += (_, _) =>

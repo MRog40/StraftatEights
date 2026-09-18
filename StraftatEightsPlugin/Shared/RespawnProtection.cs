@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
+using MyceliumNetworking;
 using UnityEngine;
 
 namespace StraftatEightsPlugin;
@@ -12,6 +13,7 @@ internal static class RespawnProtection
     private const float OutlineWidth = 0.10f;
     private static readonly Color OutlineColor = new(0.5f, 0.5f, 0.5f);
     private static readonly List<Protection> ActiveProtections = new();
+    private static readonly Dictionary<int, int> PendingRespawnPlayers = new();
 
     private sealed class Protection
     {
@@ -47,8 +49,86 @@ internal static class RespawnProtection
         Apply(player);
     }
 
+    internal static void ArmForRespawn(int playerId)
+    {
+        if (playerId < 0)
+        {
+            return;
+        }
+
+        SetPendingRespawn(playerId, true);
+        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
+        {
+            MyceliumNetwork.RPC(GameModeManager.ModId,
+                nameof(Plugin.SyncRespawnProtection), ReliableType.Reliable, playerId, true);
+        }
+    }
+
+    internal static void CancelRespawn(int playerId)
+    {
+        if (playerId < 0)
+        {
+            return;
+        }
+
+        PendingRespawnPlayers.Remove(playerId);
+        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
+        {
+            MyceliumNetwork.RPC(GameModeManager.ModId,
+                nameof(Plugin.SyncRespawnProtection), ReliableType.Reliable, playerId, false);
+        }
+    }
+
+    internal static void SetPendingRespawn(int playerId, bool pending)
+    {
+        if (playerId < 0)
+        {
+            return;
+        }
+
+        if (pending)
+        {
+            PlayerHealth? currentPlayer = PlayerLookup.FindPlayerHealthById(playerId);
+            PendingRespawnPlayers[playerId] = currentPlayer == null || !currentPlayer
+                ? -1
+                : currentPlayer.GetInstanceID();
+        }
+        else
+        {
+            PendingRespawnPlayers.Remove(playerId);
+        }
+    }
+
+    internal static bool ConsumePendingRespawn(PlayerHealth player)
+    {
+        if (player == null || !player)
+        {
+            return false;
+        }
+
+        int playerId = player.playerValues?.playerClient?.PlayerId ?? -1;
+        if (playerId < 0 || !PendingRespawnPlayers.TryGetValue(playerId, out int oldObjectId)
+            || (oldObjectId >= 0 && oldObjectId == player.GetInstanceID()))
+        {
+            return false;
+        }
+
+        PendingRespawnPlayers.Remove(playerId);
+        return true;
+    }
+
     internal static void Update()
     {
+        foreach (int playerId in new List<int>(PendingRespawnPlayers.Keys))
+        {
+            PlayerHealth? player = PlayerLookup.FindPlayerHealthById(playerId);
+            if (player != null && player && player.gameObject.activeInHierarchy
+                && ConsumePendingRespawn(player))
+            {
+                Begin(player);
+            }
+        }
+
         for (int index = ActiveProtections.Count - 1; index >= 0; index--)
         {
             Protection protection = ActiveProtections[index];
@@ -129,6 +209,7 @@ internal static class RespawnProtection
             }
         }
         ActiveProtections.Clear();
+        PendingRespawnPlayers.Clear();
     }
 
     internal static void ApplyHealth(PlayerHealth player)
@@ -194,7 +275,7 @@ internal static class PlayerManager_RespawnProtection_Patch
     private static void Postfix(PlayerManager __instance)
     {
         PlayerHealth? player = __instance.player?.GetComponent<PlayerHealth>();
-        if (player != null)
+        if (player != null && RespawnProtection.ConsumePendingRespawn(player))
         {
             RespawnProtection.Begin(player);
         }
@@ -221,7 +302,7 @@ internal static class PlayerSetup_RespawnProtection_Patch
         }
 
         PlayerHealth? player = __instance.GetComponent<PlayerHealth>();
-        if (player != null)
+        if (player != null && RespawnProtection.ConsumePendingRespawn(player))
         {
             RespawnProtection.Begin(player);
         }

@@ -31,6 +31,7 @@ internal static class TeamWeaponLoadouts
     private static int _roundId = -1;
     private static int _assignmentVersion = -1;
     private static int _initialSlotCount;
+    private static float _nextLoadoutCheckTime;
 
     internal static void ResetMatchState()
     {
@@ -43,6 +44,7 @@ internal static class TeamWeaponLoadouts
         _roundId = -1;
         _assignmentVersion = -1;
         _initialSlotCount = 0;
+        _nextLoadoutCheckTime = 0f;
     }
 
     internal static void EnsureLoadouts()
@@ -50,10 +52,13 @@ internal static class TeamWeaponLoadouts
         if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
             || (!GameModeManager.IsTeamBased && !GameModeManager.IsActive(GameMode.FreeForAll))
             || GameModeManager.Phase != GameModePhase.ActiveRound
-            || WeaponService.IsFinalGameScreen)
+            || WeaponService.IsFinalGameScreen
+            || Time.unscaledTime < _nextLoadoutCheckTime)
         {
             return;
         }
+
+        _nextLoadoutCheckTime = Time.unscaledTime + 0.5f;
 
         if (WeaponSettingsState.Allowed.Count == 0)
         {
@@ -76,6 +81,27 @@ internal static class TeamWeaponLoadouts
 
             EnsurePlayerLoadout(assignment.Key, assignment.Value, client.PlayerSpawner.player);
         }
+    }
+
+    internal static void OnPlayerSpawned(PlayerManager manager)
+    {
+        if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || (!GameModeManager.IsTeamBased && !GameModeManager.IsActive(GameMode.FreeForAll))
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || WeaponService.IsFinalGameScreen || manager == null || !manager
+            || manager.player == null || !manager.player)
+        {
+            return;
+        }
+
+        ClientInstance? client = manager.GetComponent<ClientInstance>();
+        if (client == null || !TryGetLoadoutAssignment(client.PlayerId, out int teamId))
+        {
+            return;
+        }
+
+        EnsureRoundState();
+        EnsurePlayerLoadout(client.PlayerId, teamId, manager.player);
     }
 
     private static void EnsureRoundState()
@@ -152,6 +178,17 @@ internal static class TeamWeaponLoadouts
         {
             yield return assignment;
         }
+    }
+
+    private static bool TryGetLoadoutAssignment(int playerId, out int teamId)
+    {
+        if (GameModeManager.IsActive(GameMode.FreeForAll))
+        {
+            teamId = playerId;
+            return true;
+        }
+
+        return TeamAssignment.Current.TryGetValue(playerId, out teamId);
     }
 
     private static void EnsurePlayerLoadout(int playerId, int teamId,

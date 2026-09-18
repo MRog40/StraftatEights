@@ -5,6 +5,7 @@ using MyceliumNetworking;
 using Steamworks;
 using TMPro;
 using UnityEngine;
+using UnityEngine.TextCore.LowLevel;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
@@ -16,7 +17,7 @@ internal sealed class GameModeHud : MonoBehaviour
     private const float AnnouncementDuration = 2f;
     private const float AnnouncementHorizontalMargin = 18f;
     private const float AnnouncementWidth = 600f;
-    private const float AnnouncementGap = 16f;
+    private const float AnnouncementGap = 8f;
     private const float ScorePopupDuration = 0.65f;
     private const float ScorePopupImpactDuration = 0.12f;
     private const float ScorePopupStartScale = 1.18f;
@@ -27,6 +28,9 @@ internal sealed class GameModeHud : MonoBehaviour
     private const int MaxPendingTakeResults = 8;
     private const int MaxReceivedTakeResults = 32;
     private const int MaxDisplayedNameLength = 14;
+    private const int PanelTextureSize = 64;
+    private const int PanelCornerRadius = 12;
+    private const int PanelBorderWidth = 2;
     private sealed class PendingTakeResult
     {
         internal int ResultId;
@@ -35,6 +39,10 @@ internal sealed class GameModeHud : MonoBehaviour
     }
 
     private static GameModeHud? _instance;
+    private static TMP_FontAsset? _pluginFont;
+    private static bool _fontFallbackLogged;
+    private static Sprite? _scoreboardPanelSprite;
+    private static Texture2D? _scoreboardPanelTexture;
     private GameObject _panel = null!;
     private RectTransform _panelRect = null!;
     private TextMeshProUGUI _announcement = null!;
@@ -84,6 +92,7 @@ internal sealed class GameModeHud : MonoBehaviour
         announcementRect.sizeDelta = new Vector2(AnnouncementWidth, 110f);
         announcementRect.anchoredPosition = new Vector2(AnnouncementHorizontalMargin, -320f);
         _announcement = announcementObject.AddComponent<TextMeshProUGUI>();
+        ApplyPluginFont(_announcement);
         _announcement.fontSize = 40f;
         _announcement.fontStyle = FontStyles.Bold;
         _announcement.richText = true;
@@ -104,6 +113,7 @@ internal sealed class GameModeHud : MonoBehaviour
         targetAnnouncementRect.sizeDelta = new Vector2(AnnouncementWidth, 170f);
         targetAnnouncementRect.anchoredPosition = new Vector2(AnnouncementHorizontalMargin, -446f);
         _targetAnnouncement = targetAnnouncementObject.AddComponent<TextMeshProUGUI>();
+        ApplyPluginFont(_targetAnnouncement);
         _targetAnnouncement.fontSize = 36f;
         _targetAnnouncement.fontStyle = FontStyles.Bold;
         _targetAnnouncement.richText = true;
@@ -123,6 +133,7 @@ internal sealed class GameModeHud : MonoBehaviour
         objectiveStatusRect.sizeDelta = new Vector2(900f, 90f);
         objectiveStatusRect.anchoredPosition = new Vector2(0f, -255f);
         _objectiveStatus = objectiveStatusObject.AddComponent<TextMeshProUGUI>();
+        ApplyPluginFont(_objectiveStatus);
         _objectiveStatus.fontSize = 32f;
         _objectiveStatus.fontStyle = FontStyles.Bold;
         _objectiveStatus.color = new Color32(255, 211, 74, 255);
@@ -143,6 +154,7 @@ internal sealed class GameModeHud : MonoBehaviour
         interactionPromptRect.sizeDelta = new Vector2(900f, 90f);
         interactionPromptRect.anchoredPosition = new Vector2(0f, -325f);
         _interactionPrompt = interactionPromptObject.AddComponent<TextMeshProUGUI>();
+        ApplyPluginFont(_interactionPrompt);
         _interactionPrompt.fontSize = 32f;
         _interactionPrompt.fontStyle = FontStyles.Bold;
         _interactionPrompt.color = Color.white;
@@ -165,11 +177,7 @@ internal sealed class GameModeHud : MonoBehaviour
         _scorePopupRect = scorePopupRect;
         _scorePopupBasePosition = scorePopupRect.anchoredPosition;
         _scorePopup = scorePopupObject.AddComponent<TextMeshProUGUI>();
-        TMP_FontAsset? scorePopupFont = ResolveScorePopupFont();
-        if (scorePopupFont != null)
-        {
-            _scorePopup.font = scorePopupFont;
-        }
+        ApplyPluginFont(_scorePopup);
         _scorePopup.fontSize = 48f;
         _scorePopup.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
         _scorePopup.color = new Color32(255, 190, 55, 255);
@@ -192,7 +200,18 @@ internal sealed class GameModeHud : MonoBehaviour
         panelRect.pivot = new Vector2(0f, 1f);
         panelRect.sizeDelta = new Vector2(420f, 0f);
         panelRect.anchoredPosition = new Vector2(18f, -148f);
-        _panel.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.45f);
+        Image panelImage = _panel.AddComponent<Image>();
+        panelImage.sprite = GetScoreboardPanelSprite();
+        panelImage.type = Image.Type.Sliced;
+        panelImage.color = Color.white;
+        Shadow panelShadow = _panel.AddComponent<Shadow>();
+        panelShadow.effectColor = new Color(0f, 0f, 0f, 0.72f);
+        panelShadow.effectDistance = new Vector2(6f, -6f);
+        panelShadow.useGraphicAlpha = true;
+        Outline panelOutline = _panel.AddComponent<Outline>();
+        panelOutline.effectColor = new Color(0.58f, 0.65f, 0.39f, 0.32f);
+        panelOutline.effectDistance = new Vector2(1f, 1f);
+        panelOutline.useGraphicAlpha = true;
 
         VerticalLayoutGroup layout = _panel.AddComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(12, 12, 8, 8);
@@ -209,7 +228,9 @@ internal sealed class GameModeHud : MonoBehaviour
         GameObject scoreboardObject = new("GameModeScoreboard", typeof(RectTransform));
         scoreboardObject.transform.SetParent(_panel.transform, false);
         _scoreboard = scoreboardObject.AddComponent<TextMeshProUGUI>();
+        ApplyPluginFont(_scoreboard);
         _scoreboard.fontSize = 22f;
+        _scoreboard.color = new Color32(213, 224, 157, 255);
         _scoreboard.richText = true;
         _scoreboard.enableWordWrapping = false;
         _scoreboard.alignment = TextAlignmentOptions.TopLeft;
@@ -223,6 +244,7 @@ internal sealed class GameModeHud : MonoBehaviour
         respawnProtectionRect.pivot = new Vector2(0.5f, 0.5f);
         respawnProtectionRect.sizeDelta = new Vector2(64f, 64f);
         _respawnProtectionMarker = respawnProtectionObject.AddComponent<TextMeshProUGUI>();
+        ApplyPluginFont(_respawnProtectionMarker);
         _respawnProtectionMarker.text = "X";
         _respawnProtectionMarker.fontSize = 34f;
         _respawnProtectionMarker.fontStyle = FontStyles.Bold;
@@ -534,6 +556,11 @@ internal sealed class GameModeHud : MonoBehaviour
             return;
         }
 
+        if (_panel != null && _panel.activeSelf)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRect);
+        }
+
         float scoreboardHeight = _panel != null && _panel.activeSelf ? _panelRect.rect.height : 0f;
         float announcementTop = _panelRect.anchoredPosition.y - scoreboardHeight - AnnouncementGap;
         _announcementRect.anchoredPosition = new Vector2(AnnouncementHorizontalMargin,
@@ -618,43 +645,154 @@ internal sealed class GameModeHud : MonoBehaviour
         _scorePopupCanvas.alpha = alpha;
     }
 
-    private static TMP_FontAsset? ResolveScorePopupFont()
+    private static void ApplyPluginFont(TextMeshProUGUI text)
     {
-        string[] resourceNames =
+        TMP_FontAsset? font = ResolvePluginFont();
+        if (font != null)
         {
-            "Fonts & Materials/Anton SDF",
-            "Fonts & Materials/Bebas Neue SDF",
-            "Fonts & Materials/Oswald SDF",
-            "Fonts & Materials/RobotoCondensed SDF"
-        };
-        foreach (string resourceName in resourceNames)
+            text.font = font;
+        }
+    }
+
+    private static TMP_FontAsset? ResolvePluginFont()
+    {
+        if (_pluginFont != null)
         {
-            TMP_FontAsset? font = Resources.Load<TMP_FontAsset>(resourceName);
-            if (font != null)
+            return _pluginFont;
+        }
+
+        foreach (TMP_FontAsset font in Resources.FindObjectsOfTypeAll<TMP_FontAsset>())
+        {
+            if (font.name.IndexOf("MajorMonoDisplay", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return font;
+                _pluginFont = font;
+                return _pluginFont;
             }
         }
 
-        TMP_FontAsset? defaultFont = TMP_Settings.defaultFontAsset;
-        foreach (TMP_FontAsset font in Resources.FindObjectsOfTypeAll<TMP_FontAsset>())
+        string[] resourceNames =
         {
-            if (font == defaultFont)
+            "MajorMonoDisplay-Regular",
+            "Fonts/MajorMonoDisplay-Regular"
+        };
+        foreach (string resourceName in resourceNames)
+        {
+            UnityEngine.Font? font = Resources.Load<UnityEngine.Font>(resourceName);
+            if (font == null)
             {
                 continue;
             }
 
-            string fontName = font.name;
-            if (fontName.IndexOf("Anton", StringComparison.OrdinalIgnoreCase) >= 0
-                || fontName.IndexOf("Bebas", StringComparison.OrdinalIgnoreCase) >= 0
-                || fontName.IndexOf("Oswald", StringComparison.OrdinalIgnoreCase) >= 0
-                || fontName.IndexOf("RobotoCondensed", StringComparison.OrdinalIgnoreCase) >= 0)
+            _pluginFont = CreateDynamicPluginFont(font);
+            if (_pluginFont != null)
             {
-                return font;
+                return _pluginFont;
             }
         }
 
-        return defaultFont;
+        foreach (UnityEngine.Font font in Resources.FindObjectsOfTypeAll<UnityEngine.Font>())
+        {
+            if (font.name.IndexOf("MajorMonoDisplay", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                continue;
+            }
+
+            _pluginFont = CreateDynamicPluginFont(font);
+            if (_pluginFont != null)
+            {
+                return _pluginFont;
+            }
+        }
+
+        _pluginFont = TMP_Settings.defaultFontAsset;
+        if (!_fontFallbackLogged)
+        {
+            _fontFallbackLogged = true;
+            Plugin.Logger.LogWarning("[GameModeHud] Major Mono Display was not available; "
+                + "using the default TMP font.");
+        }
+
+        return _pluginFont;
+    }
+
+    private static TMP_FontAsset? CreateDynamicPluginFont(UnityEngine.Font font)
+    {
+        try
+        {
+            TMP_FontAsset? fontAsset = TMP_FontAsset.CreateFontAsset(font, 90, 9,
+                GlyphRenderMode.SDFAA, 1024, 1024, AtlasPopulationMode.Dynamic, true);
+            if (fontAsset != null)
+            {
+                fontAsset.name = "StraftatEights Major Mono Display";
+            }
+            return fontAsset;
+        }
+        catch (Exception exception)
+        {
+            Plugin.Logger.LogWarning("[GameModeHud] Could not create Major Mono Display TMP asset: "
+                + exception.GetBaseException().Message);
+            return null;
+        }
+    }
+
+    private static Sprite GetScoreboardPanelSprite()
+    {
+        if (_scoreboardPanelSprite != null)
+        {
+            return _scoreboardPanelSprite;
+        }
+
+        _scoreboardPanelTexture = new Texture2D(PanelTextureSize, PanelTextureSize,
+            TextureFormat.RGBA32, false)
+        {
+            name = "StraftatEights Scoreboard Panel",
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp,
+            hideFlags = HideFlags.DontSave
+        };
+
+        Color32[] pixels = new Color32[PanelTextureSize * PanelTextureSize];
+        Color32 transparent = new(0, 0, 0, 0);
+        Color32 border = new(119, 132, 82, 220);
+        Color32 fill = new(11, 22, 16, 242);
+        int innerRadius = PanelCornerRadius - PanelBorderWidth;
+        for (int y = 0; y < PanelTextureSize; y++)
+        {
+            for (int x = 0; x < PanelTextureSize; x++)
+            {
+                bool insideOuter = IsInsideRoundedRect(x, y, PanelCornerRadius);
+                bool insideInner = IsInsideRoundedRect(x, y, innerRadius,
+                    PanelBorderWidth);
+                pixels[y * PanelTextureSize + x] = !insideOuter
+                    ? transparent
+                    : insideInner ? fill : border;
+            }
+        }
+
+        _scoreboardPanelTexture.SetPixels32(pixels);
+        _scoreboardPanelTexture.Apply(false, true);
+        _scoreboardPanelSprite = Sprite.Create(_scoreboardPanelTexture,
+            new Rect(0f, 0f, PanelTextureSize, PanelTextureSize),
+            new Vector2(0.5f, 0.5f), 100f, 0,
+            SpriteMeshType.FullRect,
+            new Vector4(PanelCornerRadius, PanelCornerRadius,
+                PanelCornerRadius, PanelCornerRadius));
+        _scoreboardPanelSprite.name = "StraftatEights Scoreboard Panel";
+        _scoreboardPanelSprite.hideFlags = HideFlags.DontSave;
+        return _scoreboardPanelSprite;
+    }
+
+    private static bool IsInsideRoundedRect(int x, int y, int radius, int inset = 0)
+    {
+        int left = inset;
+        int right = PanelTextureSize - inset - 1;
+        int bottom = inset;
+        int top = PanelTextureSize - inset - 1;
+        int nearestX = Mathf.Clamp(x, left + radius, right - radius);
+        int nearestY = Mathf.Clamp(y, bottom + radius, top - radius);
+        int deltaX = x - nearestX;
+        int deltaY = y - nearestY;
+        return deltaX * deltaX + deltaY * deltaY <= radius * radius;
     }
 
     private void RefreshScoreboard()
@@ -767,6 +905,12 @@ internal sealed class GameModeHud : MonoBehaviour
             pointsToWin = GunGameState.ScoreLimit;
             scores = GunGameState.Progress;
             crownFirst = false;
+        }
+
+        string modeTimerText = ModeTimeoutState.GetScoreboardText();
+        if (modeTimerText.Length > 0)
+        {
+            timerText = modeTimerText;
         }
 
         List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();

@@ -53,28 +53,28 @@ internal static class GameModeRespawn
         ClearMapCenterCache();
     }
 
-    internal static void Schedule(PlayerManager manager, float delay)
+    internal static void Schedule(PlayerManager manager, float delay, bool protectOnRespawn = true)
     {
         if (Plugin.Instance == null || !PendingManagers.Add(manager.GetInstanceID()))
         {
             return;
         }
         Plugin.Instance.StartCoroutine(RespawnAfterDelay(manager, delay, 0,
-            SessionState.Generation, GameModeManager.RoundId));
+            SessionState.Generation, GameModeManager.RoundId, protectOnRespawn));
     }
 
-    internal static void Schedule(int playerId, float delay)
+    internal static void Schedule(int playerId, float delay, bool protectOnRespawn = true)
     {
         if (Plugin.Instance == null || !PendingManagers.Add(playerId))
         {
             return;
         }
         Plugin.Instance.StartCoroutine(RespawnPlayerAfterDelay(playerId, delay,
-            SessionState.Generation, GameModeManager.RoundId));
+            SessionState.Generation, GameModeManager.RoundId, protectOnRespawn));
     }
 
     private static IEnumerator RespawnAfterDelay(PlayerManager manager, float delay, int attempt,
-        int sessionGeneration, int roundId)
+        int sessionGeneration, int roundId, bool protectOnRespawn)
     {
         int managerId = manager.GetInstanceID();
         yield return new WaitForSeconds(delay);
@@ -95,15 +95,29 @@ internal static class GameModeRespawn
             {
                 CaptureRespawnCosmetics(manager);
                 PrepareForRespawn(manager);
+                int playerId = manager.player?.GetComponent<PlayerValues>()?.playerClient?.PlayerId ?? -1;
+                if (protectOnRespawn)
+                {
+                    RespawnProtection.ArmForRespawn(playerId);
+                }
                 success = FishNetCompatibility.TryInvokeRespawn(manager);
                 if (success)
                 {
                     FinalizeRespawn(manager);
                     ClearSpawnAdjustment(manager);
                 }
+                else if (protectOnRespawn)
+                {
+                    RespawnProtection.CancelRespawn(playerId);
+                }
             }
             catch (System.Exception exception)
             {
+                if (protectOnRespawn)
+                {
+                    int playerId = manager.player?.GetComponent<PlayerValues>()?.playerClient?.PlayerId ?? -1;
+                    RespawnProtection.CancelRespawn(playerId);
+                }
                 ClearSpawnAdjustment(manager);
                 Plugin.Logger.LogWarning($"[Respawn] PlayerManager respawn failed: {exception.GetBaseException().Message}");
                 success = false;
@@ -115,12 +129,12 @@ internal static class GameModeRespawn
         {
             PendingManagers.Add(managerId);
             Plugin.Instance.StartCoroutine(RespawnAfterDelay(manager, 0.25f, attempt + 1,
-                sessionGeneration, roundId));
+                sessionGeneration, roundId, protectOnRespawn));
         }
     }
 
     private static IEnumerator RespawnPlayerAfterDelay(int playerId, float delay,
-        int sessionGeneration, int roundId)
+        int sessionGeneration, int roundId, bool protectOnRespawn)
     {
         yield return new WaitForSeconds(delay);
         for (int attempt = 0; attempt < 3; attempt++)
@@ -143,6 +157,10 @@ internal static class GameModeRespawn
                 {
                     CaptureRespawnCosmetics(manager);
                     PrepareForRespawn(manager);
+                    if (protectOnRespawn)
+                    {
+                        RespawnProtection.ArmForRespawn(playerId);
+                    }
                     if (FishNetCompatibility.TryInvokeRespawn(manager))
                     {
                         FinalizeRespawn(manager);
@@ -150,9 +168,17 @@ internal static class GameModeRespawn
                         PendingManagers.Remove(playerId);
                         yield break;
                     }
+                    if (protectOnRespawn)
+                    {
+                        RespawnProtection.CancelRespawn(playerId);
+                    }
                 }
                 catch (System.Exception exception)
                 {
+                    if (protectOnRespawn)
+                    {
+                        RespawnProtection.CancelRespawn(playerId);
+                    }
                     ClearSpawnAdjustment(manager);
                     Plugin.Logger.LogWarning($"[Respawn] player={playerId} attempt={attempt + 1} failed: {exception.GetBaseException().Message}");
                 }
@@ -611,14 +637,17 @@ internal static class GameModeRespawn
             return false;
         }
 
-        List<Vector3> candidates;
+        IReadOnlyList<Vector3> candidates;
         if (GameModeManager.IsTeamBased)
         {
             TeamAssignment.EnsureAssignedForActiveRound();
-            if (!TeamAssignment.TryGetSpawnCandidates(playerId, out candidates))
+            if (!TeamAssignment.TryGetSpawnCandidates(playerId,
+                out List<Vector3> teamCandidates))
             {
                 return false;
             }
+
+            candidates = teamCandidates;
         }
         else
         {
@@ -653,11 +682,11 @@ internal static class GameModeRespawn
         return true;
     }
 
-    private static List<Vector3> GetAvailableSpawnPositions()
+    private static IReadOnlyList<Vector3> GetAvailableSpawnPositions()
     {
         return GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition)
-            ? new List<Vector3>(definition.SpawnPoints)
-            : new List<Vector3>();
+            ? definition.SpawnPoints
+            : System.Array.Empty<Vector3>();
     }
 
     internal static bool TryChooseMapSpawnPosition(out Vector3 position)
@@ -724,6 +753,11 @@ internal static class PlayerManager_CustomRespawnSpawn_Patch
         }
 
         GameModeRespawn.ApplySpawnFacing(__instance, position, ref rotation);
+    }
+
+    private static void Postfix(PlayerManager __instance)
+    {
+        TeamWeaponLoadouts.OnPlayerSpawned(__instance);
     }
 }
 

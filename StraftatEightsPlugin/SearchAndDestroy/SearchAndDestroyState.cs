@@ -1126,7 +1126,7 @@ internal static class SearchAndDestroyState
         StartTake();
         foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
         {
-            GameModeRespawn.Schedule(playerId, 0f);
+            GameModeRespawn.Schedule(playerId, 0f, protectOnRespawn: false);
         }
     }
 

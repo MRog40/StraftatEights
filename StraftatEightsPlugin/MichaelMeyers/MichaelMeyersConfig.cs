@@ -12,7 +12,7 @@ public partial class Plugin
     private void InitializeMichaelMeyers()
     {
         const string section = "Game Mode Settings";
-        MichaelMeyersEnabled = Config.Bind(section, "Michael Meyers Enabled", false,
+        MichaelMeyersEnabled = Config.Bind(section, "Michael Meyers", false,
             "Host-controlled: one player hunts the other players with a Couperet; the last player alive wins, "
             + "or at least two living survivors win after 90 seconds for half points.");
 

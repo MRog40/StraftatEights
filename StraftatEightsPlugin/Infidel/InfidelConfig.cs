@@ -12,7 +12,7 @@ public partial class Plugin
     private void InitializeInfidel()
     {
         const string section = "Game Mode Settings";
-        InfidelEnabled = Config.Bind(section, "Infidel Enabled", false,
+        InfidelEnabled = Config.Bind(section, "Infidel", false,
             "Host-controlled: one private Infidel role, delayed AK loadouts, slow movement, and role-based scoring.");
 
         InfidelEnabled.SettingChanged += (_, _) =>

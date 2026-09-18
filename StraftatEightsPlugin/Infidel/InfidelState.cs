@@ -549,7 +549,8 @@ internal static class InfidelState
         {
             if (client != null && client)
             {
-                GameModeRespawn.Schedule(client.PlayerId, GameModeManager.EffectiveRespawnDelaySeconds);
+                GameModeRespawn.Schedule(client.PlayerId, GameModeManager.EffectiveRespawnDelaySeconds,
+                    protectOnRespawn: false);
             }
         }
 

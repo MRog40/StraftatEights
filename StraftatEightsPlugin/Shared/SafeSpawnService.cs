@@ -8,6 +8,8 @@ internal static class SafeSpawnService
 {
     private const float EyeHeight = 1.4f;
     private const int RecentSpawnHistoryLength = 4;
+    private const float CandidateSampleFraction = 0.25f;
+    private const int MaxScoredCandidates = 8;
     private const int DroppedWeaponLayer = 7;
     private const int SuppressionLayer = 17;
     private static readonly int LineOfSightMask = Physics.DefaultRaycastLayers
@@ -35,7 +37,7 @@ internal static class SafeSpawnService
         int teamId = -1;
         bool hasTeam = GameModeManager.IsTeamBased
             && TeamAssignment.TryGetTeamId(playerId, out teamId);
-        List<TeamPoint> candidates = ToTeamPoints(candidatePositions);
+        List<TeamPoint> candidates = SelectCandidateSample(candidatePositions);
         List<TeamPoint> teammates = new();
         List<PlayerHealth> enemies = new();
 
@@ -162,6 +164,34 @@ internal static class SafeSpawnService
         }
 
         return points;
+    }
+
+    private static List<TeamPoint> SelectCandidateSample(IReadOnlyList<Vector3> positions)
+    {
+        int sampleCount = Mathf.Min(positions.Count, MaxScoredCandidates,
+            Mathf.Max(1, Mathf.CeilToInt(positions.Count * CandidateSampleFraction)));
+        if (sampleCount >= positions.Count)
+        {
+            return ToTeamPoints(positions);
+        }
+
+        List<int> remainingIndexes = new(positions.Count);
+        for (int index = 0; index < positions.Count; index++)
+        {
+            remainingIndexes.Add(index);
+        }
+
+        List<TeamPoint> sample = new(sampleCount);
+        for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
+        {
+            int selectedIndex = UnityEngine.Random.Range(sampleIndex, remainingIndexes.Count);
+            int positionIndex = remainingIndexes[selectedIndex];
+            remainingIndexes[selectedIndex] = remainingIndexes[sampleIndex];
+            remainingIndexes[sampleIndex] = positionIndex;
+            sample.Add(ToTeamPoint(positions[positionIndex]));
+        }
+
+        return sample;
     }
 
     private static TeamPoint ToTeamPoint(Vector3 position)
