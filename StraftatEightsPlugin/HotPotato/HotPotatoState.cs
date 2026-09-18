@@ -226,14 +226,16 @@ internal static class HotPotatoState
             GameModeHud.ShowScorePopupForPlayer(killerId, ScoreRules.PointsPerKill);
         }
 
-        if (PotatoPlayerId < 0)
+        int previousPotatoPlayerId = PotatoPlayerId;
+        int nextPotatoPlayerId = HotPotatoRules.ResolvePotato(
+            PotatoPlayerId, validKiller ? killerId : -1, deadPlayerId);
+        PotatoPlayerId = nextPotatoPlayerId;
+        if (previousPotatoPlayerId < 0 && nextPotatoPlayerId >= 0)
         {
-            PotatoPlayerId = deadPlayerId;
             Announce(PlayerLookup.GetPlayerNameTag(deadPlayerId) + " got the <b>Hot Potato</b>!");
         }
-        else if (validKiller && killerId == PotatoPlayerId)
+        else if (nextPotatoPlayerId != previousPotatoPlayerId)
         {
-            PotatoPlayerId = deadPlayerId;
             PendingLoadouts.Remove(killerId);
             WeaponService.GiveWeapon(killerId, ShotgunWeaponName, unlimitedAmmo: true);
             Announce(PlayerLookup.GetPlayerNameTag(deadPlayerId) + " got the <b>Hot Potato</b>!");
@@ -268,8 +270,7 @@ internal static class HotPotatoState
             return true;
         }
 
-        string expectedWeapon = playerId == PotatoPlayerId ? PotatoWeaponName : ShotgunWeaponName;
-        return weapon.name.StartsWith(expectedWeapon, StringComparison.Ordinal);
+        return HotPotatoRules.IsAllowedWeapon(weapon.name, playerId == PotatoPlayerId);
     }
 
     internal static string GetExpectedWeapon(int playerId)

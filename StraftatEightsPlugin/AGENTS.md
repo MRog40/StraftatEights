@@ -208,8 +208,8 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
 - `Juggernaut/` is the reference layout for a full **game mode** (as opposed to GlobalModifiers,
   which is just always-on tweaks): `JuggernautConfig.cs` (config + RPCs), `JuggernautState.cs`
   (synced runtime state + host-only game logic), `JuggernautPatches.cs` (Harmony hooks into the
-  actual game), `JuggernautOutline.cs` / `JuggernautHud.cs` (mode-specific visuals). Copy this shape
-  for the next mode rather than growing Juggernaut's files.
+  actual game). Shared role outlines live in `Shared/PlayerOutline.cs`; keep any other mode-specific
+  visual helpers with the mode. Copy this shape for the next mode rather than growing Juggernaut's files.
 - Kill/death hook: the current shipped build exposes `GameManager.RpcLogic___PlayerDied_3140630784(int playerId, uint spawnGeneration)`.
   Resolve the generated method by the `RpcLogic___PlayerDied_` prefix and its signature. The method
   runs host-only (its RpcReader already gates on `IsServer`) - this is the one true "a kill happened"

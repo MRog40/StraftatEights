@@ -271,7 +271,7 @@ internal static class GameModeManager
     internal static ConfigEntry<float> RespawnDelaySeconds = null!;
     internal static ConfigEntry<int> PointsToWin = null!;
     internal static ConfigEntry<bool> EnableMapOverrides = null!;
-    internal static float EffectiveRespawnDelaySeconds { get; set; } = 3f;
+    internal static float EffectiveRespawnDelaySeconds { get; set; } = 2.5f;
     internal static int EffectivePointsToWin { get; private set; } = ScoreRules.PointsToWin;
     internal static bool EffectiveMapOverrides { get; private set; }
     private static readonly ModeSyncState Sync = new();
@@ -290,7 +290,7 @@ internal static class GameModeManager
         EnableMapOverrides = Plugin.Instance.Config.Bind("Global Settings", "Enable Map Overrides", false,
             "Host-controlled: use the plugin's mode-specific map overrides instead of the normal lobby map playlist.");
         EnableMapOverrides.SettingChanged += (_, _) => OnGlobalSettingsChanged();
-        RespawnDelaySeconds = Plugin.Instance.Config.Bind("Global Settings", "Respawn Delay (seconds)", 3f,
+        RespawnDelaySeconds = Plugin.Instance.Config.Bind("Global Settings", "Respawn Delay (seconds)", 2.5f,
             new ConfigDescription("Host-controlled: how long a killed player waits before respawning.",
                 new AcceptableValueRange<float>(0f, 10f)));
         RespawnDelaySeconds.SettingChanged += (_, _) => OnGlobalSettingsChanged();
@@ -795,7 +795,7 @@ internal static class GameModeManager
         RoundId++;
         ResetMapPlaylist();
         _nextClientLobbyPollTime = 0f;
-        EffectiveRespawnDelaySeconds = 3f;
+        EffectiveRespawnDelaySeconds = 2.5f;
         EffectivePointsToWin = ScoreRules.PointsToWin;
         EffectiveMapOverrides = true;
         GlobalModifiersState.ResetForLobbyLeft();
@@ -1401,7 +1401,7 @@ internal static class GameModeManager
     private static bool _skipRoundTransitionPending;
     private const int NoWinningTeamId = int.MinValue;
 
-    internal static void CompleteCustomRound(int winningTeamId)
+    internal static void CompleteCustomRound(int winningTeamId, bool awardRoundPoint = true)
     {
         if (!MyceliumNetwork.IsHost || _customRoundTransitionPending || RoundManager.Instance == null
             || ScoreManager.Instance == null || SceneMotor.Instance == null || Plugin.Instance == null)
@@ -1415,7 +1415,10 @@ internal static class GameModeManager
         int roundId = RoundId;
 
         ScoreManager.Instance.ResetRound();
-        ScoreManager.Instance.AddPoints(winningTeamId);
+        if (awardRoundPoint)
+        {
+            ScoreManager.Instance.AddPoints(winningTeamId);
+        }
         RoundManager.Instance.CmdEndRound(winningTeamId);
         Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
     }
@@ -1680,6 +1683,7 @@ internal static class GameManager_GameModeReset_Patch
             + $"mode={GameModeManager.ActiveMode} phase={GameModeManager.Phase} round={GameModeManager.RoundId}");
         GameModeManager.ResetGameState();
         PlayerOutline.ResetState();
+        TeammateMarker.ResetState();
         RespawnProtection.ResetState();
     }
 }

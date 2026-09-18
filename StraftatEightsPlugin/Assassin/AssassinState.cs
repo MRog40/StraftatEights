@@ -285,9 +285,12 @@ internal static class AssassinState
             return;
         }
 
-        if (deadPlayerId == KingPlayerId)
+        bool deadWasKing = deadPlayerId == KingPlayerId;
+        bool deadWasAssassin = deadPlayerId == AssassinPlayerId;
+        if (AssassinRules.IsTerminalDeath(deadWasKing, deadWasAssassin)
+            && deadWasKing)
         {
-            AwardScore(AssassinPlayerId, PointsForAssassinWin);
+            AwardScore(AssassinPlayerId, AssassinRules.GetAssassinAward(deadWasKing));
             GameModeHud.BroadcastTakeResult("<b>"
                 + PlayerLookup.GetPlayerNameTag(AssassinPlayerId)
                 + " won the take</b>\n<i>The king was eliminated</i>");
@@ -297,21 +300,23 @@ internal static class AssassinState
             return;
         }
 
-        if (deadPlayerId == AssassinPlayerId)
+        if (deadWasAssassin)
         {
-            AwardScore(KingPlayerId, PointsForKingSurvival);
+            AwardScore(KingPlayerId, AssassinRules.GetKingAward(deadWasAssassin));
             foreach (int playerId in Scores.Keys)
             {
                 if (playerId != KingPlayerId && playerId != AssassinPlayerId)
                 {
-                    AwardScore(playerId, PointsForBodyguardSurvival);
+                    AwardScore(playerId, AssassinRules.GetBodyguardAward(deadWasAssassin));
                 }
             }
 
-            if (killerId >= 0 && killerId != deadPlayerId
-                && killerId != KingPlayerId && killerId != AssassinPlayerId)
+            bool killerIsBodyguard = killerId >= 0 && killerId != deadPlayerId
+                && killerId != KingPlayerId && killerId != AssassinPlayerId;
+            if (killerIsBodyguard)
             {
-                AwardScore(killerId, PointsForBodyguardKill);
+                AwardScore(killerId, AssassinRules.GetBodyguardKillerAward(
+                    deadWasAssassin, killerIsBodyguard, killerId == deadPlayerId));
             }
 
             string kingLabel = KingPlayerId >= 0

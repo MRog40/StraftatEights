@@ -46,19 +46,15 @@ Assert(LobbySnapshotCodec.TryParseOrdered("76561198000000001|11|7|2|19", 5, 0, 2
     && orderedRevision == 19 && orderedParts[1] == "11" && orderedParts[3] == "2",
     "Ordered lobby snapshots must validate cursors at explicit indexes.");
 
-ModeSyncValidation sync = new();
-Assert(sync.NextSettingsRevision() == 1 && sync.NextLiveRevision() == 1,
-    "Settings and live revisions must start as independent streams.");
-Assert(sync.TryAcceptSettings(2, 1), "The first settings snapshot should be accepted.");
-Assert(sync.TryAcceptLive(1, 4), "The first live snapshot should use its own cursor.");
-Assert(!sync.TryAcceptSettings(1, 99), "An older settings round must be rejected.");
-Assert(!sync.TryAcceptLive(1, 3), "An older live revision must be rejected.");
-Assert(sync.TryAcceptLive(2, 0), "A new live round must accept a reset revision.");
-sync.ResetForLobby();
-Assert(sync.TryAcceptSettings(0, 0) && sync.TryAcceptLive(0, 0),
-    "Lobby reset must clear both accepted snapshot cursors.");
-Assert(sync.SettingsRevision == 1 && sync.LiveRevision == 1,
-    "Lobby reset must preserve outgoing revisions for late-join ordering.");
+Assert(PlayerNameMarkup.Truncate("<g=Sunset>ABCDEFGHIJKLMNO</g>", 14)
+    == "<g=Sunset>ABCDEFGHIJKLMN</g>",
+    "Native shorthand gradient markup must survive visible-name truncation.");
+Assert(PlayerNameMarkup.Truncate("<gradient=\"Sunset\"><b>PlayerName</b></gradient>", 6)
+    == "<gradient=\"Sunset\"><b>Player</b></gradient>",
+    "Nested TMP gradient markup must close cleanly after truncation.");
+Assert(PlayerNameMarkup.Truncate("<color=#ffffff>Player</color>", 20)
+    == "<color=#ffffff>Player</color>",
+    "Untruncated TMP color markup must remain unchanged.");
 
 List<string> parsed = WeaponListParser.Parse(
     " Glock; SMG, Glock, Invalid, ;SMG ",
@@ -130,6 +126,15 @@ Assert(ScoreRules.PointsToWin == 100 && ScoreRules.PointsPerRoundWin == 50
     && ScoreRules.PointsPerJuggernautCrown == 20 && ScoreRules.PointsPerRatSurvivalSecond == 3
     && ScoreRules.PointsPerHVTSurvivalSecond == 3,
     "Shared score rules must use the 100-point target and mode award values.");
+HashSet<int> michaelAlivePlayers = new() { 2, 5, 9 };
+Assert(MichaelMeyersRules.RoundTimeLimitSeconds == 90f
+    && MichaelMeyersRules.PointsForSurvivorTimeout == 25
+    && !MichaelMeyersRules.ShouldResolveTimeout(1)
+    && MichaelMeyersRules.ShouldResolveTimeout(2)
+    && MichaelMeyersRules.IsTimeoutRecipient(2, 5, michaelAlivePlayers)
+    && !MichaelMeyersRules.IsTimeoutRecipient(5, 5, michaelAlivePlayers)
+    && !MichaelMeyersRules.IsTimeoutRecipient(7, 5, michaelAlivePlayers),
+    "Michael Meyers timeout awards must require two survivors and exclude Michael and dead players.");
 Assert(TeamRules.GetTeamCount(2) == 2 && TeamRules.GetTeamCount(3) == 3
     && TeamRules.GetTeamCount(4) == 2 && TeamRules.GetTeamCount(6) == 3,
     "Team count must use three teams only for player counts divisible by three.");

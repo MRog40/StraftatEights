@@ -28,10 +28,11 @@ internal static class SearchAndDestroyState
     internal const float DefuseDurationSeconds = SearchAndDestroyRules.DefuseDurationSeconds;
     internal const float FuseDurationSeconds = SearchAndDestroyRules.FuseDurationSeconds;
     internal const float BombExplosionDelaySeconds = 2f;
-    internal const float BombExplosionRadius = 35f;
+    internal const float BombExplosionRadius = 17.5f;
     internal const float InteractionRadius = SearchAndDestroyRules.InteractionRadius;
     internal const float PlantSiteRadius = SearchAndDestroyRules.PlantSiteRadius;
     internal const float ServerTickIntervalSeconds = 0.05f;
+    private const float BombAimRadius = 0.45f;
     private const float InteractionRequestResendSeconds = 0.25f;
     internal const int PointsPerRoundWin = SearchAndDestroyRules.PointsPerRoundWin;
 
@@ -1191,7 +1192,7 @@ internal static class SearchAndDestroyState
         }
 
         Vector3 closestPoint = ray.origin + ray.direction * distanceAlongRay;
-        return (closestPoint - BombPosition).sqrMagnitude <= 0.04f;
+        return (closestPoint - BombPosition).sqrMagnitude <= BombAimRadius * BombAimRadius;
     }
 
     private static bool IsLocalActionCandidate(int playerId)
@@ -1271,11 +1272,6 @@ internal static class SearchAndDestroyState
 
         position = health.transform.position;
         return true;
-    }
-
-    private static Vector3 GetSitePositionOrDefault(int siteIndex)
-    {
-        return TryGetSitePosition(siteIndex, out Vector3 position) ? position : BombPosition;
     }
 
     private static void CancelPlanting()

@@ -12,6 +12,17 @@ internal static class WeaponPolicy
             return false;
         }
 
+        if (GameModeManager.IsActive(GameMode.MichaelMeyers))
+        {
+            GameObject? flashlight = WeaponService.FindPrefab(MichaelMeyersState.FlashlightWeaponName)
+                ?? WeaponService.FindPrefab("Flashlight");
+            if (flashlight != null)
+            {
+                spawner.itemToSpawn = flashlight;
+            }
+            return true;
+        }
+
         if (GameModeManager.IsTeamBased)
         {
             if (WeaponSettingsState.Allowed.Count == 0)
@@ -99,7 +110,9 @@ internal static class WeaponPolicy
                     : KillTheRatState.IsHumanWeapon(weapon);
             case GameMode.MichaelMeyers:
                 return health != null
-                    && ((MichaelMeyersState.CanHoldCouperet(health) && MichaelMeyersState.IsCouperet(weapon))
+                    && (MichaelMeyersState.IsFlashlight(weapon)
+                        || (MichaelMeyersState.CanHoldCouperet(health)
+                            && MichaelMeyersState.IsCouperet(weapon))
                         || (MichaelMeyersState.CanHoldSurvivorWeapon(health)
                             && weapon.name.StartsWith(MichaelMeyersState.SurvivorWeaponName,
                                 System.StringComparison.Ordinal)));

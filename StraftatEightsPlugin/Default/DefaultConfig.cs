@@ -28,14 +28,15 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncDefaultGameModeLiveState(CSteamID hostId, string scoresData,
-        string aliveData, int takeId, int winnerId, int roundId, int revision, RPCInfo info)
+        string aliveData, int takeId, int winnerId, float timeRemaining,
+        int roundId, int revision, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
             return;
         }
         DefaultGameModeState.ApplyLiveState(hostId, scoresData, aliveData,
-            takeId, winnerId, roundId, revision);
+            takeId, winnerId, timeRemaining, roundId, revision);
     }
 
     [CustomRPC]

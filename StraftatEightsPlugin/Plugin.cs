@@ -150,6 +150,8 @@ public partial class Plugin : BaseUnityPlugin
         GameModeManager.PeriodicActiveModePushIfHost();
         GameModeManager.PollLobbyStateIfClient();
         CaptureTheFlagState.ServerTick(Time.unscaledDeltaTime);
+        MichaelMeyersState.ServerTick(Time.unscaledDeltaTime);
+        MichaelMeyersState.ClientTick(Time.unscaledDeltaTime);
         InfidelState.ServerTick(Time.unscaledDeltaTime);
         InfidelState.ClientTick(Time.unscaledDeltaTime);
         SearchAndDestroyState.ServerTick(Time.unscaledDeltaTime);
@@ -164,7 +166,7 @@ public partial class Plugin : BaseUnityPlugin
         WeaponSettingsState.EnsureCycleLoadouts();
         GameModeManager.EnsureActiveModeLoadouts();
         PlayerOutline.EnforceOutline();
-        TeamOutline.Enforce();
+        TeammateMarker.Enforce();
         HardpointMarker.Update();
         CaptureTheFlagMarker.Update();
         SearchAndDestroyMarker.Update();

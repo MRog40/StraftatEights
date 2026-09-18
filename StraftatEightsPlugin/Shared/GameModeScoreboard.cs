@@ -24,76 +24,6 @@ internal static class GameModeScoreboard
 {
     private const int ScoreColumnWidth = 4;
     private const string ScoreColumnGap = "  ";
-    private const int NameGradientStartRed = 255;
-    private const int NameGradientStartGreen = 255;
-    private const int NameGradientStartBlue = 255;
-    private const int NameGradientEndRed = 148;
-    private const int NameGradientEndGreen = 196;
-    private const int NameGradientEndBlue = 255;
-
-    internal static string ApplyPlayerNameGradient(string playerName)
-    {
-        playerName = StripRichTextTags(playerName);
-        if (playerName.Length == 0)
-        {
-            return playerName;
-        }
-
-        int visibleCharacterCount = CountVisibleCharacters(playerName);
-        if (visibleCharacterCount == 0)
-        {
-            return playerName;
-        }
-
-        StringBuilder gradient = new(playerName.Length + visibleCharacterCount * 18);
-        int visibleIndex = 0;
-        int index = 0;
-        while (index < playerName.Length)
-        {
-            int red = Interpolate(NameGradientStartRed, NameGradientEndRed,
-                visibleIndex, visibleCharacterCount - 1);
-            int green = Interpolate(NameGradientStartGreen, NameGradientEndGreen,
-                visibleIndex, visibleCharacterCount - 1);
-            int blue = Interpolate(NameGradientStartBlue, NameGradientEndBlue,
-                visibleIndex, visibleCharacterCount - 1);
-            gradient.Append("<color=#").Append(red.ToString("X2"))
-                .Append(green.ToString("X2")).Append(blue.ToString("X2"))
-                .Append(">").Append(playerName[index]).Append("</color>");
-            visibleIndex++;
-            index++;
-        }
-
-        return gradient.ToString();
-    }
-
-    internal static string StripRichTextTags(string text)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder plainText = new(text.Length);
-        int index = 0;
-        while (index < text.Length)
-        {
-            if (text[index] == '<')
-            {
-                int tagEnd = text.IndexOf('>', index);
-                if (tagEnd >= index)
-                {
-                    index = tagEnd + 1;
-                    continue;
-                }
-            }
-
-            plainText.Append(text[index]);
-            index++;
-        }
-
-        return plainText.ToString();
-    }
-
     internal static string Build(GameMode mode, string? labelOverride, int? pointsToWin,
         IReadOnlyList<GameModeScoreboardRow> rows, string? timerText = null)
     {
@@ -149,26 +79,4 @@ internal static class GameModeScoreboard
                 && ClientInstance.Instance.PlayerId == row.PlayerId;
     }
 
-    private static int CountVisibleCharacters(string text)
-    {
-        int count = 0;
-        int index = 0;
-        while (index < text.Length)
-        {
-            count++;
-            index++;
-        }
-
-        return count;
-    }
-
-    private static int Interpolate(int start, int end, int index, int lastIndex)
-    {
-        if (lastIndex <= 0)
-        {
-            return start;
-        }
-
-        return start + (end - start) * index / lastIndex;
-    }
 }

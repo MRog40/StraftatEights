@@ -180,7 +180,7 @@ internal static class HardpointState
     {
         Sync.ResetLiveState();
         TeamAssignment.Reset();
-        TeamOutline.ResetState();
+        TeammateMarker.ResetState();
         HardpointMarker.ResetState();
         Scores.Clear();
         CurrentObjectiveIndex = 0;

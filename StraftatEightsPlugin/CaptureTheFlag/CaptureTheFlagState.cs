@@ -881,19 +881,6 @@ internal static class CaptureTheFlagState
             ModeLobbyDataSync.Source("ctf", "live"));
     }
 
-    private static string? TryGetPlayerName(int playerId)
-    {
-        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
-        {
-            if (client != null && client && client.PlayerId == playerId)
-            {
-                return client.PlayerName;
-            }
-        }
-
-        return null;
-    }
-
     private static int ResolvePlayerId(CSteamID steamId)
     {
         foreach (ClientInstance client in ClientInstance.playerInstances.Values)

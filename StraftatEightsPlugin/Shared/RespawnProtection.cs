@@ -149,7 +149,6 @@ internal static class RespawnProtection
     private static void End(PlayerHealth player)
     {
         PlayerOutline.ClearTemporary(player, OutlineColor, OutlineWidth);
-        TeamOutline.RequestRefresh();
         HealthSettingsTuning.ApplyIfChanged(player, HealthSettingsState.MaxHealthMultiplier,
             HealthSettingsState.TuningVersion);
 

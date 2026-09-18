@@ -616,7 +616,9 @@ internal sealed class GameModeHud : MonoBehaviour
                 new GameModeScoreboardRow("Survivors", MichaelMeyersState.SurvivorCount)
             };
             _scoreboard.text = GameModeScoreboard.Build(GameMode.MichaelMeyers, null, null,
-                survivorRows);
+                survivorRows, MichaelMeyersState.TimeRemaining > 0f
+                    ? "Timer: " + Mathf.CeilToInt(MichaelMeyersState.TimeRemaining) + "s"
+                    : string.Empty);
             return;
         }
         Dictionary<int, int> scores;
@@ -716,13 +718,9 @@ internal sealed class GameModeHud : MonoBehaviour
         foreach (int playerId in playerIds)
         {
             scores.TryGetValue(playerId, out int score);
-            string playerName = GameModeScoreboard.StripRichTextTags(
-                ClientInstance.ReplaceAllPlayerNameTags(PlayerLookup.GetPlayerNameTag(playerId)));
-            if (playerName.Length > MaxDisplayedNameLength)
-            {
-                playerName = playerName.Substring(0, MaxDisplayedNameLength);
-            }
-            playerName = GameModeScoreboard.ApplyPlayerNameGradient(playerName);
+            string playerName = PlayerNameMarkup.Truncate(
+                ClientInstance.ReplaceAllPlayerNameTags(PlayerLookup.GetPlayerNameTag(playerId)),
+                MaxDisplayedNameLength);
 
             bool isCrown = crownFirst && playerId == crownPlayerId;
             if (isCrown)

@@ -6,7 +6,7 @@ namespace StraftatEightsPlugin;
 
 // Harmony patches for the Juggernaut game mode: kill/crown tracking, forced auto-respawn, and
 // Juggernaut-only movement speed. See JuggernautState for the actual game-mode logic and
-// JuggernautOutline for the visual outline effect.
+// PlayerOutline for the visual outline effect.
 
 [HarmonyPatch(typeof(GameManager), "Update")]
 internal static class GameManager_JuggernautTick_Patch

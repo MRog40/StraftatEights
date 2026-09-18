@@ -14,11 +14,13 @@ internal static class DefaultGameModeState
     internal static int AliveCount => AlivePlayers.Count;
     internal static int TakeId { get; private set; }
     internal static int WinnerId { get; private set; } = -1;
+    internal static float TimeRemaining => Mathf.Max(0f, _timeRemaining);
     internal static readonly Dictionary<int, int> Scores = new();
 
     private static readonly HashSet<int> AlivePlayers = new();
     private static readonly HashSet<int> RoundPlayers = new();
     private static readonly ModeSyncState Sync = new();
+    private static float _timeRemaining;
     private static bool _takeEnding;
     private static bool _startRetryPending;
 
@@ -65,6 +67,7 @@ internal static class DefaultGameModeState
         Sync.ResetLiveState();
         TakeId = 0;
         WinnerId = -1;
+        _timeRemaining = 0f;
         _takeEnding = false;
         _startRetryPending = false;
         AlivePlayers.Clear();
@@ -82,7 +85,7 @@ internal static class DefaultGameModeState
         MyceliumNetwork.RPCTarget(Plugin.DefaultGameModeModId,
             nameof(Plugin.SyncDefaultGameModeLiveState), player, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, SerializeScores(), SerializeAlive(), TakeId,
-            WinnerId, GameModeManager.RoundId, Sync.LiveRevision);
+            WinnerId, TimeRemaining, GameModeManager.RoundId, Sync.LiveRevision);
 
         if (TakeId > 0 && WinnerId < 0 && !_takeEnding)
         {
@@ -135,14 +138,48 @@ internal static class DefaultGameModeState
         }
 
         ResetMatchState();
+        _timeRemaining = ModeTimeoutRules.DefaultRoundSeconds;
         StartTake();
     }
 
+    internal static void ServerTick(float deltaTime)
+    {
+        if (!Plugin.DefaultGameModeEnabled.Value || !MyceliumNetwork.IsHost
+            || !GameModeManager.IsActive(GameMode.Default)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || WinnerId >= 0 || TakeId <= 0)
+        {
+            return;
+        }
+
+        _timeRemaining = Mathf.Max(0f, _timeRemaining - Mathf.Max(0f, deltaTime));
+        if (_timeRemaining <= 0f)
+        {
+            CompleteTimeout();
+        }
+    }
+
+    internal static void ClientTick(float deltaTime)
+    {
+        if (MyceliumNetwork.IsHost || !Plugin.DefaultGameModeEnabled.Value
+            || !GameModeManager.IsActive(GameMode.Default)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || WinnerId >= 0 || TakeId <= 0)
+        {
+            return;
+        }
+
+        _timeRemaining = Mathf.Max(0f, _timeRemaining - Mathf.Max(0f, deltaTime));
+    }
+
     internal static void ApplyLiveState(CSteamID hostId, string scoresData, string aliveData,
-        int takeId, int winnerId, int roundId, int revision, string source = "rpc")
+        int takeId, int winnerId, float timeRemaining, int roundId, int revision,
+        string source = "rpc")
     {
         int previousRoundId = Sync.LastLiveRoundId;
-        if (takeId < 0 || winnerId < -1
+        if (takeId < 0 || winnerId < -1 || timeRemaining < 0f
+            || float.IsNaN(timeRemaining) || float.IsInfinity(timeRemaining)
+            || timeRemaining > ModeTimeoutRules.DefaultRoundSeconds
             || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
             return;
@@ -156,6 +193,7 @@ internal static class DefaultGameModeState
             Scores[entry.Key] = entry.Value;
         }
 
+        _timeRemaining = timeRemaining;
         AlivePlayers.Clear();
         foreach (int playerId in ParseIds(aliveData))
         {
@@ -278,6 +316,27 @@ internal static class DefaultGameModeState
         StartTake();
     }
 
+    private static void CompleteTimeout()
+    {
+        if (WinnerId >= 0 || _takeEnding)
+        {
+            return;
+        }
+
+        if (ScoreManager.Instance != null
+            && ModeTimeoutRules.TryGetUniqueLeadingTeam(Scores,
+                ScoreManager.Instance.GetTeamId, out int leadingTeamId))
+        {
+            Announce("Time expired. The leading team won the round.");
+            BroadcastLiveState();
+            GameModeManager.CompleteCustomRound(leadingTeamId);
+            return;
+        }
+
+        Announce("Time expired. The round ended without a winner.");
+        GameModeManager.SkipCurrentRound();
+    }
+
     private static void ScheduleStartRetry()
     {
         if (_startRetryPending || Plugin.Instance == null)
@@ -395,25 +454,29 @@ internal static class DefaultGameModeState
             int revision = Sync.NextLiveRevision();
             ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
                 GameModeManager.RoundId, revision, SerializeScores(), SerializeAlive(),
-                TakeId.ToString(), WinnerId.ToString());
+                TakeId.ToString(), WinnerId.ToString(), TimeRemaining.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture));
             MyceliumNetwork.RPC(Plugin.DefaultGameModeModId,
                 nameof(Plugin.SyncDefaultGameModeLiveState), ReliableType.Reliable,
                 MyceliumNetwork.LobbyHost, SerializeScores(), SerializeAlive(), TakeId,
-                WinnerId, GameModeManager.RoundId, revision);
+                WinnerId, TimeRemaining, GameModeManager.RoundId, revision);
         }
     }
 
     private static void ApplyLobbyLiveSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 4, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 5, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !int.TryParse(fields[2], out int takeId)
-            || !int.TryParse(fields[3], out int winnerId))
+            || !int.TryParse(fields[3], out int winnerId)
+            || !float.TryParse(fields[4], System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out float timeRemaining))
         {
             return;
         }
 
-        ApplyLiveState(hostId, fields[0], fields[1], takeId, winnerId, roundId, revision,
+        ApplyLiveState(hostId, fields[0], fields[1], takeId, winnerId, timeRemaining,
+            roundId, revision,
             ModeLobbyDataSync.Source("default", "live"));
     }
 

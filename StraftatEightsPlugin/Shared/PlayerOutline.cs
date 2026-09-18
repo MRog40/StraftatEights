@@ -501,8 +501,6 @@ internal static class PlayerOutline
         AppliedRenderers.Clear();
     }
 
-    internal static bool HasAppliedRenderers => AppliedRenderers.Count > 0;
-
     private static void ClearRenderer(GameObject meshObject)
     {
         if (meshObject == null)

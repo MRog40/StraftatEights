@@ -27,7 +27,8 @@ internal static class ModeMapCatalog
             MapDefinitions.BasketSwirlyAltName,
             MapDefinitions.Republic08Name
         };
-    private static readonly IReadOnlyList<string> FreeForAllMaps = TeamObjectiveMaps;
+    private static readonly IReadOnlyList<string> FreeForAllMaps =
+        TeamObjectiveMaps.Concat(new[] { MapDefinitions.Arena13Name, MapDefinitions.Arena14Name }).ToArray();
     private static readonly IReadOnlyList<string> JuggernautMaps =
         new[] { "Arena_11_Alt", "Arena_10", "Arena_10_Alt", "Basket_Junglegym" };
     private static readonly IReadOnlyList<string> GunGameMaps = FreeForAllMaps;
@@ -45,7 +46,11 @@ internal static class ModeMapCatalog
         new[]
         {
             "Bazaar_Alleyway_Alt", "WestVillage_04_Alt", "Adobe_01_Alt",
-            "Arena_Shadow_04_Alt", "Basket_Junglegym_Alt", "Neo_Arena_03"
+            "Arena_Shadow_04_Alt", "Basket_Junglegym_Alt", "Neo_Arena_03",
+            "Republic_05", "Republic_01", "Dragonfly_Shrine_Alt", "Basket_00_Alt",
+            "Arena_Shadow_03", "Backrooms_00", "Backrooms_02", "Basket_Borular_Alt",
+            "Bazaar_Charshi_Alt", "Corridor_00_Alt", "Dragonfly_Basalt", "HK_02_Alt",
+            "Parking_alt"
         };
     private static readonly IReadOnlyList<string> KillTheRatMaps =
         new[] { "WestVillage_04", "Toilets_00", "Arena_13", "JF_Poolrooms_01" };

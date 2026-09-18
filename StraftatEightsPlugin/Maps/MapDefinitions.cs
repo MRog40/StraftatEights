@@ -101,6 +101,8 @@ internal static class MapDefinitions
     internal const string Garden01Name = "Garden_01";
     internal const string Garden01AltName = "Garden_01_Alt";
     internal const string Chateaux01Name = "Chateaux_01";
+    internal const string Arena13Name = "Arena_13";
+    internal const string Arena14Name = "Arena_14";
 
     private static readonly IReadOnlyDictionary<string, MapDefinition> Definitions =
         new Dictionary<string, MapDefinition>(StringComparer.Ordinal)
@@ -966,6 +968,75 @@ internal static class MapDefinitions
                     new Vector3(20.916f, -4.862f, 26.612f),
                     new Vector3(-11.567f, -2.967f, -21.437f)
                 }),
+            [Arena13Name] = new MapDefinition(
+                Arena13Name,
+                new[]
+                {
+                    new Vector3(-20.923f, 1.2f, -24.92f),
+                    new Vector3(-24.821f, 1.2f, -24.043f),
+                    new Vector3(-24.161f, 1.2f, -16.815f),
+                    new Vector3(-24.066f, 1.2f, -10.159f),
+                    new Vector3(-24.738f, 1.2f, -4.266f),
+                    new Vector3(-28.439f, 1.2f, -4.653f),
+                    new Vector3(-28.748f, 7.504f, -8.51f),
+                    new Vector3(-28.911f, 1.2f, 6.218f),
+                    new Vector3(-28.232f, 1.2f, 13.37f),
+                    new Vector3(-24.772f, 1.2f, 19.22f),
+                    new Vector3(-23.746f, 1.2f, 25.962f),
+                    new Vector3(-16.379f, 1.2f, 25.807f),
+                    new Vector3(-10.511f, 1.2f, 25.523f),
+                    new Vector3(-4.248f, 1.2f, 25.724f),
+                    new Vector3(4.507f, 1.2f, 25.779f),
+                    new Vector3(10.023f, 1.2f, 25.847f),
+                    new Vector3(15.879f, 1.2f, 25.775f),
+                    new Vector3(22.144f, 1.2f, 24.616f),
+                    new Vector3(24.891f, 1.2f, 24.877f),
+                    new Vector3(25.726f, 1.2f, 20.736f),
+                    new Vector3(29.079f, 1.2f, 13.684f),
+                    new Vector3(29.221f, 1.2f, 3.497f),
+                    new Vector3(32.646f, 1.2f, 3.322f),
+                    new Vector3(28.473f, 7.523f, 2.979f),
+                    new Vector3(28.693f, 1.2f, -12.873f),
+                    new Vector3(25.648f, 1.2f, -22.392f),
+                    new Vector3(23.171f, 1.2f, -24.763f),
+                    new Vector3(13.543f, 1.2f, -24.401f),
+                    new Vector3(5.682f, 1.2f, -24.796f),
+                    new Vector3(6.962f, 1.415f, -38.013f),
+                    new Vector3(-6.888f, 1.406f, -38.124f)
+                }),
+            [Arena14Name] = new MapDefinition(
+                Arena14Name,
+                new[]
+                {
+                    new Vector3(7.919f, 1.403f, -38.137f),
+                    new Vector3(-6.809f, 1.404f, -37.961f),
+                    new Vector3(-5.596f, 1.569f, -24.269f),
+                    new Vector3(-22.156f, 2.427f, -21.561f),
+                    new Vector3(-24.473f, 1.659f, -12.342f),
+                    new Vector3(-24.559f, 2.023f, -4.23f),
+                    new Vector3(-28.542f, 7.504f, -8.415f),
+                    new Vector3(-28.223f, 1.205f, -4.841f),
+                    new Vector3(-28.544f, 1.163f, 0.962f),
+                    new Vector3(-28.666f, 1.225f, 8.159f),
+                    new Vector3(-27.809f, 1.246f, 12.836f),
+                    new Vector3(-24.146f, 1.72f, 17.756f),
+                    new Vector3(-22.95f, 1.803f, 25.527f),
+                    new Vector3(-14.57f, 1.624f, 24.895f),
+                    new Vector3(-10.546f, 1.755f, 24.769f),
+                    new Vector3(-4.591f, 2.046f, 24.866f),
+                    new Vector3(9.128f, 1.633f, 25.131f),
+                    new Vector3(22.755f, 3.423f, 25.275f),
+                    new Vector3(28.302f, 1.321f, 13.453f),
+                    new Vector3(28.343f, 1.234f, 7.278f),
+                    new Vector3(28.371f, 1.532f, 2.951f),
+                    new Vector3(28.092f, 2.737f, -2.484f),
+                    new Vector3(32.108f, 1.27f, 1.249f),
+                    new Vector3(28.964f, 7.523f, 3.278f),
+                    new Vector3(28.421f, 3.584f, -12.166f),
+                    new Vector3(23.615f, 3.518f, -20.306f),
+                    new Vector3(13.686f, 3.558f, -23.959f),
+                    new Vector3(3.036f, 3.01f, -24.61f)
+                }),
             [Adobe02Name] = CreateAdobe02Definition(Adobe02Name),
                 [Adobe02AltName] = CreateAdobe02Definition(Adobe02AltName),
                 [ArenaShadow08Name] = CreateArenaShadow08Definition(ArenaShadow08Name),
@@ -1207,8 +1278,4 @@ internal static class MapDefinitions
         return Definitions.TryGetValue(mapName, out definition!);
     }
 
-    internal static IReadOnlyCollection<string> GetNames()
-    {
-        return Definitions.Keys.ToArray();
-    }
 }

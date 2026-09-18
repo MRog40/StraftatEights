@@ -20,41 +20,6 @@ internal static class SnapshotValidation
     }
 }
 
-internal sealed class ModeSyncValidation
-{
-    private int lastSettingsRoundId = -1;
-    private int lastSettingsRevision = -1;
-    private int lastLiveRoundId = -1;
-    private int lastLiveRevision = -1;
-
-    internal int SettingsRevision { get; private set; }
-    internal int LiveRevision { get; private set; }
-
-    internal int NextSettingsRevision() => ++SettingsRevision;
-
-    internal int NextLiveRevision() => ++LiveRevision;
-
-    internal bool TryAcceptSettings(int roundId, int revision)
-    {
-        return SnapshotValidation.TryAccept(roundId, revision,
-            ref lastSettingsRoundId, ref lastSettingsRevision);
-    }
-
-    internal bool TryAcceptLive(int roundId, int revision)
-    {
-        return SnapshotValidation.TryAccept(roundId, revision,
-            ref lastLiveRoundId, ref lastLiveRevision);
-    }
-
-    internal void ResetForLobby()
-    {
-        lastSettingsRoundId = -1;
-        lastSettingsRevision = -1;
-        lastLiveRoundId = -1;
-        lastLiveRevision = -1;
-    }
-}
-
 internal static class WeaponListParser
 {
     internal static List<string> Parse(string value, IEnumerable<string> validNames)
@@ -169,6 +134,23 @@ internal static class InfidelRules
     internal static int GetWinnerAward(bool infidelWon)
     {
         return infidelWon ? PointsForInfidelWin : 0;
+    }
+}
+
+internal static class MichaelMeyersRules
+{
+    internal const float RoundTimeLimitSeconds = 90f;
+    internal const int PointsForSurvivorTimeout = ScoreRules.PointsPerRoundWin / 2;
+
+    internal static bool ShouldResolveTimeout(int survivorCount)
+    {
+        return survivorCount >= 2;
+    }
+
+    internal static bool IsTimeoutRecipient(int playerId, int michaelPlayerId,
+        IReadOnlyCollection<int> alivePlayers)
+    {
+        return playerId >= 0 && playerId != michaelPlayerId && alivePlayers.Contains(playerId);
     }
 }
 

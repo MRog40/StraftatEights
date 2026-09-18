@@ -17,5 +17,6 @@
     <Compile Include="..\..\Shared\SearchAndDestroyRules.cs" Link="SearchAndDestroyRules.cs" />
     <Compile Include="..\..\Shared\TeamDeathmatchRules.cs" Link="TeamDeathmatchRules.cs" />
     <Compile Include="..\..\Shared\TeamWeaponSequence.cs" Link="TeamWeaponSequence.cs" />
+    <Compile Include="..\..\Shared\PlayerNameMarkup.cs" Link="PlayerNameMarkup.cs" />
   </ItemGroup>
 </Project>

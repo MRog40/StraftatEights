@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
@@ -13,16 +14,22 @@ internal static class MichaelMeyersState
     internal const string LiveLobbyDataKey = "StraftatEights_MichaelMeyers_Live";
     internal const string WeaponName = "Couperet";
     internal const string SurvivorWeaponName = WeaponName;
+    internal const string FlashlightWeaponName = "FlashLight";
     private const float SurvivorWeaponDelaySeconds = 3f;
     internal const float MovementMultiplier = 1.05f;
+    internal const float RoundTimeLimitSeconds = MichaelMeyersRules.RoundTimeLimitSeconds;
+    internal const int PointsForSurvivorTimeout = MichaelMeyersRules.PointsForSurvivorTimeout;
     internal static bool Enabled;
     internal static int CurrentMichaelPlayerId = -1;
     internal static int SurvivorCount { get; private set; }
+    internal static float TimeRemaining => Mathf.Max(0f, _timeRemaining);
     private static int _oneVsOneSurvivorId = -1;
     internal static bool OneVsOne;
+    internal static readonly Dictionary<int, int> Scores = new();
 
     private static int _winnerId = -1;
     private static int _roundToken;
+    private static float _timeRemaining;
     private static float _nextLoadoutCheckTime;
     private static readonly ModeSyncState Sync = new();
     private static readonly HashSet<int> RoundPlayers = new();
@@ -123,6 +130,7 @@ internal static class MichaelMeyersState
             Plugin.MichaelMeyersEnabled.Value);
         MyceliumNetwork.RPCTarget(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, SurvivorCount, OneVsOne,
+            SerializeScores(), TimeRemaining,
             GameModeManager.RoundId, Sync.LiveRevision);
     }
 
@@ -179,7 +187,7 @@ internal static class MichaelMeyersState
 
         if (changed && GameModeManager.IsActive(GameMode.MichaelMeyers))
         {
-            SurvivorCount = Math.Max(0, AlivePlayers.Count - 1);
+            SurvivorCount = CountAliveSurvivors();
             BroadcastLiveState();
         }
     }
@@ -194,20 +202,24 @@ internal static class MichaelMeyersState
         _roundToken++;
         Sync.ResetLiveState();
         _winnerId = -1;
+        _timeRemaining = 0f;
         CurrentMichaelPlayerId = -1;
         SurvivorCount = 0;
         _oneVsOneSurvivorId = -1;
         OneVsOne = false;
         RoundPlayers.Clear();
         AlivePlayers.Clear();
+        Scores.Clear();
         PendingLoadouts.Clear();
         _nextLoadoutCheckTime = 0f;
     }
 
     internal static void ApplyLiveState(CSteamID hostId, int michaelPlayerId, int survivorCount, bool oneVsOne,
-        int roundId, int revision, string source = "rpc")
+        string scoresData, float timeRemaining, int roundId, int revision, string source = "rpc")
     {
-        if (michaelPlayerId < -1 || survivorCount < 0)
+        if (michaelPlayerId < -1 || survivorCount < 0 || timeRemaining < 0f
+            || timeRemaining > RoundTimeLimitSeconds
+            || float.IsNaN(timeRemaining) || float.IsInfinity(timeRemaining))
         {
             return;
         }
@@ -218,6 +230,12 @@ internal static class MichaelMeyersState
         CurrentMichaelPlayerId = michaelPlayerId;
         SurvivorCount = survivorCount;
         OneVsOne = oneVsOne;
+        _timeRemaining = timeRemaining;
+        Scores.Clear();
+        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(scoresData, GameModeManager.EffectivePointsToWin))
+        {
+            Scores[entry.Key] = entry.Value;
+        }
     }
 
     internal static void OnRoundStarted()
@@ -236,7 +254,8 @@ internal static class MichaelMeyersState
                 AlivePlayers.Add(client.PlayerId);
             }
         }
-        SurvivorCount = Math.Max(0, AlivePlayers.Count - 1);
+        SurvivorCount = CountAliveSurvivors();
+        _timeRemaining = RoundTimeLimitSeconds;
 
         if (RoundPlayers.Count < 2 || Plugin.Instance == null)
         {
@@ -246,6 +265,36 @@ internal static class MichaelMeyersState
         int token = _roundToken;
         Plugin.Instance.StartCoroutine(SelectMichaelAfterDelay(token, SessionState.Generation, GameModeManager.RoundId));
         BroadcastLiveState();
+    }
+
+    internal static void ServerTick(float deltaTime)
+    {
+        if (!Enabled || !MyceliumNetwork.IsHost
+            || !GameModeManager.IsActive(GameMode.MichaelMeyers)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || _winnerId >= 0 || CurrentMichaelPlayerId < 0)
+        {
+            return;
+        }
+
+        _timeRemaining = Mathf.Max(0f, _timeRemaining - Mathf.Max(0f, deltaTime));
+        if (_timeRemaining <= 0f)
+        {
+            CompleteTimeoutWin();
+        }
+    }
+
+    internal static void ClientTick(float deltaTime)
+    {
+        if (MyceliumNetwork.IsHost || !Enabled
+            || !GameModeManager.IsActive(GameMode.MichaelMeyers)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || _winnerId >= 0 || CurrentMichaelPlayerId < 0)
+        {
+            return;
+        }
+
+        _timeRemaining = Mathf.Max(0f, _timeRemaining - Mathf.Max(0f, deltaTime));
     }
 
     private static IEnumerator SelectMichaelAfterDelay(int token, int sessionGeneration, int roundId)
@@ -323,6 +372,10 @@ internal static class MichaelMeyersState
                     WeaponService.GiveWeapon(playerId, SurvivorWeaponName);
                 }
             }
+            else if (IsFlashlightHeld(pickup))
+            {
+                PendingLoadouts.Remove(playerId);
+            }
             else if (HasHeldObject(pickup))
             {
                 WeaponService.ClearHeldWeapons(pickup);
@@ -365,7 +418,7 @@ internal static class MichaelMeyersState
         {
             return;
         }
-        SurvivorCount = Math.Max(0, AlivePlayers.Count - 1);
+        SurvivorCount = CountAliveSurvivors();
 
         if (AlivePlayers.Count <= 1)
         {
@@ -386,6 +439,31 @@ internal static class MichaelMeyersState
         }
 
         BroadcastLiveState();
+    }
+
+    private static void CompleteTimeoutWin()
+    {
+        if (_winnerId >= 0 || ScoreManager.Instance == null)
+        {
+            return;
+        }
+
+        List<int> survivors = GetAliveSurvivors();
+        if (!MichaelMeyersRules.ShouldResolveTimeout(survivors.Count))
+        {
+            return;
+        }
+
+        foreach (int playerId in survivors)
+        {
+            AwardScore(playerId, PointsForSurvivorTimeout);
+        }
+
+        _winnerId = survivors[0];
+        Announce("The survivors won the <b>Michael Meyers</b> round!\n<i>Time expired</i>");
+        GameModeHud.BroadcastTakeResult("<b>The survivors won the take</b>\n<i>Michael ran out of time</i>");
+        BroadcastLiveState();
+        GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(_winnerId), false);
     }
 
     internal static bool IsMichael(PlayerHealth health)
@@ -429,6 +507,13 @@ internal static class MichaelMeyersState
         return weapon != null && weapon.name.StartsWith(WeaponName, StringComparison.Ordinal);
     }
 
+    internal static bool IsFlashlight(Weapon weapon)
+    {
+        return weapon != null && (weapon.name.StartsWith(FlashlightWeaponName,
+            StringComparison.OrdinalIgnoreCase) || weapon.name.StartsWith("Flashlight",
+            StringComparison.OrdinalIgnoreCase));
+    }
+
     private static void EnsureTrackedPlayers()
     {
         if (RoundPlayers.Count != 0)
@@ -462,6 +547,14 @@ internal static class MichaelMeyersState
         return IsWeaponHeld(pickup, WeaponName);
     }
 
+    private static bool IsFlashlightHeld(PlayerPickup pickup)
+    {
+        Weapon? rightWeapon = GetWeapon(pickup.objInHand);
+        Weapon? leftWeapon = GetWeapon(pickup.objInLeftHand);
+        return (rightWeapon != null && IsFlashlight(rightWeapon))
+            || (leftWeapon != null && IsFlashlight(leftWeapon));
+    }
+
     private static bool IsWeaponHeld(PlayerPickup pickup, string weaponName)
     {
         Weapon? rightWeapon = GetWeapon(pickup.objInHand);
@@ -492,6 +585,32 @@ internal static class MichaelMeyersState
         Announce(PlayerLookup.GetPlayerNameTag(winnerId) + " won the <b>Michael Meyers</b> round!");
         BroadcastLiveState();
         GameModeManager.CompleteCustomRound(ScoreManager.Instance.GetTeamId(winnerId));
+    }
+
+    private static int CountAliveSurvivors()
+    {
+        return AlivePlayers.Count - (CurrentMichaelPlayerId >= 0
+            && AlivePlayers.Contains(CurrentMichaelPlayerId) ? 1 : 0);
+    }
+
+    private static List<int> GetAliveSurvivors()
+    {
+        List<int> survivors = new();
+        foreach (int playerId in AlivePlayers)
+        {
+            if (MichaelMeyersRules.IsTimeoutRecipient(playerId, CurrentMichaelPlayerId, AlivePlayers))
+            {
+                survivors.Add(playerId);
+            }
+        }
+        return survivors;
+    }
+
+    private static void AwardScore(int playerId, int amount)
+    {
+        Scores.TryGetValue(playerId, out int currentScore);
+        Scores[playerId] = currentScore + amount;
+        GameModeHud.ShowScorePopupForPlayer(playerId, amount);
     }
 
     internal static void GiveStartingWeapon(int playerId)
@@ -528,9 +647,11 @@ internal static class MichaelMeyersState
             int revision = Sync.NextLiveRevision();
             ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
                 GameModeManager.RoundId, revision, CurrentMichaelPlayerId.ToString(),
-                SurvivorCount.ToString(), OneVsOne ? "1" : "0");
+                SurvivorCount.ToString(), OneVsOne ? "1" : "0", SerializeScores(),
+                TimeRemaining.ToString(CultureInfo.InvariantCulture));
             MyceliumNetwork.RPC(Plugin.MichaelMeyersModId, nameof(Plugin.SyncMichaelMeyersLiveState),
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, SurvivorCount, OneVsOne,
+                SerializeScores(), TimeRemaining,
                 GameModeManager.RoundId, revision);
         }
     }
@@ -557,18 +678,23 @@ internal static class MichaelMeyersState
 
     private static void ApplyLobbyLiveSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 3, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 5, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
             || !int.TryParse(fields[0], out int michaelPlayerId)
             || !int.TryParse(fields[1], out int survivorCount)
-            || !LobbySnapshotCodec.TryParseBool(fields[2], out bool oneVsOne))
+            || !LobbySnapshotCodec.TryParseBool(fields[2], out bool oneVsOne)
+            || !float.TryParse(fields[4], NumberStyles.Float, CultureInfo.InvariantCulture,
+                out float timeRemaining))
         {
             return;
         }
 
-        ApplyLiveState(hostId, michaelPlayerId, survivorCount, oneVsOne, roundId, revision,
+        ApplyLiveState(hostId, michaelPlayerId, survivorCount, oneVsOne, fields[3], timeRemaining,
+            roundId, revision,
             ModeLobbyDataSync.Source("michael-meyers", "live"));
     }
+
+    private static string SerializeScores() => ScoreCodec.Serialize(Scores);
 
     private static void Announce(string text)
     {

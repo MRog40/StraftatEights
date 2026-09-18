@@ -13,7 +13,8 @@ public partial class Plugin
     {
         const string section = "Game Mode Settings";
         MichaelMeyersEnabled = Config.Bind(section, "Michael Meyers Enabled", false,
-            "Host-controlled: one player hunts the other players with a Couperet; the last player alive wins.");
+            "Host-controlled: one player hunts the other players with a Couperet; the last player alive wins, "
+            + "or at least two living survivors win after 90 seconds for half points.");
 
         MichaelMeyersEnabled.SettingChanged += (_, _) =>
         {
@@ -46,13 +47,14 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncMichaelMeyersLiveState(CSteamID hostId, int michaelPlayerId, int survivorCount, bool oneVsOne,
-        int roundId, int revision, RPCInfo info)
+        string scoresData, float timeRemaining, int roundId, int revision, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
             return;
         }
-        MichaelMeyersState.ApplyLiveState(hostId, michaelPlayerId, survivorCount, oneVsOne, roundId, revision);
+        MichaelMeyersState.ApplyLiveState(hostId, michaelPlayerId, survivorCount, oneVsOne,
+            scoresData, timeRemaining, roundId, revision);
     }
 
     [CustomRPC]
