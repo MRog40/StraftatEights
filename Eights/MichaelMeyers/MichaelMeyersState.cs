@@ -272,7 +272,7 @@ internal static class MichaelMeyersState
     {
         if (!Enabled || !MyceliumNetwork.IsHost
             || !GameModeManager.IsActive(GameMode.MichaelMeyers)
-            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || !GameModeManager.IsRoundGameplayActive
             || _winnerId >= 0 || CurrentMichaelPlayerId < 0)
         {
             return;
@@ -289,7 +289,7 @@ internal static class MichaelMeyersState
     {
         if (MyceliumNetwork.IsHost || !Enabled
             || !GameModeManager.IsActive(GameMode.MichaelMeyers)
-            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || !GameModeManager.IsRoundGameplayActive
             || _winnerId >= 0 || CurrentMichaelPlayerId < 0)
         {
             return;

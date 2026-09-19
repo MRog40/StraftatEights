@@ -176,6 +176,7 @@ internal static class HVTState
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.HVT)
             || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost
+            || !GameModeManager.IsRoundGameplayActive
             || CurrentHVTPlayerId < 0 || WinnerId >= 0)
         {
             return;

@@ -83,7 +83,7 @@ internal static class ModeTimeoutState
     {
         if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
             || !IsTimedMode(GameModeManager.ActiveMode)
-            || GameModeManager.Phase != GameModePhase.ActiveRound)
+            || !GameModeManager.IsRoundGameplayActive)
         {
             return;
         }
@@ -105,7 +105,7 @@ internal static class ModeTimeoutState
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
             || !IsTimedMode(GameModeManager.ActiveMode)
-            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || !GameModeManager.IsRoundGameplayActive
             || IsSuddenDeath)
         {
             return;

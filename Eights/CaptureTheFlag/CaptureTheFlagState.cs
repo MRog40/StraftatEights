@@ -339,7 +339,7 @@ internal static class CaptureTheFlagState
     {
         if (!Enabled || !MyceliumNetwork.IsHost
             || !GameModeManager.IsActive(GameMode.CaptureTheFlag)
-            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || !GameModeManager.IsRoundGameplayActive
             || _roundCompletionRequested)
         {
             return;

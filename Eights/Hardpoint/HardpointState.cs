@@ -245,7 +245,7 @@ internal static class HardpointState
     internal static void ServerTick(float deltaTime)
     {
         if (!Enabled || !MyceliumNetwork.IsHost || !GameModeManager.IsActive(GameMode.Hardpoint)
-            || GameModeManager.Phase != GameModePhase.ActiveRound || _roundCompletionRequested)
+            || !GameModeManager.IsRoundGameplayActive || _roundCompletionRequested)
         {
             return;
         }

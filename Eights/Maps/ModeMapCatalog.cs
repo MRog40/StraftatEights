@@ -22,7 +22,7 @@ internal static class ModeMapCatalog
             MapDefinitions.TheSamePlace04AltName,
             MapDefinitions.Corridor11Name,
             MapDefinitions.Garden02Name,
-            MapDefinitions.Chateaux06NoGrassName,
+            // MapDefinitions.Chateaux06NoGrassName,
             MapDefinitions.BasketSwirlyName,
             MapDefinitions.BasketSwirlyAltName,
             MapDefinitions.Republic08Name
@@ -30,17 +30,10 @@ internal static class ModeMapCatalog
     private static readonly IReadOnlyList<string> FreeForAllMaps =
         new[]
         {
-            MapDefinitions.Barren01AltName,
             MapDefinitions.DragonflyNeighbourhoodName,
-            MapDefinitions.Bazaar03Name,
-            MapDefinitions.Drain01Name,
-            MapDefinitions.TheSamePlace11Name,
-            MapDefinitions.Bazaar02Name,
             MapDefinitions.TheSamePlace14Name,
             MapDefinitions.DragonflyVestigeName,
             MapDefinitions.TheSamePlace04AltName,
-            MapDefinitions.Corridor11Name,
-            MapDefinitions.Garden02Name,
             MapDefinitions.Chateaux06NoGrassName,
             MapDefinitions.BasketSwirlyName,
             MapDefinitions.BasketSwirlyAltName,
@@ -74,11 +67,10 @@ internal static class ModeMapCatalog
     private static readonly IReadOnlyList<string> KillTheRatMaps =
         new[] { "WestVillage_04", "Toilets_00", "Arena_13", "JF_Poolrooms_01" };
     private static readonly IReadOnlyList<string> OneInTheChamberMaps =
-        new[] { "TheSamePlace_02", "StLucia_01", "Chateaux_04" };     private static readonly IReadOnlyList<string> HotPotatoMaps = FreeForAllMaps;
+        new[] { "TheSamePlace_02", "StLucia_01", "Chateaux_04" };
+    private static readonly IReadOnlyList<string> HotPotatoMaps = FreeForAllMaps;
     private static readonly IReadOnlyList<string> InfidelMaps =
         new[] { "Bazaar_01", "TheSamePlace_04", "TheSamePlace_12" };
-    private static readonly IReadOnlyList<string> Barren01AltOnly =
-        new[] { MapDefinitions.Barren01AltName };
 
     private static readonly IReadOnlyDictionary<GameMode, IReadOnlyList<string>> MapsByMode =
         new Dictionary<GameMode, IReadOnlyList<string>>
@@ -92,8 +84,8 @@ internal static class ModeMapCatalog
             [GameMode.OneInTheChamber] = OneInTheChamberMaps,
             [GameMode.HotPotato] = HotPotatoMaps,
             [GameMode.Infidel] = InfidelMaps,
-            [GameMode.HVT] = Barren01AltOnly,
-            [GameMode.Assassin] = Barren01AltOnly,
+            [GameMode.HVT] = InfidelMaps,
+            [GameMode.Assassin] = InfidelMaps,
             [GameMode.Hardpoint] = TeamObjectiveMaps,
             [GameMode.CaptureTheFlag] = TeamObjectiveMaps,
             [GameMode.SearchAndDestroy] = TeamObjectiveMaps,

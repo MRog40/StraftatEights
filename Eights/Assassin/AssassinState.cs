@@ -290,7 +290,7 @@ internal static class AssassinState
     {
         if (!Enabled || !MyceliumNetwork.IsHost
             || !GameModeManager.IsActive(GameMode.Assassin)
-            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || !GameModeManager.IsRoundGameplayActive
             || WinnerId >= 0 || !TakeIsActive())
         {
             return;
@@ -307,7 +307,7 @@ internal static class AssassinState
     {
         if (MyceliumNetwork.IsHost || !Enabled
             || !GameModeManager.IsActive(GameMode.Assassin)
-            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || !GameModeManager.IsRoundGameplayActive
             || WinnerId >= 0 || !TakeIsActive())
         {
             return;

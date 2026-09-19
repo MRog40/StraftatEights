@@ -1342,6 +1342,9 @@ internal static class GameModeManager
         && Phase == GameModePhase.ActiveRound && EffectivePreRoundSeconds > 0
         && Time.unscaledTime < _preRoundTimerEndsAt;
 
+    internal static bool IsRoundGameplayActive => Phase == GameModePhase.ActiveRound
+        && !IsPreRoundTimerActive;
+
     internal static void UpdatePreRoundTimer()
     {
         if (_preRoundTimerRoundId != RoundId || Phase != GameModePhase.ActiveRound)

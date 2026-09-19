@@ -146,7 +146,7 @@ internal static class DefaultGameModeState
     {
         if (!Plugin.DefaultGameModeEnabled.Value || !MyceliumNetwork.IsHost
             || !GameModeManager.IsActive(GameMode.Default)
-            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || !GameModeManager.IsRoundGameplayActive
             || WinnerId >= 0 || TakeId <= 0)
         {
             return;
@@ -163,7 +163,7 @@ internal static class DefaultGameModeState
     {
         if (MyceliumNetwork.IsHost || !Plugin.DefaultGameModeEnabled.Value
             || !GameModeManager.IsActive(GameMode.Default)
-            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || !GameModeManager.IsRoundGameplayActive
             || WinnerId >= 0 || TakeId <= 0)
         {
             return;

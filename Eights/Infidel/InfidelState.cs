@@ -259,7 +259,7 @@ internal static class InfidelState
     {
         if (!Enabled || !MyceliumNetwork.IsHost
             || !GameModeManager.IsActive(GameMode.Infidel)
-            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || !GameModeManager.IsRoundGameplayActive
             || WinnerId >= 0 || !TakeIsActive())
         {
             return;
@@ -276,7 +276,7 @@ internal static class InfidelState
     {
         if (MyceliumNetwork.IsHost || !Enabled
             || !GameModeManager.IsActive(GameMode.Infidel)
-            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || !GameModeManager.IsRoundGameplayActive
             || WinnerId >= 0 || !TakeIsActive())
         {
             return;

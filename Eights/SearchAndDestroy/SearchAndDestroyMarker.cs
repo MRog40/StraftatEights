@@ -61,6 +61,10 @@ internal static class SearchAndDestroyMarker
             GameObject overheadMarker = markerRoot.Find("BombSiteOverhead")!.gameObject;
             FloatingObjectiveMarker.PositionOverhead(overheadMarker, position,
                 overheadColor, SiteOverheadMarkerSize);
+            if (siteIndex == 0)
+            {
+                overheadMarker.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            }
             SiteMarkers[siteIndex]!.SetActive(true);
         }
 

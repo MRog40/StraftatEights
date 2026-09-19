@@ -315,7 +315,7 @@ internal static class SearchAndDestroyState
     {
         if (!Enabled || !MyceliumNetwork.IsHost
             || !GameModeManager.IsActive(GameMode.SearchAndDestroy)
-            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || !GameModeManager.IsRoundGameplayActive
             || WinnerId >= 0 || !_roundStarted || TakeId <= 0 || _takeEnding)
         {
             return;

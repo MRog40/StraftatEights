@@ -188,6 +188,7 @@ internal static class KillTheRatState
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.KillTheRat)
             || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost
+            || !GameModeManager.IsRoundGameplayActive
             || CurrentRatPlayerId < 0 || WinnerId >= 0)
         {
             return;
