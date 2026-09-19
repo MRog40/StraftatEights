@@ -29,6 +29,8 @@ internal sealed class GameModeHud : MonoBehaviour
     private const int MaxDisplayedNameLength = 14;
     private const float ScoreboardColumnGap = 8f;
     private const float ScoreboardScoreColumnWidth = 60f;
+    private const float ScoreboardContentWidth = 220f;
+    private const float ScoreboardPanelWidth = 244f;
     private const int PanelTextureSize = 64;
     private const int PanelCornerRadius = 12;
     private const int PanelBorderWidth = 2;
@@ -203,7 +205,7 @@ internal sealed class GameModeHud : MonoBehaviour
         panelRect.anchorMin = new Vector2(0f, 1f);
         panelRect.anchorMax = new Vector2(0f, 1f);
         panelRect.pivot = new Vector2(0f, 1f);
-        panelRect.sizeDelta = new Vector2(420f, 0f);
+        panelRect.sizeDelta = new Vector2(ScoreboardPanelWidth, 0f);
         panelRect.anchoredPosition = new Vector2(18f, -148f);
         Image panelImage = _panel.AddComponent<Image>();
         panelImage.sprite = GetScoreboardPanelSprite();
@@ -233,8 +235,8 @@ internal sealed class GameModeHud : MonoBehaviour
         GameObject scoreboardContentObject = new("GameModeScoreboardContent", typeof(RectTransform));
         scoreboardContentObject.transform.SetParent(_panel.transform, false);
         LayoutElement scoreboardContentLayout = scoreboardContentObject.AddComponent<LayoutElement>();
-        scoreboardContentLayout.minWidth = 396f;
-        scoreboardContentLayout.preferredWidth = 396f;
+        scoreboardContentLayout.minWidth = ScoreboardContentWidth;
+        scoreboardContentLayout.preferredWidth = ScoreboardContentWidth;
         HorizontalLayoutGroup scoreboardColumns = scoreboardContentObject.AddComponent<HorizontalLayoutGroup>();
         scoreboardColumns.spacing = ScoreboardColumnGap;
         scoreboardColumns.childAlignment = TextAnchor.UpperLeft;
