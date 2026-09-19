@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Globalization;
 using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
@@ -9,6 +11,7 @@ namespace StraftatEightsPlugin;
 // for where these values actually get enforced via Harmony.
 internal static class GlobalModifiersState
 {
+    internal const string SettingsLobbyDataKey = "StraftatEights_GlobalModifiers_Settings";
     internal static bool Enabled;
     internal static bool WallJumpEnabled = true;
     internal static bool SlidingEnabled = true;
@@ -36,6 +39,7 @@ internal static class GlobalModifiersState
     // mod's own defaults - e.g. ADS slowdown defaults to an intentional 80%, but "disabled" means 100%)
     // so the individual sliders are ignored entirely and movement is pure stock Straftat.
     private static readonly ModeSyncState Sync = new();
+    private static float _nextClientSettingsPollTime;
 
     internal static void Apply(bool enabled, bool wallJump, bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent, int gravityPercent, int momentumPercent, int airSpeedRatioPercent, int shootingSpeedPercent)
     {
@@ -87,8 +91,22 @@ internal static class GlobalModifiersState
             return;
         }
         ApplyFromHostConfig();
+        int revision = Sync.NextSettingsRevision();
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision,
+            Plugin.MovementTweaksEnabled.Value ? "1" : "0",
+            Plugin.WallJumpEnabled.Value ? "1" : "0",
+            Plugin.SlidingEnabled.Value ? "1" : "0",
+            Plugin.SlideBoostEnabled.Value ? "1" : "0",
+            Plugin.WallJumpBoostEnabled.Value ? "1" : "0",
+            Plugin.MoveSpeedPercent.Value.ToString(CultureInfo.InvariantCulture),
+            Plugin.AdsSpeedPercent.Value.ToString(CultureInfo.InvariantCulture),
+            Plugin.GravityPercent.Value.ToString(CultureInfo.InvariantCulture),
+            Plugin.MomentumPercent.Value.ToString(CultureInfo.InvariantCulture),
+            Plugin.AirSpeedRatioPercent.Value.ToString(CultureInfo.InvariantCulture),
+            Plugin.ShootingSpeedPercent.Value.ToString(CultureInfo.InvariantCulture));
         MyceliumNetwork.RPC(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), ReliableType.Reliable,
-            RpcArgs(Sync.NextSettingsRevision()));
+            RpcArgs(revision));
     }
 
     // Mycelium's P2P session in this game intermittently fails to deliver a message with no error on
@@ -108,10 +126,39 @@ internal static class GlobalModifiersState
     internal static void OnLobbyEntered()
     {
         Sync.ResetForLobby();
+        _nextClientSettingsPollTime = 0f;
         if (MyceliumNetwork.IsHost)
         {
-            ApplyFromHostConfig();
+            PushIfHost();
         }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+    }
+
+    internal static void PollSettingsIfClient()
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || Time.unscaledTime < _nextClientSettingsPollTime)
+        {
+            return;
+        }
+
+        _nextClientSettingsPollTime = Time.unscaledTime
+            + HostSettingsSync.SettingsHeartbeatIntervalSeconds;
+        ApplyLobbySettingsSnapshot();
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || !ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            return;
+        }
+
+        ApplyLobbySettingsSnapshot();
     }
 
     internal static void ResetForLobbyLeft()
@@ -131,9 +178,36 @@ internal static class GlobalModifiersState
             ReliableType.Reliable, RpcArgs(Sync.SettingsRevision));
     }
 
-    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision,
+        string source = "rpc")
     {
-        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision, source);
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 11, out CSteamID hostId,
+                out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !LobbySnapshotCodec.TryParseBool(fields[1], out bool wallJump)
+            || !LobbySnapshotCodec.TryParseBool(fields[2], out bool sliding)
+            || !LobbySnapshotCodec.TryParseBool(fields[3], out bool slideBoost)
+            || !LobbySnapshotCodec.TryParseBool(fields[4], out bool wallJumpBoost)
+            || !int.TryParse(fields[5], out int moveSpeedPercent)
+            || !int.TryParse(fields[6], out int adsSpeedPercent)
+            || !int.TryParse(fields[7], out int gravityPercent)
+            || !int.TryParse(fields[8], out int momentumPercent)
+            || !int.TryParse(fields[9], out int airSpeedRatioPercent)
+            || !int.TryParse(fields[10], out int shootingSpeedPercent)
+            || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("global-modifiers", "settings")))
+        {
+            return;
+        }
+
+        Apply(enabled, wallJump, sliding, slideBoost, wallJumpBoost, moveSpeedPercent,
+            adsSpeedPercent, gravityPercent, momentumPercent, airSpeedRatioPercent,
+            shootingSpeedPercent);
     }
 
     // MyceliumNetworking's serializer only supports primitives

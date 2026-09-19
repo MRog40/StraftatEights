@@ -150,11 +150,14 @@ public partial class Plugin : BaseUnityPlugin
         SearchAndDestroyState.PollLocalInput();
         SearchAndDestroyState.ApplyLocalMovementLock();
         GlobalModifiersState.PeriodicPushIfHost();
+        GlobalModifiersState.PollSettingsIfClient();
         HealthSettingsState.PeriodicPushIfHost();
+        HealthSettingsState.PollSettingsIfClient();
         GameModeHud.PeriodicPushTakeResult();
         HealthSettingsState.ServerTick();
         WeaponSettingsState.UpdateLocalCycle();
         WeaponSettingsState.PeriodicPushIfHost();
+        WeaponSettingsState.PollSettingsIfClient();
         WeaponSettingsState.EnsureCycleLoadouts();
         GameModeManager.EnsureActiveModeLoadouts();
         PlayerOutline.EnforceOutline();

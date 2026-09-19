@@ -57,7 +57,20 @@ internal static class CaptureTheFlagMarker
         PlayerHealth? carrier = PlayerLookup.FindActivePlayerHealthById(carrierId);
         if (carrier == null || !carrier || !carrier.gameObject.activeInHierarchy)
         {
-            SetMarkerActive(flagIndex, false);
+            if (CaptureTheFlagState.TryGetFlagPosition(flagIndex, out Vector3 lastKnownPosition))
+            {
+                if (Markers[flagIndex] == null || !Markers[flagIndex])
+                {
+                    CreateMarker(flagIndex);
+                }
+
+                PositionMarker(flagIndex, lastKnownPosition);
+            }
+            else
+            {
+                SetMarkerActive(flagIndex, false);
+            }
+
             return;
         }
 

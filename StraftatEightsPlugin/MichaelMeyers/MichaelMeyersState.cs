@@ -87,6 +87,8 @@ internal static class MichaelMeyersState
         {
             ApplyFromConfig();
             ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
         }
         else
         {

@@ -10,10 +10,12 @@ namespace StraftatEightsPlugin;
 // like Gun Game later) instead of every feature re-implementing the same lookups.
 internal static class PlayerLookup
 {
+    private const float SceneHealthScanIntervalSeconds = 0.25f;
     private static readonly List<int> CachedConnectedPlayerIds = new();
     private static readonly Dictionary<int, PlayerHealth> CachedPlayerHealthById = new();
     private static bool _connectedPlayerIdsDirty = true;
     private static int _cachedMappedPlayerCount = -1;
+    private static float _nextSceneHealthScanTime;
 
     internal static ICollection<PlayerHealth> KnownPlayerHealths => CachedPlayerHealthById.Values;
     internal static int ConnectedPlayerRevision { get; private set; }
@@ -190,6 +192,14 @@ internal static class PlayerLookup
                 return clientHealth;
             }
         }
+
+        RefreshSceneHealthCacheIfDue();
+        if (CachedPlayerHealthById.TryGetValue(playerId, out PlayerHealth? sceneHealth)
+            && IsPlayerHealthForId(sceneHealth, playerId))
+        {
+            return sceneHealth;
+        }
+
         return null;
     }
 
@@ -252,7 +262,34 @@ internal static class PlayerLookup
                 return clientHealth;
             }
         }
+
+        RefreshSceneHealthCacheIfDue();
+        if (CachedPlayerHealthById.TryGetValue(playerId, out PlayerHealth? sceneHealth)
+            && IsPlayerHealthForId(sceneHealth, playerId)
+            && sceneHealth.gameObject.activeInHierarchy)
+        {
+            return sceneHealth;
+        }
+
         return null;
+    }
+
+    private static void RefreshSceneHealthCacheIfDue()
+    {
+        if (Time.unscaledTime < _nextSceneHealthScanTime)
+        {
+            return;
+        }
+
+        _nextSceneHealthScanTime = Time.unscaledTime + SceneHealthScanIntervalSeconds;
+        foreach (PlayerHealth health in Object.FindObjectsOfType<PlayerHealth>())
+        {
+            if (health != null && health
+                && health.playerValues?.playerClient != null)
+            {
+                CachedPlayerHealthById[health.playerValues.playerClient.PlayerId] = health;
+            }
+        }
     }
 
     private static bool IsPlayerHealthForId(PlayerHealth? health, int playerId)

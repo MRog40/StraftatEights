@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using MyceliumNetworking;
 using Steamworks;
@@ -9,6 +10,7 @@ namespace StraftatEightsPlugin;
 
 internal static class WeaponSettingsState
 {
+    internal const string SettingsLobbyDataKey = "StraftatEights_GlobalWeapons_Settings";
     internal static bool Enabled;
     internal static bool Cycle;
     internal static int SpareMagazines = 5;
@@ -19,6 +21,7 @@ internal static class WeaponSettingsState
     private static float _nextLoadoutCheckTime;
     private static int _nextCycleRequestId;
     private static readonly ModeSyncState Sync = new();
+    private static float _nextClientSettingsPollTime;
     internal static void Apply(bool enabled, string allowedWeapons, int spareMagazines, bool cycleWeapons)
     {
         spareMagazines = Mathf.Clamp(spareMagazines, 2, 10);
@@ -49,8 +52,14 @@ internal static class WeaponSettingsState
     {
         if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost) return;
         ApplyFromConfig();
+        int revision = Sync.NextSettingsRevision();
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision,
+            Plugin.WeaponTweaksEnabled.Value ? "1" : "0", Plugin.AllowedWeapons.Value,
+            Plugin.SpareMagazines.Value.ToString(CultureInfo.InvariantCulture),
+            Plugin.CycleWeapons.Value ? "1" : "0");
         MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId, nameof(Plugin.SyncWeaponSettings), ReliableType.Reliable,
-            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.NextSettingsRevision(),
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
             Plugin.WeaponTweaksEnabled.Value, Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value,
             Plugin.CycleWeapons.Value);
     }
@@ -62,7 +71,15 @@ internal static class WeaponSettingsState
         PendingLoadouts.Clear();
         CycleRequests.Clear();
         _nextCycleRequestId = 0;
-        if (MyceliumNetwork.IsHost) ApplyFromConfig();
+        _nextClientSettingsPollTime = 0f;
+        if (MyceliumNetwork.IsHost)
+        {
+            PushIfHost();
+        }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+        }
     }
 
     internal static void ResetForLobbyLeft()
@@ -83,6 +100,30 @@ internal static class WeaponSettingsState
             Plugin.CycleWeapons.Value);
     }
 
+    internal static void PollSettingsIfClient()
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || Time.unscaledTime < _nextClientSettingsPollTime)
+        {
+            return;
+        }
+
+        _nextClientSettingsPollTime = Time.unscaledTime
+            + HostSettingsSync.SettingsHeartbeatIntervalSeconds;
+        ApplyLobbySettingsSnapshot();
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || !ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            return;
+        }
+
+        ApplyLobbySettingsSnapshot();
+    }
+
     internal static void OnPlayerLeft(CSteamID player)
     {
         CycleRequests.Remove(player);
@@ -94,9 +135,26 @@ internal static class WeaponSettingsState
         }
     }
 
-    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision,
+        string source = "rpc")
     {
-        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision, source);
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 4, out CSteamID hostId,
+                out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !int.TryParse(fields[2], out int spareMagazines)
+            || !LobbySnapshotCodec.TryParseBool(fields[3], out bool cycleWeapons)
+            || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("global-weapons", "settings")))
+        {
+            return;
+        }
+
+        Apply(enabled, fields[1], spareMagazines, cycleWeapons);
     }
 
     internal static bool TryAcceptCycleRequest(CSteamID sender, int requestId)

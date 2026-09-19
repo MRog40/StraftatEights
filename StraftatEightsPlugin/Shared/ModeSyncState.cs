@@ -16,7 +16,7 @@ internal sealed class ModeSyncState
 
     internal ModeSyncState(
         float settingsPushInterval = HostSettingsSync.SettingsHeartbeatIntervalSeconds,
-        float livePushInterval = 3f)
+        float livePushInterval = 1f)
     {
         _settingsPushInterval = settingsPushInterval;
         _livePushInterval = livePushInterval;

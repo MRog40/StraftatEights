@@ -100,6 +100,8 @@ internal static class HardpointState
         {
             ApplySettingsFromHostConfig();
             ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
         }
         else
         {

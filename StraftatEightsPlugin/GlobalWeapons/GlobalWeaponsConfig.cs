@@ -25,8 +25,10 @@ public partial class Plugin
         SpareMagazines.SettingChanged += (_, _) => WeaponSettingsState.PushIfHost();
         CycleWeapons.SettingChanged += (_, _) => WeaponSettingsState.PushIfHost();
         MyceliumNetwork.RegisterNetworkObject(this, GlobalWeaponsModId);
+        ModeLobbyDataSync.RegisterKeys(WeaponSettingsState.SettingsLobbyDataKey);
         MyceliumNetwork.LobbyCreated += WeaponSettingsState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += WeaponSettingsState.OnLobbyEntered;
+        MyceliumNetwork.LobbyDataUpdated += WeaponSettingsState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += WeaponSettingsState.OnPlayerEntered;
         MyceliumNetwork.PlayerLeft += WeaponSettingsState.OnPlayerLeft;
     }

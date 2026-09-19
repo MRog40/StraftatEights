@@ -76,6 +76,7 @@ internal static class TeamDeathmatchState
             ApplySettingsFromHostConfig();
             ResetMatchState();
             PushSettingsIfHost();
+            BroadcastLiveState();
         }
         else
         {

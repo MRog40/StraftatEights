@@ -75,6 +75,8 @@ internal static class KillTheRatState
         {
             ApplySettingsFromHostConfig();
             ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
         }
         else
         {

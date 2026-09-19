@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Globalization;
 using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
@@ -6,6 +8,7 @@ namespace StraftatEightsPlugin;
 
 internal static class HealthSettingsState
 {
+    internal const string SettingsLobbyDataKey = "StraftatEights_HealthSettings_Settings";
     internal static bool Enabled;
     internal static float MaxHealthMultiplier = 1f;
     internal static bool RegenEnabled;
@@ -14,6 +17,7 @@ internal static class HealthSettingsState
     internal static int TuningVersion;
 
     private static float _nextServerScanTime;
+    private static float _nextClientSettingsPollTime;
     private static readonly ModeSyncState Sync = new();
 
     internal static void Apply(bool enabled, int maxHealthPercent, bool regenEnabled, int regenDelaySeconds, int regenRate)
@@ -61,8 +65,16 @@ internal static class HealthSettingsState
             return;
         }
         ApplyFromHostConfig();
+        int revision = Sync.NextSettingsRevision();
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision,
+            Plugin.HealthTweaksEnabled.Value ? "1" : "0",
+            Plugin.MaxHealthPercent.Value.ToString(CultureInfo.InvariantCulture),
+            Plugin.HealthRegenEnabled.Value ? "1" : "0",
+            Plugin.HealthRegenDelaySeconds.Value.ToString(CultureInfo.InvariantCulture),
+            Plugin.HealthRegenRate.Value.ToString(CultureInfo.InvariantCulture));
         MyceliumNetwork.RPC(Plugin.HealthSettingsModId, nameof(Plugin.SyncHealthSettings), ReliableType.Reliable,
-            RpcArgs(Sync.NextSettingsRevision()));
+            RpcArgs(revision));
     }
 
     internal static void PeriodicPushIfHost()
@@ -97,10 +109,39 @@ internal static class HealthSettingsState
     internal static void OnLobbyEntered()
     {
         Sync.ResetForLobby();
+        _nextClientSettingsPollTime = 0f;
         if (MyceliumNetwork.IsHost)
         {
-            ApplyFromHostConfig();
+            PushIfHost();
         }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+    }
+
+    internal static void PollSettingsIfClient()
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || Time.unscaledTime < _nextClientSettingsPollTime)
+        {
+            return;
+        }
+
+        _nextClientSettingsPollTime = Time.unscaledTime
+            + HostSettingsSync.SettingsHeartbeatIntervalSeconds;
+        ApplyLobbySettingsSnapshot();
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || !ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            return;
+        }
+
+        ApplyLobbySettingsSnapshot();
     }
 
     internal static void ResetForLobbyLeft()
@@ -119,9 +160,28 @@ internal static class HealthSettingsState
             ReliableType.Reliable, RpcArgs(Sync.SettingsRevision));
     }
 
-    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision,
+        string source = "rpc")
     {
-        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision, source);
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 5, out CSteamID hostId,
+                out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !int.TryParse(fields[1], out int maxHealthPercent)
+            || !LobbySnapshotCodec.TryParseBool(fields[2], out bool regenEnabled)
+            || !int.TryParse(fields[3], out int regenDelaySeconds)
+            || !int.TryParse(fields[4], out int regenRate)
+            || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("health-settings", "settings")))
+        {
+            return;
+        }
+
+        Apply(enabled, maxHealthPercent, regenEnabled, regenDelaySeconds, regenRate);
     }
 
     private static object[] RpcArgs(int revision)

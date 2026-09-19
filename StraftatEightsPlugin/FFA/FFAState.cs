@@ -68,6 +68,8 @@ internal static class FFAState
         {
             ApplySettingsFromHostConfig();
             ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
         }
         else
         {

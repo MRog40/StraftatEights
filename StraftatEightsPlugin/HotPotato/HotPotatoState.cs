@@ -73,6 +73,8 @@ internal static class HotPotatoState
         {
             ApplySettingsFromHostConfig();
             ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
         }
         else
         {

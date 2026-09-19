@@ -89,6 +89,8 @@ internal static class OneInTheChamberState
         {
             ApplySettingsFromHostConfig();
             ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
         }
         else
         {

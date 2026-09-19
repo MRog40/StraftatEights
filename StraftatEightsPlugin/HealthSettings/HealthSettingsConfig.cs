@@ -39,8 +39,10 @@ public partial class Plugin
         HealthRegenRate.SettingChanged += (_, _) => HealthSettingsState.PushIfHost();
 
         MyceliumNetwork.RegisterNetworkObject(this, HealthSettingsModId);
+        ModeLobbyDataSync.RegisterKeys(HealthSettingsState.SettingsLobbyDataKey);
         MyceliumNetwork.LobbyCreated += HealthSettingsState.OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += HealthSettingsState.OnLobbyEntered;
+        MyceliumNetwork.LobbyDataUpdated += HealthSettingsState.OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += HealthSettingsState.OnPlayerEntered;
     }
 
