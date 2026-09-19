@@ -26,7 +26,7 @@ internal sealed class GameModeHud : MonoBehaviour
     private const float TakeResultRetryInterval = 0.5f;
     private const int MaxPendingTakeResults = 8;
     private const int MaxReceivedTakeResults = 32;
-    private const int MaxDisplayedNameLength = 14;
+    private const int MaxDisplayedNameLength = 15;
     private const float ScoreboardColumnGap = 8f;
     private const float ScoreboardScoreColumnWidth = 60f;
     private const float ScoreboardContentWidth = 220f;

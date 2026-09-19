@@ -357,7 +357,6 @@ internal static class CaptureTheFlagState
         bool flagStateChanged = EnsureFlagOwnership();
         flagStateChanged |= ProcessFlagInteractions();
         bool stateChanged = flagStateChanged;
-        stateChanged |= UpdateCarriedFlagPositions();
         if (!_roundCompletionRequested && !IsSuddenDeath)
         {
             MatchTimeRemaining = Mathf.Max(0f, MatchTimeRemaining - elapsed);
@@ -625,33 +624,6 @@ internal static class CaptureTheFlagState
         FlagCarriers[flagIndex] = -1;
         FlagPositions[flagIndex] = position;
         return true;
-    }
-
-    private static bool UpdateCarriedFlagPositions()
-    {
-        bool changed = false;
-        for (int flagIndex = 0; flagIndex < FlagCarriers.Length; flagIndex++)
-        {
-            if (FlagStatuses[flagIndex] != CaptureTheFlagFlagStatus.Carried)
-            {
-                continue;
-            }
-
-            PlayerHealth? carrier = PlayerLookup.FindActivePlayerHealthById(FlagCarriers[flagIndex]);
-            if (carrier == null || !carrier)
-            {
-                continue;
-            }
-
-            Vector3 position = carrier.transform.position;
-            if ((FlagPositions[flagIndex] - position).sqrMagnitude > 0.0001f)
-            {
-                FlagPositions[flagIndex] = position;
-                changed = true;
-            }
-        }
-
-        return changed;
     }
 
     private static void ShowCapturePopupForTeam(int teamId)

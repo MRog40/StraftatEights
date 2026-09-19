@@ -34,12 +34,16 @@ internal readonly struct GameModeScoreboardLayout
 
 internal static class GameModeScoreboard
 {
+    private const int MaxDisplayedModeLength = 12;
+
     internal static GameModeScoreboardLayout Build(GameMode mode, string? labelOverride, int? pointsToWin,
         IReadOnlyList<GameModeScoreboardRow> rows, string? timerText = null)
     {
         StringBuilder nameColumn = new();
         StringBuilder scoreColumn = new();
-        nameColumn.Append(GameModeManager.GetScoreboardModeLabelMarkup(mode, labelOverride));
+        nameColumn.Append(PlayerNameMarkup.Truncate(
+            GameModeManager.GetScoreboardModeLabelMarkup(mode, labelOverride),
+            MaxDisplayedModeLength));
         if (pointsToWin.HasValue)
         {
             nameColumn.Append(" - ").Append(pointsToWin.Value);

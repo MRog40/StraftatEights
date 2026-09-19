@@ -70,7 +70,9 @@ internal static class ModeTimeoutState
             return;
         }
 
-        TimeRemaining = ModeTimeoutRules.DefaultRoundSeconds;
+        TimeRemaining = GameModeManager.ActiveMode == GameMode.HVT
+            ? ModeTimeoutRules.HvtRoundSeconds
+            : ModeTimeoutRules.DefaultRoundSeconds;
         if (MyceliumNetwork.IsHost)
         {
             BroadcastLiveState();
@@ -152,7 +154,10 @@ internal static class ModeTimeoutState
     internal static void ApplyLiveState(CSteamID hostId, float timeRemaining, bool suddenDeath,
         int roundId, int revision, string source = "rpc")
     {
-        if (timeRemaining < 0f || timeRemaining > ModeTimeoutRules.DefaultRoundSeconds
+        float maxRoundSeconds = GameModeManager.ActiveMode == GameMode.HVT
+            ? ModeTimeoutRules.HvtRoundSeconds
+            : ModeTimeoutRules.DefaultRoundSeconds;
+        if (timeRemaining < 0f || timeRemaining > maxRoundSeconds
             || float.IsNaN(timeRemaining) || float.IsInfinity(timeRemaining)
             || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
         {
