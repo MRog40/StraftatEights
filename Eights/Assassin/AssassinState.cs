@@ -46,6 +46,7 @@ internal static class AssassinState
     private static int _takeId;
     private static int _localRoleTakeId = -1;
     private static int _localRoleAnnouncedTakeId = -1;
+    private static bool _localRoleAnnouncementPending;
     private static bool _startRetryPending;
     private static bool _takeEnding;
 
@@ -230,6 +231,7 @@ internal static class AssassinState
         WeaponDelaySeconds = DefaultWeaponDelaySeconds;
         _localRoleTakeId = -1;
         _localRoleAnnouncedTakeId = -1;
+        _localRoleAnnouncementPending = false;
         _startRetryPending = false;
         _takeEnding = false;
         AssassinPlayerId = -1;
@@ -305,6 +307,7 @@ internal static class AssassinState
 
     internal static void ClientTick(float deltaTime)
     {
+        TryAnnounceLocalRole();
         if (MyceliumNetwork.IsHost || !Enabled
             || !GameModeManager.IsActive(GameMode.Assassin)
             || !GameModeManager.IsRoundGameplayActive
@@ -432,18 +435,31 @@ internal static class AssassinState
         WeaponDelaySeconds = weaponDelaySeconds;
         LocalIsAssassin = isAssassin;
         LocalIsKing = isKing;
-        if (announce && GameModeManager.IsActive(GameMode.Assassin)
-            && GameModeManager.Phase == GameModePhase.ActiveRound
-            && !GameModeManager.IsMatchOver && _localRoleAnnouncedTakeId != takeId)
+        if (announce && _localRoleAnnouncedTakeId != takeId)
         {
-            _localRoleAnnouncedTakeId = takeId;
-            string roleText = isAssassin
-                ? "You are the <color=#CC2222><b>assassin</b></color>."
-                : isKing
-                    ? "You are the <color=#35D05F><b>king</b></color>."
-                    : "You are a <color=#4D9BFF><b>bodyguard</b></color>.";
-            GameModeHud.AnnounceTarget(roleText, RoleAnnouncementDuration);
+            _localRoleAnnouncementPending = true;
+            TryAnnounceLocalRole();
         }
+    }
+
+    private static void TryAnnounceLocalRole()
+    {
+        if (!_localRoleAnnouncementPending || _localRoleTakeId < 0
+            || !Enabled || !GameModeManager.IsActive(GameMode.Assassin)
+            || !GameModeManager.IsRoundGameplayActive || GameModeManager.IsMatchOver
+            || _localRoleAnnouncedTakeId == _localRoleTakeId)
+        {
+            return;
+        }
+
+        _localRoleAnnouncementPending = false;
+        _localRoleAnnouncedTakeId = _localRoleTakeId;
+        string roleText = LocalIsAssassin
+            ? "You are the <color=#CC2222><b>assassin</b></color>."
+            : LocalIsKing
+                ? "You are the <color=#35D05F><b>king</b></color>."
+                : "You are a <color=#4D9BFF><b>bodyguard</b></color>.";
+        GameModeHud.AnnounceTarget(roleText, RoleAnnouncementDuration);
     }
 
     internal static void EnsureLoadouts()

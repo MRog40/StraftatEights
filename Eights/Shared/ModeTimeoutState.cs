@@ -26,7 +26,6 @@ internal static class ModeTimeoutState
             || mode == GameMode.KillTheRat
             || mode == GameMode.OneInTheChamber
             || mode == GameMode.HotPotato
-            || mode == GameMode.Assassin
             || mode == GameMode.HVT
             || mode == GameMode.TeamDeathmatch;
     }
