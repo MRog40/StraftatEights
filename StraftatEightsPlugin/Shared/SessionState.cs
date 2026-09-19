@@ -84,8 +84,16 @@ internal static class SessionState
         }
 
         lastRejectedSnapshot = signature;
-        Plugin.Logger?.LogWarning($"[Sync] Rejected snapshot source={source} reason={reason} "
+        string message = $"[Sync] Rejected snapshot source={source} reason={reason} "
             + $"host={hostId} lobbyHost={lobbyHostId} round={roundId} revision={revision} "
-            + $"lastRound={lastRoundId} lastRevision={lastRevision}");
+            + $"lastRound={lastRoundId} lastRevision={lastRevision}";
+        if (reason == "stale-cursor")
+        {
+            Plugin.Logger?.LogDebug(message);
+        }
+        else
+        {
+            Plugin.Logger?.LogWarning(message);
+        }
     }
 }
