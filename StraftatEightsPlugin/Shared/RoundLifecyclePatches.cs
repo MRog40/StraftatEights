@@ -1,6 +1,6 @@
 using HarmonyLib;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 [HarmonyPatch(typeof(PauseManager), "InvokeRoundStarted")]
 internal static class PauseManager_RoundLifecycle_Patch

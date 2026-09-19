@@ -5,11 +5,11 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class ModeTimeoutState
 {
-    internal const string LiveLobbyDataKey = "StraftatEights_ModeTimeout_Live";
+    internal const string LiveLobbyDataKey = "Eights_ModeTimeout_Live";
     internal static float TimeRemaining { get; private set; }
     internal static bool IsSuddenDeath { get; private set; }
 

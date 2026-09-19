@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class SearchAndDestroyMarker
 {

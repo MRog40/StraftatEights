@@ -4,7 +4,7 @@ using BepInEx.Bootstrap;
 using ModMenu.Api;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class ModMenuIntegration
 {

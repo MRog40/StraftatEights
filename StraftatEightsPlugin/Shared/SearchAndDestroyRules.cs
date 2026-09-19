@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal enum SearchAndDestroyBombStatus
 {

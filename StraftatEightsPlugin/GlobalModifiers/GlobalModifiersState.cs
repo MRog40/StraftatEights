@@ -4,14 +4,14 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 // Effective Global Modifiers settings every peer enforces locally; only the lobby host's config is
 // authoritative. See GlobalModifiersConfig for the bound ConfigEntry fields and GlobalModifiersPatches
 // for where these values actually get enforced via Harmony.
 internal static class GlobalModifiersState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_GlobalModifiers_Settings";
+    internal const string SettingsLobbyDataKey = "Eights_GlobalModifiers_Settings";
     internal static bool Enabled;
     internal static bool WallJumpEnabled = true;
     internal static bool SlidingEnabled = true;

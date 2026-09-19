@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using MyceliumNetworking;
 using Steamworks;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class ModeLobbyDataSync
 {

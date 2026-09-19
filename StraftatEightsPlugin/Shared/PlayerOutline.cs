@@ -5,11 +5,11 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class PlayerOutline
 {
-    private const string LiveLobbyDataKey = "StraftatEights_Outline_Live";
+    private const string LiveLobbyDataKey = "Eights_Outline_Live";
     private const float VisualRefreshIntervalSeconds = 0.25f;
     private static readonly ModeSyncState Sync = new(livePushInterval: 1.5f);
     private static readonly HashSet<SkinnedMeshRenderer> AppliedRenderers = new();

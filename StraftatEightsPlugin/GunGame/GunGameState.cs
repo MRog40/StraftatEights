@@ -6,7 +6,7 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class GunGameState
 {
@@ -14,8 +14,8 @@ internal static class GunGameState
     internal static readonly Dictionary<int, int> Progress = new();
     internal static List<string> WeaponOrder { get; private set; } = new();
     internal static int ScoreLimit => WeaponOrder.Count * 10;
-    internal const string SettingsLobbyDataKey = "StraftatEights_GunGame_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_GunGame_Live";
+    internal const string SettingsLobbyDataKey = "Eights_GunGame_Settings";
+    internal const string LiveLobbyDataKey = "Eights_GunGame_Live";
     private static float _nextLoadoutCheckTime;
     private static readonly Dictionary<int, float> PendingLoadouts = new();
     private static readonly ModeSyncState Sync = new();

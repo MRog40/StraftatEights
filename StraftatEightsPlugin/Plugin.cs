@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 
 [assembly: ComputerysModdingUtilities.StraftatMod(isVanillaCompatible: false)]
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
 [BepInDependency("RugbugRedfern.MyceliumNetworking")]

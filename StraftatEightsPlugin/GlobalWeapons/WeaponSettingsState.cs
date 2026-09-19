@@ -6,11 +6,11 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class WeaponSettingsState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_GlobalWeapons_Settings";
+    internal const string SettingsLobbyDataKey = "Eights_GlobalWeapons_Settings";
     internal static bool Enabled;
     internal static bool Cycle;
     internal static int SpareMagazines = 5;

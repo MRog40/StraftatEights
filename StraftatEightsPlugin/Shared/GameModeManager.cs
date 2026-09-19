@@ -11,7 +11,7 @@ using FishNetReplaceOption = FishNet.Managing.Scened.ReplaceOption;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal enum GameMode
 {
@@ -59,7 +59,7 @@ internal enum GameModeCapabilities
 internal static class GameModeManager
 {
     internal const uint ModId = 1618033988u;
-    internal const string ActiveModeLobbyDataKey = "StraftatEights_ActiveMode";
+    internal const string ActiveModeLobbyDataKey = "Eights_ActiveMode";
     private sealed class ModeDescriptor
     {
         internal readonly string Label;

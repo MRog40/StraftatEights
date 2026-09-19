@@ -6,12 +6,12 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class MichaelMeyersState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_MichaelMeyers_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_MichaelMeyers_Live";
+    internal const string SettingsLobbyDataKey = "Eights_MichaelMeyers_Settings";
+    internal const string LiveLobbyDataKey = "Eights_MichaelMeyers_Live";
     internal const string WeaponName = "Couperet";
     internal const string SurvivorWeaponName = WeaponName;
     internal const string FlashlightWeaponName = "FlashLight";

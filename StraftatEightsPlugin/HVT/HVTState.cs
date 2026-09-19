@@ -4,7 +4,7 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class HVTState
 {
@@ -13,8 +13,8 @@ internal static class HVTState
     internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
     internal static int WinnerId = -1;
     internal static readonly Dictionary<int, int> Points = new();
-    internal const string SettingsLobbyDataKey = "StraftatEights_HVT_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_HVT_Live";
+    internal const string SettingsLobbyDataKey = "Eights_HVT_Settings";
+    internal const string LiveLobbyDataKey = "Eights_HVT_Live";
 
     private static float _survivalAccumulator;
     private static readonly ModeSyncState Sync = new();

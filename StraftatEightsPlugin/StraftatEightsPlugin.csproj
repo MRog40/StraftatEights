@@ -2,15 +2,15 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <AssemblyName>StraftatEightsPlugin</AssemblyName>
+    <AssemblyName>Eights</AssemblyName>
     <Product>Straftat Eights</Product>
-    <Version>0.2.9</Version>
-    <Name>StraftatEightsPlugin</Name>
+    <Version>0.3.1</Version>
+    <Name>Eights</Name>
     <Guid>88888888-cf51-4976-ac97-8a909ec0daa3</Guid>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
-    <RootNamespace>StraftatEightsPlugin</RootNamespace>
+    <RootNamespace>Eights</RootNamespace>
     <!-- Override with an environment variable if the game is installed elsewhere -->
     <GameManagedDir Condition="'$(GameManagedDir)' == ''">F:\SteamLibrary\steamapps\common\STRAFTAT\STRAFTAT_Data\Managed</GameManagedDir>
     <BepInExPluginsDir Condition="'$(BepInExPluginsDir)' == ''">C:\Users\michael\AppData\Roaming\com.kesomannen.gale\straftat\profiles\Default\BepInEx\plugins</BepInExPluginsDir>

@@ -2,7 +2,7 @@ using BepInEx.Configuration;
 using MyceliumNetworking;
 using Steamworks;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 public partial class Plugin
 {

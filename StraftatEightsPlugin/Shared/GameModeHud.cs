@@ -8,7 +8,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal sealed class GameModeHud : MonoBehaviour
 {
@@ -753,7 +753,7 @@ internal sealed class GameModeHud : MonoBehaviour
         _scoreboardPanelTexture = new Texture2D(PanelTextureSize, PanelTextureSize,
             TextureFormat.RGBA32, false)
         {
-            name = "StraftatEights Scoreboard Panel",
+            name = "Eights Scoreboard Panel",
             filterMode = FilterMode.Bilinear,
             wrapMode = TextureWrapMode.Clamp,
             hideFlags = HideFlags.DontSave
@@ -783,7 +783,7 @@ internal sealed class GameModeHud : MonoBehaviour
             SpriteMeshType.FullRect,
             new Vector4(PanelCornerRadius, PanelCornerRadius,
                 PanelCornerRadius, PanelCornerRadius));
-        _scoreboardPanelSprite.name = "StraftatEights Scoreboard Panel";
+        _scoreboardPanelSprite.name = "Eights Scoreboard Panel";
         _scoreboardPanelSprite.hideFlags = HideFlags.DontSave;
         return _scoreboardPanelSprite;
     }

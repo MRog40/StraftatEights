@@ -6,12 +6,12 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class InfidelState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_Infidel_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_Infidel_Live";
+    internal const string SettingsLobbyDataKey = "Eights_Infidel_Settings";
+    internal const string LiveLobbyDataKey = "Eights_Infidel_Live";
     internal const string WeaponName = "AK-K";
     internal const int SpareMagazines = 2;
     internal const float InfidelHealth = 200f / 25f;

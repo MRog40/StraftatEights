@@ -1,5 +1,5 @@
 param(
-    [string]$ProjectPath = (Join-Path (Split-Path -Parent $PSScriptRoot) 'StraftatEightsPlugin.csproj'),
+    [string]$ProjectPath = (Join-Path (Split-Path -Parent $PSScriptRoot) 'Eights.csproj'),
     [string]$GameManagedDir,
     [string]$BepInExPluginsDir
 )

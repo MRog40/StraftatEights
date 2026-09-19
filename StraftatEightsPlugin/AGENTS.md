@@ -1,4 +1,4 @@
-# AGENTS.md — StraftatEightsPlugin
+# AGENTS.md — Eights
 
 Development notes for AI agents / contributors working on this BepInEx mod for STRAFTAT.
 Keep this updated as the mod grows — treat it as persistent project memory.
@@ -26,7 +26,7 @@ custom game rules/tweaks, synced to all players in a lobby via MyceliumNetworkin
 - MyceliumNetworking dependency DLL: `...\BepInEx\plugins\straftatmodding-MyceliumNetworking\MyceliumNetworkingForStraftat.dll`.
 
 ## BepInEx project and distribution setup
-- `StraftatEightsPlugin.csproj` is a normal class-library build: it produces only the plugin assembly
+- `Eights.csproj` is a normal class-library build: it produces only the plugin assembly
   (plus `.pdb` and `.deps.json` build artifacts) and has no post-build deployment target. Copy the DLL
   into a test profile manually or use the package layout for distribution.
 - BepInEx/Unity package references are compile-time tooling and use `PrivateAssets="all"`; they must
@@ -43,7 +43,7 @@ custom game rules/tweaks, synced to all players in a lobby via MyceliumNetworkin
   `straftatmodding-MyceliumNetworking-1.1.17` tells Gale/Thunderstore to install Mycelium separately;
   keep this in sync with the supported Mycelium version. Do not confuse Thunderstore package IDs with
   BepInEx plugin GUIDs.
-- Public packages should contain the manifest, README/icon assets, and `StraftatEightsPlugin.dll`.
+- Public packages should contain the manifest, README/icon assets, and `Eights.dll`.
   Do not include `Assembly-CSharp.dll`, Unity/BepInEx DLLs, Mycelium's DLL, or build-only NuGet DLLs.
 
 ## Decompiling the shipped game DLL (when the open-source repo isn't enough)

@@ -4,12 +4,12 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class FFAState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_FFA_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_FFA_Live";
+    internal const string SettingsLobbyDataKey = "Eights_FFA_Settings";
+    internal const string LiveLobbyDataKey = "Eights_FFA_Live";
     internal static bool Enabled;
     internal static int KillsToWin => GameModeManager.EffectivePointsToWin;
     internal static int WinnerId = -1;

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Steamworks;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal sealed class NetworkCommandTracker
 {

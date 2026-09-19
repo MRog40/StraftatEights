@@ -2,7 +2,7 @@ using BepInEx.Configuration;
 using MyceliumNetworking;
 using Steamworks;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 // Config bindings + RPC entry point for host-controlled movement settings. See GlobalModifiersState
 // for the synced runtime values and

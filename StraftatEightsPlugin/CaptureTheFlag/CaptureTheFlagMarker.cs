@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class CaptureTheFlagMarker
 {

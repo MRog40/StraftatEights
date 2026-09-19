@@ -1,7 +1,7 @@
 using HarmonyLib;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 [HarmonyPatch(typeof(GameManager), "Update")]
 internal static class GameManager_HVTTick_Patch

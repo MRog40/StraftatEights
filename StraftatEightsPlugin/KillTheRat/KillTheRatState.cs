@@ -4,12 +4,12 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class KillTheRatState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_KillTheRat_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_KillTheRat_Live";
+    internal const string SettingsLobbyDataKey = "Eights_KillTheRat_Settings";
+    internal const string LiveLobbyDataKey = "Eights_KillTheRat_Live";
     internal const string HumanWeaponName = "Glock";
     internal const string RatWeaponName = "Taser";
     internal const float RatMovementMultiplier = 1.3f;

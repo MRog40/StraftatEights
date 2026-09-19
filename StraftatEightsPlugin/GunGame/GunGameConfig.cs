@@ -3,7 +3,7 @@ using MyceliumNetworking;
 using Steamworks;
 using System.Linq;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 public partial class Plugin
 {

@@ -1,6 +1,6 @@
 using MyceliumNetworking;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 public partial class Plugin
 {

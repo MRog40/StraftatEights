@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using MyceliumNetworking;
 using Steamworks;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class PlayerNameSync
 {
-    internal const string LobbyDataKey = "StraftatEights_PlayerNames";
+    internal const string LobbyDataKey = "Eights_PlayerNames";
     private static readonly ModeSyncState Sync = new(livePushInterval: 1.5f);
     private static readonly Dictionary<int, string> Names = new();
     private static string _hostPayload = string.Empty;

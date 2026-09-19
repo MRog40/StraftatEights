@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using HarmonyLib;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 [HarmonyPatch(typeof(FlashLight), "Update")]
 internal static class FlashLight_MichaelMeyersColor_Patch

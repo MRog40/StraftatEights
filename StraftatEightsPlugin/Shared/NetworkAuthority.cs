@@ -1,6 +1,6 @@
 using MyceliumNetworking;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class NetworkAuthority
 {

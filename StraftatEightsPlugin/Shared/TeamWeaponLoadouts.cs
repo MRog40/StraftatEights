@@ -5,7 +5,7 @@ using FishNet.Object;
 using MyceliumNetworking;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class TeamWeaponLoadouts
 {

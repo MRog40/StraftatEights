@@ -4,7 +4,7 @@ using System.Reflection;
 using FishNet.Managing;
 using MyceliumNetworking;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class FishNetCompatibility
 {

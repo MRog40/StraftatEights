@@ -4,12 +4,12 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class HotPotatoState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_HotPotato_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_HotPotato_Live";
+    internal const string SettingsLobbyDataKey = "Eights_HotPotato_Settings";
+    internal const string LiveLobbyDataKey = "Eights_HotPotato_Live";
     internal const string PotatoWeaponName = "GlandGrenade";
     internal const string ShotgunWeaponName = "Shotgun";
     internal static bool Enabled;

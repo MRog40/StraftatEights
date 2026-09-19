@@ -1,7 +1,7 @@
 using HarmonyLib;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 // Harmony patches that enforce GlobalModifiersState on the actual game objects
 

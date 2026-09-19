@@ -1,7 +1,7 @@
 using MyceliumNetworking;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 // Shared timing gate for host-authoritative settings retries. The callback remains feature-owned;
 // this only makes retry timing independent of a particular game-mode update hook.

@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 // Reflection-based helpers for tuning FirstPersonController's private movement fields, used by
 // GlobalModifiersPatches. Kept separate since it deals with raw field access rather than config/sync.

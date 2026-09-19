@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using UnityEngine.SceneManagement;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class ModeMapCatalog
 {

@@ -6,12 +6,12 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class AssassinState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_Assassin_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_Assassin_Live";
+    internal const string SettingsLobbyDataKey = "Eights_Assassin_Settings";
+    internal const string LiveLobbyDataKey = "Eights_Assassin_Live";
     internal const string AssassinWeaponName = "Silenzzio";
     internal const string KingWeaponName = "Taser";
     internal const string BodyguardWeaponName = "Glock";
@@ -92,7 +92,7 @@ internal static class AssassinState
         }
 
         BroadcastLiveState();
-        SendRoleStates(false);
+        SendRoleStates(true);
     }
 
     internal static void PollLiveStateIfClient()
@@ -319,13 +319,19 @@ internal static class AssassinState
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.Assassin)
-            || WinnerId >= 0 || _takeEnding || !AlivePlayers.Remove(deadPlayerId))
+            || WinnerId >= 0 || _takeEnding)
         {
             return;
         }
 
+        bool wasAlive = AlivePlayers.Remove(deadPlayerId);
         bool deadWasKing = deadPlayerId == KingPlayerId;
         bool deadWasAssassin = deadPlayerId == AssassinPlayerId;
+        if (!wasAlive && !deadWasKing && !deadWasAssassin)
+        {
+            return;
+        }
+
         if (AssassinRules.IsTerminalDeath(deadWasKing, deadWasAssassin)
             && deadWasKing)
         {

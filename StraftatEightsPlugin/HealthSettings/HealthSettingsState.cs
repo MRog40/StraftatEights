@@ -4,11 +4,11 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class HealthSettingsState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_HealthSettings_Settings";
+    internal const string SettingsLobbyDataKey = "Eights_HealthSettings_Settings";
     internal static bool Enabled;
     internal static float MaxHealthMultiplier = 1f;
     internal static bool RegenEnabled;

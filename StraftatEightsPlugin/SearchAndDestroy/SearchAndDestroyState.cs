@@ -7,7 +7,7 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal enum SearchAndDestroyWinReason
 {
@@ -22,8 +22,8 @@ internal enum SearchAndDestroyWinReason
 internal static class SearchAndDestroyState
 {
     private const KeyCode InteractionKey = KeyCode.P;
-    internal const string SettingsLobbyDataKey = "StraftatEights_SnD_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_SnD_Live";
+    internal const string SettingsLobbyDataKey = "Eights_SnD_Settings";
+    internal const string LiveLobbyDataKey = "Eights_SnD_Live";
     internal const float PlantDurationSeconds = SearchAndDestroyRules.PlantDurationSeconds;
     internal const float DefuseDurationSeconds = SearchAndDestroyRules.DefuseDurationSeconds;
     internal const float FuseDurationSeconds = SearchAndDestroyRules.FuseDurationSeconds;

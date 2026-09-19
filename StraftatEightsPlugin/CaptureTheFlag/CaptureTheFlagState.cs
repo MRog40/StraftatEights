@@ -5,12 +5,12 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class CaptureTheFlagState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_CTF_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_CTF_Live";
+    internal const string SettingsLobbyDataKey = "Eights_CTF_Settings";
+    internal const string LiveLobbyDataKey = "Eights_CTF_Live";
     internal const float MatchDurationMultiplier = CaptureTheFlagRules.MatchDurationMultiplier;
     internal const int CapturePoints = CaptureTheFlagRules.CapturePoints;
     internal const float FlagTouchRadius = 1.5f;

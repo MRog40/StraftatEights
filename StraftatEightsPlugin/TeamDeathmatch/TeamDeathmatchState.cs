@@ -2,12 +2,12 @@ using System.Collections.Generic;
 using MyceliumNetworking;
 using Steamworks;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class TeamDeathmatchState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_TDM_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_TDM_Live";
+    internal const string SettingsLobbyDataKey = "Eights_TDM_Settings";
+    internal const string LiveLobbyDataKey = "Eights_TDM_Live";
 
     internal static bool Enabled;
     internal static readonly Dictionary<int, int> Scores = new();

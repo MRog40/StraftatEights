@@ -1,7 +1,7 @@
 using System.Linq;
 using BepInEx.Configuration;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class ModeConfigMigration
 {

@@ -1,4 +1,4 @@
-using StraftatEightsPlugin;
+using Eights;
 
 static void Assert(bool condition, string message)
 {

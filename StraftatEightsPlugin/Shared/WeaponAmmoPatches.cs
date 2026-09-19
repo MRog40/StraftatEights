@@ -3,7 +3,7 @@ using System;
 using System.Reflection;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 [HarmonyPatch]
 internal static class Weapon_AmmoInitialization_Patch

@@ -1,4 +1,4 @@
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class ScoreRules
 {

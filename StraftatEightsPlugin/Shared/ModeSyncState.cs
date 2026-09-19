@@ -1,7 +1,7 @@
 using MyceliumNetworking;
 using Steamworks;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal sealed class ModeSyncState
 {

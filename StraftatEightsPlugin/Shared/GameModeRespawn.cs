@@ -5,7 +5,7 @@ using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class GameModeRespawn
 {

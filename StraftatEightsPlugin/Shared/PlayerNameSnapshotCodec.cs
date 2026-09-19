@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class PlayerNameSnapshotCodec
 {

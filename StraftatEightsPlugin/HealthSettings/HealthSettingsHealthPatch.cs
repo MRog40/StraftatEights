@@ -1,7 +1,7 @@
 using HarmonyLib;
 using System.Reflection;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 [HarmonyPatch]
 internal static class PlayerHealth_PassiveHealthFeedbackWriter_Patch

@@ -5,12 +5,12 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class OneInTheChamberState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_OneInTheChamber_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_OneInTheChamber_Live";
+    internal const string SettingsLobbyDataKey = "Eights_OneInTheChamber_Settings";
+    internal const string LiveLobbyDataKey = "Eights_OneInTheChamber_Live";
     internal const float PlayerHealth = 0.4f;
     internal const int PointsPerRoundWin = ScoreRules.PointsPerRoundWin;
     internal const string PistolWeaponName = "Revolver";

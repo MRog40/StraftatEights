@@ -1,7 +1,7 @@
 using HarmonyLib;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class WeaponPolicy
 {

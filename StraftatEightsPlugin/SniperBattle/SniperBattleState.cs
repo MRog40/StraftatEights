@@ -5,14 +5,14 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class SniperBattleState
 {
     internal const string WeaponName = "M2000";
     internal const float PlayerHealth = 0.4f;
-    internal const string SettingsLobbyDataKey = "StraftatEights_SniperBattle_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_SniperBattle_Live";
+    internal const string SettingsLobbyDataKey = "Eights_SniperBattle_Settings";
+    internal const string LiveLobbyDataKey = "Eights_SniperBattle_Live";
     internal static bool Enabled;
     internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
     internal static int WinnerId = -1;

@@ -6,7 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$projectPath = Join-Path $root 'StraftatEightsPlugin.csproj'
+$projectPath = Join-Path $root 'Eights.csproj'
 $outputDirectory = Join-Path $root "bin\$Configuration\netstandard2.1"
 $iconPath = Join-Path (Split-Path -Parent $root) 'icon.png'
 $stagingDirectory = "$PackageDirectory.staging"
@@ -38,7 +38,7 @@ foreach ($file in $files) {
     Copy-Item (Join-Path $root $file) $stagingDirectory
 }
 Copy-Item $iconPath (Join-Path $stagingDirectory 'icon.png')
-Copy-Item (Join-Path $outputDirectory 'StraftatEightsPlugin.dll') $stagingDirectory
+Copy-Item (Join-Path $outputDirectory 'Eights.dll') $stagingDirectory
 
 & (Join-Path $PSScriptRoot 'ValidatePackage.ps1') -PackageDirectory $stagingDirectory
 if (-not $?) {

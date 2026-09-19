@@ -1,7 +1,7 @@
 using HarmonyLib;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 [HarmonyPatch(typeof(Weapon), "WeaponUpdate")]
 internal static class Weapon_UpdatePolicy_Patch

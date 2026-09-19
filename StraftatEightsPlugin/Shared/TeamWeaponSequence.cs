@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal sealed class TeamWeaponSequence
 {

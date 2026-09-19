@@ -2,7 +2,7 @@ using BepInEx.Configuration;
 using MyceliumNetworking;
 using Steamworks;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 // Config bindings + RPC entry points for the "Juggernaut" game mode (first blood becomes the
 // Juggernaut, everyone else hunts them, crown transfers on kill). See JuggernautState for the synced

@@ -1,6 +1,6 @@
 using HarmonyLib;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 [HarmonyPatch(typeof(PlayerHealth), "Update")]
 internal static class PlayerHealth_SearchAndDestroyWeaponDrop_Patch

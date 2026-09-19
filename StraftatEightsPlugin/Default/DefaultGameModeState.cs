@@ -5,11 +5,11 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class DefaultGameModeState
 {
-    internal const string LiveLobbyDataKey = "StraftatEights_Default_Live";
+    internal const string LiveLobbyDataKey = "Eights_Default_Live";
     internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
     internal static int AliveCount => AlivePlayers.Count;
     internal static int TakeId { get; private set; }

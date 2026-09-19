@@ -1,6 +1,6 @@
 using System;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class LobbySnapshotCodec
 {

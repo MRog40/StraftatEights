@@ -2,7 +2,7 @@ using HarmonyLib;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 // Harmony patches for the Juggernaut game mode: kill/crown tracking, forced auto-respawn, and
 // Juggernaut-only movement speed. See JuggernautState for the actual game-mode logic and

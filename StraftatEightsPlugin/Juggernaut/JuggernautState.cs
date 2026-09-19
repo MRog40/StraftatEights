@@ -4,15 +4,15 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 // Effective Juggernaut game-mode state every peer enforces/displays locally; only the lobby host's
 // config and kill/points bookkeeping is authoritative. See JuggernautConfig for the bound settings +
 // RPC entry points, and JuggernautPatches for where this actually gets enforced/observed via Harmony.
 internal static class JuggernautState
 {
-    internal const string SettingsLobbyDataKey = "StraftatEights_Juggernaut_Settings";
-    internal const string LiveLobbyDataKey = "StraftatEights_Juggernaut_Live";
+    internal const string SettingsLobbyDataKey = "Eights_Juggernaut_Settings";
+    internal const string LiveLobbyDataKey = "Eights_Juggernaut_Live";
     internal const string WeaponName = "Minigun";
     internal const float BaseHealth = 200f / 25f;
     internal const float HealthPerKill = 50f / 25f;

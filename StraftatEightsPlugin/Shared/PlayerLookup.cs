@@ -3,7 +3,7 @@ using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 // Cross-game-mode helpers for resolving player identity from PlayerHealth/ClientInstance. Shared by
 // any mode that needs to know "who is this" or "who killed who" (Juggernaut today, future modes

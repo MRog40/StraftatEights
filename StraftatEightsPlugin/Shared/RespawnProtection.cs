@@ -4,7 +4,7 @@ using HarmonyLib;
 using MyceliumNetworking;
 using UnityEngine;
 
-namespace StraftatEightsPlugin;
+namespace Eights;
 
 internal static class RespawnProtection
 {

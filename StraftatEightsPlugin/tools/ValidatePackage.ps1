@@ -5,14 +5,14 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $manifestPath = Join-Path $root 'manifest.json'
-$projectPath = Join-Path $root 'StraftatEightsPlugin.csproj'
+$projectPath = Join-Path $root 'Eights.csproj'
 $errors = [System.Collections.Generic.List[string]]::new()
 
 if (-not (Test-Path $manifestPath)) {
     $errors.Add('manifest.json is missing.')
 }
 if (-not (Test-Path $projectPath)) {
-    $errors.Add('StraftatEightsPlugin.csproj is missing.')
+    $errors.Add('Eights.csproj is missing.')
 }
 if ($errors.Count -eq 0) {
     $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
@@ -30,7 +30,7 @@ if (-not (Test-Path $PackageDirectory)) {
     $errors.Add("Package directory '$PackageDirectory' does not exist.")
 }
 else {
-    $requiredFiles = @('manifest.json', 'README.md', 'icon.png', 'StraftatEightsPlugin.dll')
+    $requiredFiles = @('manifest.json', 'README.md', 'icon.png', 'Eights.dll')
     $topLevelFiles = @(Get-ChildItem $PackageDirectory -File | Select-Object -ExpandProperty Name)
     foreach ($file in $requiredFiles) {
         if (-not (Test-Path (Join-Path $PackageDirectory $file))) {
