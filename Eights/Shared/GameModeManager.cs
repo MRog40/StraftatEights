@@ -5,6 +5,7 @@ using BepInEx.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using FishNet;
 using FishNetSceneLoadData = FishNet.Managing.Scened.SceneLoadData;
 using FishNetReplaceOption = FishNet.Managing.Scened.ReplaceOption;
@@ -257,14 +258,16 @@ internal static class GameModeManager
     internal static ConfigEntry<int> PointsToWin = null!;
     internal static ConfigEntry<bool> EnableMapOverrides = null!;
     internal static float EffectiveRespawnDelaySeconds { get; set; } = 2.5f;
-    internal static int EffectivePreRoundSeconds { get; private set; } = 10;
+    private static int _configuredPreRoundSeconds = 5;
+    internal static int EffectivePreRoundSeconds { get; private set; } = 5;
     internal static int EffectivePointsToWin { get; private set; } = ScoreRules.PointsToWin;
     internal static bool EffectiveMapOverrides { get; private set; }
     private static readonly ModeSyncState Sync = new();
     private static int _preRoundTimerRoundId = -1;
     private static float _preRoundTimerEndsAt;
     private static int _lastPreRoundCountdownSeconds = -1;
-    private static readonly Dictionary<GameMode, string> LastMapByMode = new();
+    private static readonly Dictionary<GameMode, Queue<string>> RecentMapsByMode = new();
+    private const int RecentMapHistorySize = 2;
     private static List<MapPlaylistEntry<GameMode>> _mapPlaylist = new();
     private static System.Random? _mapPlaylistRandom;
     private static int _mapPlaylistIndex = -1;
@@ -281,9 +284,9 @@ internal static class GameModeManager
             new ConfigDescription("Host-controlled: how long a killed player waits before respawning. Team-based modes with respawns (Capture the Flag, Hardpoint, and Team Deathmatch) use twice this delay for balance.",
                 new AcceptableValueRange<float>(0f, 10f)));
         RespawnDelaySeconds.SettingChanged += (_, _) => OnGlobalSettingsChanged();
-        PreRoundTimerSeconds = Plugin.Instance.Config.Bind("Global Settings", "Pre-round Timer (seconds)", 10,
-            new ConfigDescription("Host-controlled: how long players stay at their spawn before each round starts.",
-                new AcceptableValueRange<int>(0, 30)));
+        PreRoundTimerSeconds = Plugin.Instance.Config.Bind("Global Settings", "Pre-round Timer (seconds)", 5,
+            new ConfigDescription("Host-controlled: FFA modes use this setting; Team modes use 2x this setting.",
+                new AcceptableValueRange<int>(0, 15)));
         PreRoundTimerSeconds.SettingChanged += (_, _) => OnGlobalSettingsChanged();
         PointsToWin = Plugin.Instance.Config.Bind("Global Settings", "Points To Win", ScoreRules.PointsToWin,
             "Fixed score limit for all point-based game modes.");
@@ -335,7 +338,8 @@ internal static class GameModeManager
         int pointsToWin, bool enableMapOverrides)
     {
         EffectiveRespawnDelaySeconds = Mathf.Clamp(respawnDelaySeconds, 0f, 10f);
-        EffectivePreRoundSeconds = Mathf.Clamp(preRoundSeconds, 0, 30);
+        _configuredPreRoundSeconds = Mathf.Clamp(preRoundSeconds, 0, 15);
+        RecalculateEffectivePreRoundSeconds();
         EffectiveMapOverrides = enableMapOverrides;
         int nextPointsToWin = pointsToWin;
         if (EffectivePointsToWin != nextPointsToWin)
@@ -364,7 +368,7 @@ internal static class GameModeManager
     {
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncGlobalSettings), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, RoundId, Sync.NextSettingsRevision(),
-            EffectiveRespawnDelaySeconds, EffectivePreRoundSeconds, EffectivePointsToWin,
+            EffectiveRespawnDelaySeconds, _configuredPreRoundSeconds, EffectivePointsToWin,
             EffectiveMapOverrides);
     }
 
@@ -743,6 +747,8 @@ internal static class GameModeManager
     {
         Sync.ResetForLobby();
         SessionState.BeginLobby();
+        DistributionRandom.ResetForLobby();
+        TeamAssignment.ResetDistributionHistory();
         ModeTimeoutState.OnLobbyEntered();
         _nextClientLobbyPollTime = 0f;
         if (MyceliumNetwork.IsHost)
@@ -787,13 +793,16 @@ internal static class GameModeManager
     {
         SessionState.EndLobby();
         ResetMatchState();
+        DistributionRandom.ResetForLobby();
+        TeamAssignment.ResetDistributionHistory();
         ActiveMode = GameMode.None;
         Phase = GameModePhase.Inactive;
         RoundId++;
         ResetMapPlaylist();
         _nextClientLobbyPollTime = 0f;
         EffectiveRespawnDelaySeconds = 2.5f;
-        EffectivePreRoundSeconds = 10;
+        _configuredPreRoundSeconds = 5;
+        EffectivePreRoundSeconds = 5;
         EffectivePointsToWin = ScoreRules.PointsToWin;
         EffectiveMapOverrides = true;
         GlobalModifiersState.ResetForLobbyLeft();
@@ -810,7 +819,7 @@ internal static class GameModeManager
         {
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncGlobalSettings), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, RoundId, Sync.SettingsRevision,
-                EffectiveRespawnDelaySeconds, EffectivePreRoundSeconds, EffectivePointsToWin,
+                EffectiveRespawnDelaySeconds, _configuredPreRoundSeconds, EffectivePointsToWin,
                 EffectiveMapOverrides);
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncActiveGameMode), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId,
@@ -822,9 +831,13 @@ internal static class GameModeManager
     private static GameMode NextEnabledMode(GameMode current)
     {
         List<GameMode> modes = GetConfiguredModes();
-        return ModeCycle.TrySelectRandom(modes, current, UnityEngine.Random.Range(0, int.MaxValue), out GameMode next)
-            ? next
-            : GameMode.None;
+        List<GameMode> candidates = modes.Where(mode => mode != current).ToList();
+        if (candidates.Count == 0)
+        {
+            return modes.Count == 1 && modes[0] == current ? current : GameMode.None;
+        }
+
+        return DistributionRandom.SelectMode("GameMode", candidates);
     }
 
     internal static bool TryPrepareInitialMap(out string mapName)
@@ -870,7 +883,6 @@ internal static class GameModeManager
             mode => ModeMapCatalog.GetMapNames(mode, EffectiveMapOverrides),
             _mapPlaylistRandom);
         _mapPlaylistIndex = -1;
-        LastMapByMode.Clear();
         _mapPlaylistPrepared = true;
         foreach (MapPlaylistEntry<GameMode> entry in _mapPlaylist)
         {
@@ -897,9 +909,10 @@ internal static class GameModeManager
                 continue;
             }
 
+            RecentMapsByMode.TryGetValue(mode, out Queue<string>? recentMaps);
             string mapName = MapPlaylist.SelectNextMap(
                 ModeMapCatalog.GetMapNames(mode, EffectiveMapOverrides), string.Empty,
-                _mapPlaylistRandom);
+                _mapPlaylistRandom, recentMaps);
             if (string.IsNullOrEmpty(mapName)
                 || !ModeMapCatalog.IsSupported(mode, mapName, EffectiveMapOverrides))
             {
@@ -941,11 +954,13 @@ internal static class GameModeManager
 
         entry = _mapPlaylist[nextIndex];
         string mapName = entry.MapName;
-        if (_mapPlaylistIndex >= 0 && LastMapByMode.TryGetValue(entry.Mode, out string? previousMap))
+        RecentMapsByMode.TryGetValue(entry.Mode, out Queue<string>? recentMaps);
+        string previousMap = GetLatestRecentMap(recentMaps);
+        if (_mapPlaylistIndex >= 0)
         {
             mapName = MapPlaylist.SelectNextMap(
                 ModeMapCatalog.GetMapNames(entry.Mode, EffectiveMapOverrides), previousMap,
-                _mapPlaylistRandom);
+                _mapPlaylistRandom, recentMaps);
         }
 
         if (string.IsNullOrEmpty(mapName)
@@ -958,9 +973,45 @@ internal static class GameModeManager
         entry = new MapPlaylistEntry<GameMode>(entry.Mode, mapName);
         _mapPlaylist[nextIndex] = entry;
         _mapPlaylistIndex = nextIndex;
-        LastMapByMode[entry.Mode] = mapName;
+        RecordRecentMap(entry.Mode, mapName);
         SelectedMapName = mapName;
         return true;
+    }
+
+    private static void RecordRecentMap(GameMode mode, string mapName)
+    {
+        if (!RecentMapsByMode.TryGetValue(mode, out Queue<string>? recentMaps))
+        {
+            recentMaps = new Queue<string>();
+            RecentMapsByMode[mode] = recentMaps;
+        }
+
+        if (GetLatestRecentMap(recentMaps) == mapName)
+        {
+            return;
+        }
+
+        recentMaps.Enqueue(mapName);
+        while (recentMaps.Count > RecentMapHistorySize)
+        {
+            recentMaps.Dequeue();
+        }
+    }
+
+    private static string GetLatestRecentMap(Queue<string>? recentMaps)
+    {
+        if (recentMaps == null || recentMaps.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        string latestMap = string.Empty;
+        foreach (string mapName in recentMaps)
+        {
+            latestMap = mapName;
+        }
+
+        return latestMap;
     }
 
     private static void SetDefaultMapForMode(GameMode mode)
@@ -1019,7 +1070,7 @@ internal static class GameModeManager
         _mapPlaylistRandom = null;
         _mapPlaylistIndex = -1;
         _mapPlaylistPrepared = false;
-        LastMapByMode.Clear();
+        RecentMapsByMode.Clear();
         SelectedMapName = string.Empty;
         _pendingNormalMapName = string.Empty;
     }
@@ -1048,10 +1099,15 @@ internal static class GameModeManager
             }
         }
 
-        return ModeCycle.TrySelectRandom(compatibleModes, current,
-            UnityEngine.Random.Range(0, int.MaxValue), out GameMode next)
-            ? next
-            : GameMode.None;
+        List<GameMode> candidates = compatibleModes.Where(mode => mode != current).ToList();
+        if (candidates.Count == 0)
+        {
+            return compatibleModes.Count == 1 && compatibleModes[0] == current
+                ? current
+                : GameMode.None;
+        }
+
+        return DistributionRandom.SelectMode("GameMode", candidates);
     }
 
     private static void SelectModeForNormalMap(string mapName)
@@ -1112,6 +1168,7 @@ internal static class GameModeManager
 
         ResetMatchState();
         ActiveMode = mode;
+        RecalculateEffectivePreRoundSeconds();
         Phase = MyceliumNetwork.InLobby ? GameModePhase.Lobby : GameModePhase.Inactive;
         RoundId++;
         if ((mode == GameMode.Hardpoint || mode == GameMode.CaptureTheFlag
@@ -1199,6 +1256,7 @@ internal static class GameModeManager
         {
             ResetMatchState();
             ActiveMode = nextMode;
+            RecalculateEffectivePreRoundSeconds();
         }
 
         RoundId = roundId;
@@ -1379,6 +1437,12 @@ internal static class GameModeManager
     {
         return Modes.TryGetValue(ActiveMode, out ModeDescriptor? descriptor)
             && descriptor.Capabilities.HasFlag(capability);
+    }
+
+    private static void RecalculateEffectivePreRoundSeconds()
+    {
+        EffectivePreRoundSeconds = _configuredPreRoundSeconds
+            * (HasCapability(GameModeCapabilities.TeamBased) ? 2 : 1);
     }
 
     internal static void EnsureVanillaScene()

@@ -555,6 +555,7 @@ internal static class OneInTheChamberState
 
         TakeId++;
         _takeEnding = false;
+        ModeTimeoutState.OnTakeStarted();
         _nextLoadoutCheckTime = 0f;
         _loadoutsAvailableAt = Time.unscaledTime + LoadoutDelaySeconds;
         _loadoutCountdownEndsAt = _loadoutsAvailableAt;
@@ -574,6 +575,20 @@ internal static class OneInTheChamberState
         ClearCurrentWeapons();
         EnsureLoadouts();
         BroadcastLiveState();
+    }
+
+    internal static void OnTakeTimeout()
+    {
+        if (!Enabled || !MyceliumNetwork.IsHost
+            || !GameModeManager.IsActive(GameMode.OneInTheChamber)
+            || WinnerId >= 0 || _takeEnding)
+        {
+            return;
+        }
+
+        GameModeHud.BroadcastTakeResult("<b>The take ended</b>\n<i>Time expired</i>");
+        BroadcastLiveState();
+        BeginNextTake();
     }
 
     internal static string GetLoadoutCountdownText()

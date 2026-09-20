@@ -121,6 +121,10 @@ string firstMap = MapPlaylist.SelectNextMap(new[] { "Map_A", "Map_B" }, string.E
 string secondMap = MapPlaylist.SelectNextMap(new[] { "Map_A", "Map_B" }, firstMap,
     mapCycleRandom);
 Assert(firstMap != secondMap, "A repeated mode must rotate to a different supported map.");
+string distributedMap = MapPlaylist.SelectNextMap(new[] { "Map_A", "Map_B", "Map_C", "Map_D" },
+    "Map_C", new Random(17), new[] { "Map_A", "Map_B", "Map_C" });
+Assert(distributedMap == "Map_D",
+    "Recent map history must exclude the recent maps when an alternative exists.");
 List<MapPlaylistEntry<string>> firstOrdering = MapPlaylist.Build(
     new[] { "FFA", "MichaelMeyers" }, mode => playlistMaps[mode], new Random(31));
 List<MapPlaylistEntry<string>> secondOrdering = MapPlaylist.Build(
@@ -145,6 +149,7 @@ Assert(ScoreRules.PointsToWin == 100 && ScoreRules.PointsPerRoundWin == 50
     "Shared score rules must use the 100-point target and mode award values.");
 Dictionary<int, int> timeoutScores = new() { [4] = 60, [9] = 40 };
 Assert(ModeTimeoutRules.DefaultRoundSeconds == 90f
+    && ModeTimeoutRules.LongRoundSeconds == 250f
     && ModeTimeoutRules.TryGetUniqueLeader(timeoutScores, out int timeoutLeader)
     && timeoutLeader == 4
     && !ModeTimeoutRules.TryGetUniqueLeader(
@@ -176,6 +181,20 @@ Assert(TeamRules.ResolveTeamId(teamDeathmatchAssignments, 1) == 0
     && TeamRules.ResolveTeamId(teamDeathmatchAssignments, 6) == 1
     && TeamRules.ResolveTeamId(teamDeathmatchAssignments, 99) == 99,
     "Custom team resolution must use plugin assignments and fall back to the player ID.");
+Dictionary<int, int> previousTeamAssignments = new()
+{
+    [1] = 0,
+    [2] = 0,
+    [3] = 1,
+    [4] = 1
+};
+Dictionary<int, int> distributedTeamAssignments = TeamRules.AssignTwoTeams(
+    new[] { 1, 2, 3, 4 }, new Random(17), previousTeamAssignments);
+Assert(distributedTeamAssignments.Values.Count(teamId => teamId == 0) == 2
+    && distributedTeamAssignments.Values.Count(teamId => teamId == 1) == 2
+    && distributedTeamAssignments.Any(entry =>
+        previousTeamAssignments[entry.Key] != entry.Value),
+    "Distributed team assignment must stay balanced while reducing repeated teams.");
 Assert(TeamRules.GetHardpointTeamCount(2) == 2
     && TeamRules.GetHardpointTeamCount(3) == 3
     && TeamRules.GetHardpointTeamCount(4) == 2

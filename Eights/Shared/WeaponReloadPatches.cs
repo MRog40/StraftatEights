@@ -73,9 +73,3 @@ internal static class DualLauncher_Fire_Reload_Patch
 {
     private static bool Prefix(DualLauncher __instance) => WeaponReloadGuards.CanFire(__instance);
 }
-
-[HarmonyPatch(typeof(Taser), "Fire")]
-internal static class Taser_Fire_Reload_Patch
-{
-    private static bool Prefix(Taser __instance) => WeaponReloadGuards.CanFire(__instance);
-}

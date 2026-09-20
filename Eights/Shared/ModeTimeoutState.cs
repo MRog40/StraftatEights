@@ -19,15 +19,32 @@ internal static class ModeTimeoutState
 
     internal static bool IsTimedMode(GameMode mode)
     {
-        return mode == GameMode.FreeForAll
+        return mode == GameMode.OneInTheChamber
+            || mode == GameMode.FreeForAll
             || mode == GameMode.Juggernaut
             || mode == GameMode.GunGame
             || mode == GameMode.SniperBattle
             || mode == GameMode.KillTheRat
-            || mode == GameMode.OneInTheChamber
             || mode == GameMode.HotPotato
             || mode == GameMode.HVT
             || mode == GameMode.TeamDeathmatch;
+    }
+
+    internal static void OnTakeStarted()
+    {
+        if (GameModeManager.ActiveMode != GameMode.OneInTheChamber)
+        {
+            return;
+        }
+
+        TimeRemaining = ModeTimeoutRules.DefaultRoundSeconds;
+        IsSuddenDeath = false;
+        SuddenDeathScores.Clear();
+        _hasSuddenDeathSnapshot = false;
+        if (MyceliumNetwork.IsHost)
+        {
+            BroadcastLiveState();
+        }
     }
 
     internal static string GetScoreboardText()
@@ -40,7 +57,9 @@ internal static class ModeTimeoutState
 
         return IsSuddenDeath
             ? "Sudden Death"
-            : "Timer: " + Mathf.CeilToInt(TimeRemaining) + "s";
+            : (GameModeManager.ActiveMode == GameMode.OneInTheChamber
+                ? "Take: "
+                : "Round: ") + Mathf.CeilToInt(TimeRemaining) + "s";
     }
 
     internal static void OnLobbyEntered()
@@ -69,9 +88,7 @@ internal static class ModeTimeoutState
             return;
         }
 
-        TimeRemaining = GameModeManager.ActiveMode == GameMode.HVT
-            ? ModeTimeoutRules.HvtRoundSeconds
-            : ModeTimeoutRules.DefaultRoundSeconds;
+        TimeRemaining = GetDuration(GameModeManager.ActiveMode);
         if (MyceliumNetwork.IsHost)
         {
             BroadcastLiveState();
@@ -153,9 +170,7 @@ internal static class ModeTimeoutState
     internal static void ApplyLiveState(CSteamID hostId, float timeRemaining, bool suddenDeath,
         int roundId, int revision, string source = "rpc")
     {
-        float maxRoundSeconds = GameModeManager.ActiveMode == GameMode.HVT
-            ? ModeTimeoutRules.HvtRoundSeconds
-            : ModeTimeoutRules.DefaultRoundSeconds;
+        float maxRoundSeconds = GetDuration(GameModeManager.ActiveMode);
         if (timeRemaining < 0f || timeRemaining > maxRoundSeconds
             || float.IsNaN(timeRemaining) || float.IsInfinity(timeRemaining)
             || !Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
@@ -173,6 +188,12 @@ internal static class ModeTimeoutState
 
     private static void ResolveTimeout()
     {
+        if (GameModeManager.ActiveMode == GameMode.OneInTheChamber)
+        {
+            OneInTheChamberState.OnTakeTimeout();
+            return;
+        }
+
         if (TryGetTimeoutWinner(out int winnerId, out bool teamScores))
         {
             int winningTeamId = GetWinningTeamId(winnerId, teamScores);
@@ -323,6 +344,13 @@ internal static class ModeTimeoutState
         MyceliumNetwork.RPC(GameModeManager.ModId, nameof(Plugin.SyncModeTimeout),
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, TimeRemaining, IsSuddenDeath,
             GameModeManager.RoundId, revision);
+    }
+
+    private static float GetDuration(GameMode mode)
+    {
+        return mode == GameMode.OneInTheChamber
+            ? ModeTimeoutRules.DefaultRoundSeconds
+            : ModeTimeoutRules.LongRoundSeconds;
     }
 
     private static void ApplyLobbyLiveSnapshot()

@@ -102,6 +102,13 @@ internal static class TeamRules
         return assignments;
     }
 
+    internal static Dictionary<int, int> AssignBalanced(IReadOnlyList<int> playerIds,
+        Random random, IReadOnlyDictionary<int, int>? previousAssignments)
+    {
+        return AssignDistributedBalanced(playerIds, GetTeamCount(playerIds.Count), random,
+            previousAssignments);
+    }
+
     internal static Dictionary<int, int> AssignTwoTeams(IReadOnlyList<int> playerIds)
     {
         Dictionary<int, int> assignments = new();
@@ -111,6 +118,12 @@ internal static class TeamRules
         }
 
         return assignments;
+    }
+
+    internal static Dictionary<int, int> AssignTwoTeams(IReadOnlyList<int> playerIds,
+        Random random, IReadOnlyDictionary<int, int>? previousAssignments)
+    {
+        return AssignDistributedBalanced(playerIds, 2, random, previousAssignments);
     }
 
     internal static int ResolveTeamId(IReadOnlyDictionary<int, int> assignments, int playerId)
@@ -126,31 +139,113 @@ internal static class TeamRules
     internal static Dictionary<int, int> AssignHardpointBalanced(IReadOnlyList<int> playerIds,
         Random? random)
     {
-        Dictionary<int, int> assignments = new();
         int teamCount = GetHardpointTeamCount(playerIds.Count);
         if (teamCount == 0)
         {
+            return new Dictionary<int, int>();
+        }
+
+        if (random == null)
+        {
+            Dictionary<int, int> assignments = new();
+            List<int> orderedPlayerIds = playerIds.Where(id => id >= 0).Distinct().OrderBy(id => id)
+                .ToList();
+            foreach (int playerId in orderedPlayerIds)
+            {
+                assignments[playerId] = assignments.Count % teamCount;
+            }
+
             return assignments;
         }
 
-        List<int> orderedPlayerIds = playerIds.Where(id => id >= 0).Distinct().OrderBy(id => id)
-            .ToList();
-        if (random != null)
+        return AssignDistributedBalanced(playerIds, teamCount, random, null);
+    }
+
+    internal static Dictionary<int, int> AssignHardpointBalanced(IReadOnlyList<int> playerIds,
+        Random random, IReadOnlyDictionary<int, int>? previousAssignments)
+    {
+        return AssignDistributedBalanced(playerIds, GetHardpointTeamCount(playerIds.Count), random,
+            previousAssignments);
+    }
+
+    private static Dictionary<int, int> AssignDistributedBalanced(
+        IReadOnlyList<int> playerIds, int teamCount, Random random,
+        IReadOnlyDictionary<int, int>? previousAssignments)
+    {
+        Dictionary<int, int> emptyAssignments = new();
+        if (teamCount == 0)
         {
-            for (int index = orderedPlayerIds.Count - 1; index > 0; index--)
+            return emptyAssignments;
+        }
+
+        List<int> validPlayerIds = playerIds.Where(id => id >= 0).Distinct().ToList();
+        if (validPlayerIds.Count == 0)
+        {
+            return emptyAssignments;
+        }
+
+        const int candidateCount = 24;
+        List<Dictionary<int, int>> candidates = new(candidateCount);
+        List<int> candidateWeights = new(candidateCount);
+        int totalWeight = 0;
+        for (int attempt = 0; attempt < candidateCount; attempt++)
+        {
+            Shuffle(validPlayerIds, random);
+            Dictionary<int, int> candidate = new();
+            for (int index = 0; index < validPlayerIds.Count; index++)
             {
-                int swapIndex = random.Next(index + 1);
-                (orderedPlayerIds[index], orderedPlayerIds[swapIndex]) =
-                    (orderedPlayerIds[swapIndex], orderedPlayerIds[index]);
+                candidate[validPlayerIds[index]] = index % teamCount;
+            }
+
+            int changedPlayers = CountChangedPlayers(candidate, previousAssignments);
+            int weight = 1 + changedPlayers * 3;
+            candidates.Add(new Dictionary<int, int>(candidate));
+            candidateWeights.Add(weight);
+            totalWeight += weight;
+        }
+
+        int selectedWeight = random.Next(totalWeight);
+        for (int index = 0; index < candidates.Count; index++)
+        {
+            if (selectedWeight < candidateWeights[index])
+            {
+                return candidates[index];
+            }
+
+            selectedWeight -= candidateWeights[index];
+        }
+
+        return candidates[candidates.Count - 1];
+    }
+
+    private static int CountChangedPlayers(IReadOnlyDictionary<int, int> assignments,
+        IReadOnlyDictionary<int, int>? previousAssignments)
+    {
+        if (previousAssignments == null)
+        {
+            return 0;
+        }
+
+        int changedPlayers = 0;
+        foreach (KeyValuePair<int, int> assignment in assignments)
+        {
+            if (!previousAssignments.TryGetValue(assignment.Key, out int previousTeamId)
+                || previousTeamId != assignment.Value)
+            {
+                changedPlayers++;
             }
         }
 
-        foreach (int playerId in orderedPlayerIds)
-        {
-            assignments[playerId] = assignments.Count % teamCount;
-        }
+        return changedPlayers;
+    }
 
-        return assignments;
+    private static void Shuffle<T>(IList<T> values, Random random)
+    {
+        for (int index = values.Count - 1; index > 0; index--)
+        {
+            int swapIndex = random.Next(index + 1);
+            (values[index], values[swapIndex]) = (values[swapIndex], values[index]);
+        }
     }
 
     internal static int GetHardpointTeamCount(int playerCount)

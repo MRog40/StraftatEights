@@ -138,7 +138,6 @@ internal static class DefaultGameModeState
         }
 
         ResetMatchState();
-        _timeRemaining = ModeTimeoutRules.DefaultRoundSeconds;
         StartTake();
     }
 
@@ -270,6 +269,7 @@ internal static class DefaultGameModeState
 
         TakeId++;
         _takeEnding = false;
+        _timeRemaining = ModeTimeoutRules.DefaultRoundSeconds;
         AlivePlayers.Clear();
         RoundPlayers.Clear();
         foreach (int playerId in players)
@@ -324,18 +324,9 @@ internal static class DefaultGameModeState
             return;
         }
 
-        if (ScoreManager.Instance != null
-            && ModeTimeoutRules.TryGetUniqueLeadingTeam(Scores,
-                TeamAssignment.ResolveTeamId, out int leadingTeamId))
-        {
-            Announce("Time expired. The leading team won the round.");
-            BroadcastLiveState();
-            GameModeManager.CompleteCustomRound(leadingTeamId);
-            return;
-        }
-
-        Announce("Time expired. The round ended without a winner.");
-        GameModeManager.SkipCurrentRound();
+        GameModeHud.BroadcastTakeResult("<b>The take ended</b>\n<i>Time expired</i>");
+        BroadcastLiveState();
+        BeginNextTake();
     }
 
     private static void ScheduleStartRetry()

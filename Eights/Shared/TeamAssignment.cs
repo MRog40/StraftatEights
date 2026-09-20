@@ -8,8 +8,9 @@ namespace Eights;
 internal static class TeamAssignment
 {
     private static readonly Dictionary<int, int> Assignments = new();
+    private static readonly Dictionary<int, int> PreviousAssignments = new();
     private static readonly HashSet<int> InitialSpawnEligiblePlayers = new();
-    private static readonly System.Random HardpointAssignmentRandom = new();
+    private static readonly System.Random TeamAssignmentRandom = new();
 
     internal static IReadOnlyDictionary<int, int> Current => Assignments;
     internal static int TeamCount { get; private set; }
@@ -17,6 +18,7 @@ internal static class TeamAssignment
 
     internal static void Reset()
     {
+        RememberCurrentAssignments();
         Assignments.Clear();
         InitialSpawnEligiblePlayers.Clear();
         TeamCount = 0;
@@ -31,6 +33,11 @@ internal static class TeamAssignment
         }
     }
 
+    internal static void ResetDistributionHistory()
+    {
+        PreviousAssignments.Clear();
+    }
+
     internal static bool AssignForRound()
     {
         if (!MyceliumNetworking.MyceliumNetwork.IsHost)
@@ -38,12 +45,15 @@ internal static class TeamAssignment
             return false;
         }
 
+        RememberCurrentAssignments();
         List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
         bool isTeamDeathmatch = GameModeManager.IsActive(GameMode.TeamDeathmatch);
         Dictionary<int, int> nextAssignments = GameModeManager.IsActive(GameMode.Hardpoint)
-            ? TeamRules.AssignHardpointBalanced(playerIds, HardpointAssignmentRandom)
-            : isTeamDeathmatch ? TeamRules.AssignTwoTeams(playerIds)
-            : TeamRules.AssignBalanced(playerIds);
+            ? TeamRules.AssignHardpointBalanced(playerIds, TeamAssignmentRandom,
+                PreviousAssignments)
+            : isTeamDeathmatch ? TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom,
+                PreviousAssignments)
+            : TeamRules.AssignBalanced(playerIds, TeamAssignmentRandom, PreviousAssignments);
         if (nextAssignments.Count == 0)
         {
             return false;
@@ -71,6 +81,7 @@ internal static class TeamAssignment
             return false;
         }
 
+        RememberCurrentAssignments();
         List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
         if (playerIds.Count == 0)
         {
@@ -80,7 +91,7 @@ internal static class TeamAssignment
         Assignments.Clear();
         InitialSpawnEligiblePlayers.Clear();
         foreach (KeyValuePair<int, int> assignment
-            in CaptureTheFlagRules.AssignStrictTwoTeams(playerIds))
+            in TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, PreviousAssignments))
         {
             Assignments[assignment.Key] = assignment.Value;
             InitialSpawnEligiblePlayers.Add(assignment.Key);
@@ -98,6 +109,7 @@ internal static class TeamAssignment
             return false;
         }
 
+        RememberCurrentAssignments();
         List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
         if (playerIds.Count == 0)
         {
@@ -107,7 +119,7 @@ internal static class TeamAssignment
         Assignments.Clear();
         InitialSpawnEligiblePlayers.Clear();
         foreach (KeyValuePair<int, int> assignment
-            in SearchAndDestroyRules.AssignStrictTwoTeams(playerIds))
+            in TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, PreviousAssignments))
         {
             Assignments[assignment.Key] = assignment.Value;
             InitialSpawnEligiblePlayers.Add(assignment.Key);
@@ -181,6 +193,14 @@ internal static class TeamAssignment
         else
         {
             AssignForRound();
+        }
+    }
+
+    private static void RememberCurrentAssignments()
+    {
+        foreach (KeyValuePair<int, int> assignment in Assignments)
+        {
+            PreviousAssignments[assignment.Key] = assignment.Value;
         }
     }
 

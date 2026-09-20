@@ -178,7 +178,7 @@ internal static class MichaelMeyersState
             else if (wasMichael)
             {
                 List<int> candidates = new(AlivePlayers);
-                CurrentMichaelPlayerId = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+                CurrentMichaelPlayerId = DistributionRandom.SelectPlayer("MichaelMeyers", candidates);
                 PrepareOneVsOneSurvivor();
                 Announce(PlayerLookup.GetPlayerNameTag(CurrentMichaelPlayerId)
                     + " is <color=#CC2222><b>Michael Meyers</b></color>!");
@@ -322,7 +322,7 @@ internal static class MichaelMeyersState
             yield break;
         }
 
-        CurrentMichaelPlayerId = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+        CurrentMichaelPlayerId = DistributionRandom.SelectPlayer("MichaelMeyers", candidates);
         PrepareOneVsOneSurvivor();
         Announce(PlayerLookup.GetPlayerNameTag(CurrentMichaelPlayerId) + " is <color=#CC2222><b>Michael Meyers</b></color>!");
         BroadcastLiveState();

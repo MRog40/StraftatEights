@@ -39,6 +39,7 @@ internal static class InfidelState
     private static int _takeId;
     private static int _localRoleTakeId = -1;
     private static int _localRoleAnnouncedTakeId = -1;
+    private static bool _localRoleAnnouncementPending;
     private static bool _startRetryPending;
     private static bool _takeEnding;
 
@@ -201,6 +202,7 @@ internal static class InfidelState
         _takeId = 0;
         _localRoleTakeId = -1;
         _localRoleAnnouncedTakeId = -1;
+        _localRoleAnnouncementPending = false;
         _startRetryPending = false;
         _takeEnding = false;
         InfidelPlayerId = -1;
@@ -274,6 +276,7 @@ internal static class InfidelState
 
     internal static void ClientTick(float deltaTime)
     {
+        TryAnnounceLocalRole();
         if (MyceliumNetwork.IsHost || !Enabled
             || !GameModeManager.IsActive(GameMode.Infidel)
             || !GameModeManager.IsRoundGameplayActive
@@ -420,15 +423,28 @@ internal static class InfidelState
 
         _localRoleTakeId = takeId;
         LocalIsInfidel = isInfidel;
-        if (announce && GameModeManager.IsActive(GameMode.Infidel)
-            && GameModeManager.Phase == GameModePhase.ActiveRound
-            && !GameModeManager.IsMatchOver && _localRoleAnnouncedTakeId != takeId)
+        if (announce && _localRoleAnnouncedTakeId != takeId)
         {
-            _localRoleAnnouncedTakeId = takeId;
-            GameModeHud.AnnounceTarget(isInfidel
-                ? "You are the <color=#CC2222><b>Infidel</b></color>."
-                : "You are a <color=#4D9BFF><b>terrorist</b></color>.", RoleAnnouncementDuration);
+            _localRoleAnnouncementPending = true;
+            TryAnnounceLocalRole();
         }
+    }
+
+    private static void TryAnnounceLocalRole()
+    {
+        if (!_localRoleAnnouncementPending || _localRoleTakeId < 0
+            || !Enabled || !GameModeManager.IsActive(GameMode.Infidel)
+            || !GameModeManager.IsRoundGameplayActive || GameModeManager.IsMatchOver
+            || _localRoleAnnouncedTakeId == _localRoleTakeId)
+        {
+            return;
+        }
+
+        _localRoleAnnouncementPending = false;
+        _localRoleAnnouncedTakeId = _localRoleTakeId;
+        GameModeHud.AnnounceTarget(LocalIsInfidel
+            ? "You are the <color=#CC2222><b>Infidel</b></color>."
+            : "You are a <color=#4D9BFF><b>terrorist</b></color>.", RoleAnnouncementDuration);
     }
 
     private static bool TakeIsActive()
@@ -473,7 +489,7 @@ internal static class InfidelState
             Scores.TryAdd(playerId, 0);
         }
 
-        InfidelPlayerId = players[UnityEngine.Random.Range(0, players.Count)];
+        InfidelPlayerId = DistributionRandom.SelectPlayer("Infidel", players);
         ClearCurrentWeapons();
         SendRoleStates(true);
         BroadcastLiveState();

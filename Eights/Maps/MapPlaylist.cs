@@ -47,19 +47,44 @@ internal static class MapPlaylist
     internal static string SelectNextMap(IReadOnlyList<string> mapNames, string previousMap,
         Random random)
     {
+        return SelectNextMap(mapNames, previousMap, random, null);
+    }
+
+    internal static string SelectNextMap(IReadOnlyList<string> mapNames, string previousMap,
+        Random random, IReadOnlyCollection<string>? recentMaps)
+    {
         List<string> distinctMapNames = GetDistinctMapNames(mapNames);
         if (distinctMapNames.Count == 0)
         {
             return string.Empty;
         }
 
-        if (distinctMapNames.Count == 1 || string.IsNullOrEmpty(previousMap))
+        if (distinctMapNames.Count == 1)
         {
             return distinctMapNames[random.Next(distinctMapNames.Count)];
         }
 
-        distinctMapNames.Remove(previousMap);
-        return distinctMapNames[random.Next(distinctMapNames.Count)];
+        List<string> availableMapNames = new(distinctMapNames);
+        if (recentMaps != null)
+        {
+            HashSet<string> recentMapSet = new(recentMaps, StringComparer.Ordinal);
+            availableMapNames.RemoveAll(recentMapSet.Contains);
+        }
+        else if (!string.IsNullOrEmpty(previousMap))
+        {
+            availableMapNames.Remove(previousMap);
+        }
+
+        if (availableMapNames.Count == 0)
+        {
+            availableMapNames = distinctMapNames;
+            if (!string.IsNullOrEmpty(previousMap))
+            {
+                availableMapNames.Remove(previousMap);
+            }
+        }
+
+        return availableMapNames[random.Next(availableMapNames.Count)];
     }
 
     private static List<string> GetDistinctMapNames(IReadOnlyList<string> mapNames)

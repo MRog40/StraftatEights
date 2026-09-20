@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
@@ -546,14 +547,9 @@ internal static class AssassinState
             Scores.TryAdd(playerId, 0);
         }
 
-        int assassinIndex = UnityEngine.Random.Range(0, players.Count);
-        AssassinPlayerId = players[assassinIndex];
-        int kingIndex = UnityEngine.Random.Range(0, players.Count - 1);
-        if (kingIndex >= assassinIndex)
-        {
-            kingIndex++;
-        }
-        KingPlayerId = players[kingIndex];
+        AssassinPlayerId = DistributionRandom.SelectPlayer("Assassin", players);
+        List<int> kingCandidates = players.Where(playerId => playerId != AssassinPlayerId).ToList();
+        KingPlayerId = DistributionRandom.SelectPlayer("King", kingCandidates);
 
         ClearCurrentWeapons();
         SendRoleStates(true);

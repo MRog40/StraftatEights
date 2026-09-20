@@ -470,7 +470,8 @@ internal sealed class GameModeHud : MonoBehaviour
         }
 
         _instance.UpdateAnnouncementLayout();
-        _instance._targetAnnouncement.text = "<size=96><b>" + secondsRemaining + "</b></size>";
+        _instance._targetAnnouncement.text = "<size=36><b>ROUND STARTS IN</b></size>\n"
+            + "<size=96><b>" + secondsRemaining + "</b></size>";
         _instance._targetAnnouncementAllowsEndingRound = false;
         _instance._targetAnnouncementUntil = Time.unscaledTime + 1.1f;
         _instance._targetAnnouncement.gameObject.SetActive(true);
@@ -866,7 +867,7 @@ internal sealed class GameModeHud : MonoBehaviour
             };
                 SetScoreboardText(GameModeScoreboard.Build(GameMode.MichaelMeyers, null, null,
                 survivorRows, MichaelMeyersState.TimeRemaining > 0f
-                    ? "Timer: " + Mathf.CeilToInt(MichaelMeyersState.TimeRemaining) + "s"
+                    ? "Round: " + Mathf.CeilToInt(MichaelMeyersState.TimeRemaining) + "s"
                     : string.Empty));
             return;
         }
@@ -916,7 +917,7 @@ internal sealed class GameModeHud : MonoBehaviour
             scores = InfidelState.Scores;
             crownFirst = false;
             timerText = InfidelState.TakeTimeRemaining > 0f
-                ? "Timer: " + Mathf.CeilToInt(InfidelState.TakeTimeRemaining) + "s"
+                ? "Take: " + Mathf.CeilToInt(InfidelState.TakeTimeRemaining) + "s"
                 : string.Empty;
         }
         else if (GameModeManager.IsActive(GameMode.Assassin))
@@ -939,6 +940,9 @@ internal sealed class GameModeHud : MonoBehaviour
             pointsToWin = DefaultGameModeState.PointsToWin;
             scores = DefaultGameModeState.Scores;
             crownFirst = false;
+            timerText = DefaultGameModeState.TimeRemaining > 0f
+                ? "Take: " + Mathf.CeilToInt(DefaultGameModeState.TimeRemaining) + "s"
+                : string.Empty;
         }
         else
         {
@@ -950,12 +954,9 @@ internal sealed class GameModeHud : MonoBehaviour
         string modeTimerText = ModeTimeoutState.GetScoreboardText();
         if (modeTimerText.Length > 0)
         {
-            string roundTimerText = modeTimerText.StartsWith("Timer: ", StringComparison.Ordinal)
-                ? modeTimerText.Substring("Timer: ".Length)
-                : modeTimerText;
             timerText = string.IsNullOrEmpty(timerText)
                 ? modeTimerText
-                : timerText + " | Round: " + roundTimerText;
+                : timerText + " | " + modeTimerText;
         }
 
         List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();

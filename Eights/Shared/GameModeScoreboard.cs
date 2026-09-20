@@ -51,6 +51,11 @@ internal static class GameModeScoreboard
         {
             nameColumn.Append(" - ").Append(pointsToWin.Value);
         }
+        if (!string.IsNullOrEmpty(timerText))
+        {
+            nameColumn.Append("\n<i>").Append(timerText).Append("</i>");
+            scoreColumn.Append('\n');
+        }
 
         foreach (GameModeScoreboardRow row in rows)
         {
@@ -81,11 +86,6 @@ internal static class GameModeScoreboard
             scoreColumn.Append('\n').Append(row.Score);
         }
 
-        if (!string.IsNullOrEmpty(timerText))
-        {
-            nameColumn.Append("\n<i>").Append(timerText).Append("</i>");
-            scoreColumn.Append('\n');
-        }
         return new GameModeScoreboardLayout(nameColumn.ToString(), scoreColumn.ToString());
     }
 

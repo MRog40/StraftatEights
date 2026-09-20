@@ -791,7 +791,7 @@ internal static class SearchAndDestroyState
 
         List<int> carriers = players.Where(IsOffensePlayer).ToList();
         BombCarrierPlayerId = carriers.Count > 0
-            ? carriers[UnityEngine.Random.Range(0, carriers.Count)]
+            ? DistributionRandom.SelectPlayer("SearchAndDestroyCarrier", carriers)
             : -1;
         BombStatus = BombCarrierPlayerId >= 0
             ? SearchAndDestroyBombStatus.Carried
