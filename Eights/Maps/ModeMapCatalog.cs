@@ -8,7 +8,7 @@ namespace Eights;
 
 internal static class ModeMapCatalog
 {
-    private static readonly IReadOnlyList<string> TeamObjectiveMaps =
+    private static readonly IReadOnlyList<string> HardpointMaps =
         new[]
         {
             MapDefinitions.Barren01AltName,
@@ -18,14 +18,71 @@ internal static class ModeMapCatalog
             MapDefinitions.TheSamePlace11Name,
             MapDefinitions.Bazaar02Name,
             MapDefinitions.TheSamePlace14Name,
-            MapDefinitions.DragonflyVestigeName,
-            MapDefinitions.TheSamePlace04AltName,
-            MapDefinitions.Corridor11Name,
+            // MapDefinitions.DragonflyVestigeName,
+            // MapDefinitions.TheSamePlace04AltName,
+            // MapDefinitions.Corridor11Name,
             MapDefinitions.Garden02Name,
+            // MapDefinitions.Chateaux06NoGrassName,
+            // MapDefinitions.BasketSwirlyName,
+            // MapDefinitions.BasketSwirlyAltName,
+            MapDefinitions.Republic08Name
+        };
+    private static readonly IReadOnlyList<string> CaptureTheFlagMaps =
+        new[]
+        {
+            // MapDefinitions.Barren01AltName,
+            MapDefinitions.DragonflyNeighbourhoodName,
+            // MapDefinitions.Bazaar03Name,
+            // MapDefinitions.Drain01Name,
+            // MapDefinitions.TheSamePlace11Name,
+            MapDefinitions.Bazaar02Name,
+            // MapDefinitions.TheSamePlace14Name,
+            MapDefinitions.DragonflyVestigeName,
+            // MapDefinitions.TheSamePlace04AltName,
+            MapDefinitions.Corridor11Name,
+            // MapDefinitions.Garden02Name,
             // MapDefinitions.Chateaux06NoGrassName,
             MapDefinitions.BasketSwirlyName,
             MapDefinitions.BasketSwirlyAltName,
             MapDefinitions.Republic08Name
+        };
+    private static readonly IReadOnlyList<string> SearchAndDestroyMaps =
+        new[]
+        {
+            // MapDefinitions.Barren01AltName,
+            MapDefinitions.DragonflyNeighbourhoodName,
+            MapDefinitions.Bazaar03Name,
+            MapDefinitions.Drain01Name,
+            // MapDefinitions.TheSamePlace11Name,
+            MapDefinitions.Bazaar02Name,
+            MapDefinitions.TheSamePlace14Name,
+            MapDefinitions.DragonflyVestigeName,
+            // MapDefinitions.TheSamePlace04AltName,
+            // MapDefinitions.Corridor11Name,
+            // MapDefinitions.Garden02Name,
+            // MapDefinitions.Chateaux06NoGrassName,
+            // MapDefinitions.BasketSwirlyName,
+            // MapDefinitions.BasketSwirlyAltName,
+            // MapDefinitions.Republic08Name
+        };
+    private static readonly IReadOnlyList<string> TeamDeathmatchMaps =
+        new[]
+        {
+            MapDefinitions.Barren01AltName,
+            MapDefinitions.DragonflyNeighbourhoodName,
+            MapDefinitions.Bazaar03Name,
+            // MapDefinitions.Drain01Name,
+            MapDefinitions.TheSamePlace11Name,
+            // MapDefinitions.Bazaar02Name,
+            MapDefinitions.TheSamePlace14Name,
+            MapDefinitions.DragonflyVestigeName,
+            MapDefinitions.TheSamePlace04AltName,
+            // MapDefinitions.Corridor11Name,
+            MapDefinitions.Garden02Name,
+            // MapDefinitions.Chateaux06NoGrassName,
+            MapDefinitions.BasketSwirlyName,
+            MapDefinitions.BasketSwirlyAltName,
+            // MapDefinitions.Republic08Name
         };
     private static readonly IReadOnlyList<string> FreeForAllMaps =
         new[]
@@ -86,10 +143,10 @@ internal static class ModeMapCatalog
             [GameMode.Infidel] = InfidelMaps,
             [GameMode.HVT] = InfidelMaps,
             [GameMode.Assassin] = InfidelMaps,
-            [GameMode.Hardpoint] = TeamObjectiveMaps,
-            [GameMode.CaptureTheFlag] = TeamObjectiveMaps,
-            [GameMode.SearchAndDestroy] = TeamObjectiveMaps,
-            [GameMode.TeamDeathmatch] = TeamObjectiveMaps
+            [GameMode.Hardpoint] = HardpointMaps,
+            [GameMode.CaptureTheFlag] = CaptureTheFlagMaps,
+            [GameMode.SearchAndDestroy] = SearchAndDestroyMaps,
+            [GameMode.TeamDeathmatch] = TeamDeathmatchMaps
         };
 
     internal static IReadOnlyList<string> GetMapNames(GameMode mode)

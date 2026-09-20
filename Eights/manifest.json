@@ -1,7 +1,7 @@
 {
   "name": "Eights",
-  "version_number": "0.3.3",
-  "website_url": "https://github.com/MRog40/Eights",
+  "version_number": "0.3.4",
+  "website_url": "https://github.com/MRog40/StraftatEights",
   "description": "Host-authoritative movement, health, weapon, and game-mode rules for STRAFTAT.",
   "dependencies": [
     "BepInEx-BepInExPack-5.4.2100",

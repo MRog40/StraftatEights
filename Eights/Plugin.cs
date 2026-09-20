@@ -130,6 +130,7 @@ public partial class Plugin : BaseUnityPlugin
 
     private void Update()
     {
+        PositionMarkerDebug.Update();
         MyceliumTransportRecovery.Update();
         GameModeManager.EnsureVanillaScene();
         GameModeManager.UpdatePreRoundTimer();
