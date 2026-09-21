@@ -68,6 +68,7 @@ internal static class SearchAndDestroyState
     private static float _nextInteractionRequestTime;
     private static bool _localInteractionHeld;
     private static bool _localLookingAtBomb;
+    private static bool _localMovementLockApplied;
     private static bool _roundStarted;
     private static bool _takeEnding;
     private static bool _bombExplosionPending;
@@ -209,6 +210,7 @@ internal static class SearchAndDestroyState
 
     internal static void ResetMatchState()
     {
+        ReleaseLocalMovementLock();
         Sync.ResetLiveState();
         TeamAssignment.Reset();
         AlivePlayers.Clear();
@@ -219,6 +221,7 @@ internal static class SearchAndDestroyState
         _nextInteractionRequestTime = 0f;
         _localInteractionHeld = false;
         _localLookingAtBomb = false;
+        _localMovementLockApplied = false;
         _roundStarted = false;
         _takeEnding = false;
         _bombExplosionPending = false;
@@ -516,6 +519,7 @@ internal static class SearchAndDestroyState
         if (ClientInstance.Instance == null || !GameModeManager.IsActive(GameMode.SearchAndDestroy)
             || GameModeManager.Phase != GameModePhase.ActiveRound)
         {
+            ReleaseLocalMovementLock();
             return;
         }
 
@@ -529,12 +533,36 @@ internal static class SearchAndDestroyState
         bool lockMovement = IsLocalActionCandidate(playerId);
         if (lockMovement)
         {
-            health.controller.canMove = false;
+            if (!_localMovementLockApplied && health.controller.canMove)
+            {
+                health.controller.canMove = false;
+                _localMovementLockApplied = true;
+            }
         }
-        else if (PauseManager.Instance == null || !PauseManager.Instance.startRound)
+        else if (_localMovementLockApplied
+            && (PauseManager.Instance == null || !PauseManager.Instance.startRound))
+        {
+            health.controller.canMove = true;
+            _localMovementLockApplied = false;
+        }
+    }
+
+    private static void ReleaseLocalMovementLock()
+    {
+        if (!_localMovementLockApplied)
+        {
+            return;
+        }
+
+        PlayerHealth? health = ClientInstance.Instance != null
+            ? PlayerLookup.FindActivePlayerHealthById(ClientInstance.Instance.PlayerId)
+            : null;
+        if (health != null && health && health.controller != null)
         {
             health.controller.canMove = true;
         }
+
+        _localMovementLockApplied = false;
     }
 
     internal static string GetLocalInteractionPrompt()

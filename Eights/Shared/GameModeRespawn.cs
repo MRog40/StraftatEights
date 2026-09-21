@@ -17,6 +17,7 @@ internal static class GameModeRespawn
     private static string _cachedCenterSceneName = string.Empty;
     private static Vector3 _cachedMapCenter;
     private static bool _hasCachedMapCenter;
+    private static bool _preRoundMovementLockApplied;
 
     private readonly struct CosmeticIndices
     {
@@ -32,6 +33,8 @@ internal static class GameModeRespawn
 
     internal static void ResetForLobbyLeft()
     {
+        ReleasePreRoundMovementLock();
+        _preRoundMovementLockApplied = false;
         PendingManagers.Clear();
         PendingSpawnAdjustments.Clear();
         InitialTeamSpawnsApplied.Clear();
@@ -42,6 +45,8 @@ internal static class GameModeRespawn
 
     internal static void ResetForMatch()
     {
+        ReleasePreRoundMovementLock();
+        _preRoundMovementLockApplied = false;
         PendingManagers.Clear();
         PendingSpawnAdjustments.Clear();
         InitialTeamSpawnsApplied.Clear();
@@ -270,6 +275,13 @@ internal static class GameModeRespawn
                 yield break;
             }
 
+            if (GameModeManager.IsPreRoundTimerActive)
+            {
+                EnforcePreRoundMovementLock(manager.player);
+                yield return null;
+                continue;
+            }
+
             if (!IsPlayerMovementLocked(manager))
             {
                 yield return null;
@@ -288,7 +300,7 @@ internal static class GameModeRespawn
             return false;
         }
 
-        return !manager.player.canMove || manager.player.startOfRound
+        return manager.player.startOfRound
             || (PauseManager.Instance != null && PauseManager.Instance.startRound);
     }
 
@@ -304,22 +316,24 @@ internal static class GameModeRespawn
             return;
         }
 
-        bool wasMovementLocked = !manager.player.canMove;
-        manager.player.canMove = true;
-        if (wasMovementLocked)
-        {
-            manager.player.sync___set_value_canMove(true, true);
-        }
-        manager.player.startOfRound = false;
-        if (PauseManager.Instance != null)
-        {
-            PauseManager.Instance.startRound = false;
-        }
+        SetPlayerMovable(manager.player);
     }
 
     internal static void SetPlayerMovable(FirstPersonController player)
     {
         if (player == null || !player)
+        {
+            return;
+        }
+
+        if (GameModeManager.IsPreRoundTimerActive)
+        {
+            EnforcePreRoundMovementLock(player);
+            return;
+        }
+
+        if (!player.startOfRound
+            && (PauseManager.Instance == null || !PauseManager.Instance.startRound))
         {
             return;
         }
@@ -350,21 +364,38 @@ internal static class GameModeRespawn
             return;
         }
 
+        EnforcePreRoundMovementLock(player);
+    }
+
+    private static void EnforcePreRoundMovementLock(FirstPersonController player)
+    {
+        if (player == null || !player || !player.IsOwner)
+        {
+            return;
+        }
+
         player.canMove = false;
         player.startOfRound = true;
         if (PauseManager.Instance != null)
         {
             PauseManager.Instance.startRound = true;
         }
+        _preRoundMovementLockApplied = true;
     }
 
     internal static void ReleasePreRoundMovementLock()
     {
+        if (!_preRoundMovementLockApplied || GameModeManager.IsPreRoundTimerActive)
+        {
+            return;
+        }
+
         FirstPersonController? player = GetLocalPlayerController();
         if (player != null && player && player.IsOwner)
         {
             SetPlayerMovable(player);
         }
+        _preRoundMovementLockApplied = false;
     }
 
     private static FirstPersonController? GetLocalPlayerController()
@@ -816,7 +847,7 @@ internal static class PlayerManager_CustomRoundStartScreen_Patch
     private static bool Prefix(PlayerManager __instance)
     {
         if (!GameModeManager.IsCustomMode
-            || (GameModeManager.Phase != GameModePhase.ActiveRound && PauseManager.BetweenRounds))
+            || GameModeManager.Phase != GameModePhase.ActiveRound)
         {
             return true;
         }

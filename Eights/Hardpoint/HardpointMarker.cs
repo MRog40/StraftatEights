@@ -5,6 +5,7 @@ namespace Eights;
 internal static class HardpointMarker
 {
     private const float ActiveAlpha = 0.8f;
+    private static readonly Color NextMarkerColor = new(0.55f, 0.55f, 0.55f);
     private const float NextMarkerMinAlpha = 0.35f;
     private const float NextMarkerMaxAlpha = 0.75f;
     private const float OverheadMarkerSize = 0.525f;
@@ -41,12 +42,14 @@ internal static class HardpointMarker
             {
                 _nextMarker = FloatingObjectiveMarker.CreateOverheadDiamond(
                     "HardpointNextMarker",
-                    new Color(1f, 1f, 1f, NextMarkerMinAlpha));
+                    new Color(NextMarkerColor.r, NextMarkerColor.g, NextMarkerColor.b,
+                        NextMarkerMinAlpha));
             }
 
             float pulse = Mathf.Lerp(NextMarkerMinAlpha, NextMarkerMaxAlpha,
                 (Mathf.Sin(Time.unscaledTime * 7f) + 1f) * 0.5f);
-            PositionOverheadMarker(_nextMarker, next, new Color(1f, 1f, 1f, pulse));
+            PositionOverheadMarker(_nextMarker, next,
+                new Color(NextMarkerColor.r, NextMarkerColor.g, NextMarkerColor.b, pulse));
         }
         else if (_nextMarker != null && _nextMarker)
         {
