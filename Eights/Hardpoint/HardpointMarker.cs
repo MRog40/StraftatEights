@@ -11,7 +11,6 @@ internal static class HardpointMarker
     private static GameObject? _activeMarker;
     private static GameObject? _activeOverheadMarker;
     private static GameObject? _nextMarker;
-    private static Renderer? _nextRenderer;
 
     internal static void Update()
     {
@@ -40,18 +39,14 @@ internal static class HardpointMarker
         {
             if (_nextMarker == null || !_nextMarker)
             {
-                _nextMarker = CreateMarker("HardpointNextMarker",
+                _nextMarker = FloatingObjectiveMarker.CreateOverheadDiamond(
+                    "HardpointNextMarker",
                     new Color(1f, 1f, 1f, NextMarkerMinAlpha));
-                _nextRenderer = _nextMarker.GetComponent<Renderer>();
-            }
-            else if (_nextRenderer == null || !_nextRenderer)
-            {
-                _nextRenderer = _nextMarker.GetComponent<Renderer>();
             }
 
             float pulse = Mathf.Lerp(NextMarkerMinAlpha, NextMarkerMaxAlpha,
                 (Mathf.Sin(Time.unscaledTime * 7f) + 1f) * 0.5f);
-            PositionMarker(_nextMarker, next, new Color(1f, 1f, 1f, pulse));
+            PositionOverheadMarker(_nextMarker, next, new Color(1f, 1f, 1f, pulse));
         }
         else if (_nextMarker != null && _nextMarker)
         {
@@ -122,6 +117,5 @@ internal static class HardpointMarker
             Object.Destroy(_nextMarker);
         }
         _nextMarker = null;
-        _nextRenderer = null;
     }
 }

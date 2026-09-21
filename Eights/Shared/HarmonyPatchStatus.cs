@@ -86,7 +86,7 @@ internal static class HarmonyPatchStatus
 
     internal static bool IsModeAvailable(GameMode mode)
     {
-        if (mode == GameMode.None || mode == GameMode.Default)
+        if (mode == GameMode.None)
         {
             return true;
         }

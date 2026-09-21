@@ -110,6 +110,8 @@ internal static class GameModeManager
     };
 
     private const string ScoreboardAccentColor = "B7F47A";
+    private const int MinimumPointsToWin = 1;
+    private const int MaximumPointsToWin = 1000;
 
     private static readonly Dictionary<GameMode, ModeDescriptor> Modes = new()
     {
@@ -266,6 +268,7 @@ internal static class GameModeManager
     private static int _preRoundTimerRoundId = -1;
     private static float _preRoundTimerEndsAt;
     private static int _lastPreRoundCountdownSeconds = -1;
+    private static int _lastRoundEndCountdownSeconds = -1;
     private static readonly Dictionary<GameMode, Queue<string>> RecentMapsByMode = new();
     private const int RecentMapHistorySize = 2;
     private static List<MapPlaylistEntry<GameMode>> _mapPlaylist = new();
@@ -289,8 +292,8 @@ internal static class GameModeManager
                 new AcceptableValueRange<int>(0, 15)));
         PreRoundTimerSeconds.SettingChanged += (_, _) => OnGlobalSettingsChanged();
         PointsToWin = Plugin.Instance.Config.Bind("Global Settings", "Points To Win", ScoreRules.PointsToWin,
-            "Fixed score limit for all point-based game modes.");
-        PointsToWin.Value = ScoreRules.PointsToWin;
+            new ConfigDescription("Host-controlled: score limit for all point-based game modes.",
+                new AcceptableValueRange<int>(MinimumPointsToWin, MaximumPointsToWin)));
         PointsToWin.SettingChanged += (_, _) => OnGlobalSettingsChanged();
 
         MyceliumNetwork.RegisterNetworkObject(Plugin.Instance, ModId);
@@ -341,11 +344,21 @@ internal static class GameModeManager
         _configuredPreRoundSeconds = Mathf.Clamp(preRoundSeconds, 0, 15);
         RecalculateEffectivePreRoundSeconds();
         EffectiveMapOverrides = enableMapOverrides;
-        int nextPointsToWin = pointsToWin;
+        int nextPointsToWin = Mathf.Clamp(pointsToWin, MinimumPointsToWin, MaximumPointsToWin);
         if (EffectivePointsToWin != nextPointsToWin)
         {
             EffectivePointsToWin = nextPointsToWin;
-            ResetPointModeStates();
+            if (MyceliumNetwork.IsHost && MyceliumNetwork.InLobby
+                && Phase == GameModePhase.ActiveRound && ActiveMode != GameMode.None
+                && IsCustomMode && !IsMatchOver && Plugin.Instance != null)
+            {
+                ResetMatchState();
+                RestartRoundAfterModeDisabled();
+            }
+            else
+            {
+                ResetPointModeStates();
+            }
         }
     }
 
@@ -362,6 +375,12 @@ internal static class GameModeManager
         HardpointState.ResetMatchState();
         CaptureTheFlagState.ResetMatchState();
         SearchAndDestroyState.ResetMatchState();
+        MichaelMeyersState.ResetMatchState();
+        KillTheRatState.ResetMatchState();
+        OneInTheChamberState.ResetMatchState();
+        HotPotatoState.ResetMatchState();
+        InfidelState.ResetMatchState();
+        TeamDeathmatchState.ResetMatchState();
     }
 
     private static void BroadcastGlobalSettings()
@@ -394,6 +413,7 @@ internal static class GameModeManager
             return;
         }
 
+        TeamAssignment.EnsureAssignedForActiveRound();
         foreach (ClientInstance client in ClientInstance.playerInstances.Values)
         {
             if (client != null && client)
@@ -423,6 +443,9 @@ internal static class GameModeManager
         }
         switch (ActiveMode)
         {
+            case GameMode.Default:
+                DefaultGameModeState.OnRoundStarted();
+                break;
             case GameMode.MichaelMeyers:
                 MichaelMeyersState.OnRoundStarted();
                 break;
@@ -1276,8 +1299,10 @@ internal static class GameModeManager
         _preRoundTimerRoundId = -1;
         _preRoundTimerEndsAt = 0f;
         _lastPreRoundCountdownSeconds = -1;
+        _lastRoundEndCountdownSeconds = -1;
         PendingDeaths.Clear();
         GameModeHud.ClearPreRoundCountdown();
+        GameModeHud.ClearRoundEndCountdown();
         GameModeRespawn.ReleasePreRoundMovementLock();
         GameModeRespawn.ResetForMatch();
         RespawnProtection.ResetState();
@@ -1431,6 +1456,77 @@ internal static class GameModeManager
         _lastPreRoundCountdownSeconds = secondsRemaining;
         GameModeHud.ShowPreRoundCountdown(secondsRemaining);
         GameModeRespawn.EnforcePreRoundMovementLock();
+    }
+
+    internal static void UpdateRoundEndCountdown()
+    {
+        if (!TryGetRoundEndingCountdown(out string label, out float timeRemaining)
+            || timeRemaining > GameModeHud.RoundEndCountdownSeconds)
+        {
+            if (_lastRoundEndCountdownSeconds >= 0)
+            {
+                _lastRoundEndCountdownSeconds = -1;
+                GameModeHud.ClearRoundEndCountdown();
+            }
+            return;
+        }
+
+        int secondsRemaining = Mathf.CeilToInt(Mathf.Max(0f, timeRemaining));
+        if (secondsRemaining == _lastRoundEndCountdownSeconds)
+        {
+            return;
+        }
+
+        _lastRoundEndCountdownSeconds = secondsRemaining;
+        GameModeHud.ShowRoundEndCountdown(label, secondsRemaining);
+    }
+
+    internal static bool TryGetRoundEndingCountdown(out string label,
+        out float timeRemaining)
+    {
+        label = "ROUND ENDS IN";
+        timeRemaining = 0f;
+        if (!IsCustomMode || Phase != GameModePhase.ActiveRound || IsPreRoundTimerActive
+            || IsMatchOver)
+        {
+            return false;
+        }
+
+        switch (ActiveMode)
+        {
+            case GameMode.Default:
+                label = "TAKE ENDS IN";
+                timeRemaining = DefaultGameModeState.TimeRemaining;
+                return true;
+            case GameMode.MichaelMeyers:
+                timeRemaining = MichaelMeyersState.TimeRemaining;
+                return true;
+            case GameMode.Infidel:
+                label = "TAKE ENDS IN";
+                timeRemaining = InfidelState.TakeTimeRemaining;
+                return true;
+            case GameMode.Assassin:
+                label = "TAKE ENDS IN";
+                timeRemaining = AssassinState.TakeTimeRemaining;
+                return true;
+            case GameMode.CaptureTheFlag:
+                timeRemaining = CaptureTheFlagState.MatchTimeRemaining;
+                return true;
+            case GameMode.SearchAndDestroy:
+                label = "TAKE ENDS IN";
+                timeRemaining = SearchAndDestroyState.BombStatus
+                    == SearchAndDestroyBombStatus.Planted
+                    ? SearchAndDestroyState.FuseTimeRemaining
+                    : SearchAndDestroyState.TakeTimeRemaining;
+                return true;
+            default:
+                if (ModeTimeoutState.IsTimedMode(ActiveMode))
+                {
+                    timeRemaining = ModeTimeoutState.TimeRemaining;
+                    return true;
+                }
+                return false;
+        }
     }
 
     private static bool HasCapability(GameModeCapabilities capability)

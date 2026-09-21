@@ -4,12 +4,12 @@ using System.Reflection;
 namespace Eights;
 
 [HarmonyPatch]
-internal static class PlayerHealth_PassiveHealthFeedbackWriter_Patch
+internal static class PlayerHealth_PassiveHealthFeedback_Patch
 {
     private static MethodBase? TargetMethod()
     {
         return FishNetCompatibility.FindGeneratedMethod(typeof(PlayerHealth),
-            "RpcWriter___Observers_HitFeedbackObservers_", method => method.ReturnType == typeof(void));
+            "RpcLogic___HitFeedbackObservers_", method => method.ReturnType == typeof(void));
     }
 
     private static bool Prepare() => TargetMethod() != null;

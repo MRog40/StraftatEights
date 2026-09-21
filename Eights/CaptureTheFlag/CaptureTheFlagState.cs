@@ -297,7 +297,19 @@ internal static class CaptureTheFlagState
         }
 
         ResetRoundState();
-        PrepareTeamsForRound();
+        if (TeamAssignment.Current.Count == 0)
+        {
+            PrepareTeamsForRound();
+        }
+        else
+        {
+            EnsureTeamsAssigned();
+        }
+        if (TeamAssignment.Current.Count == 0)
+        {
+            return;
+        }
+
         BroadcastLiveState();
     }
 

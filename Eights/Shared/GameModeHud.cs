@@ -24,6 +24,7 @@ internal sealed class GameModeHud : MonoBehaviour
     private const float ScorePopupRise = 18f;
     private const float ScorePopupVerticalOffset = -70f;
     private const float TakeResultRetryInterval = 0.5f;
+    internal const int RoundEndCountdownSeconds = 15;
     private const int MaxPendingTakeResults = 8;
     private const int MaxReceivedTakeResults = 32;
     private const int MaxDisplayedNameLength = 15;
@@ -83,6 +84,7 @@ internal sealed class GameModeHud : MonoBehaviour
     private static readonly HashSet<int> ReceivedTakeResultIds = new();
     private static readonly Queue<int> ReceivedTakeResultOrder = new();
     private static bool _preRoundCountdownVisible;
+    private static bool _roundEndCountdownVisible;
     private static float _nextTakeResultPushTime;
 
     private void Awake()
@@ -487,6 +489,37 @@ internal sealed class GameModeHud : MonoBehaviour
 
         _preRoundCountdownVisible = false;
         _instance._targetAnnouncement.gameObject.SetActive(false);
+    }
+
+    internal static void ShowRoundEndCountdown(string label, int secondsRemaining)
+    {
+        if (_instance == null || secondsRemaining < 0 || !GameModeManager.IsCustomMode
+            || GameModeManager.IsMatchOver)
+        {
+            return;
+        }
+
+        _instance.UpdateAnnouncementLayout();
+        _instance._targetAnnouncement.text = "<size=36><b>" + label + "</b></size>\n"
+            + "<size=96><b>" + secondsRemaining + "</b></size>";
+        _instance._targetAnnouncementAllowsEndingRound = false;
+        _instance._targetAnnouncementUntil = Time.unscaledTime + 1.1f;
+        _instance._targetAnnouncement.gameObject.SetActive(true);
+        _roundEndCountdownVisible = true;
+    }
+
+    internal static void ClearRoundEndCountdown()
+    {
+        if (_instance == null || !_roundEndCountdownVisible)
+        {
+            return;
+        }
+
+        _roundEndCountdownVisible = false;
+        if (!_instance._targetAnnouncementAllowsEndingRound)
+        {
+            _instance._targetAnnouncement.gameObject.SetActive(false);
+        }
     }
 
     internal static void AnnounceTarget(string text)

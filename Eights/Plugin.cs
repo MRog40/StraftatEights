@@ -134,11 +134,14 @@ public partial class Plugin : BaseUnityPlugin
         MyceliumTransportRecovery.Update();
         GameModeManager.EnsureVanillaScene();
         GameModeManager.UpdatePreRoundTimer();
+        GameModeManager.UpdateRoundEndCountdown();
         GameModeManager.PeriodicPushIfHost();
         GameModeManager.PeriodicActiveModePushIfHost();
         GameModeManager.PollLobbyStateIfClient();
         PlayerNameSync.PeriodicPushIfHost();
         PlayerNameSync.PollIfClient();
+        DefaultGameModeState.ServerTick(Time.unscaledDeltaTime);
+        DefaultGameModeState.ClientTick(Time.unscaledDeltaTime);
         CaptureTheFlagState.ServerTick(Time.unscaledDeltaTime);
         MichaelMeyersState.ServerTick(Time.unscaledDeltaTime);
         MichaelMeyersState.ClientTick(Time.unscaledDeltaTime);
