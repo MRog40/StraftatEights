@@ -631,7 +631,7 @@ internal static class HuntersState
         if (dualWield && rightReady && !leftReady && !request.LeftRequested)
         {
             request.LeftRequested = true;
-            WeaponService.GiveWeaponToLeftHand(playerId, expectedWeapon);
+            WeaponService.GiveWeaponToLeftHand(playerId, expectedWeapon, unlimitedAmmo: true);
         }
     }
 

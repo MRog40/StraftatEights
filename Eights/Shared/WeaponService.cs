@@ -84,12 +84,13 @@ internal static class WeaponService
         }
     }
 
-    internal static void GiveWeaponToLeftHand(int playerId, string weaponName)
+    internal static void GiveWeaponToLeftHand(int playerId, string weaponName,
+        bool unlimitedAmmo = false)
     {
         if (Plugin.Instance != null && !IsFinalGameScreen)
         {
             int requestVersion = LeftHandRequestVersions.Next(playerId);
-            Plugin.Instance.StartCoroutine(GiveWeaponCoroutine(playerId, weaponName, null, false,
+            Plugin.Instance.StartCoroutine(GiveWeaponCoroutine(playerId, weaponName, null, unlimitedAmmo,
                 SessionState.Generation, GameModeManager.RoundId, requestVersion,
                 LeftHandRequestVersions, false, false));
         }
