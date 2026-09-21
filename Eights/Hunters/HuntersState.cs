@@ -31,6 +31,9 @@ internal static class HuntersState
     internal static IReadOnlyDictionary<int, int> Assignments => TeamAssignment.Current;
     internal static GameMode Mode => Variant.Mode;
     internal static bool IsActive => GameModeManager.IsActive(Variant.Mode);
+    internal static bool IsTankBattle => IsActive && Variant.ForceCrouch;
+    internal static float HealthOverride => IsActive ? Variant.HealthOverride : 0f;
+    internal static bool DisableHealthRegen => IsActive && Variant.DisableHealthRegen;
     internal static string TeamZeroName => Variant.TeamZeroName;
     internal static string TeamOneName => Variant.TeamOneName;
 
@@ -43,8 +46,12 @@ internal static class HuntersState
         internal bool Complete { get; set; }
     }
 
-    private static HuntersVariantDefinition Variant => GameModeManager.ActiveMode
-        == GameMode.RabbitHunters ? RabbitHuntersDefinition.Value : NinjaHuntersDefinition.Value;
+    private static HuntersVariantDefinition Variant => GameModeManager.ActiveMode switch
+    {
+        GameMode.RabbitHunters => RabbitHuntersDefinition.Value,
+        GameMode.TankBattle => TankBattleDefinition.Value,
+        _ => NinjaHuntersDefinition.Value
+    };
     private static readonly ModeSyncState Sync = new(livePushInterval: 0.5f);
     private static readonly Dictionary<int, LoadoutRequest> LoadoutRequests = new();
     private static int _lastTeamAssignmentRevision = -1;
@@ -54,9 +61,12 @@ internal static class HuntersState
     private static bool _roundStarted;
     private static bool _takeEnding;
 
-    private static bool ConfiguredEnabled => Variant.Mode == GameMode.RabbitHunters
-        ? Plugin.RabbitHuntersEnabled.Value
-        : Plugin.NinjaHuntersEnabled.Value;
+    private static bool ConfiguredEnabled => Variant.Mode switch
+    {
+        GameMode.RabbitHunters => Plugin.RabbitHuntersEnabled.Value,
+        GameMode.TankBattle => Plugin.TankBattleEnabled.Value,
+        _ => Plugin.NinjaHuntersEnabled.Value
+    };
 
     internal static void ApplySettings(bool enabled)
     {
@@ -454,6 +464,39 @@ internal static class HuntersState
     internal static int GetScore(int teamId)
     {
         return Scores.TryGetValue(teamId, out int score) ? score : 0;
+    }
+
+    internal static void ApplyHealth(PlayerHealth controller, HealthSettingsTuning.Memory memory)
+    {
+        float desiredHealth = HealthOverride;
+        float previousHealth = controller.sync___get_value_health();
+        int playerId = controller.playerValues?.playerClient?.PlayerId ?? -1;
+        controller.fullHealth = desiredHealth;
+        memory.LastModeSpecificHealth = true;
+        memory.LastAppliedVersion = HealthSettingsState.TuningVersion;
+        memory.LastAppliedHealthCompensationVersion = TeamAssignment.HealthCompensationVersion;
+        memory.LastAppliedPlayerId = playerId;
+
+        if (!controller.IsServer)
+        {
+            return;
+        }
+
+        float healthDelta = desiredHealth - previousHealth;
+        if (Mathf.Approximately(healthDelta, 0f))
+        {
+            return;
+        }
+
+        HealthSettingsTuning.ApplyingPassiveHealth = true;
+        try
+        {
+            FishNetCompatibility.TryRemoveHealth(controller, -healthDelta);
+        }
+        finally
+        {
+            HealthSettingsTuning.ApplyingPassiveHealth = false;
+        }
     }
 
     internal static string GetExpectedWeaponName(int playerId)

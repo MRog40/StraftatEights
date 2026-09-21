@@ -8,7 +8,8 @@ internal sealed class HuntersVariantDefinition
         string settingsLobbyDataKey, string liveLobbyDataKey, string settingsRpcName,
         string liveRpcName, string teamZeroName, string teamOneName,
         string teamZeroWeaponName, string teamOneWeaponName,
-        bool teamZeroDualWield = false)
+        bool teamZeroDualWield = false, float healthOverride = 0f,
+        bool forceCrouch = false, bool disableHealthRegen = false)
     {
         Mode = mode;
         Label = label;
@@ -23,6 +24,9 @@ internal sealed class HuntersVariantDefinition
         TeamZeroWeaponName = teamZeroWeaponName;
         TeamOneWeaponName = teamOneWeaponName;
         TeamZeroDualWield = teamZeroDualWield;
+        HealthOverride = healthOverride;
+        ForceCrouch = forceCrouch;
+        DisableHealthRegen = disableHealthRegen;
     }
 
     internal GameMode Mode { get; }
@@ -38,6 +42,9 @@ internal sealed class HuntersVariantDefinition
     internal string TeamZeroWeaponName { get; }
     internal string TeamOneWeaponName { get; }
     internal bool TeamZeroDualWield { get; }
+    internal float HealthOverride { get; }
+    internal bool ForceCrouch { get; }
+    internal bool DisableHealthRegen { get; }
 }
 
 internal static class NinjaHuntersDefinition
@@ -73,4 +80,24 @@ internal static class RabbitHuntersDefinition
         "Stylus",
         "Tromblonj",
         teamZeroDualWield: true);
+}
+
+    internal static class TankBattleDefinition
+    {
+        internal static readonly HuntersVariantDefinition Value = new(
+        GameMode.TankBattle,
+        "TANK BATTLE",
+        new Color32(190, 118, 52, 255),
+        1618034001u,
+        "Eights_TankBattle_Settings",
+        "Eights_TankBattle_Live",
+        "SyncTankBattleSettings",
+        "SyncTankBattleLiveState",
+        "TANKS A",
+        "TANKS B",
+        "HK_Caws",
+        "HK_Caws",
+        healthOverride: 400f,
+        forceCrouch: true,
+        disableHealthRegen: true);
 }

@@ -139,6 +139,7 @@ internal static class TeammateMarker
             GameMode.SearchAndDestroy => SearchAndDestroyState.Assignments,
             GameMode.NinjaHunters => HuntersState.Assignments,
             GameMode.RabbitHunters => HuntersState.Assignments,
+            GameMode.TankBattle => HuntersState.Assignments,
             _ => null!
         };
         return assignments != null;

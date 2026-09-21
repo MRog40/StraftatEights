@@ -131,6 +131,7 @@ internal static class ModeMapCatalog
     private static readonly IReadOnlyList<string> InfectedMaps = FreeForAllMaps;
     private static readonly IReadOnlyList<string> NinjaHuntersMaps = HardpointMaps;
     private static readonly IReadOnlyList<string> RabbitHuntersMaps = HardpointMaps;
+    private static readonly IReadOnlyList<string> TankBattleMaps = HardpointMaps;
 
     private static readonly IReadOnlyDictionary<GameMode, IReadOnlyList<string>> MapsByMode =
         new Dictionary<GameMode, IReadOnlyList<string>>
@@ -152,7 +153,8 @@ internal static class ModeMapCatalog
             [GameMode.SearchAndDestroy] = SearchAndDestroyMaps,
             [GameMode.TeamDeathmatch] = TeamDeathmatchMaps,
             [GameMode.NinjaHunters] = NinjaHuntersMaps,
-            [GameMode.RabbitHunters] = RabbitHuntersMaps
+            [GameMode.RabbitHunters] = RabbitHuntersMaps,
+            [GameMode.TankBattle] = TankBattleMaps
         };
 
     internal static IReadOnlyList<string> GetMapNames(GameMode mode)
@@ -274,6 +276,7 @@ internal static class ModeMapCatalog
             GameMode.SearchAndDestroy => definition.SndObjectives.Count == 2,
             GameMode.NinjaHunters => definition.HardpointObjectives.Count > 0,
             GameMode.RabbitHunters => definition.HardpointObjectives.Count > 0,
+            GameMode.TankBattle => definition.HardpointObjectives.Count > 0,
             _ => true
         };
     }

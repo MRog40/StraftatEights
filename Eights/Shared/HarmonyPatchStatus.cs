@@ -77,6 +77,10 @@ internal static class HarmonyPatchStatus
         {
             typeof(PlayerManager_MichaelMeyersSpawn_Patch),
         },
+        [GameMode.TankBattle] = new[]
+        {
+            typeof(FirstPersonController_TankCrouch_Patch)
+        },
     };
 
     internal static void RecordFailure(Type patchType, string reason)

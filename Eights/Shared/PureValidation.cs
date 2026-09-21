@@ -174,6 +174,14 @@ internal static class InfectedRules
 internal static class MichaelMeyersRules
 {
     internal const float RoundTimeLimitSeconds = ModeTimeoutRules.DefaultRoundSeconds;
+    internal const float HuntHealth = 10f;
+    internal const float FinalBattleHealth = 100f;
+    internal const float MovementMultiplier = 1.05f;
+
+    internal static float GetHealth(bool finalBattle)
+    {
+        return finalBattle ? FinalBattleHealth : HuntHealth;
+    }
 
     internal static bool ShouldEndTimeoutWithoutWinner(int alivePlayerCount)
     {

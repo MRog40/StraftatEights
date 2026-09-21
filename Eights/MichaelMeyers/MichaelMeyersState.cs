@@ -16,11 +16,12 @@ internal static class MichaelMeyersState
     internal const string SurvivorWeaponName = WeaponName;
     internal const string FlashlightWeaponName = "FlashLight";
     private const float SurvivorWeaponDelaySeconds = 3f;
-    internal const float MovementMultiplier = 1.05f;
+    internal const float MovementMultiplier = MichaelMeyersRules.MovementMultiplier;
     internal const float RoundTimeLimitSeconds = MichaelMeyersRules.RoundTimeLimitSeconds;
     internal static bool Enabled;
     internal static int CurrentMichaelPlayerId = -1;
     internal static int SurvivorCount { get; private set; }
+    internal static float HealthOverride => MichaelMeyersRules.GetHealth(OneVsOne);
     internal static float TimeRemaining => Mathf.Max(0f, _timeRemaining);
     private static int _oneVsOneSurvivorId = -1;
     internal static bool OneVsOne;
@@ -493,6 +494,39 @@ internal static class MichaelMeyersState
     {
         PlayerHealth? health = controller == null ? null : controller.GetComponent<PlayerHealth>();
         return health != null && IsMichael(health);
+    }
+
+    internal static void ApplyHealth(PlayerHealth health, HealthSettingsTuning.Memory memory)
+    {
+        float desiredHealth = HealthOverride;
+        float previousHealth = health.sync___get_value_health();
+        int playerId = health.playerValues?.playerClient?.PlayerId ?? -1;
+        health.fullHealth = desiredHealth;
+        memory.LastModeSpecificHealth = true;
+        memory.LastAppliedVersion = HealthSettingsState.TuningVersion;
+        memory.LastAppliedHealthCompensationVersion = TeamAssignment.HealthCompensationVersion;
+        memory.LastAppliedPlayerId = playerId;
+
+        if (!health.IsServer)
+        {
+            return;
+        }
+
+        float healthDelta = desiredHealth - previousHealth;
+        if (Mathf.Approximately(healthDelta, 0f))
+        {
+            return;
+        }
+
+        HealthSettingsTuning.ApplyingPassiveHealth = true;
+        try
+        {
+            FishNetCompatibility.TryRemoveHealth(health, -healthDelta);
+        }
+        finally
+        {
+            HealthSettingsTuning.ApplyingPassiveHealth = false;
+        }
     }
 
     internal static bool IsCouperet(Weapon weapon)

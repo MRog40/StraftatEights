@@ -58,6 +58,16 @@ internal static class HealthSettingsTuning
         }
 
         Memory memory = MemoryByInstance.GetOrCreateValue(controller);
+        if (GameModeManager.IsHuntersActive && HuntersState.HealthOverride > 0f)
+        {
+            HuntersState.ApplyHealth(controller, memory);
+            return;
+        }
+        if (GameModeManager.IsActive(GameMode.MichaelMeyers))
+        {
+            MichaelMeyersState.ApplyHealth(controller, memory);
+            return;
+        }
         if (GameModeManager.IsActive(GameMode.Infected))
         {
             ApplyInfectedHealth(controller, memory, healthMultiplier, version);
@@ -144,7 +154,9 @@ internal static class HealthSettingsTuning
     {
         bool juggernautHealth = GameModeManager.IsActive(GameMode.Juggernaut) && JuggernautState.IsCurrentJuggernaut(controller);
         bool ratHealth = GameModeManager.IsActive(GameMode.KillTheRat) && KillTheRatState.IsRat(controller);
-        if (juggernautHealth || ratHealth || GameModeManager.ShouldIgnoreGlobalHealthSettings || !controller.IsServer || !controller.gameObject.activeInHierarchy || controller.health <= 0f)
+        if (juggernautHealth || ratHealth || HuntersState.DisableHealthRegen
+            || GameModeManager.ShouldIgnoreGlobalHealthSettings || !controller.IsServer
+            || !controller.gameObject.activeInHierarchy || controller.health <= 0f)
         {
             return;
         }

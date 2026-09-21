@@ -21,8 +21,9 @@ to finish the weapon progression wins.
 and the first player to reach the point target wins.
 
 **Michael Meyers** selects one player as Michael after the round begins. Michael hunts the survivors with
-a Couperet, while the survivors try to eliminate Michael; take scores continue until the target is
-reached.
+a Couperet and moves 5% faster than them. Everyone has 10 health during the hunt; when only Michael and
+the last survivor remain, the survivor gets a Couperet and both final players return to 100 health.
+Take scores continue until the target is reached.
 
 **Kill The Rat** selects the Rat after the first legitimate kill. The Rat uses a Taser
 and moves faster, while the other players use Glocks; survival time and kills award points, and killing
@@ -71,9 +72,13 @@ respawns players after death.
 one life per take. Team sides swap at each take; a team wipe wins immediately, while a timeout starts
 a five-second uncontested hold on the map's first Hardpoint objective. Each take awards 40 points.
 
-**Rabbit Hunters** uses the same single-life team rules. Hunters use Tromblonjs, while Rabbits
+**Rabbit Hunters** uses the same single-life team rules. Hunters use the Tromblonj, while Rabbits
 dual-wield Stylus weapons; team sides swap at each take, and a timeout starts the same five-second
 uncontested hold on the map's first Hardpoint objective. Each take awards 40 points.
+
+**Tank Battle** is a two-team Hunters variant where every player uses the HK_Caws, has 400 health, and
+cannot regenerate, jump, or slide. Players stay crouched and move slowly, so teams must coordinate
+their targets; take wins, side swaps, and the Hardpoint timeout tie-break use the shared Hunters rules.
 
 Hardpoint, Capture The Flag, Search And Destroy, and Team Deathmatch use the configured `Allowed Weapons`
 and `Spare Magazines` settings for host-authoritative team loadouts. Each round creates one shuffled

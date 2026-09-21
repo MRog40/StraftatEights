@@ -36,6 +36,7 @@ internal static class WeaponDropPolicy
         {
             case GameMode.NinjaHunters:
             case GameMode.RabbitHunters:
+            case GameMode.TankBattle:
                 return playerId >= 0 && HuntersState.IsExpectedWeapon(weapon, playerId);
             case GameMode.GunGame:
                 return GunGameState.Enabled;

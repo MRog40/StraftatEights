@@ -52,6 +52,7 @@ internal static class PauseManager_RoundLifecycle_Patch
                 break;
             case GameMode.NinjaHunters:
             case GameMode.RabbitHunters:
+            case GameMode.TankBattle:
                 HuntersState.OnRoundStarted();
                 break;
             case GameMode.Infected:

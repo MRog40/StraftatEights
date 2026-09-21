@@ -5,6 +5,26 @@ namespace Eights;
 
 internal static class MovementPolicy
 {
+    private static readonly System.Reflection.FieldInfo? CrouchPressField =
+        AccessTools.Field(typeof(FirstPersonController), "crouchPress");
+    private static readonly System.Reflection.FieldInfo? SlideSprintingField =
+        AccessTools.Field(typeof(FirstPersonController), "isSlideSprinting");
+
+    internal static void ForceTankState(FirstPersonController controller)
+    {
+        if (!HuntersState.IsTankBattle)
+        {
+            return;
+        }
+
+        controller.isCrouching = true;
+        controller.isSliding = false;
+        controller.isSprinting = false;
+        controller.CanWallJump = false;
+        CrouchPressField?.SetValue(controller, true);
+        SlideSprintingField?.SetValue(controller, false);
+    }
+
     private static bool IsJuggernautMinigunFiring(FirstPersonController controller)
     {
         PlayerPickup? pickup = controller.playerPickupScript;
@@ -27,6 +47,11 @@ internal static class MovementPolicy
             return true;
         }
 
+        if (HuntersState.IsTankBattle)
+        {
+            return false;
+        }
+
         return !JuggernautState.IsCurrentJuggernaut(controller)
             && (GameModeManager.ShouldIgnoreGlobalMovementSettings || GlobalModifiersState.SlidingEnabled);
     }
@@ -36,6 +61,12 @@ internal static class MovementPolicy
         if (GameModeManager.IsVanillaScene)
         {
             return true;
+        }
+
+        if (HuntersState.IsTankBattle)
+        {
+            controller.CanWallJump = false;
+            return false;
         }
 
         if (JuggernautState.IsCurrentJuggernaut(controller))
@@ -59,6 +90,10 @@ internal static class MovementPolicy
 
         switch (GameModeManager.ActiveMode)
         {
+            case GameMode.TankBattle:
+                ForceTankState(controller);
+                controller.movementFactor = 1f;
+                break;
             case GameMode.Juggernaut:
                 if (JuggernautState.IsCurrentJuggernaut(controller))
                 {
@@ -74,14 +109,24 @@ internal static class MovementPolicy
                 }
                 break;
             case GameMode.MichaelMeyers:
-                controller.movementFactor = MichaelMeyersState.IsMichael(controller)
-                    ? MichaelMeyersState.MovementMultiplier
-                    : 1f;
+                if (MichaelMeyersState.IsMichael(controller))
+                {
+                    controller.movementFactor *= MichaelMeyersState.MovementMultiplier;
+                }
                 break;
             case GameMode.Infidel:
                 controller.movementFactor = InfidelState.MovementMultiplier;
                 break;
         }
+    }
+}
+
+[HarmonyPatch(typeof(FirstPersonController), "HandleCrouch")]
+internal static class FirstPersonController_TankCrouch_Patch
+{
+    private static void Prefix(FirstPersonController __instance)
+    {
+        MovementPolicy.ForceTankState(__instance);
     }
 }
 
@@ -109,7 +154,8 @@ internal static class FirstPersonController_WallJumpPolicy_Patch
 {
     private static void Postfix(FirstPersonController __instance)
     {
-        if ((!GameModeManager.ShouldIgnoreGlobalMovementSettings && !GlobalModifiersState.WallJumpEnabled)
+        if (HuntersState.IsTankBattle
+            || (!GameModeManager.ShouldIgnoreGlobalMovementSettings && !GlobalModifiersState.WallJumpEnabled)
             || GameModeManager.IsActive(GameMode.MichaelMeyers))
         {
             __instance.CanWallJump = false;
@@ -123,6 +169,8 @@ internal static class FirstPersonController_MovementPolicy_Patch
 {
     private static void Prefix(FirstPersonController __instance)
     {
+        MovementPolicy.ForceTankState(__instance);
+
         if (GameModeManager.IsActive(GameMode.MichaelMeyers))
         {
             __instance.CanWallJump = false;

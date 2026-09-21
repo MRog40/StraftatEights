@@ -172,6 +172,9 @@ List<int> infectedSurvivors = InfectedRules.GetSurvivors(
 Assert(infectedSurvivors.SequenceEqual(new[] { 2, 7 }),
     "The Infected timeout winner list must contain every non-infected round player in sorted order.");
 Assert(MichaelMeyersRules.RoundTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds
+    && MichaelMeyersRules.MovementMultiplier == 1.05f
+    && MichaelMeyersRules.GetHealth(false) == 10f
+    && MichaelMeyersRules.GetHealth(true) == 100f
     && !MichaelMeyersRules.ShouldEndTimeoutWithoutWinner(1)
     && MichaelMeyersRules.ShouldEndTimeoutWithoutWinner(2),
     "Michael Meyers must use the full round timer and end multi-player timeouts without a winner.");

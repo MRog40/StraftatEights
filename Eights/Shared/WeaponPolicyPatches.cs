@@ -100,6 +100,7 @@ internal static class WeaponPolicy
         {
             case GameMode.NinjaHunters:
             case GameMode.RabbitHunters:
+            case GameMode.TankBattle:
                 int huntersPlayerId = health?.playerValues?.playerClient?.PlayerId ?? -1;
                 return huntersPlayerId < 0
                     || HuntersState.IsExpectedWeapon(weapon, huntersPlayerId);

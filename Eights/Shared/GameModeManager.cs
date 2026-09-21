@@ -35,7 +35,8 @@ internal enum GameMode
     TeamDeathmatch = 16,
     Infected = 17,
     NinjaHunters = 18,
-    RabbitHunters = 19
+    RabbitHunters = 19,
+    TankBattle = 20
 }
 
 internal enum GameModePhase
@@ -112,7 +113,8 @@ internal static class GameModeManager
         GameMode.SearchAndDestroy,
         GameMode.TeamDeathmatch,
         GameMode.NinjaHunters,
-        GameMode.RabbitHunters
+        GameMode.RabbitHunters,
+        GameMode.TankBattle
     };
 
     private const string ScoreboardAccentColor = "B7F47A";
@@ -159,7 +161,7 @@ internal static class GameModeManager
         [GameMode.MichaelMeyers] = new ModeDescriptor("MICHAEL MEYERS", new Color32(204, 34, 34, 255),
             () => Plugin.MichaelMeyersEnabled.Value, MichaelMeyersReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
-            | GameModeCapabilities.HideHud,
+            | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.HideHud,
             MichaelMeyersPeriodicPush, MichaelMeyersState.EnsureLoadouts,
             MichaelMeyersState.PeriodicPushSettingsIfHost,
             MichaelMeyersState.PollLiveStateIfClient),
@@ -248,6 +250,13 @@ internal static class GameModeManager
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
             HuntersState.PeriodicPushIfHost, HuntersState.EnsureLoadouts,
+            HuntersState.PeriodicPushSettingsIfHost, HuntersState.PollLiveStateIfClient),
+        [GameMode.TankBattle] = new ModeDescriptor("TANK BATTLE", new Color32(190, 118, 52, 255),
+            () => Plugin.TankBattleEnabled.Value, HuntersReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.IgnoreGlobalMovement
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            HuntersState.PeriodicPushIfHost, HuntersState.EnsureLoadouts,
             HuntersState.PeriodicPushSettingsIfHost, HuntersState.PollLiveStateIfClient)
     };
 
@@ -279,7 +288,8 @@ internal static class GameModeManager
     internal static GameMode ActiveMode { get; private set; }
     internal static bool IsHuntersMode(GameMode mode)
     {
-        return mode == GameMode.NinjaHunters || mode == GameMode.RabbitHunters;
+        return mode == GameMode.NinjaHunters || mode == GameMode.RabbitHunters
+            || mode == GameMode.TankBattle;
     }
 
     internal static bool IsHuntersActive => IsHuntersMode(ActiveMode);
@@ -508,6 +518,7 @@ internal static class GameModeManager
                 break;
             case GameMode.NinjaHunters:
             case GameMode.RabbitHunters:
+            case GameMode.TankBattle:
                 HuntersState.OnRoundStarted();
                 break;
             case GameMode.Infected:
@@ -1576,6 +1587,7 @@ internal static class GameModeManager
                 return true;
             case GameMode.NinjaHunters:
             case GameMode.RabbitHunters:
+            case GameMode.TankBattle:
                 label = "TAKE ENDS IN";
                 timeRemaining = HuntersState.IsTieBreakActive
                     ? HuntersState.TieBreakHoldRemaining
@@ -1843,6 +1855,7 @@ internal static class GameModeManager
                 break;
             case GameMode.NinjaHunters:
             case GameMode.RabbitHunters:
+            case GameMode.TankBattle:
                 HuntersState.OnServerKill(playerId, killerId);
                 break;
             case GameMode.TeamDeathmatch:

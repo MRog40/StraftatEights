@@ -65,6 +65,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("Team Deathmatch", InitializeTeamDeathmatch);
         InitializeSafely("Ninja Hunters", InitializeNinjaHunters);
         InitializeSafely("Rabbit Hunters", InitializeRabbitHunters);
+        InitializeSafely("Tank Battle", InitializeTankBattle);
         Config.Save();
 
         try
