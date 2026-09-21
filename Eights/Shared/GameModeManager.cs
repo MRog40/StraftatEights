@@ -32,7 +32,8 @@ internal enum GameMode
     Hardpoint = 13,
     CaptureTheFlag = 14,
     SearchAndDestroy = 15,
-    TeamDeathmatch = 16
+    TeamDeathmatch = 16,
+    Infected = 17
 }
 
 internal enum GameModePhase
@@ -102,6 +103,7 @@ internal static class GameModeManager
         GameMode.HotPotato,
         GameMode.Infidel,
         GameMode.HVT,
+        GameMode.Infected,
         GameMode.Assassin,
         GameMode.Hardpoint,
         GameMode.CaptureTheFlag,
@@ -190,6 +192,12 @@ internal static class GameModeManager
             GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
             HVTState.PeriodicPushIfHost, periodicSettingsPush: HVTState.PeriodicPushSettingsIfHost,
             pollLiveState: HVTState.PollLiveStateIfClient),
+        [GameMode.Infected] = new ModeDescriptor("INFECTED", new Color32(139, 0, 0, 255),
+            () => Plugin.InfectedEnabled.Value, InfectedReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
+            InfectedState.PeriodicPushIfHost, InfectedState.EnsureLoadouts,
+            InfectedState.PeriodicPushSettingsIfHost,
+            InfectedState.PollLiveStateIfClient),
         [GameMode.Assassin] = new ModeDescriptor("ASSASSIN", new Color32(53, 208, 95, 255),
             () => Plugin.AssassinEnabled.Value, AssassinReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
@@ -244,6 +252,7 @@ internal static class GameModeManager
     private static void HotPotatoReset() => HotPotatoState.ResetMatchState();
     private static void InfidelReset() => InfidelState.ResetMatchState();
     private static void HVTReset() => HVTState.ResetMatchState();
+    private static void InfectedReset() => InfectedState.ResetMatchState();
     private static void AssassinReset() => AssassinState.ResetMatchState();
     private static void HardpointReset() => HardpointState.ResetMatchState();
     private static void CaptureTheFlagReset() => CaptureTheFlagState.ResetMatchState();
@@ -380,6 +389,7 @@ internal static class GameModeManager
         OneInTheChamberState.ResetMatchState();
         HotPotatoState.ResetMatchState();
         InfidelState.ResetMatchState();
+        InfectedState.ResetMatchState();
         TeamDeathmatchState.ResetMatchState();
     }
 
@@ -472,6 +482,9 @@ internal static class GameModeManager
                 break;
             case GameMode.TeamDeathmatch:
                 TeamDeathmatchState.OnRoundStarted();
+                break;
+            case GameMode.Infected:
+                InfectedState.OnRoundStarted();
                 break;
         }
     }
@@ -1621,6 +1634,34 @@ internal static class GameModeManager
         Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
     }
 
+    internal static void CompleteCustomRound(IReadOnlyList<int> winningTeamIds)
+    {
+        if (!MyceliumNetwork.IsHost || _customRoundTransitionPending || RoundManager.Instance == null
+            || ScoreManager.Instance == null || SceneMotor.Instance == null || Plugin.Instance == null
+            || winningTeamIds.Count == 0)
+        {
+            return;
+        }
+
+        _customRoundTransitionPending = true;
+        Phase = GameModePhase.EndingRound;
+        BroadcastActiveMode();
+        int roundId = RoundId;
+
+        ScoreManager.Instance.ResetRound();
+        HashSet<int> distinctTeams = new();
+        foreach (int winningTeamId in winningTeamIds)
+        {
+            if (winningTeamId >= 0 && distinctTeams.Add(winningTeamId))
+            {
+                ScoreManager.Instance.AddPoints(winningTeamId);
+            }
+        }
+
+        RoundManager.Instance.CmdEndRound(winningTeamIds[0]);
+        Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
+    }
+
     internal static void SkipCurrentRound()
     {
         if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby || !IsCustomMode
@@ -1663,6 +1704,7 @@ internal static class GameModeManager
         }
 
         if (mode != GameMode.MichaelMeyers && mode != GameMode.OneInTheChamber
+            && mode != GameMode.Assassin
             && !FishNetCompatibility.CanRespawn)
         {
             Plugin.Logger.LogWarning($"[GameMode] Custom death handling disabled for {mode}: FishNet respawn API is unavailable.");
@@ -1757,6 +1799,13 @@ internal static class GameModeManager
             case GameMode.HVT:
                 HVTState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
+                break;
+            case GameMode.Infected:
+                InfectedState.OnServerKill(playerId, killerId);
+                if (!InfectedState.IsRoundEnding)
+                {
+                    GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
+                }
                 break;
         }
     }

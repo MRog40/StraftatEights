@@ -130,6 +130,32 @@ internal static class InfidelRules
     }
 }
 
+internal static class InfectedRules
+{
+    internal static List<int> GetSurvivors(IEnumerable<int> roundPlayers,
+        ISet<int> infectedPlayers)
+    {
+        return roundPlayers.Where(playerId => !infectedPlayers.Contains(playerId))
+            .Distinct().OrderBy(playerId => playerId).ToList();
+    }
+
+    internal static bool ShouldBecomeInfected(bool deadWasInfected)
+    {
+        return !deadWasInfected;
+    }
+
+    internal static bool ShouldEndRound(int survivorCount)
+    {
+        return survivorCount <= 0;
+    }
+
+    internal static bool ShouldAwardInitialInfected(int initialInfectedPlayerId,
+        int survivorCount)
+    {
+        return initialInfectedPlayerId >= 0 && ShouldEndRound(survivorCount);
+    }
+}
+
 internal static class MichaelMeyersRules
 {
     internal const float RoundTimeLimitSeconds = ModeTimeoutRules.DefaultRoundSeconds;

@@ -41,6 +41,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("shared player lookup", PlayerLookup.Initialize);
         InitializeSafely("ModMenu integration", ModMenuIntegration.Initialize);
         InitializeSafely("shared player outline", PlayerOutline.Initialize);
+        InitializeSafely("blood cleanup", InitializeBloodCleanup);
 
         InitializeSafely("global modifiers", InitializeGlobalModifiers);
         InitializeSafely("health settings", InitializeHealthSettings);
@@ -49,6 +50,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("Michael Meyers", InitializeMichaelMeyers);
         InitializeSafely("Kill The Rat", InitializeKillTheRat);
         InitializeSafely("HVT", InitializeHVT);
+        InitializeSafely("Infected", InitializeInfected);
         InitializeSafely("One in the Chamber", InitializeOneInTheChamber);
         InitializeSafely("Hot Potato", InitializeHotPotato);
         InitializeSafely("Infidel", InitializeInfidel);
@@ -130,6 +132,7 @@ public partial class Plugin : BaseUnityPlugin
 
     private void Update()
     {
+        BloodCleanupState.Update();
         PositionMarkerDebug.Update();
         MyceliumTransportRecovery.Update();
         GameModeManager.EnsureVanillaScene();
@@ -165,6 +168,7 @@ public partial class Plugin : BaseUnityPlugin
         WeaponSettingsState.PollSettingsIfClient();
         WeaponSettingsState.EnsureCycleLoadouts();
         GameModeManager.EnsureActiveModeLoadouts();
+        WeaponSettingsState.EnsureDefaultKnifeLoadouts();
         PlayerOutline.EnforceOutline();
         TeammateMarker.Enforce();
         HardpointMarker.Update();

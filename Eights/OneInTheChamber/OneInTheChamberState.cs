@@ -307,7 +307,7 @@ internal static class OneInTheChamberState
     {
         if (!Enabled || !GameModeManager.IsActive(GameMode.OneInTheChamber)
             || !MyceliumNetwork.IsHost || WinnerId >= 0 || _takeEnding
-            || Time.unscaledTime < _loadoutsAvailableAt)
+            || TakeId <= 0 || Time.unscaledTime < _loadoutsAvailableAt)
         {
             return;
         }
@@ -557,7 +557,10 @@ internal static class OneInTheChamberState
         _takeEnding = false;
         ModeTimeoutState.OnTakeStarted();
         _nextLoadoutCheckTime = 0f;
-        _loadoutsAvailableAt = Time.unscaledTime + LoadoutDelaySeconds;
+        float loadoutDelay = TakeId == 1
+            ? LoadoutDelaySeconds + GameModeManager.EffectivePreRoundSeconds
+            : LoadoutDelaySeconds;
+        _loadoutsAvailableAt = Time.unscaledTime + loadoutDelay;
         _loadoutCountdownEndsAt = _loadoutsAvailableAt;
         PendingRightLoadouts.Clear();
         PendingLeftLoadouts.Clear();

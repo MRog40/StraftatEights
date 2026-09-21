@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using FishNet.Object;
 using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
@@ -22,6 +23,7 @@ internal static class WeaponAmmoTuning
         public bool OriginalInHandDespawn;
         public bool UnlimitedAmmo;
         public bool SingleShot;
+        public int PendingReloadRequestId;
     }
 
     private static readonly ConditionalWeakTable<Weapon, Memory> MemoryByWeapon = new();
@@ -48,12 +50,21 @@ internal static class WeaponAmmoTuning
         }
 
         Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
-        if (memory.Initialized || memory.SingleShot)
+        if (memory.SingleShot)
         {
             return;
         }
 
         int magazineSize = GetPrefabMagazineSize(weapon);
+        if (memory.Initialized)
+        {
+            if (magazineSize > memory.MagazineSize)
+            {
+                memory.MagazineSize = magazineSize;
+            }
+            return;
+        }
+
         if (magazineSize <= 0)
         {
             magazineSize = weapon.reloadWeapon
@@ -293,7 +304,7 @@ internal static class WeaponAmmoTuning
         return ReloadRequests.TryAccept(sender, requestId);
     }
 
-    internal static void RequestServerReload(Weapon weapon, int rounds)
+    internal static void RequestServerReload(Weapon weapon)
     {
         if (weapon == null || weapon.IsServer || !weapon.IsOwner || !MyceliumNetwork.InLobby)
         {
@@ -310,14 +321,27 @@ internal static class WeaponAmmoTuning
             return;
         }
 
+        NetworkObject? networkObject = weapon.GetComponent<NetworkObject>();
+        if (networkObject == null || !networkObject.IsSpawned)
+        {
+            return;
+        }
+
+        int requestId = ++nextReloadRequestId;
+        if (MemoryByWeapon.TryGetValue(weapon, out Memory? memory))
+        {
+            memory.PendingReloadRequestId = requestId;
+        }
+
         MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId, nameof(Plugin.RequestWeaponAmmoReload),
-            ReliableType.Reliable, playerId, ++nextReloadRequestId, GameModeManager.RoundId,
-            rounds, weapon.inRightHand);
+            ReliableType.Reliable, playerId, requestId, GameModeManager.RoundId,
+            networkObject.ObjectId, weapon.inRightHand);
     }
 
-    internal static void ApplyServerReload(int playerId, bool rightHand, int rounds)
+    internal static void ApplyServerReload(int playerId, int requestId, int weaponObjectId,
+        bool rightHand)
     {
-        if (!MyceliumNetwork.IsHost || rounds <= 0)
+        if (!MyceliumNetwork.IsHost || requestId < 0 || weaponObjectId < 0)
         {
             return;
         }
@@ -328,22 +352,96 @@ internal static class WeaponAmmoTuning
         Weapon? weapon = heldObject == null || !heldObject
             ? null
             : heldObject.GetComponent<Weapon>();
-        if (weapon == null || !weapon.needsAmmo || weapon.reloadWeapon)
+        NetworkObject? networkObject = weapon?.GetComponent<NetworkObject>();
+        if (weapon == null || networkObject == null || !networkObject.IsSpawned
+            || networkObject.ObjectId != weaponObjectId || weapon.inRightHand != rightHand
+            || !weapon.needsAmmo || weapon.reloadWeapon)
         {
             return;
         }
 
         CaptureMagazineSize(weapon);
         if (!MemoryByWeapon.TryGetValue(weapon, out Memory memory)
-            || rounds > memory.MagazineSize)
+            || memory.MagazineSize <= 0)
         {
             return;
         }
 
+        int rounds = memory.UnlimitedAmmo
+            ? memory.MagazineSize
+            : Mathf.Min(memory.MagazineSize, memory.SpareRounds);
+        if (rounds <= 0)
+        {
+            return;
+        }
+
+        if (!memory.UnlimitedAmmo)
+        {
+            memory.SpareRounds -= rounds;
+        }
         weapon.CancelInvoke("DespawnObject");
         SetCurrentAmmo(weapon, rounds);
         weapon.cantTakeSafeBool = false;
         weapon.noAmmoClicks = 0;
+        memory.Reloading = false;
+        SendOwnerReloadSnapshot(playerId, requestId, weaponObjectId, rounds,
+            memory.SpareRounds, rightHand);
+    }
+
+    internal static void ApplyOwnerReloadSnapshot(int playerId, int requestId, int roundId,
+        int weaponObjectId, int currentAmmo, int spareRounds, bool rightHand)
+    {
+        if (MyceliumNetwork.IsHost || roundId != GameModeManager.RoundId
+            || !NetworkAuthority.IsLocalPlayer(playerId) || requestId < 0 || weaponObjectId < 0)
+        {
+            return;
+        }
+
+        PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(playerId);
+        PlayerPickup? pickup = health?.controller?.playerPickupScript;
+        GameObject? heldObject = rightHand ? pickup?.objInHand : pickup?.objInLeftHand;
+        Weapon? weapon = heldObject == null || !heldObject
+            ? null
+            : heldObject.GetComponent<Weapon>();
+        NetworkObject? networkObject = weapon?.GetComponent<NetworkObject>();
+        if (weapon == null || networkObject == null || !networkObject.IsSpawned
+            || networkObject.ObjectId != weaponObjectId || weapon.inRightHand != rightHand
+            || !MemoryByWeapon.TryGetValue(weapon, out Memory memory)
+            || memory.PendingReloadRequestId != requestId)
+        {
+            return;
+        }
+
+        memory.PendingReloadRequestId = 0;
+        memory.SpareRounds = Mathf.Max(0, spareRounds);
+        memory.Reloading = false;
+        weapon.CancelInvoke("DespawnObject");
+        weapon.isReloading = false;
+        weapon.cantTakeSafeBool = false;
+        weapon.noAmmoClicks = 0;
+        int authoritativeAmmo = Mathf.Max(0, currentAmmo);
+        if (authoritativeAmmo > memory.MagazineSize)
+        {
+            memory.MagazineSize = authoritativeAmmo;
+            memory.Initialized = true;
+        }
+        SetCurrentAmmo(weapon, authoritativeAmmo);
+        RefreshLocalAmmoHud();
+    }
+
+    private static void SendOwnerReloadSnapshot(int playerId, int requestId, int weaponObjectId,
+        int currentAmmo, int spareRounds, bool rightHand)
+    {
+        if (!ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client)
+            || client == null || !client || client.PlayerSteamID == 0)
+        {
+            return;
+        }
+
+        MyceliumNetwork.RPCTarget(Plugin.GlobalWeaponsModId,
+            nameof(Plugin.SyncWeaponAmmoReload), new CSteamID(client.PlayerSteamID),
+            ReliableType.Reliable, playerId, requestId, GameModeManager.RoundId,
+            weaponObjectId, currentAmmo, spareRounds, rightHand);
     }
 
     internal static void ScheduleLocalAmmoHudRefresh()
@@ -367,6 +465,7 @@ internal static class WeaponAmmoTuning
         memory.Reloading = false;
         memory.ManualReloadPressed = false;
         memory.OriginalInHandDespawn = false;
+        memory.PendingReloadRequestId = 0;
         weapon.isReloading = false;
         weapon.cantTakeSafeBool = false;
         weapon.noAmmoClicks = 0;
@@ -605,7 +704,7 @@ internal static class WeaponAmmoTuning
             memory.SpareRounds -= rounds;
         }
         SetCurrentAmmo(weapon, rounds);
-        RequestServerReload(weapon, rounds);
+        RequestServerReload(weapon);
         weapon.cantTakeSafeBool = false;
         weapon.noAmmoClicks = 0;
         memory.Reloading = false;

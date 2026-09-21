@@ -18,7 +18,8 @@ internal static class WeaponDropPolicy
             return false;
         }
 
-        if (!GameModeManager.ShouldIgnoreGlobalWeaponSettings
+        if (!GameModeManager.IsActive(GameMode.Infected)
+            && !GameModeManager.ShouldIgnoreGlobalWeaponSettings
             && WeaponSettingsState.Enabled && WeaponSettingsState.Cycle)
         {
             return true;
@@ -55,6 +56,8 @@ internal static class WeaponDropPolicy
                     && weapon.name.StartsWith(InfidelState.WeaponName, StringComparison.Ordinal);
             case GameMode.Assassin:
                 return playerId >= 0 && AssassinState.IsAllowedWeapon(weapon, playerId);
+            case GameMode.Infected:
+                return playerId >= 0 && InfectedState.IsInfected(playerId);
             case GameMode.SniperBattle:
                 return SniperBattleState.IsSniperWeapon(weapon);
             default:

@@ -13,26 +13,33 @@ internal static class WeaponSettingsState
     internal const string SettingsLobbyDataKey = "Eights_GlobalWeapons_Settings";
     internal static bool Enabled;
     internal static bool Cycle;
+    internal static bool DefaultKnife;
     internal static int SpareMagazines = 5;
     internal static List<string> Allowed = new();
     private static readonly Dictionary<int, string> SelectedWeapons = new();
     private static readonly Dictionary<int, float> PendingLoadouts = new();
+    private static readonly Dictionary<int, int> DefaultKnifeObjects = new();
+    private static readonly Dictionary<int, float> DefaultKnifeNextAttemptTimes = new();
+    private static readonly Dictionary<int, int> DefaultKnifeResolvedObjects = new();
     private static readonly NetworkCommandTracker CycleRequests = new();
     private static float _nextLoadoutCheckTime;
     private static int _nextCycleRequestId;
     private static readonly ModeSyncState Sync = new();
     private static float _nextClientSettingsPollTime;
-    internal static void Apply(bool enabled, string allowedWeapons, int spareMagazines, bool cycleWeapons)
+    internal static void Apply(bool enabled, string allowedWeapons, int spareMagazines,
+        bool cycleWeapons, bool defaultKnife)
     {
         spareMagazines = Mathf.Clamp(spareMagazines, 2, 10);
         allowedWeapons ??= string.Empty;
         List<string> nextAllowed = WeaponService.ParseWeaponList(allowedWeapons);
-        bool settingsChanged = Enabled != enabled || Cycle != cycleWeapons || SpareMagazines != spareMagazines;
+        bool settingsChanged = Enabled != enabled || Cycle != cycleWeapons
+            || SpareMagazines != spareMagazines || DefaultKnife != defaultKnife;
         bool allowedChanged = Allowed.Count != nextAllowed.Count
             || !Allowed.SequenceEqual(nextAllowed, StringComparer.Ordinal);
 
         Enabled = enabled;
         Cycle = cycleWeapons;
+        DefaultKnife = defaultKnife;
         SpareMagazines = spareMagazines;
         Allowed = nextAllowed;
 
@@ -40,6 +47,9 @@ internal static class WeaponSettingsState
         {
             WeaponService.ResetPendingRequests();
             PendingLoadouts.Clear();
+            DefaultKnifeObjects.Clear();
+            DefaultKnifeNextAttemptTimes.Clear();
+            DefaultKnifeResolvedObjects.Clear();
             _nextLoadoutCheckTime = 0f;
         }
         if (allowedChanged)
@@ -47,7 +57,9 @@ internal static class WeaponSettingsState
             SelectedWeapons.Clear();
         }
     }
-    private static void ApplyFromConfig() => Apply(Plugin.WeaponTweaksEnabled.Value, Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value, Plugin.CycleWeapons.Value);
+    private static void ApplyFromConfig() => Apply(Plugin.WeaponTweaksEnabled.Value,
+        Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value, Plugin.CycleWeapons.Value,
+        Plugin.DefaultKnife.Value);
     internal static void PushIfHost()
     {
         if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost) return;
@@ -57,11 +69,11 @@ internal static class WeaponSettingsState
             GameModeManager.RoundId, revision,
             Plugin.WeaponTweaksEnabled.Value ? "1" : "0", Plugin.AllowedWeapons.Value,
             Plugin.SpareMagazines.Value.ToString(CultureInfo.InvariantCulture),
-            Plugin.CycleWeapons.Value ? "1" : "0");
+            Plugin.CycleWeapons.Value ? "1" : "0", Plugin.DefaultKnife.Value ? "1" : "0");
         MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId, nameof(Plugin.SyncWeaponSettings), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
             Plugin.WeaponTweaksEnabled.Value, Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value,
-            Plugin.CycleWeapons.Value);
+            Plugin.CycleWeapons.Value, Plugin.DefaultKnife.Value);
     }
     internal static void PeriodicPushIfHost() { if (Sync.IsSettingsPushDue()) PushIfHost(); }
     internal static void OnLobbyEntered()
@@ -69,6 +81,9 @@ internal static class WeaponSettingsState
         Sync.ResetForLobby();
         SelectedWeapons.Clear();
         PendingLoadouts.Clear();
+        DefaultKnifeObjects.Clear();
+        DefaultKnifeNextAttemptTimes.Clear();
+        DefaultKnifeResolvedObjects.Clear();
         CycleRequests.Clear();
         _nextCycleRequestId = 0;
         _nextClientSettingsPollTime = 0f;
@@ -86,10 +101,12 @@ internal static class WeaponSettingsState
     {
         SelectedWeapons.Clear();
         PendingLoadouts.Clear();
+        DefaultKnifeObjects.Clear();
+        DefaultKnifeNextAttemptTimes.Clear();
         CycleRequests.Clear();
         _nextCycleRequestId = 0;
         Sync.ResetForLobby();
-        Apply(false, string.Empty, 5, false);
+        Apply(false, string.Empty, 5, false, false);
     }
     internal static void OnPlayerEntered(CSteamID player)
     {
@@ -97,7 +114,7 @@ internal static class WeaponSettingsState
         if (MyceliumNetwork.IsHost) MyceliumNetwork.RPCTarget(Plugin.GlobalWeaponsModId, nameof(Plugin.SyncWeaponSettings), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
             Plugin.WeaponTweaksEnabled.Value, Plugin.AllowedWeapons.Value, Plugin.SpareMagazines.Value,
-            Plugin.CycleWeapons.Value);
+            Plugin.CycleWeapons.Value, Plugin.DefaultKnife.Value);
     }
 
     internal static void PollSettingsIfClient()
@@ -132,6 +149,9 @@ internal static class WeaponSettingsState
         {
             SelectedWeapons.Remove(playerId);
             PendingLoadouts.Remove(playerId);
+            DefaultKnifeObjects.Remove(playerId);
+            DefaultKnifeNextAttemptTimes.Remove(playerId);
+            DefaultKnifeResolvedObjects.Remove(playerId);
         }
     }
 
@@ -143,18 +163,19 @@ internal static class WeaponSettingsState
 
     private static void ApplyLobbySettingsSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 4, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 5, out CSteamID hostId,
                 out int roundId, out int revision, out string[] fields)
             || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
             || !int.TryParse(fields[2], out int spareMagazines)
             || !LobbySnapshotCodec.TryParseBool(fields[3], out bool cycleWeapons)
+            || !LobbySnapshotCodec.TryParseBool(fields[4], out bool defaultKnife)
             || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
                 ModeLobbyDataSync.Source("global-weapons", "settings")))
         {
             return;
         }
 
-        Apply(enabled, fields[1], spareMagazines, cycleWeapons);
+        Apply(enabled, fields[1], spareMagazines, cycleWeapons, defaultKnife);
     }
 
     internal static bool TryAcceptCycleRequest(CSteamID sender, int requestId)
@@ -167,7 +188,8 @@ internal static class WeaponSettingsState
         if (GameModeManager.IsVanillaScene || GameModeManager.ShouldIgnoreGlobalWeaponSettings
             || !Enabled || !Cycle || !Input.GetKeyDown(KeyCode.F8) || Allowed.Count == 0
             || ClientInstance.Instance == null
-            || JuggernautState.IsCurrentJuggernaut(ClientInstance.Instance.PlayerSpawner?.player))
+            || JuggernautState.IsCurrentJuggernaut(ClientInstance.Instance.PlayerSpawner?.player)
+            || GameModeManager.IsActive(GameMode.Infected))
         {
             return;
         }
@@ -186,7 +208,8 @@ internal static class WeaponSettingsState
     {
         if (GameModeManager.IsVanillaScene
             || (GameModeManager.IsActive(GameMode.Juggernaut)
-                && playerId == JuggernautState.CurrentJuggernautPlayerId))
+                && playerId == JuggernautState.CurrentJuggernautPlayerId)
+            || GameModeManager.IsActive(GameMode.Infected))
         {
             return;
         }
@@ -242,6 +265,10 @@ internal static class WeaponSettingsState
             {
                 continue;
             }
+            if (GameModeManager.IsActive(GameMode.Infected))
+            {
+                continue;
+            }
 
             PlayerPickup? pickup = player.playerPickupScript;
             GameObject? heldObject = pickup.objInHand;
@@ -259,6 +286,69 @@ internal static class WeaponSettingsState
             {
                 RequestLoadout(client.PlayerId, selectedWeapon);
             }
+        }
+    }
+
+    internal static void EnsureDefaultKnifeLoadouts()
+    {
+        if (!DefaultKnife || !MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || GameModeManager.IsVanillaScene || !GameModeManager.IsCustomMode
+            || GameModeManager.IsActive(GameMode.Infected)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || WeaponService.IsFinalGameScreen)
+        {
+            return;
+        }
+
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client == null || !client || client.PlayerSpawner == null
+                || !client.PlayerSpawner || client.PlayerSpawner.player == null
+                || !client.PlayerSpawner.player)
+            {
+                continue;
+            }
+
+            FirstPersonController player = client.PlayerSpawner.player;
+            int playerObjectId = player.GetInstanceID();
+            if (!DefaultKnifeObjects.TryGetValue(client.PlayerId, out int knownObjectId)
+                || knownObjectId != playerObjectId)
+            {
+                DefaultKnifeObjects[client.PlayerId] = playerObjectId;
+                DefaultKnifeNextAttemptTimes[client.PlayerId] = Time.unscaledTime + 1.5f;
+                DefaultKnifeResolvedObjects.Remove(client.PlayerId);
+                continue;
+            }
+
+            if (DefaultKnifeResolvedObjects.TryGetValue(client.PlayerId,
+                    out int resolvedObjectId)
+                && resolvedObjectId == playerObjectId)
+            {
+                continue;
+            }
+
+            PlayerPickup? pickup = player.playerPickupScript;
+            if (pickup == null || !pickup)
+            {
+                continue;
+            }
+
+            GameObject? heldObject = pickup.objInHand;
+            if (heldObject != null && heldObject)
+            {
+                DefaultKnifeResolvedObjects[client.PlayerId] = playerObjectId;
+                continue;
+            }
+
+            if (DefaultKnifeNextAttemptTimes.TryGetValue(client.PlayerId,
+                    out float nextAttemptTime)
+                && Time.unscaledTime < nextAttemptTime)
+            {
+                continue;
+            }
+
+            DefaultKnifeNextAttemptTimes[client.PlayerId] = Time.unscaledTime + 1f;
+            WeaponService.GiveWeapon(client.PlayerId, "Couperet", clearBothHands: false);
         }
     }
 

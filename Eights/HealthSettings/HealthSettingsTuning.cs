@@ -16,6 +16,7 @@ internal static class HealthSettingsTuning
         public float RegenAccumulator;
         public float LastRegenWriteTime;
         public bool LastModeSpecificHealth;
+        public bool LastInfectedRole;
         public int LastAppliedHealthCompensationVersion = -1;
         public int LastAppliedPlayerId = -1;
     }
@@ -57,6 +58,11 @@ internal static class HealthSettingsTuning
         }
 
         Memory memory = MemoryByInstance.GetOrCreateValue(controller);
+        if (GameModeManager.IsActive(GameMode.Infected))
+        {
+            ApplyInfectedHealth(controller, memory, healthMultiplier, version);
+            return;
+        }
         if (GameModeManager.IsActive(GameMode.Infidel))
         {
             InfidelState.ApplyHealth(controller);
@@ -193,5 +199,47 @@ internal static class HealthSettingsTuning
     internal static Memory GetMemory(PlayerHealth controller)
     {
         return MemoryByInstance.GetOrCreateValue(controller);
+    }
+
+    private static void ApplyInfectedHealth(PlayerHealth controller, Memory memory,
+        float healthMultiplier, int version)
+    {
+        int playerId = controller.playerValues?.playerClient?.PlayerId ?? -1;
+        bool infected = InfectedState.IsInfected(controller);
+        float desiredFullHealth = infected
+            ? memory.BaselineFullHealth * healthMultiplier
+            : InfectedState.SurvivorHealth;
+        bool roleChanged = !memory.LastModeSpecificHealth || memory.LastInfectedRole != infected;
+        bool maximumChanged = memory.LastAppliedVersion != version
+            || !Mathf.Approximately(controller.fullHealth, desiredFullHealth);
+        float previousHealth = controller.sync___get_value_health();
+
+        controller.fullHealth = desiredFullHealth;
+        memory.LastModeSpecificHealth = true;
+        memory.LastInfectedRole = infected;
+        memory.LastAppliedVersion = version;
+        memory.LastAppliedHealthCompensationVersion = TeamAssignment.HealthCompensationVersion;
+        memory.LastAppliedPlayerId = playerId;
+
+        if (!controller.IsServer || (!roleChanged && !maximumChanged))
+        {
+            return;
+        }
+
+        float healthDelta = desiredFullHealth - previousHealth;
+        if (Mathf.Approximately(healthDelta, 0f))
+        {
+            return;
+        }
+
+        ApplyingPassiveHealth = true;
+        try
+        {
+            FishNetCompatibility.TryRemoveHealth(controller, -healthDelta);
+        }
+        finally
+        {
+            ApplyingPassiveHealth = false;
+        }
     }
 }

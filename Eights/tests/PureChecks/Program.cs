@@ -158,6 +158,19 @@ Assert(ModeTimeoutRules.DefaultRoundSeconds == 90f
     "A timed score mode must select a unique leader and treat ties or empty scores as sudden death.");
 Assert(AssassinRules.DefaultTakeTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds,
     "Assassin takes must use the shared ninety-second time limit.");
+Assert(InfectedRules.ShouldBecomeInfected(false)
+    && !InfectedRules.ShouldBecomeInfected(true)
+    && InfectedRules.ShouldEndRound(0)
+    && InfectedRules.ShouldEndRound(-1)
+    && !InfectedRules.ShouldEndRound(1)
+    && InfectedRules.ShouldAwardInitialInfected(7, 0)
+    && !InfectedRules.ShouldAwardInitialInfected(-1, 0)
+    && !InfectedRules.ShouldAwardInitialInfected(7, 1),
+    "Infected survivors must convert on death, and only the original infected wins a wipe.");
+List<int> infectedSurvivors = InfectedRules.GetSurvivors(
+    new[] { 7, 2, 4, 2 }, new HashSet<int> { 4 });
+Assert(infectedSurvivors.SequenceEqual(new[] { 2, 7 }),
+    "The Infected timeout winner list must contain every non-infected round player in sorted order.");
 Assert(MichaelMeyersRules.RoundTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds
     && !MichaelMeyersRules.ShouldEndTimeoutWithoutWinner(1)
     && MichaelMeyersRules.ShouldEndTimeoutWithoutWinner(2),

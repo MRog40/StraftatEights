@@ -11,6 +11,7 @@ public partial class Plugin
     internal static ConfigEntry<string> AllowedWeapons = null!;
     internal static ConfigEntry<int> SpareMagazines = null!;
     internal static ConfigEntry<bool> CycleWeapons = null!;
+    internal static ConfigEntry<bool> DefaultKnife = null!;
 
     private void InitializeGlobalWeapons()
     {
@@ -20,10 +21,13 @@ public partial class Plugin
         SpareMagazines = Config.Bind(section, "Spare Magazines", 6, new ConfigDescription("Host-controlled: spare magazines granted with a weapon pickup.", new AcceptableValueRange<int>(2, 10)));
         CycleWeapons = Config.Bind(section, "F8 Cycle Weapons", false,
             "Host-controlled: F8 cycles through allowed weapons when no active mode owns weapon loadouts, and disables weapon droppers.");
+        DefaultKnife = Config.Bind(section, "Default Knife", false,
+            "Host-controlled: gives players a Couperet after spawn or respawn when the right hand is empty.");
         WeaponTweaksEnabled.SettingChanged += (_, _) => WeaponSettingsState.PushIfHost();
         AllowedWeapons.SettingChanged += (_, _) => WeaponSettingsState.PushIfHost();
         SpareMagazines.SettingChanged += (_, _) => WeaponSettingsState.PushIfHost();
         CycleWeapons.SettingChanged += (_, _) => WeaponSettingsState.PushIfHost();
+        DefaultKnife.SettingChanged += (_, _) => WeaponSettingsState.PushIfHost();
         MyceliumNetwork.RegisterNetworkObject(this, GlobalWeaponsModId);
         ModeLobbyDataSync.RegisterKeys(WeaponSettingsState.SettingsLobbyDataKey);
         MyceliumNetwork.LobbyCreated += WeaponSettingsState.OnLobbyEntered;
@@ -35,7 +39,8 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncWeaponSettings(CSteamID hostId, int roundId, int revision, bool enabled,
-        string allowedWeapons, int spareMagazines, bool cycleWeapons, RPCInfo info)
+        string allowedWeapons, int spareMagazines, bool cycleWeapons, bool defaultKnife,
+        RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
@@ -45,7 +50,8 @@ public partial class Plugin
         {
             return;
         }
-        WeaponSettingsState.Apply(enabled, allowedWeapons, spareMagazines, cycleWeapons);
+        WeaponSettingsState.Apply(enabled, allowedWeapons, spareMagazines, cycleWeapons,
+            defaultKnife);
     }
 
     [CustomRPC]
@@ -60,14 +66,25 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void RequestWeaponAmmoReload(int playerId, int requestId, int roundId, int rounds,
-        bool rightHand, RPCInfo info)
+    public void RequestWeaponAmmoReload(int playerId, int requestId, int roundId,
+        int weaponObjectId, bool rightHand, RPCInfo info)
     {
         if (MyceliumNetwork.IsHost && roundId == GameModeManager.RoundId
             && NetworkAuthority.IsPlayerSender(info, playerId)
             && WeaponAmmoTuning.TryAcceptReloadRequest(info.SenderSteamID, requestId))
         {
-            WeaponAmmoTuning.ApplyServerReload(playerId, rightHand, rounds);
+            WeaponAmmoTuning.ApplyServerReload(playerId, requestId, weaponObjectId, rightHand);
+        }
+    }
+
+    [CustomRPC]
+    public void SyncWeaponAmmoReload(int playerId, int requestId, int roundId,
+        int weaponObjectId, int currentAmmo, int spareRounds, bool rightHand, RPCInfo info)
+    {
+        if (NetworkAuthority.IsHostSender(info))
+        {
+            WeaponAmmoTuning.ApplyOwnerReloadSnapshot(playerId, requestId, roundId,
+                weaponObjectId, currentAmmo, spareRounds, rightHand);
         }
     }
 

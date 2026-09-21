@@ -75,11 +75,13 @@ internal static class PlayerOutline
             MultiTargets.Clear();
         }
 
-        if (activeMode == GameMode.Hardpoint
-            || activeMode == GameMode.CaptureTheFlag
-            || activeMode == GameMode.TeamDeathmatch
-            || activeMode == GameMode.SearchAndDestroy)
+        if (GameModeManager.IsTeamBased)
         {
+            if (Time.unscaledTime >= _nextVisualRefreshTime)
+            {
+                _nextVisualRefreshTime = Time.unscaledTime + VisualRefreshIntervalSeconds;
+                ClearTeamOutlines();
+            }
             return;
         }
 
@@ -106,6 +108,40 @@ internal static class PlayerOutline
 
         PlayerHealth? target = PlayerLookup.FindActivePlayerHealthById(_rolePlayerId);
         ApplySingleTarget(ref _singleTarget, target, GetColor(activeMode));
+    }
+
+    private static void ClearTeamOutlines()
+    {
+        foreach (int playerId in PlayerLookup.GetConnectedPlayerIdsReadOnly())
+        {
+            PlayerHealth? player = PlayerLookup.FindActivePlayerHealthById(playerId);
+            if (player != null && player.gameObject.activeInHierarchy && !player.IsOwner)
+            {
+                ClearTeamOutline(player);
+            }
+        }
+    }
+
+    private static void ClearTeamOutline(PlayerHealth player)
+    {
+        foreach (SkinnedMeshRenderer renderer in GetRenderers(player))
+        {
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            Material[] materials = renderer.materials;
+            if (materials.Length == 0 || materials[0] == null
+                || !materials[0].HasProperty("_ASEOutlineWidth"))
+            {
+                continue;
+            }
+
+            materials[0].SetFloat("_ASEOutlineWidth", 0f);
+            renderer.materials = materials;
+            AppliedRenderers.Remove(renderer);
+        }
     }
 
     internal static bool UpdateMode(GameMode activeMode)

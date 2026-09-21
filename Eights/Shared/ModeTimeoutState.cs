@@ -27,7 +27,8 @@ internal static class ModeTimeoutState
             || mode == GameMode.KillTheRat
             || mode == GameMode.HotPotato
             || mode == GameMode.HVT
-            || mode == GameMode.TeamDeathmatch;
+            || mode == GameMode.TeamDeathmatch
+            || mode == GameMode.Infected;
     }
 
     internal static void OnTakeStarted()
@@ -188,6 +189,12 @@ internal static class ModeTimeoutState
 
     private static void ResolveTimeout()
     {
+        if (GameModeManager.ActiveMode == GameMode.Infected)
+        {
+            InfectedState.OnRoundTimeout();
+            return;
+        }
+
         if (GameModeManager.ActiveMode == GameMode.OneInTheChamber)
         {
             OneInTheChamberState.OnTakeTimeout();
@@ -322,6 +329,9 @@ internal static class ModeTimeoutState
             case GameMode.TeamDeathmatch:
                 scores = TeamDeathmatchState.Scores;
                 teamScores = true;
+                return true;
+            case GameMode.Infected:
+                scores = InfectedState.Scores;
                 return true;
             default:
                 scores = new Dictionary<int, int>();

@@ -926,6 +926,12 @@ internal sealed class GameModeHud : MonoBehaviour
             scores = HVTState.Points;
             crownFirst = true;
         }
+        else if (GameModeManager.IsActive(GameMode.Infected))
+        {
+            pointsToWin = InfectedState.PointsToWin;
+            scores = InfectedState.Scores;
+            crownFirst = false;
+        }
         else if (GameModeManager.IsActive(GameMode.SniperBattle))
         {
             pointsToWin = SniperBattleState.PointsToWin;

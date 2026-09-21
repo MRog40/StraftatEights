@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Reflection;
+using HarmonyLib;
 using UnityEngine;
 
 namespace Eights;
@@ -8,9 +10,12 @@ internal static class TeammateMarker
     private const float RefreshIntervalSeconds = 0.25f;
     private const float MarkerHeight = 2.2f;
     private const float MarkerSize = 0.21f;
+    private const float DeathFlashDurationSeconds = 0.18f;
     private static readonly Color MarkerColor = new(0.22f, 0.57f, 1f, 0.92f);
+    private static readonly Color DeathMarkerColor = new(1f, 0.08f, 0.08f, 0.98f);
     private static readonly Dictionary<int, GameObject> Markers = new();
     private static readonly Dictionary<int, PlayerHealth> TrackedPlayers = new();
+    private static readonly Dictionary<int, float> DeathFlashUntil = new();
     private static float _nextRefreshTime;
     private static GameMode _lastMode = GameMode.None;
 
@@ -33,6 +38,7 @@ internal static class TeammateMarker
         }
 
         float now = Time.unscaledTime;
+        ExpireDeathFlashes(now);
         if (now < _nextRefreshTime)
         {
             return;
@@ -49,6 +55,11 @@ internal static class TeammateMarker
         foreach (KeyValuePair<int, int> assignment in assignments)
         {
             if (assignment.Key == localPlayerId || assignment.Value != localTeamId)
+            {
+                continue;
+            }
+
+            if (DeathFlashUntil.ContainsKey(assignment.Key))
             {
                 continue;
             }
@@ -77,6 +88,7 @@ internal static class TeammateMarker
                 marker.transform.localScale = Vector3.one * MarkerSize;
             }
 
+            SetMarkerColor(marker, MarkerColor);
             marker.SetActive(true);
             TrackedPlayers[assignment.Key] = health;
         }
@@ -85,6 +97,11 @@ internal static class TeammateMarker
         foreach (KeyValuePair<int, PlayerHealth> tracked in TrackedPlayers)
         {
             if (currentPlayerIds.Contains(tracked.Key))
+            {
+                continue;
+            }
+
+            if (DeathFlashUntil.ContainsKey(tracked.Key))
             {
                 continue;
             }
@@ -137,6 +154,84 @@ internal static class TeammateMarker
 
         Markers.Clear();
         TrackedPlayers.Clear();
+        DeathFlashUntil.Clear();
         _nextRefreshTime = 0f;
+    }
+
+    internal static void OnPlayerDied(PlayerHealth player)
+    {
+        if (player == null || !player || !GameModeManager.IsActive(GameMode.Hardpoint)
+            && !GameModeManager.IsActive(GameMode.CaptureTheFlag)
+            && !GameModeManager.IsActive(GameMode.SearchAndDestroy)
+            && !GameModeManager.IsActive(GameMode.TeamDeathmatch))
+        {
+            return;
+        }
+
+        int playerId = player.playerValues?.playerClient?.PlayerId ?? -1;
+        if (playerId < 0 || !Markers.TryGetValue(playerId, out GameObject? marker)
+            || marker == null || !marker)
+        {
+            return;
+        }
+
+        DeathFlashUntil[playerId] = Time.unscaledTime + DeathFlashDurationSeconds;
+        TrackedPlayers.Remove(playerId);
+        marker.transform.SetParent(null, true);
+        marker.transform.position = player.transform.position + Vector3.up * MarkerHeight;
+        marker.transform.localScale = Vector3.one * MarkerSize;
+        SetMarkerColor(marker, DeathMarkerColor);
+        marker.SetActive(true);
+    }
+
+    private static void ExpireDeathFlashes(float now)
+    {
+        List<int> expiredPlayerIds = new();
+        foreach (KeyValuePair<int, float> flash in DeathFlashUntil)
+        {
+            if (now < flash.Value)
+            {
+                continue;
+            }
+
+            if (Markers.TryGetValue(flash.Key, out GameObject? marker)
+                && marker != null && marker)
+            {
+                marker.SetActive(false);
+            }
+            expiredPlayerIds.Add(flash.Key);
+        }
+
+        foreach (int playerId in expiredPlayerIds)
+        {
+            DeathFlashUntil.Remove(playerId);
+        }
+    }
+
+    private static void SetMarkerColor(GameObject marker, Color color)
+    {
+        Renderer? renderer = marker.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            renderer.material.color = color;
+        }
+    }
+}
+
+[HarmonyPatch]
+internal static class PlayerHealth_TeammateMarkerDeath_Patch
+{
+    private static MethodBase? TargetMethod()
+    {
+        return FishNetCompatibility.FindGeneratedMethod(typeof(PlayerHealth),
+            "RpcLogic___DespawnObjectObservers_", method => method.ReturnType == typeof(void)
+                && method.GetParameters().Length == 0);
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
+    private static void Prefix(PlayerHealth __instance)
+    {
+        TeammateMarker.OnPlayerDied(__instance);
     }
 }

@@ -54,7 +54,7 @@ internal static class WeaponPolicy
         {
             return true;
         }
-        if (WeaponSettingsState.Cycle)
+        if (WeaponSettingsState.Cycle && !GameModeManager.IsActive(GameMode.Infected))
         {
             return false;
         }
@@ -97,6 +97,10 @@ internal static class WeaponPolicy
         PlayerHealth? health = pickup.GetComponent<PlayerHealth>();
         switch (GameModeManager.ActiveMode)
         {
+            case GameMode.Infected:
+                return health == null || !InfectedState.IsInfected(health)
+                    || weapon.name.StartsWith(InfectedState.KnifeWeaponName,
+                        System.StringComparison.Ordinal);
             case GameMode.Juggernaut:
                 return health == null || !JuggernautState.IsCurrentJuggernaut(health)
                     || weapon.name.StartsWith(JuggernautState.WeaponName, System.StringComparison.Ordinal);

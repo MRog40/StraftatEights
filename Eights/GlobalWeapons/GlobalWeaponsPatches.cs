@@ -8,7 +8,9 @@ internal static class PlayerManager_GlobalWeaponsSpawn_Patch
 {
     private static void Postfix(PlayerManager __instance)
     {
-        if (GameModeManager.ShouldIgnoreGlobalWeaponSettings || !WeaponSettingsState.Enabled || !WeaponSettingsState.Cycle || __instance.player == null)
+        if (GameModeManager.ShouldIgnoreGlobalWeaponSettings || !WeaponSettingsState.Enabled
+            || !WeaponSettingsState.Cycle || __instance.player == null
+            || GameModeManager.IsActive(GameMode.Infected))
         {
             return;
         }

@@ -38,6 +38,12 @@ a HandGrenade, killing the Potato transfers it to the victim, and kill points de
 the Infidel uses an AK-K while the roles fight through repeated takes for points; the Infidel wins
 by surviving after all Terrorists are eliminated.
 
+**Infected** selects one player as the initial Infected. The Infected uses only a Couperet and cannot
+pick up guns. Survivors have 10 health and receive random weapons from the global allowed list; normal
+weapon droppers remain active. Any survivor death turns that player Infected. Survivors who outlast the
+round timer all receive a round point, while the initial Infected receives the point when every survivor
+has been infected.
+
 **HVT** selects a High-Value Target after the first legitimate kill. The HVT earns survival points,
 killing the HVT transfers the role to the killer, and the first player to reach the point target wins.
 

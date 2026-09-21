@@ -50,6 +50,9 @@ internal static class PauseManager_RoundLifecycle_Patch
             case GameMode.TeamDeathmatch:
                 TeamDeathmatchState.OnRoundStarted();
                 break;
+            case GameMode.Infected:
+                InfectedState.OnRoundStarted();
+                break;
         }
 
         if (!GameModeManager.ShouldIgnoreGlobalWeaponSettings)

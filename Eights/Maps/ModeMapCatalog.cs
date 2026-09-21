@@ -128,6 +128,7 @@ internal static class ModeMapCatalog
     private static readonly IReadOnlyList<string> HotPotatoMaps = FreeForAllMaps;
     private static readonly IReadOnlyList<string> InfidelMaps =
         new[] { "Bazaar_01", "TheSamePlace_04", "TheSamePlace_12" };
+    private static readonly IReadOnlyList<string> InfectedMaps = FreeForAllMaps;
 
     private static readonly IReadOnlyDictionary<GameMode, IReadOnlyList<string>> MapsByMode =
         new Dictionary<GameMode, IReadOnlyList<string>>
@@ -142,6 +143,7 @@ internal static class ModeMapCatalog
             [GameMode.HotPotato] = HotPotatoMaps,
             [GameMode.Infidel] = InfidelMaps,
             [GameMode.HVT] = InfidelMaps,
+            [GameMode.Infected] = InfectedMaps,
             [GameMode.Assassin] = InfidelMaps,
             [GameMode.Hardpoint] = HardpointMaps,
             [GameMode.CaptureTheFlag] = CaptureTheFlagMaps,
