@@ -69,4 +69,15 @@ public partial class Plugin
         InfidelState.ApplyLocalRole(hostId, takeId, isInfidel, announce);
     }
 
+    [CustomRPC]
+    public void SyncInfidelBeep(CSteamID hostId, int takeId, int beepId,
+        UnityEngine.Vector3 position, RPCInfo info)
+    {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
+        InfidelState.ApplyInfidelBeep(hostId, takeId, beepId, position);
+    }
+
 }

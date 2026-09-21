@@ -24,7 +24,6 @@ internal static class SearchAndDestroyMarker
     private static GameObject? _droppedBombMarker;
     private static Mesh? _bombDiamondMesh;
     private static Mesh? _bombSquareMesh;
-    private static AudioClip? _bombBeepClip;
     private static AudioClip? _bombExplosionClip;
     private static float _nextBombBeepTime;
     private static bool _bombWasPlanted;
@@ -136,14 +135,7 @@ internal static class SearchAndDestroyMarker
                 SearchAndDestroyState.BombStatus == SearchAndDestroyBombStatus.Carried);
             renderer.material.color = BombColor;
             AudioSource audio = _bomb.AddComponent<AudioSource>();
-            audio.playOnAwake = false;
-            audio.loop = false;
-            audio.spatialBlend = 1f;
-            audio.rolloffMode = AudioRolloffMode.Linear;
-            audio.minDistance = 2.5f;
-            audio.maxDistance = 55f;
-            audio.dopplerLevel = 0f;
-            audio.volume = 1f;
+            BombBeepAudio.ConfigureSource(audio, 1f);
             CreateElectricArcs(_bomb.transform);
         }
 
@@ -200,7 +192,7 @@ internal static class SearchAndDestroyMarker
 
         if (Time.unscaledTime >= _nextBombBeepTime)
         {
-            _bomb.GetComponent<AudioSource>()!.PlayOneShot(GetBombBeepClip());
+            _bomb.GetComponent<AudioSource>()!.PlayOneShot(BombBeepAudio.GetClip());
             _nextBombBeepTime = Time.unscaledTime + 1f;
         }
     }
@@ -278,31 +270,6 @@ internal static class SearchAndDestroyMarker
         particles.Play();
         Object.Destroy(burstObject, 4f);
         Object.Destroy(lightObject, 0.6f);
-    }
-
-    private static AudioClip GetBombBeepClip()
-    {
-        if (_bombBeepClip != null)
-        {
-            return _bombBeepClip;
-        }
-
-        const int sampleRate = 44100;
-        const float duration = 0.12f;
-        int sampleCount = Mathf.RoundToInt(sampleRate * duration);
-        float[] samples = new float[sampleCount];
-        for (int index = 0; index < sampleCount; index++)
-        {
-            float progress = index / (float)sampleCount;
-            float envelope = Mathf.Sin(progress * Mathf.PI);
-            samples[index] = Mathf.Sin(2f * Mathf.PI * 880f * index / sampleRate)
-                * envelope * 0.35f;
-        }
-
-        _bombBeepClip = AudioClip.Create("SearchAndDestroyBombBeep", sampleCount,
-            1, sampleRate, false);
-        _bombBeepClip.SetData(samples, 0);
-        return _bombBeepClip;
     }
 
     private static AudioClip GetBombExplosionClip()

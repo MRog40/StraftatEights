@@ -1,6 +1,6 @@
 {
   "name": "Eights",
-  "version_number": "0.3.10",
+  "version_number": "0.4.0",
   "website_url": "https://github.com/MRog40/StraftatEights",
   "description": "Host-authoritative movement, health, weapon, and game-mode rules for STRAFTAT.",
   "dependencies": [

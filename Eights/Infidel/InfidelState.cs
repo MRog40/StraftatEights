@@ -18,6 +18,9 @@ internal static class InfidelState
     internal const float TerroristHealth = 100f / 25f;
     internal const float MovementMultiplier = 0.7f;
     internal const float WeaponDelaySeconds = 10f;
+    internal const float InfidelBeepVolume = 0.5f;
+    private const float InfidelBeepInitialDelaySeconds = 15f;
+    private const float InfidelBeepIntervalSeconds = 15f;
     internal const float DefaultTakeTimeLimitSeconds = ModeTimeoutRules.DefaultRoundSeconds;
     internal const float RoleAnnouncementDuration = WeaponDelaySeconds + 10f;
 
@@ -37,6 +40,10 @@ internal static class InfidelState
     private static float _takeTimeRemaining;
     private static readonly ModeSyncState Sync = new();
     private static int _takeId;
+    private static int _infidelBeepId;
+    private static float _nextInfidelBeepTime;
+    private static int _lastReceivedInfidelBeepTakeId = -1;
+    private static int _lastReceivedInfidelBeepId = -1;
     private static int _localRoleTakeId = -1;
     private static int _localRoleAnnouncedTakeId = -1;
     private static bool _localRoleAnnouncementPending;
@@ -200,6 +207,10 @@ internal static class InfidelState
         _nextLoadoutCheckTime = 0f;
         _takeTimeRemaining = 0f;
         _takeId = 0;
+        _infidelBeepId = 0;
+        _nextInfidelBeepTime = 0f;
+        _lastReceivedInfidelBeepTakeId = -1;
+        _lastReceivedInfidelBeepId = -1;
         _localRoleTakeId = -1;
         _localRoleAnnouncedTakeId = -1;
         _localRoleAnnouncementPending = false;
@@ -268,6 +279,7 @@ internal static class InfidelState
         }
 
         _takeTimeRemaining = Mathf.Max(0f, _takeTimeRemaining - Mathf.Max(0f, deltaTime));
+    TryEmitInfidelBeep();
         if (_takeTimeRemaining <= 0f)
         {
             CompleteTimeoutWin();
@@ -366,6 +378,34 @@ internal static class InfidelState
         {
             PendingHealthResets.Add(playerId);
         }
+    }
+
+    internal static void ApplyInfidelBeep(CSteamID hostId, int takeId, int beepId,
+        Vector3 position)
+    {
+        if (hostId != MyceliumNetwork.LobbyHost || !Enabled
+            || !GameModeManager.IsActive(GameMode.Infidel)
+            || !GameModeManager.IsRoundGameplayActive || WinnerId >= 0
+            || takeId <= 0 || beepId <= 0 || !IsFinitePosition(position))
+        {
+            return;
+        }
+
+        if (takeId < _takeId
+            || (takeId == _lastReceivedInfidelBeepTakeId
+                && beepId <= _lastReceivedInfidelBeepId))
+        {
+            return;
+        }
+
+        if (takeId > _takeId)
+        {
+            _takeId = takeId;
+        }
+
+        _lastReceivedInfidelBeepTakeId = takeId;
+        _lastReceivedInfidelBeepId = beepId;
+        BombBeepAudio.PlayAtPosition(position, InfidelBeepVolume);
     }
 
     internal static void ApplyHealth(PlayerHealth health)
@@ -547,6 +587,8 @@ internal static class InfidelState
         }
 
         WeaponsUnlocked = true;
+        _infidelBeepId = 0;
+        _nextInfidelBeepTime = Time.unscaledTime + InfidelBeepInitialDelaySeconds;
         EnsureLoadouts();
         BroadcastLiveState();
     }
@@ -699,6 +741,28 @@ internal static class InfidelState
         WeaponService.GiveWeapon(playerId, WeaponName, SpareMagazines);
     }
 
+    private static void TryEmitInfidelBeep()
+    {
+        if (!WeaponsUnlocked || Time.unscaledTime < _nextInfidelBeepTime)
+        {
+            return;
+        }
+
+        PlayerHealth? infidel = PlayerLookup.FindActivePlayerHealthById(InfidelPlayerId);
+        if (infidel == null || !infidel || !infidel.gameObject.activeInHierarchy)
+        {
+            _nextInfidelBeepTime = Time.unscaledTime + 1f;
+            return;
+        }
+
+        int beepId = ++_infidelBeepId;
+        Vector3 position = infidel.transform.position;
+        _nextInfidelBeepTime = Time.unscaledTime + InfidelBeepIntervalSeconds;
+        ApplyInfidelBeep(MyceliumNetwork.LobbyHost, _takeId, beepId, position);
+        MyceliumNetwork.RPC(Plugin.InfidelModId, nameof(Plugin.SyncInfidelBeep),
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, _takeId, beepId, position);
+    }
+
     private static void AwardScore(int playerId, int amount)
     {
         Scores.TryGetValue(playerId, out int currentScore);
@@ -758,6 +822,13 @@ internal static class InfidelState
     private static Weapon? GetWeapon(GameObject? heldObject)
     {
         return heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
+    }
+
+    private static bool IsFinitePosition(Vector3 position)
+    {
+        return !float.IsNaN(position.x) && !float.IsInfinity(position.x)
+            && !float.IsNaN(position.y) && !float.IsInfinity(position.y)
+            && !float.IsNaN(position.z) && !float.IsInfinity(position.z);
     }
 
     private static string SerializeScores() => ScoreCodec.Serialize(Scores);
