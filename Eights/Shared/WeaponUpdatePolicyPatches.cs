@@ -40,7 +40,13 @@ internal static class Weapon_UpdatePolicy_Patch
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
         else if (GameModeManager.IsActive(GameMode.HotPotato)
-            && HotPotatoState.IsShotgunWeapon(__instance))
+            && HotPotatoState.IsHotPotatoWeapon(__instance))
+        {
+            WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
+            WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
+        }
+        else if (GameModeManager.IsHuntersActive
+            && HuntersState.IsExpectedWeapon(__instance))
         {
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
@@ -80,7 +86,12 @@ internal static class Weapon_UpdatePolicy_Patch
             WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }
         else if (GameModeManager.IsActive(GameMode.HotPotato)
-            && HotPotatoState.IsShotgunWeapon(__instance))
+            && HotPotatoState.IsHotPotatoWeapon(__instance))
+        {
+            WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
+        }
+        else if (GameModeManager.IsHuntersActive
+            && HuntersState.IsExpectedWeapon(__instance))
         {
             WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }

@@ -63,6 +63,8 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("Capture the Flag", InitializeCaptureTheFlag);
         InitializeSafely("Search and Destroy", InitializeSearchAndDestroy);
         InitializeSafely("Team Deathmatch", InitializeTeamDeathmatch);
+        InitializeSafely("Ninja Hunters", InitializeNinjaHunters);
+        InitializeSafely("Rabbit Hunters", InitializeRabbitHunters);
         Config.Save();
 
         try
@@ -153,6 +155,7 @@ public partial class Plugin : BaseUnityPlugin
         AssassinState.ServerTick(Time.unscaledDeltaTime);
         AssassinState.ClientTick(Time.unscaledDeltaTime);
         SearchAndDestroyState.ServerTick(Time.unscaledDeltaTime);
+        HuntersState.ServerTick(Time.unscaledDeltaTime);
         ModeTimeoutState.ServerTick(Time.unscaledDeltaTime);
         ModeTimeoutState.ClientTick(Time.unscaledDeltaTime);
         SearchAndDestroyState.PollLocalInput();
@@ -172,6 +175,7 @@ public partial class Plugin : BaseUnityPlugin
         PlayerOutline.EnforceOutline();
         TeammateMarker.Enforce();
         HardpointMarker.Update();
+        HuntersMarker.Update();
         CaptureTheFlagMarker.Update();
         SearchAndDestroyMarker.Update();
         RespawnProtection.Update();

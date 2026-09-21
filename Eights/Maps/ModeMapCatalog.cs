@@ -129,6 +129,8 @@ internal static class ModeMapCatalog
     private static readonly IReadOnlyList<string> InfidelMaps =
         new[] { "Bazaar_01", "TheSamePlace_04", "TheSamePlace_12" };
     private static readonly IReadOnlyList<string> InfectedMaps = FreeForAllMaps;
+    private static readonly IReadOnlyList<string> NinjaHuntersMaps = HardpointMaps;
+    private static readonly IReadOnlyList<string> RabbitHuntersMaps = HardpointMaps;
 
     private static readonly IReadOnlyDictionary<GameMode, IReadOnlyList<string>> MapsByMode =
         new Dictionary<GameMode, IReadOnlyList<string>>
@@ -148,7 +150,9 @@ internal static class ModeMapCatalog
             [GameMode.Hardpoint] = HardpointMaps,
             [GameMode.CaptureTheFlag] = CaptureTheFlagMaps,
             [GameMode.SearchAndDestroy] = SearchAndDestroyMaps,
-            [GameMode.TeamDeathmatch] = TeamDeathmatchMaps
+            [GameMode.TeamDeathmatch] = TeamDeathmatchMaps,
+            [GameMode.NinjaHunters] = NinjaHuntersMaps,
+            [GameMode.RabbitHunters] = RabbitHuntersMaps
         };
 
     internal static IReadOnlyList<string> GetMapNames(GameMode mode)
@@ -172,7 +176,7 @@ internal static class ModeMapCatalog
     internal static bool RequiresMapOverride(GameMode mode)
     {
         return mode == GameMode.CaptureTheFlag || mode == GameMode.Hardpoint
-            || mode == GameMode.SearchAndDestroy;
+            || mode == GameMode.SearchAndDestroy || GameModeManager.IsHuntersMode(mode);
     }
 
     private static IReadOnlyList<string> GetOverrideMapNames(GameMode mode)
@@ -252,7 +256,7 @@ internal static class ModeMapCatalog
     private static bool RequiresMapDefinition(GameMode mode)
     {
         return mode == GameMode.Hardpoint || mode == GameMode.CaptureTheFlag
-            || mode == GameMode.SearchAndDestroy;
+            || mode == GameMode.SearchAndDestroy || GameModeManager.IsHuntersMode(mode);
     }
 
     private static bool HasRequiredDefinition(GameMode mode, string mapName)
@@ -268,6 +272,8 @@ internal static class ModeMapCatalog
             GameMode.Hardpoint => definition.HardpointObjectives.Count > 0,
             GameMode.CaptureTheFlag => definition.CaptureTheFlagObjectives.Count == 2,
             GameMode.SearchAndDestroy => definition.SndObjectives.Count == 2,
+            GameMode.NinjaHunters => definition.HardpointObjectives.Count > 0,
+            GameMode.RabbitHunters => definition.HardpointObjectives.Count > 0,
             _ => true
         };
     }

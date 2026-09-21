@@ -34,6 +34,9 @@ internal static class WeaponDropPolicy
         int playerId = health.playerValues?.playerClient?.PlayerId ?? -1;
         switch (GameModeManager.ActiveMode)
         {
+            case GameMode.NinjaHunters:
+            case GameMode.RabbitHunters:
+                return playerId >= 0 && HuntersState.IsExpectedWeapon(weapon, playerId);
             case GameMode.GunGame:
                 return GunGameState.Enabled;
             case GameMode.Juggernaut:

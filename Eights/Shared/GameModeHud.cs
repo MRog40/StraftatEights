@@ -417,7 +417,9 @@ internal sealed class GameModeHud : MonoBehaviour
 
         string objectiveStatus = visible && GameModeManager.IsActive(GameMode.SearchAndDestroy)
             ? SearchAndDestroyState.GetLocalBombStatusText()
-            : string.Empty;
+            : visible && GameModeManager.IsHuntersActive
+                ? HuntersState.GetLocalObjectiveStatusText()
+                : string.Empty;
         if (_lastObjectiveStatusText != objectiveStatus)
         {
             _lastObjectiveStatusText = objectiveStatus;
@@ -889,6 +891,12 @@ internal sealed class GameModeHud : MonoBehaviour
         if (GameModeManager.IsActive(GameMode.Hardpoint))
         {
             SetScoreboardText(HardpointHud.BuildScoreboard());
+            return;
+        }
+
+        if (GameModeManager.IsHuntersActive)
+        {
+            SetScoreboardText(HuntersHud.BuildScoreboard());
             return;
         }
 

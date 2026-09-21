@@ -137,6 +137,8 @@ internal static class TeammateMarker
             GameMode.CaptureTheFlag => CaptureTheFlagState.Assignments,
             GameMode.TeamDeathmatch => TeamDeathmatchState.Assignments,
             GameMode.SearchAndDestroy => SearchAndDestroyState.Assignments,
+            GameMode.NinjaHunters => HuntersState.Assignments,
+            GameMode.RabbitHunters => HuntersState.Assignments,
             _ => null!
         };
         return assignments != null;
@@ -163,7 +165,8 @@ internal static class TeammateMarker
         if (player == null || !player || !GameModeManager.IsActive(GameMode.Hardpoint)
             && !GameModeManager.IsActive(GameMode.CaptureTheFlag)
             && !GameModeManager.IsActive(GameMode.SearchAndDestroy)
-            && !GameModeManager.IsActive(GameMode.TeamDeathmatch))
+            && !GameModeManager.IsActive(GameMode.TeamDeathmatch)
+            && !GameModeManager.IsHuntersActive)
         {
             return;
         }

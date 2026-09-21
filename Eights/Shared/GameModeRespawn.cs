@@ -472,6 +472,13 @@ internal static class GameModeRespawn
             return true;
         }
 
+        if (GameModeManager.IsHuntersActive
+            && HuntersState.TryGetTieBreakObjective(out HardpointObjective huntersObjective))
+        {
+            target = huntersObjective.Position;
+            return true;
+        }
+
         if (GameModeManager.IsActive(GameMode.CaptureTheFlag)
             && CaptureTheFlagState.TryGetEnemyFlagPosition(playerId, out target))
         {
@@ -753,7 +760,8 @@ internal static class PlayerManager_CustomRespawnSpawn_Patch
         ref Vector3 position, ref Quaternion rotation)
     {
         GameModeRespawn.ApplyRespawnCosmetics(__instance, ref suitIndex, ref cigIndex);
-        if (SearchAndDestroyState.TryGetRoleSpawnPosition(__instance, out Vector3 rolePosition))
+        if (SearchAndDestroyState.TryGetRoleSpawnPosition(__instance, out Vector3 rolePosition)
+            || HuntersState.TryGetRoleSpawnPosition(__instance, out rolePosition))
         {
             position = rolePosition;
         }
@@ -788,6 +796,7 @@ internal static class PlayerManager_CustomRespawnSpawn_Patch
     {
         PlayerLookup.RegisterSpawnedPlayer(__instance);
         TeamWeaponLoadouts.OnPlayerSpawned(__instance);
+        HuntersState.OnPlayerSpawned(__instance);
     }
 }
 
@@ -828,6 +837,12 @@ internal static class PlayerManager_SearchAndDestroyRespawn_Patch
 
         if (GameModeManager.IsActive(GameMode.Hardpoint)
             && !HardpointState.CanRespawn())
+        {
+            return false;
+        }
+
+        if (GameModeManager.IsHuntersActive
+            && !HuntersState.CanRespawn(__instance))
         {
             return false;
         }

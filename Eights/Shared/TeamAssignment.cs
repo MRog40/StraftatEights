@@ -130,6 +130,34 @@ internal static class TeamAssignment
         return true;
     }
 
+    internal static bool AssignHuntersRound()
+    {
+        if (!MyceliumNetworking.MyceliumNetwork.IsHost)
+        {
+            return false;
+        }
+
+        RememberCurrentAssignments();
+        List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
+        if (playerIds.Count == 0)
+        {
+            return false;
+        }
+
+        Assignments.Clear();
+        InitialSpawnEligiblePlayers.Clear();
+        foreach (KeyValuePair<int, int> assignment
+            in TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, PreviousAssignments))
+        {
+            Assignments[assignment.Key] = assignment.Value;
+            InitialSpawnEligiblePlayers.Add(assignment.Key);
+        }
+
+        TeamCount = 2;
+        HealthCompensationVersion++;
+        return true;
+    }
+
     internal static bool AssignLatePlayer(int playerId)
     {
         if (playerId < 0 || TeamCount < 2 || Assignments.ContainsKey(playerId))
@@ -189,6 +217,10 @@ internal static class TeamAssignment
         else if (GameModeManager.IsActive(GameMode.SearchAndDestroy))
         {
             AssignSearchAndDestroyRound();
+        }
+        else if (GameModeManager.IsHuntersActive)
+        {
+            AssignHuntersRound();
         }
         else
         {

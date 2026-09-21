@@ -31,8 +31,9 @@ the Rat transfers the role.
 **One In The Chamber** gives each player a Revolver with one chambered shot and a Couperet. Players have
 very low health, kills award reserve bullets, and the last player alive wins each take.
 
-**Hot Potato** starts with Shotguns and selects the first Potato when a player dies. The Potato carries
-a HandGrenade, killing the Potato transfers it to the victim, and kill points determine the winner.
+**Hot Potato** rotates non-Potato players through the configured weapon list and selects the first Potato
+when a player dies. The Potato carries a HandGrenade, killing a player transfers it to the victim, and kill
+points determine the winner.
 
 **Infidel** selects one hidden Infidel against the remaining Terrorists. After the preparation delay,
 the Infidel uses an AK-K while the roles fight through repeated takes for points; the Infidel wins
@@ -66,11 +67,21 @@ rounds until one reaches the round-win target.
 assignment and safe spawn logic as Hardpoint, awards 10 points per kill to the killer's team, and
 respawns players after death.
 
+**Ninja Hunters** is a host-controlled two-team mode. Ninjas use Katanas and Hunters use FG42s, with
+one life per take. Team sides swap at each take; a team wipe wins immediately, while a timeout starts
+a five-second uncontested hold on the map's first Hardpoint objective. Each take awards 40 points.
+
+**Rabbit Hunters** uses the same single-life team rules. Hunters use Tromblonjs, while Rabbits
+dual-wield Stylus weapons; team sides swap at each take, and a timeout starts the same five-second
+uncontested hold on the map's first Hardpoint objective. Each take awards 40 points.
+
 Hardpoint, Capture The Flag, Search And Destroy, and Team Deathmatch use the configured `Allowed Weapons`
 and `Spare Magazines` settings for host-authoritative team loadouts. Each round creates one shuffled
 weapon sequence and gives matching team slots the same weapons. Each team's respawns advance through
 that sequence independently. The global weapon toggle and F8 cycle do not override these team loadouts;
 normal weapon drops and pickups remain available.
+
+Ninja Hunters and Rabbit Hunters use fixed team weapons and do not use the global weapon sequence.
 
 The host can disable `Enable Map Overrides` under `Global Settings` to use the
 normal STRAFTAT lobby map selection. Hardpoint then runs only on maps with authored

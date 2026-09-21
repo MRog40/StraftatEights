@@ -535,10 +535,12 @@ Assert(alivePlayers.Count == 1 && alivePlayers.Contains(1),
     "The last remaining player must be the round winner.");
 Assert(Math.Abs(OneInTheChamberRules.PlayerHealth - 0.4f) < 0.001f,
     "One in the Chamber must use ten displayed health for every player.");
-Assert(HotPotatoRules.IsAllowedWeapon("GlandGrenade(Clone)", true)
-    && HotPotatoRules.IsAllowedWeapon("Shotgun(Clone)", false),
-    "Hot Potato must use the GlandGrenade and Shotgun prefabs.");
-Assert(!HotPotatoRules.IsAllowedWeapon("Glock(Clone)", false),
+List<string> hotPotatoWeapons = new() { "Shotgun", "Tromblonj", "Gust", "Crisis" };
+Assert(HotPotatoRules.IsAllowedWeapon("HandGrenade(Clone)", true, hotPotatoWeapons)
+    && HotPotatoRules.IsAllowedWeapon("Shotgun(Clone)", false, hotPotatoWeapons)
+    && HotPotatoRules.IsAllowedWeapon("Crisis(Clone)", false, hotPotatoWeapons),
+    "Hot Potato must use the HandGrenade and configured weapon prefabs.");
+Assert(!HotPotatoRules.IsAllowedWeapon("Glock(Clone)", false, hotPotatoWeapons),
     "Hot Potato must reject unrelated weapons.");
 Assert(HotPotatoRules.ResolvePotato(-1, 5, 2) == 2,
     "The first player to die must become the Hot Potato.");
@@ -606,5 +608,33 @@ Assert(requests.IsCurrent(7, secondRequest),
 requests.Clear();
 Assert(!requests.IsCurrent(7, secondRequest),
     "Clearing pending requests must invalidate the previous request.");
+
+Assert(HuntersRules.GetOriginIndex(0, 1) == 0
+    && HuntersRules.GetOriginIndex(1, 1) == 1
+    && HuntersRules.GetOriginIndex(0, 2) == 1
+    && HuntersRules.GetOriginIndex(1, 2) == 0
+    && HuntersRules.GetOriginIndex(0, 3) == 0,
+    "Hunters must swap team spawn sides on every other take.");
+Dictionary<int, int> huntersAssignments = new() { [1] = 0, [2] = 0, [3] = 1, [4] = 1 };
+HashSet<int> huntersAlive = new() { 1, 2, 3, 4 };
+Assert(!HuntersRules.TryGetTeamWipeWinner(huntersAlive, huntersAssignments, out _),
+    "A Hunters take must continue while both teams have living players.");
+huntersAlive.Remove(1);
+huntersAlive.Remove(2);
+Assert(HuntersRules.TryGetTeamWipeWinner(huntersAlive, huntersAssignments,
+        out int huntersWipeWinner) && huntersWipeWinner == 1,
+    "A team wipe must award the take to the surviving team.");
+float huntersHoldProgress = 0f;
+huntersHoldProgress = HuntersRules.AdvanceTieBreakHold(2f, -1, 0,
+    ref huntersHoldProgress);
+huntersHoldProgress = HuntersRules.AdvanceTieBreakHold(2f, 0, 0,
+    ref huntersHoldProgress);
+huntersHoldProgress = HuntersRules.AdvanceTieBreakHold(1f, 0, 1,
+    ref huntersHoldProgress);
+Assert(Math.Abs(huntersHoldProgress - 1f) < 0.001f,
+    "A contested or changed hardpoint controller must reset continuous hold time.");
+Assert(HuntersRules.AddTakePoints(0, 100) == HuntersRules.PointsPerTakeWin
+    && HuntersRules.AddTakePoints(40, 100) == 80,
+    "A Hunters take win must award exactly forty points.");
 
 Console.WriteLine("Pure checks passed.");

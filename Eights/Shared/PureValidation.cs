@@ -95,10 +95,25 @@ internal static class OneInTheChamberRules
 
 internal static class HotPotatoRules
 {
-    internal static bool IsAllowedWeapon(string weaponName, bool hasPotato)
+    internal const string PotatoWeaponName = "HandGrenade";
+
+    internal static bool IsAllowedWeapon(string weaponName, bool hasPotato,
+        IReadOnlyList<string> weaponOrder)
     {
-        string expected = hasPotato ? "GlandGrenade" : "Shotgun";
-        return weaponName.StartsWith(expected, StringComparison.Ordinal);
+        if (hasPotato)
+        {
+            return weaponName.StartsWith(PotatoWeaponName, StringComparison.Ordinal);
+        }
+
+        foreach (string expected in weaponOrder)
+        {
+            if (weaponName.StartsWith(expected, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     internal static int ResolvePotato(int potatoPlayerId, int killerId, int deadPlayerId)

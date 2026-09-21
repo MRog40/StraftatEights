@@ -33,7 +33,9 @@ internal enum GameMode
     CaptureTheFlag = 14,
     SearchAndDestroy = 15,
     TeamDeathmatch = 16,
-    Infected = 17
+    Infected = 17,
+    NinjaHunters = 18,
+    RabbitHunters = 19
 }
 
 internal enum GameModePhase
@@ -108,7 +110,9 @@ internal static class GameModeManager
         GameMode.Hardpoint,
         GameMode.CaptureTheFlag,
         GameMode.SearchAndDestroy,
-        GameMode.TeamDeathmatch
+        GameMode.TeamDeathmatch,
+        GameMode.NinjaHunters,
+        GameMode.RabbitHunters
     };
 
     private const string ScoreboardAccentColor = "B7F47A";
@@ -232,7 +236,19 @@ internal static class GameModeManager
             TeamDeathmatchState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
             periodicSettingsPush:
             TeamDeathmatchState.PeriodicPushSettingsIfHost,
-            pollLiveState: TeamDeathmatchState.PollLiveStateIfClient)
+            pollLiveState: TeamDeathmatchState.PollLiveStateIfClient),
+        [GameMode.NinjaHunters] = new ModeDescriptor("NINJA HUNTERS", new Color32(152, 91, 224, 255),
+            () => Plugin.NinjaHuntersEnabled.Value, HuntersReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            HuntersState.PeriodicPushIfHost, HuntersState.EnsureLoadouts,
+            HuntersState.PeriodicPushSettingsIfHost, HuntersState.PollLiveStateIfClient),
+        [GameMode.RabbitHunters] = new ModeDescriptor("RABBIT HUNTERS", new Color32(238, 156, 196, 255),
+            () => Plugin.RabbitHuntersEnabled.Value, HuntersReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            HuntersState.PeriodicPushIfHost, HuntersState.EnsureLoadouts,
+            HuntersState.PeriodicPushSettingsIfHost, HuntersState.PollLiveStateIfClient)
     };
 
     private static void DefaultReset() => DefaultGameModeState.ResetMatchState();
@@ -257,9 +273,16 @@ internal static class GameModeManager
     private static void HardpointReset() => HardpointState.ResetMatchState();
     private static void CaptureTheFlagReset() => CaptureTheFlagState.ResetMatchState();
     private static void SearchAndDestroyReset() => SearchAndDestroyState.ResetMatchState();
+    private static void HuntersReset() => HuntersState.ResetMatchState();
     private static void TeamDeathmatchReset() => TeamDeathmatchState.ResetMatchState();
 
     internal static GameMode ActiveMode { get; private set; }
+    internal static bool IsHuntersMode(GameMode mode)
+    {
+        return mode == GameMode.NinjaHunters || mode == GameMode.RabbitHunters;
+    }
+
+    internal static bool IsHuntersActive => IsHuntersMode(ActiveMode);
     internal static GameModePhase Phase { get; private set; } = GameModePhase.Inactive;
     internal static int RoundId { get; private set; }
     private static bool _roundLifecycleStarted;
@@ -482,6 +505,10 @@ internal static class GameModeManager
                 break;
             case GameMode.TeamDeathmatch:
                 TeamDeathmatchState.OnRoundStarted();
+                break;
+            case GameMode.NinjaHunters:
+            case GameMode.RabbitHunters:
+                HuntersState.OnRoundStarted();
                 break;
             case GameMode.Infected:
                 InfectedState.OnRoundStarted();
@@ -1208,7 +1235,8 @@ internal static class GameModeManager
         Phase = MyceliumNetwork.InLobby ? GameModePhase.Lobby : GameModePhase.Inactive;
         RoundId++;
         if ((mode == GameMode.Hardpoint || mode == GameMode.CaptureTheFlag
-            || mode == GameMode.SearchAndDestroy || mode == GameMode.TeamDeathmatch)
+            || mode == GameMode.SearchAndDestroy || mode == GameMode.TeamDeathmatch
+            || IsHuntersMode(mode))
             && MyceliumNetwork.IsHost)
         {
             if (mode == GameMode.Hardpoint)
@@ -1222,6 +1250,10 @@ internal static class GameModeManager
             else if (mode == GameMode.SearchAndDestroy)
             {
                 SearchAndDestroyState.PrepareTeamsForRound();
+            }
+            else if (IsHuntersMode(mode))
+            {
+                HuntersState.PrepareTeamsForRound();
             }
             else
             {
@@ -1337,7 +1369,8 @@ internal static class GameModeManager
             if (MyceliumNetwork.IsHost && (ActiveMode == GameMode.Hardpoint
                 || ActiveMode == GameMode.CaptureTheFlag
                 || ActiveMode == GameMode.SearchAndDestroy
-                || ActiveMode == GameMode.TeamDeathmatch)
+                || ActiveMode == GameMode.TeamDeathmatch
+                || IsHuntersMode(ActiveMode))
                 && MyceliumNetwork.InLobby)
             {
                 if (ActiveMode == GameMode.Hardpoint)
@@ -1351,6 +1384,10 @@ internal static class GameModeManager
                 else if (ActiveMode == GameMode.SearchAndDestroy)
                 {
                     SearchAndDestroyState.PrepareTeamsForRound();
+                }
+                else if (IsHuntersMode(ActiveMode))
+                {
+                    HuntersState.PrepareTeamsForRound();
                 }
                 else
                 {
@@ -1364,7 +1401,8 @@ internal static class GameModeManager
         if (MyceliumNetwork.IsHost)
         {
             if ((ActiveMode == GameMode.Hardpoint || ActiveMode == GameMode.CaptureTheFlag
-                || ActiveMode == GameMode.SearchAndDestroy || ActiveMode == GameMode.TeamDeathmatch)
+                || ActiveMode == GameMode.SearchAndDestroy || ActiveMode == GameMode.TeamDeathmatch
+                || IsHuntersMode(ActiveMode))
                 && MyceliumNetwork.InLobby)
             {
                 if (ActiveMode == GameMode.Hardpoint)
@@ -1378,6 +1416,10 @@ internal static class GameModeManager
                 else if (ActiveMode == GameMode.SearchAndDestroy)
                 {
                     SearchAndDestroyState.PrepareTeamsForRound();
+                }
+                else if (IsHuntersMode(ActiveMode))
+                {
+                    HuntersState.PrepareTeamsForRound();
                 }
                 else
                 {
@@ -1531,6 +1573,13 @@ internal static class GameModeManager
                     == SearchAndDestroyBombStatus.Planted
                     ? SearchAndDestroyState.FuseTimeRemaining
                     : SearchAndDestroyState.TakeTimeRemaining;
+                return true;
+            case GameMode.NinjaHunters:
+            case GameMode.RabbitHunters:
+                label = "TAKE ENDS IN";
+                timeRemaining = HuntersState.IsTieBreakActive
+                    ? HuntersState.TieBreakHoldRemaining
+                    : HuntersState.TakeTimeRemaining;
                 return true;
             default:
                 if (ModeTimeoutState.IsTimedMode(ActiveMode))
@@ -1791,6 +1840,10 @@ internal static class GameModeManager
                 break;
             case GameMode.SearchAndDestroy:
                 SearchAndDestroyState.OnServerKill(playerId, killerId);
+                break;
+            case GameMode.NinjaHunters:
+            case GameMode.RabbitHunters:
+                HuntersState.OnServerKill(playerId, killerId);
                 break;
             case GameMode.TeamDeathmatch:
                 TeamDeathmatchState.OnServerKill(playerId, killerId);

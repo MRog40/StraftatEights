@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using MyceliumNetworking;
 using Steamworks;
 using UnityEngine;
@@ -10,29 +12,34 @@ internal static class HotPotatoState
 {
     internal const string SettingsLobbyDataKey = "Eights_HotPotato_Settings";
     internal const string LiveLobbyDataKey = "Eights_HotPotato_Live";
-    internal const string PotatoWeaponName = "GlandGrenade";
-    internal const string ShotgunWeaponName = "Shotgun";
+    internal const string PotatoWeaponName = "HandGrenade";
     internal static bool Enabled;
+    internal static List<string> WeaponOrder { get; private set; } = new();
     internal static int PotatoPlayerId { get; private set; } = -1;
     internal static int WinnerId { get; private set; } = -1;
     internal static int KillsToWin => GameModeManager.EffectivePointsToWin;
     internal static readonly Dictionary<int, int> Kills = new();
 
     private static float _nextLoadoutCheckTime;
+    private static int _weaponRotationIndex;
     private static readonly ModeSyncState Sync = new();
     private static readonly Dictionary<int, float> PendingLoadouts = new();
 
-    internal static void ApplySettings(bool enabled)
+    internal static void ApplySettings(bool enabled, string weaponOrder)
     {
-        bool changed = Enabled != enabled;
+        List<string> nextWeaponOrder = WeaponService.ParseWeaponList(weaponOrder);
+        bool changed = Enabled != enabled
+            || !WeaponOrder.SequenceEqual(nextWeaponOrder, StringComparer.Ordinal);
         Enabled = enabled;
+        WeaponOrder = nextWeaponOrder;
         if (changed)
         {
             ResetMatchState();
         }
     }
 
-    private static void ApplySettingsFromHostConfig() => ApplySettings(Plugin.HotPotatoEnabled.Value);
+    private static void ApplySettingsFromHostConfig() => ApplySettings(Plugin.HotPotatoEnabled.Value,
+        Plugin.HotPotatoWeaponOrder.Value);
 
     internal static void PushSettingsIfHost()
     {
@@ -43,11 +50,14 @@ internal static class HotPotatoState
 
         ApplySettingsFromHostConfig();
         int revision = Sync.NextSettingsRevision();
+        string encodedWeaponOrder = Convert.ToBase64String(
+            Encoding.UTF8.GetBytes(Plugin.HotPotatoWeaponOrder.Value ?? string.Empty));
         ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
-            GameModeManager.RoundId, revision, Plugin.HotPotatoEnabled.Value ? "1" : "0");
+            GameModeManager.RoundId, revision, Plugin.HotPotatoEnabled.Value ? "1" : "0",
+            encodedWeaponOrder);
         MyceliumNetwork.RPC(Plugin.HotPotatoModId, nameof(Plugin.SyncHotPotatoSettings), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
-            Plugin.HotPotatoEnabled.Value);
+            Plugin.HotPotatoEnabled.Value, Plugin.HotPotatoWeaponOrder.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -114,7 +124,7 @@ internal static class HotPotatoState
 
         MyceliumNetwork.RPCTarget(Plugin.HotPotatoModId, nameof(Plugin.SyncHotPotatoSettings), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
-            Plugin.HotPotatoEnabled.Value);
+            Plugin.HotPotatoEnabled.Value, Plugin.HotPotatoWeaponOrder.Value);
         MyceliumNetwork.RPCTarget(Plugin.HotPotatoModId, nameof(Plugin.SyncHotPotatoLiveState), player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeKills(), PotatoPlayerId, WinnerId,
             GameModeManager.RoundId, Sync.LiveRevision);
@@ -151,6 +161,7 @@ internal static class HotPotatoState
     {
         Sync.ResetLiveState();
         _nextLoadoutCheckTime = 0f;
+        _weaponRotationIndex = 0;
         PotatoPlayerId = -1;
         WinnerId = -1;
         Kills.Clear();
@@ -238,8 +249,7 @@ internal static class HotPotatoState
         }
         else if (nextPotatoPlayerId != previousPotatoPlayerId)
         {
-            PendingLoadouts.Remove(killerId);
-            WeaponService.GiveWeapon(killerId, ShotgunWeaponName, unlimitedAmmo: true);
+            RotateWeapons();
             Announce(PlayerLookup.GetPlayerNameTag(deadPlayerId) + " got the <b>Hot Potato</b>!");
         }
 
@@ -272,17 +282,19 @@ internal static class HotPotatoState
             return true;
         }
 
-        return HotPotatoRules.IsAllowedWeapon(weapon.name, playerId == PotatoPlayerId);
+        return HotPotatoRules.IsAllowedWeapon(weapon.name, playerId == PotatoPlayerId,
+            WeaponOrder);
     }
 
     internal static string GetExpectedWeapon(int playerId)
     {
-        return playerId == PotatoPlayerId ? PotatoWeaponName : ShotgunWeaponName;
+        return playerId == PotatoPlayerId ? PotatoWeaponName : GetCurrentWeapon();
     }
 
-    internal static bool IsShotgunWeapon(Weapon weapon)
+    internal static bool IsHotPotatoWeapon(Weapon weapon)
     {
-        return weapon != null && weapon.name.StartsWith(ShotgunWeaponName, StringComparison.Ordinal);
+        return weapon != null && WeaponOrder.Any(weaponName =>
+            weapon.name.StartsWith(weaponName, StringComparison.Ordinal));
     }
 
     internal static void EnsureLoadouts()
@@ -307,8 +319,8 @@ internal static class HotPotatoState
             PlayerPickup? pickup = client.PlayerSpawner.player.playerPickupScript;
             Weapon? rightHandWeapon = GetWeapon(pickup?.objInHand);
             Weapon? leftHandWeapon = GetWeapon(pickup?.objInLeftHand);
-            if ((rightHandWeapon != null && IsAllowedWeapon(rightHandWeapon, client.PlayerId))
-                || (leftHandWeapon != null && IsAllowedWeapon(leftHandWeapon, client.PlayerId)))
+            if (IsExpectedWeapon(rightHandWeapon, client.PlayerId)
+                || IsExpectedWeapon(leftHandWeapon, client.PlayerId))
             {
                 PendingLoadouts.Remove(client.PlayerId);
                 continue;
@@ -324,9 +336,45 @@ internal static class HotPotatoState
 
     private static void GiveExpectedWeapon(int playerId)
     {
+        string expectedWeapon = GetExpectedWeapon(playerId);
+        if (expectedWeapon.Length == 0)
+        {
+            return;
+        }
+
         PendingLoadouts[playerId] = Time.unscaledTime + 2f;
-        WeaponService.GiveWeapon(playerId, GetExpectedWeapon(playerId),
+        WeaponService.GiveWeapon(playerId, expectedWeapon,
             unlimitedAmmo: playerId != PotatoPlayerId);
+    }
+
+    private static void RotateWeapons()
+    {
+        if (WeaponOrder.Count > 0)
+        {
+            _weaponRotationIndex = (_weaponRotationIndex + 1) % WeaponOrder.Count;
+        }
+
+        ClearCurrentWeapons();
+        PendingLoadouts.Clear();
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client != null && client)
+            {
+                GiveExpectedWeapon(client.PlayerId);
+            }
+        }
+    }
+
+    private static string GetCurrentWeapon()
+    {
+        return WeaponOrder.Count == 0 ? string.Empty : WeaponOrder[_weaponRotationIndex];
+    }
+
+    private static bool IsExpectedWeapon(Weapon? weapon, int playerId)
+    {
+        string expectedWeapon = GetExpectedWeapon(playerId);
+        return weapon != null && expectedWeapon.Length > 0
+            && weapon.name.StartsWith(expectedWeapon, StringComparison.Ordinal);
     }
 
     private static void ClearCurrentWeapons()
@@ -375,16 +423,26 @@ internal static class HotPotatoState
 
     private static void ApplyLobbySettingsSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 2, out CSteamID hostId,
             out int roundId, out int revision, out string[] fields)
-            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
-            || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-                ModeLobbyDataSync.Source("hot-potato", "settings")))
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled))
         {
             return;
         }
 
-        ApplySettings(enabled);
+        try
+        {
+            string weaponOrder = Encoding.UTF8.GetString(Convert.FromBase64String(fields[1]));
+            if (Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("hot-potato", "settings")))
+            {
+                ApplySettings(enabled, weaponOrder);
+            }
+        }
+        catch (FormatException)
+        {
+            // Steam lobby data can contain an incomplete update while the value is changing.
+        }
     }
 
     private static void ApplyLobbyLiveSnapshot()

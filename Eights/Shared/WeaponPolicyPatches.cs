@@ -7,7 +7,8 @@ internal static class WeaponPolicy
 {
     internal static bool PrepareItemSpawn(ItemSpawner spawner)
     {
-        if (GameModeManager.IsActive(GameMode.SearchAndDestroy))
+        if (GameModeManager.IsActive(GameMode.SearchAndDestroy)
+            || GameModeManager.IsHuntersActive)
         {
             return false;
         }
@@ -97,6 +98,11 @@ internal static class WeaponPolicy
         PlayerHealth? health = pickup.GetComponent<PlayerHealth>();
         switch (GameModeManager.ActiveMode)
         {
+            case GameMode.NinjaHunters:
+            case GameMode.RabbitHunters:
+                int huntersPlayerId = health?.playerValues?.playerClient?.PlayerId ?? -1;
+                return huntersPlayerId < 0
+                    || HuntersState.IsExpectedWeapon(weapon, huntersPlayerId);
             case GameMode.Infected:
                 return health == null || !InfectedState.IsInfected(health)
                     || weapon.name.StartsWith(InfectedState.KnifeWeaponName,

@@ -8,20 +8,26 @@ public partial class Plugin
 {
     internal const uint HotPotatoModId = 2718281830u;
     internal static ConfigEntry<bool> HotPotatoEnabled = null!;
+    internal static ConfigEntry<string> HotPotatoWeaponOrder = null!;
 
     private void InitializeHotPotato()
     {
-        const string section = "Game Mode Settings";
-        HotPotatoEnabled = ModeConfigMigration.BindModeEnabled(Config, section, "Hot Potato",
-            "One player carries a renewable grenade while everyone else uses shotguns, but all players can fight and kill each other. "
-            + "Each kill awards 10 points, the potato passes after its carrier dies, and the first player to reach the configured "
-            + "point limit wins.");
+        const string modeSection = "Game Mode Settings";
+        const string weaponSection = "Weapon Settings";
+        const string defaultWeaponOrder = "Shotgun, Tromblonj, Gust, Crisis";
+        HotPotatoEnabled = ModeConfigMigration.BindModeEnabled(Config, modeSection, "Hot Potato",
+            "One player carries a renewable grenade while everyone else rotates through the configured weapons. All players can fight "
+            + "and kill each other. Each kill awards 10 points, the potato passes after its carrier kills, and the first player to "
+            + "reach the configured point limit wins.");
+        HotPotatoWeaponOrder = Config.Bind(weaponSection, "Hot Potato Weapons", defaultWeaponOrder,
+            "Host-controlled: exact prefab IDs rotated through by non-potato players.");
 
         HotPotatoEnabled.SettingChanged += (_, _) =>
         {
             HotPotatoState.PushSettingsIfHost();
             GameModeManager.OnSettingsChanged();
         };
+        HotPotatoWeaponOrder.SettingChanged += (_, _) => HotPotatoState.PushSettingsIfHost();
 
         MyceliumNetwork.RegisterNetworkObject(this, HotPotatoModId);
         ModeLobbyDataSync.RegisterKeys(HotPotatoState.SettingsLobbyDataKey, HotPotatoState.LiveLobbyDataKey);
@@ -33,7 +39,8 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncHotPotatoSettings(CSteamID hostId, int roundId, int revision, bool enabled, RPCInfo info)
+    public void SyncHotPotatoSettings(CSteamID hostId, int roundId, int revision, bool enabled,
+        string? weaponOrder, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
@@ -43,7 +50,7 @@ public partial class Plugin
         {
             return;
         }
-        HotPotatoState.ApplySettings(enabled);
+        HotPotatoState.ApplySettings(enabled, weaponOrder ?? string.Empty);
     }
 
     [CustomRPC]
