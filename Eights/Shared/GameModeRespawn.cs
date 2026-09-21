@@ -816,7 +816,7 @@ internal static class PlayerManager_CustomRoundStartScreen_Patch
     private static bool Prefix(PlayerManager __instance)
     {
         if (!GameModeManager.IsCustomMode
-            || GameModeManager.Phase != GameModePhase.ActiveRound)
+            || (GameModeManager.Phase != GameModePhase.ActiveRound && PauseManager.BetweenRounds))
         {
             return true;
         }
