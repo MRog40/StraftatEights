@@ -14,7 +14,9 @@ public partial class Plugin
         TankBattleEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Tank Battle",
             "Both teams use HK_Caws. Every player has 400 health, cannot regenerate, jump, or slide, "
-            + "and stays crouched while moving slowly.");
+            + "and stays crouched while moving slowly in single-life team takes. Sides swap each take; "
+            + "when time expires, the first team to hold the first hardpoint uncontested for 5 seconds "
+            + "wins the take.");
 
         TankBattleEnabled.SettingChanged += (_, _) =>
         {
@@ -25,6 +27,7 @@ public partial class Plugin
         MyceliumNetwork.RegisterNetworkObject(this, TankBattleDefinition.Value.ModId);
         ModeLobbyDataSync.RegisterKeys(TankBattleDefinition.Value.SettingsLobbyDataKey,
             TankBattleDefinition.Value.LiveLobbyDataKey);
+        HuntersState.SubscribeLifecycleEvents();
     }
 
     [CustomRPC]

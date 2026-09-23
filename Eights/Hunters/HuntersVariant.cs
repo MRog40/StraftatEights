@@ -68,7 +68,7 @@ internal static class RabbitHuntersDefinition
 {
     internal static readonly HuntersVariantDefinition Value = new(
         GameMode.RabbitHunters,
-        "RABBIT HUNTERS",
+        "RABBIT HUNT",
         new Color32(238, 156, 196, 255),
         1618034000u,
         "Eights_RabbitHunters_Settings",

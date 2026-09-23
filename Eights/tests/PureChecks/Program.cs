@@ -147,6 +147,10 @@ Assert(ScoreRules.PointsToWin == 100 && ScoreRules.PointsPerRoundWin == 50
     && ScoreRules.PointsPerJuggernautCrown == 20 && ScoreRules.PointsPerRatSurvivalSecond == 3
     && ScoreRules.PointsPerHVTSurvivalSecond == 3,
     "Shared score rules must use the 100-point target and mode award values.");
+Assert(ScoreRules.AddPoints(40, 10, 100) == 50
+    && ScoreRules.AddPoints(80, 30, 100) == 100
+    && ScoreRules.AddPoints(100, 10, 100) == 100,
+    "Every score award must stop at the configured score limit.");
 Dictionary<int, int> timeoutScores = new() { [4] = 60, [9] = 40 };
 Assert(ModeTimeoutRules.DefaultRoundSeconds == 90f
     && ModeTimeoutRules.LongRoundSeconds == 250f
@@ -637,7 +641,8 @@ huntersHoldProgress = HuntersRules.AdvanceTieBreakHold(1f, 0, 1,
 Assert(Math.Abs(huntersHoldProgress - 1f) < 0.001f,
     "A contested or changed hardpoint controller must reset continuous hold time.");
 Assert(HuntersRules.AddTakePoints(0, 100) == HuntersRules.PointsPerTakeWin
-    && HuntersRules.AddTakePoints(40, 100) == 80,
-    "A Hunters take win must award exactly forty points.");
+    && HuntersRules.AddTakePoints(40, 100) == 80
+    && HuntersRules.AddTakePoints(80, 100) == 100,
+    "A Hunters take win must award forty points without exceeding the match limit.");
 
 Console.WriteLine("Pure checks passed.");

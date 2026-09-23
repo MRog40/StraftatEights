@@ -64,7 +64,7 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("Search and Destroy", InitializeSearchAndDestroy);
         InitializeSafely("Team Deathmatch", InitializeTeamDeathmatch);
         InitializeSafely("Ninja Hunters", InitializeNinjaHunters);
-        InitializeSafely("Rabbit Hunters", InitializeRabbitHunters);
+        InitializeSafely("Rabbit Hunt", InitializeRabbitHunters);
         InitializeSafely("Tank Battle", InitializeTankBattle);
         Config.Save();
 
@@ -139,8 +139,8 @@ public partial class Plugin : BaseUnityPlugin
         PositionMarkerDebug.Update();
         MyceliumTransportRecovery.Update();
         GameModeManager.EnsureVanillaScene();
-        GameModeManager.UpdatePreRoundTimer();
         GameModeManager.UpdateRoundEndCountdown();
+        GameModeRespawn.UpdateRoundResultMovementLock();
         GameModeManager.PeriodicPushIfHost();
         GameModeManager.PeriodicActiveModePushIfHost();
         GameModeManager.PollLobbyStateIfClient();
@@ -167,10 +167,8 @@ public partial class Plugin : BaseUnityPlugin
         HealthSettingsState.PollSettingsIfClient();
         GameModeHud.PeriodicPushTakeResult();
         HealthSettingsState.ServerTick();
-        WeaponSettingsState.UpdateLocalCycle();
         WeaponSettingsState.PeriodicPushIfHost();
         WeaponSettingsState.PollSettingsIfClient();
-        WeaponSettingsState.EnsureCycleLoadouts();
         GameModeManager.EnsureActiveModeLoadouts();
         WeaponSettingsState.EnsureDefaultKnifeLoadouts();
         PlayerOutline.EnforceOutline();

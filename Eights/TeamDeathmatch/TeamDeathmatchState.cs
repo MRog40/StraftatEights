@@ -209,7 +209,11 @@ internal static class TeamDeathmatchState
         int nextScore = TeamDeathmatchRules.AddKillPoints(currentScore,
             GameModeManager.EffectivePointsToWin);
         Scores[teamId] = nextScore;
-        GameModeHud.ShowScorePopupForPlayer(killerId, TeamDeathmatchRules.PointsPerKill);
+        int awardedPoints = nextScore - currentScore;
+        if (awardedPoints > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(killerId, awardedPoints);
+        }
 
         if (TeamDeathmatchRules.IsMatchWon(nextScore, GameModeManager.EffectivePointsToWin))
         {

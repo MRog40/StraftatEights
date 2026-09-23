@@ -234,9 +234,14 @@ internal static class HotPotatoState
         if (validKiller)
         {
             Kills.TryGetValue(killerId, out int currentKills);
-            totalKills = currentKills + ScoreRules.PointsPerKill;
+            totalKills = ScoreRules.AddPoints(currentKills, ScoreRules.PointsPerKill,
+                KillsToWin);
             Kills[killerId] = totalKills;
-            GameModeHud.ShowScorePopupForPlayer(killerId, ScoreRules.PointsPerKill);
+            int awardedKills = totalKills - currentKills;
+            if (awardedKills > 0)
+            {
+                GameModeHud.ShowScorePopupForPlayer(killerId, awardedKills);
+            }
         }
 
         int previousPotatoPlayerId = PotatoPlayerId;

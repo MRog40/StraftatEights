@@ -415,9 +415,13 @@ internal static class DefaultGameModeState
     private static void AwardScore(int playerId, int amount)
     {
         Scores.TryGetValue(playerId, out int currentScore);
-        int nextScore = currentScore + amount;
+        int nextScore = ScoreRules.AddPoints(currentScore, amount, PointsToWin);
+        int awardedPoints = nextScore - currentScore;
         Scores[playerId] = nextScore;
-        GameModeHud.ShowScorePopupForPlayer(playerId, amount);
+        if (awardedPoints > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(playerId, awardedPoints);
+        }
         if (WinnerId < 0 && nextScore >= PointsToWin)
         {
             WinnerId = playerId;

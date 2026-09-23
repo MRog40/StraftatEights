@@ -68,3 +68,20 @@ internal static class PauseManager_RoundLifecycle_Patch
         GameModeHud.AnnounceActiveMode();
     }
 }
+
+[HarmonyPatch(typeof(GameManager), "SetStartTime")]
+internal static class GameManager_PreRoundTimer_Patch
+{
+    private static void Prefix(ref float serverTimeTillStart)
+    {
+        if (!GameModeManager.IsCustomMode)
+        {
+            return;
+        }
+
+        if (serverTimeTillStart < GameModeManager.EffectivePreRoundSeconds)
+        {
+            serverTimeTillStart = GameModeManager.EffectivePreRoundSeconds;
+        }
+    }
+}

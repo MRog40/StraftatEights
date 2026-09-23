@@ -181,23 +181,20 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
   empty-magazine reload and manual `R` reload; native weapons keep their game reload behavior.
   Custom reload duration is fixed at `1.75f`. `WeaponReloadPatches` blocks firing during a custom
   reload. Do not add a second ammo counter or reload coroutine inside a game mode.
-- **For cycling weapons, use `WeaponSettingsState`.** `GiveCycledWeapon` updates the per-player
-  selected weapon and calls `WeaponService.GiveWeapon`. `GetSelectedWeapon` returns the remembered
-  selection, or the first allowed weapon for a new player. The Global Weapons `SpawnPlayer` postfix
-  uses this value after death/respawn and passes `SpareMagazines`, so future modes should not reset
-  a player's selected weapon to `Allowed[0]` unless that is explicitly required.
+- **Use `WeaponSettingsState` for global weapon rules.** The host syncs `Enabled`, `Allowed`,
+  `SpareMagazines`, and `DefaultKnife`. Use `WeaponService.GiveWeapon` for server-authoritative
+  grants and do not add a client-side weapon spawn or selection path.
 - **Use `TeamWeaponLoadouts` for team-mode allocations.** Hardpoint, Capture The Flag, Search And
   Destroy, and Team Deathmatch use the configured `WeaponSettingsState.Allowed` list and
-  `SpareMagazines`, regardless of the global weapon or F8 cycle switches. The host creates one
+  `SpareMagazines`, independently of the global weapon toggle. The host creates one
   shuffled `TeamWeaponSequence` per round, maps sorted team slots to the same sequence, and advances
   a separate respawn cursor for each team. Do not add a fixed per-mode weapon grant or a client-side
   weapon spawn path.
 - **Preserve normal team-mode drops.** `TeamWeaponLoadouts` assigns once for each new player object
   and must not continuously replace the held weapon. Team modes keep the `IgnoreGlobalWeapons`
-  capability so global cycling and cycle-only drop restrictions do not block normal drops or pickups.
+  capability so global weapon rules do not block normal drops or pickups.
 - **Keep weapon grants host-authoritative.** `WeaponService` exits unless the FishNet server is
-  active. Client input should request a host action through a registered Mycelium RPC, as F8 cycling
-  does, instead of spawning or changing weapons locally.
+  active. Clients must not spawn or equip network objects locally.
 - **Treat generated FishNet method names as version-sensitive.** The current weapon attachment
   path uses `RpcLogic___SetObjectInHandServer_46969756` and
   `RpcLogic___SetObjectInHandObserver_46969756` through reflection. Recheck the shipped DLL after a
@@ -246,25 +243,18 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
   (`PlayerManager.SpawnPlayer`), so `Awake`-based patches re-run every respawn, not just once at game
   start — but that also means a config change made *while already alive* won't visibly apply until
   the player's fields are touched again.
-- **Weapon objects are also replaced on every respawn.** Persistent per-player choices must live in
-  a state dictionary keyed by `ClientInstance.PlayerId`, not on the weapon component. The Global
-  Weapons cycle state stores the selected prefab name and the `SpawnPlayer` postfix restores it.
-  Pass the configured spare-magazine count to `WeaponService.GiveWeapon` so the replacement gets a
-  full loadout.
-- **Team weapon state is different from F8 cycling.** The team allocator stores initial slot state,
+- **Weapon objects are also replaced on every respawn.** Team loadout state stores initial slot state,
+  player-object identities, and per-team respawn cursors for the current round. Pass the configured
+  spare-magazine count to `WeaponService.GiveWeapon` so a replacement gets a full loadout.
+- **Team weapon state is separate from global weapon settings.** The team allocator stores initial slot state,
   player-object identities, and per-team respawn cursors for the current round. It must reset on a
-  new round, mode reset, lobby reset, or allowed-list change. It must not use the global selected
-  weapon dictionary or reapply a grant after a player drops the weapon.
+  new round, mode reset, lobby reset, or allowed-list change. It must not reapply a grant after a
+  player drops the weapon.
 - **Use the existing weapon grant and ammo paths together.** A direct server grant is not an
   `ItemSpawner` pickup, so call `WeaponService.GiveWeapon` with `spareMagazines` when a fresh full
   loadout is required. The service calls `WeaponAmmoTuning.InitializeFromSpawnerPickup` before hand
   attachment; this sets the current magazine and reserve state for both ordinary and native-reload
   weapons. GunGame omits this optional argument because it controls its own progression.
-- **Host startup can race the initial player spawn.** The host may receive the lobby settings after
-  `SpawnPlayer` has already created the first weapon. The Global Weapons state therefore reconciles
-  active cycle loadouts after settings activation: an already-held selected weapon is initialized
-  without resetting its current magazine, while a missed grant is retried through
-  `WeaponService`. Keep this reconciliation when changing lobby or loadout timing.
 - **Native and custom reloads are separate.** `Weapon.reload` receives the player's reload action in
   `WeaponUpdate`, while `weapon.reloadWeapon` identifies weapons with native reload behavior. Keep
   native weapons untouched. For ordinary weapons, `WeaponAmmoTuning` detects a rising edge of `R`

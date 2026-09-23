@@ -45,7 +45,7 @@ internal static class HardpointRules
         }
 
         scores.TryGetValue(teamId, out int score);
-        scores[teamId] = Math.Min(scoreLimit, score + 1);
+    scores[teamId] = ScoreRules.AddPoints(score, 1, scoreLimit);
         if (scores[teamId] >= scoreLimit)
         {
             winningTeamId = teamId;

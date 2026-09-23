@@ -66,7 +66,43 @@ internal static class ModMenuIntegration
 
     private static void BuildContent(OptionListContext context)
     {
-        context.InsertButton(0, "Global Settings", "Skip round",
-            GameModeManager.SkipCurrentRound);
+        const string sectionSuffix = "/Global Settings";
+        string? globalHeaderName = null;
+        int insertionPosition = -1;
+        int activePosition = 0;
+
+        for (int childIndex = 0; childIndex < context.Root.childCount; childIndex++)
+        {
+            Transform child = context.Root.GetChild(childIndex);
+            if (!child.gameObject.activeSelf)
+            {
+                continue;
+            }
+
+            if (globalHeaderName == null
+                && child.name.EndsWith(sectionSuffix, StringComparison.Ordinal))
+            {
+                globalHeaderName = child.name;
+                insertionPosition = activePosition + 1;
+                break;
+            }
+
+            activePosition++;
+        }
+
+        if (globalHeaderName == null)
+        {
+            return;
+        }
+
+        if (insertionPosition >= 0)
+        {
+            context.InsertButton(insertionPosition, string.Empty, "Skip round",
+                GameModeManager.SkipCurrentRound);
+        }
+        else
+        {
+            context.AppendButton(string.Empty, "Skip round", GameModeManager.SkipCurrentRound);
+        }
     }
 }

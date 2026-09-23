@@ -766,11 +766,12 @@ internal static class InfidelState
     private static void AwardScore(int playerId, int amount)
     {
         Scores.TryGetValue(playerId, out int currentScore);
-        int nextScore = currentScore + amount;
+            int nextScore = ScoreRules.AddPoints(currentScore, amount, KillsToWin);
+            int awardedPoints = nextScore - currentScore;
         Scores[playerId] = nextScore;
-        if (amount > 0)
+            if (awardedPoints > 0)
         {
-            GameModeHud.ShowScorePopupForPlayer(playerId, amount);
+                GameModeHud.ShowScorePopupForPlayer(playerId, awardedPoints);
         }
         if (WinnerId < 0 && nextScore >= KillsToWin)
         {

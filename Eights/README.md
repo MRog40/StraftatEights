@@ -72,7 +72,7 @@ respawns players after death.
 one life per take. Team sides swap at each take; a team wipe wins immediately, while a timeout starts
 a five-second uncontested hold on the map's first Hardpoint objective. Each take awards 40 points.
 
-**Rabbit Hunters** uses the same single-life team rules. Hunters use the Tromblonj, while Rabbits
+**Rabbit Hunt** uses the same single-life team rules. Hunters use the Tromblonj, while Rabbits
 dual-wield Stylus weapons; team sides swap at each take, and a timeout starts the same five-second
 uncontested hold on the map's first Hardpoint objective. Each take awards 40 points.
 
@@ -83,10 +83,10 @@ their targets; take wins, side swaps, and the Hardpoint timeout tie-break use th
 Hardpoint, Capture The Flag, Search And Destroy, and Team Deathmatch use the configured `Allowed Weapons`
 and `Spare Magazines` settings for host-authoritative team loadouts. Each round creates one shuffled
 weapon sequence and gives matching team slots the same weapons. Each team's respawns advance through
-that sequence independently. The global weapon toggle and F8 cycle do not override these team loadouts;
+that sequence independently. The global weapon toggle does not override these team loadouts;
 normal weapon drops and pickups remain available.
 
-Ninja Hunters and Rabbit Hunters use fixed team weapons and do not use the global weapon sequence.
+Ninja Hunters and Rabbit Hunt use fixed team weapons and do not use the global weapon sequence.
 
 The host can disable `Enable Map Overrides` under `Global Settings` to use the
 normal STRAFTAT lobby map selection. Hardpoint then runs only on maps with authored

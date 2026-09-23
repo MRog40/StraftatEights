@@ -536,6 +536,7 @@ internal static class CaptureTheFlagState
                 if (ownFlag >= 0 && FlagStatuses[ownFlag] == CaptureTheFlagFlagStatus.Home
                     && IsNear(playerPosition, GetHomePosition(ownFlag)))
                 {
+                    Scores.TryGetValue(teamId, out int previousScore);
                     if (!CaptureTheFlagRules.TryAwardCapture(Scores, teamId,
                         GameModeManager.EffectivePointsToWin, true, true,
                         out int winningTeamId))
@@ -544,7 +545,7 @@ internal static class CaptureTheFlagState
                     }
 
                     ReturnFlagHome(carriedFlag);
-                    ShowCapturePopupForTeam(teamId);
+                    ShowCapturePopupForTeam(teamId, Scores[teamId] - previousScore);
                     changed = true;
                     if (IsSuddenDeath || winningTeamId >= 0)
                     {
@@ -638,13 +639,18 @@ internal static class CaptureTheFlagState
         return true;
     }
 
-    private static void ShowCapturePopupForTeam(int teamId)
+    private static void ShowCapturePopupForTeam(int teamId, int amount)
     {
+        if (amount <= 0)
+        {
+            return;
+        }
+
         foreach (KeyValuePair<int, int> assignment in TeamAssignment.Current)
         {
             if (assignment.Value == teamId)
             {
-                GameModeHud.ShowScorePopupForPlayer(assignment.Key, CapturePoints);
+                GameModeHud.ShowScorePopupForPlayer(assignment.Key, amount);
             }
         }
     }

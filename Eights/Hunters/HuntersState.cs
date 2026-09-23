@@ -60,6 +60,23 @@ internal static class HuntersState
     private static float _tieBreakElapsed;
     private static bool _roundStarted;
     private static bool _takeEnding;
+    private static bool _lifecycleEventsSubscribed;
+
+    internal static void SubscribeLifecycleEvents()
+    {
+        if (_lifecycleEventsSubscribed)
+        {
+            return;
+        }
+
+        _lifecycleEventsSubscribed = true;
+        MyceliumNetwork.LobbyCreated += OnLobbyEntered;
+        MyceliumNetwork.LobbyEntered += OnLobbyEntered;
+        MyceliumNetwork.LobbyLeft += OnLobbyLeft;
+        MyceliumNetwork.LobbyDataUpdated += OnLobbyDataUpdated;
+        MyceliumNetwork.PlayerEntered += OnPlayerEntered;
+        MyceliumNetwork.PlayerLeft += OnPlayerLeft;
+    }
 
     private static bool ConfiguredEnabled => Variant.Mode switch
     {
@@ -102,7 +119,7 @@ internal static class HuntersState
             enabled ? "1" : "0", "1");
         MyceliumNetwork.RPC(variant.ModId, variant.SettingsRpcName, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
-            enabled, true);
+            enabled);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -189,7 +206,7 @@ internal static class HuntersState
 
         MyceliumNetwork.RPCTarget(Variant.ModId, Variant.SettingsRpcName, player,
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId,
-            Sync.SettingsRevision, ConfiguredEnabled, true);
+            Sync.SettingsRevision, ConfiguredEnabled);
         SendLiveStateTo(player);
     }
 
@@ -328,6 +345,17 @@ internal static class HuntersState
         changed = true;
         if (TakeTimeRemaining <= 0f)
         {
+            if (!IsTieBreakActive)
+            {
+                IsTieBreakActive = true;
+                TieBreakController = -1;
+                TieBreakHoldRemaining = TieBreakDurationSeconds;
+                changed = true;
+                GameModeHud.BroadcastAnnouncement(
+                    "<color=#FFCF4A><b>FINAL HARDPOINT</b></color>\n"
+                    + "<i>GO CAPTURE THE POINT</i>", 4f);
+            }
+
             if (TryGetControllingTeam(out int controllingTeam))
             {
                 HuntersRules.AdvanceTieBreakHold(elapsed, TieBreakController,
@@ -345,12 +373,11 @@ internal static class HuntersState
             }
             else
             {
-                if (IsTieBreakActive || _tieBreakElapsed > 0f)
+                if (TieBreakController >= 0 || _tieBreakElapsed > 0f)
                 {
                     changed = true;
                 }
                 _tieBreakElapsed = 0f;
-                IsTieBreakActive = false;
                 TieBreakController = -1;
                 TieBreakHoldRemaining = TieBreakDurationSeconds;
             }
@@ -455,10 +482,18 @@ internal static class HuntersState
         }
 
         int localPlayerId = ClientInstance.Instance.PlayerId;
-        return TeamAssignment.TryGetTeamId(localPlayerId, out int teamId)
-            ? (teamId == TieBreakController ? "YOUR TEAM CONTROLS\n" : "ENEMY CONTROLS\n")
-                + Mathf.CeilToInt(TieBreakHoldRemaining) + "s"
-            : string.Empty;
+        if (!TeamAssignment.TryGetTeamId(localPlayerId, out int teamId))
+        {
+            return string.Empty;
+        }
+
+        if (TieBreakController < 0)
+        {
+            return "CAPTURE THE HARDPOINT";
+        }
+
+        return (teamId == TieBreakController ? "YOUR TEAM CONTROLS\n" : "ENEMY CONTROLS\n")
+            + Mathf.CeilToInt(TieBreakHoldRemaining) + "s";
     }
 
     internal static int GetScore(int teamId)
@@ -687,10 +722,14 @@ internal static class HuntersState
             }
 
             PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(playerId);
-            if (health != null && health && health.health > 0f
-                && (health.transform.position - objective.Position).sqrMagnitude <= radiusSquared)
+            if (health != null && health && health.health > 0f)
             {
-                teams.Add(playerTeam);
+                Vector3 delta = health.transform.position - objective.Position;
+                if (delta.y >= -1f && delta.y <= 2f
+                    && delta.x * delta.x + delta.z * delta.z <= radiusSquared)
+                {
+                    teams.Add(playerTeam);
+                }
             }
         }
 
@@ -718,10 +757,12 @@ internal static class HuntersState
         _takeEnding = true;
         TakeWinnerId = winningTeamId;
         Scores.TryGetValue(winningTeamId, out int score);
-        Scores[winningTeamId] = HuntersRules.AddTakePoints(score,
+        int nextScore = HuntersRules.AddTakePoints(score,
             GameModeManager.EffectivePointsToWin);
+        int awardedPoints = nextScore - score;
+        Scores[winningTeamId] = nextScore;
         GameModeHud.BroadcastTakeResult(
-            $"<b>{GetTeamName(winningTeamId)} won the take</b>\n<i>+{PointsPerTakeWin} points</i>",
+            $"<b>{GetTeamName(winningTeamId)} won the take</b>\n<i>+{awardedPoints} points</i>",
             3f);
         if (MyceliumNetwork.IsHost)
         {
@@ -729,7 +770,7 @@ internal static class HuntersState
             {
                 if (assignment.Value == winningTeamId)
                 {
-                    GameModeHud.ShowScorePopupForPlayer(assignment.Key, PointsPerTakeWin);
+                    GameModeHud.ShowScorePopupForPlayer(assignment.Key, awardedPoints);
                 }
             }
         }

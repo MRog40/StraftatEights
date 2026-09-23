@@ -623,8 +623,14 @@ internal static class MichaelMeyersState
     private static void AwardScore(int playerId, int amount)
     {
         Scores.TryGetValue(playerId, out int currentScore);
-        Scores[playerId] = currentScore + amount;
-        GameModeHud.ShowScorePopupForPlayer(playerId, amount);
+        int nextScore = ScoreRules.AddPoints(currentScore, amount,
+            GameModeManager.EffectivePointsToWin);
+        int awardedPoints = nextScore - currentScore;
+        Scores[playerId] = nextScore;
+        if (awardedPoints > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(playerId, awardedPoints);
+        }
     }
 
     internal static void GiveStartingWeapon(int playerId)

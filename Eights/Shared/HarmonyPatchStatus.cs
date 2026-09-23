@@ -13,6 +13,7 @@ internal static class HarmonyPatchStatus
         typeof(GameManager_GameModeDeath_Patch),
         typeof(GameManager_CustomTeamState_Patch),
         typeof(GameManager_GameModeReset_Patch),
+        typeof(GameManager_PreRoundTimer_Patch),
         typeof(PauseManager_RoundLifecycle_Patch),
         typeof(SceneMotor_GameModeCycle_Patch),
         typeof(GameManager_GameModeStart_Patch),

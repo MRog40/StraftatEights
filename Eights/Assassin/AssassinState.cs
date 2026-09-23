@@ -39,6 +39,7 @@ internal static class AssassinState
 
     private static int AssassinPlayerId { get; set; } = -1;
     private static readonly HashSet<int> AlivePlayers = new();
+    private static readonly HashSet<int> BodyguardPlayerIds = new();
     private static readonly Dictionary<int, float> PendingLoadouts = new();
     private static readonly ModeSyncState Sync = new();
     private static float _nextLoadoutCheckTime;
@@ -179,6 +180,7 @@ internal static class AssassinState
         }
 
         AlivePlayers.Add(playerId);
+        BodyguardPlayerIds.Add(playerId);
         Scores.TryAdd(playerId, 0);
         SendRoleToPlayer(player, playerId, true);
     }
@@ -201,6 +203,7 @@ internal static class AssassinState
         bool changed = wasAlive || (playerId >= 0 && Scores.Remove(playerId));
         PendingLoadouts.Remove(playerId);
         AlivePlayers.Remove(playerId);
+        BodyguardPlayerIds.Remove(playerId);
         if (playerId >= 0 && AssassinPlayerId == playerId)
         {
             AssassinPlayerId = -1;
@@ -242,6 +245,7 @@ internal static class AssassinState
         LocalIsAssassin = false;
         LocalIsKing = false;
         AlivePlayers.Clear();
+        BodyguardPlayerIds.Clear();
         PendingLoadouts.Clear();
         Scores.Clear();
     }
@@ -331,6 +335,14 @@ internal static class AssassinState
         bool wasAlive = AlivePlayers.Remove(deadPlayerId);
         bool deadWasKing = deadPlayerId == KingPlayerId;
         bool deadWasAssassin = deadPlayerId == AssassinPlayerId;
+        if (!deadWasKing && !deadWasAssassin && wasAlive
+            && !BodyguardPlayerIds.Contains(deadPlayerId))
+        {
+            Plugin.Logger.LogWarning($"[Assassin] Repairing stale assassin role for dead player {deadPlayerId}; "
+                + $"stored assassin={AssassinPlayerId}, king={KingPlayerId}, take={_takeId}.");
+            AssassinPlayerId = deadPlayerId;
+            deadWasAssassin = true;
+        }
         if (!wasAlive && !deadWasKing && !deadWasAssassin)
         {
             return;
@@ -550,6 +562,14 @@ internal static class AssassinState
         AssassinPlayerId = DistributionRandom.SelectPlayer("Assassin", players);
         List<int> kingCandidates = players.Where(playerId => playerId != AssassinPlayerId).ToList();
         KingPlayerId = DistributionRandom.SelectPlayer("King", kingCandidates);
+        BodyguardPlayerIds.Clear();
+        foreach (int playerId in players)
+        {
+            if (playerId != AssassinPlayerId && playerId != KingPlayerId)
+            {
+                BodyguardPlayerIds.Add(playerId);
+            }
+        }
 
         ClearCurrentWeapons();
         SendRoleStates(true);
@@ -777,9 +797,13 @@ internal static class AssassinState
         }
 
         Scores.TryGetValue(playerId, out int currentScore);
-        int nextScore = currentScore + amount;
+        int nextScore = ScoreRules.AddPoints(currentScore, amount, PointsToWin);
+        int awardedPoints = nextScore - currentScore;
         Scores[playerId] = nextScore;
-        GameModeHud.ShowScorePopupForPlayer(playerId, amount);
+        if (awardedPoints > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(playerId, awardedPoints);
+        }
         if (WinnerId < 0 && nextScore >= PointsToWin)
         {
             WinnerId = playerId;

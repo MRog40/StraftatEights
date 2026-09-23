@@ -8,10 +8,10 @@ public partial class Plugin
 
     private void InitializeBloodCleanup()
     {
-        MaximumBloodEffects = Config.Bind("Blood Settings", "Maximum Blood Effects", 50,
+        MaximumBloodEffects = Config.Bind("Global Settings", "Maximum Blood Effects", 25,
             new ConfigDescription(
                 "Local visual limit for live blood effects. Older effects are removed first.",
-                new AcceptableValueRange<int>(10, 100)));
+            new AcceptableValueRange<int>(0, 50)));
         MaximumBloodEffects.SettingChanged += (_, _) => BloodCleanupState.TrimToLimit();
     }
 }

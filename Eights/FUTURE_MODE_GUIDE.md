@@ -70,7 +70,7 @@ and ground markers are presentation-only and are reapplied on every peer.
 Hardpoint, Capture The Flag, Search And Destroy, and Team Deathmatch share one team weapon path.
 Team modes always keep map droppers active, but each dropper selects from the existing `Allowed
 Weapons` list instead of its original map weapon. Picking up a dropped weapon uses the configured
-`Spare Magazines` and shared ammo lifecycle, even when global weapon tweaks or F8 cycling are
+`Spare Magazines` and shared ammo lifecycle, even when global weapon tweaks are
 disabled. Players also spawn with a weapon: the host creates one shuffled permutation of the allowed
 weapon names, sorted player IDs establish the initial slot within each team, and respawns use an
 independent cursor per team to receive the next weapon from the same sequence.
@@ -80,7 +80,7 @@ weapon allocator, or a client-side spawn path. The allocator detects a new playe
 respawn and calls `WeaponService.GiveWeapon(playerId, weaponName, spareMagazines)` once for that
 spawn. Do not continuously enforce the held weapon: normal Straftat drops and pickups must remain
 usable after the grant. Team modes must keep the `IgnoreGlobalWeapons` capability so global cycling,
-global item randomization, and cycle-only drop restrictions do not fight the team allocation.
+global item randomization does not fight the team allocation.
 
 ## 3. Keep the plugin bootstrap complete
 

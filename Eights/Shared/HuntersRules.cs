@@ -42,9 +42,7 @@ internal static class HuntersRules
 
     internal static int AddTakePoints(int currentScore, int pointsToWin)
     {
-        return currentScore >= pointsToWin
-            ? currentScore
-            : currentScore + PointsPerTakeWin;
+        return ScoreRules.AddPoints(currentScore, PointsPerTakeWin, pointsToWin);
     }
 
     private static bool HasAliveMember(IReadOnlyCollection<int> alivePlayers,

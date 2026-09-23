@@ -137,7 +137,7 @@ an action that must be retried.
   in the same team slot receive the same weapon, and each team's respawns advance independently through
   the sequence. Every grant passes `WeaponSettingsState.SpareMagazines` to `WeaponService.GiveWeapon`.
 - Team loadouts are host-only assignments. Clients receive the spawned FishNet weapon and never select
-  or grant a team weapon locally. The team modes ignore the global weapon master switch and F8 cycle so
+  or grant a team weapon locally. The team modes ignore the global weapon master switch so
   those systems cannot overwrite the assignment.
 - A loadout is assigned once for each new player object. This is important because repeatedly enforcing
   the held weapon would destroy the normal Straftat drop and pickup behavior. Team-mode players can

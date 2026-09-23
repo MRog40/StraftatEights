@@ -141,9 +141,13 @@ internal static class GunGameState
     {
         if (!Enabled || killerId < 0 || killerId == deadPlayerId) return;
         Progress.TryGetValue(killerId, out int current);
-        int next = current + ScoreRules.PointsPerKill;
+        int next = ScoreRules.AddPoints(current, ScoreRules.PointsPerKill, ScoreLimit);
         Progress[killerId] = next;
-        GameModeHud.ShowScorePopupForPlayer(killerId, ScoreRules.PointsPerKill);
+        int awardedPoints = next - current;
+        if (awardedPoints > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(killerId, awardedPoints);
+        }
         if (ScoreLimit > 0 && next >= ScoreLimit) GameModeManager.CompleteCustomRound(TeamAssignment.ResolveTeamId(killerId));
         else if (WeaponOrder.Count > 0) GiveWeaponForProgress(killerId, next);
         BroadcastLiveState();

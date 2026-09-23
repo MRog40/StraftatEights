@@ -6,7 +6,7 @@ internal static class TeamDeathmatchRules
 
     internal static int AddKillPoints(int currentScore, int pointsToWin)
     {
-        return System.Math.Min(pointsToWin, currentScore + PointsPerKill);
+        return ScoreRules.AddPoints(currentScore, PointsPerKill, pointsToWin);
     }
 
     internal static bool IsMatchWon(int score, int pointsToWin)

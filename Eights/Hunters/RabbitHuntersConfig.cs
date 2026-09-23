@@ -12,7 +12,7 @@ public partial class Plugin
     {
         const string section = "Game Mode Settings";
         RabbitHuntersEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
-            "Rabbit Hunters",
+            "Rabbit Hunt",
             "Hunters with Tromblonjs fight Rabbits with dual-wielded Stylus weapons in single-life team takes. "
             + "Sides swap each take; when time expires, the first team to hold the first hardpoint "
             + "uncontested for 5 seconds wins the take.");
@@ -27,6 +27,7 @@ public partial class Plugin
         MyceliumNetwork.RegisterNetworkObject(this, RabbitHuntersDefinition.Value.ModId);
         ModeLobbyDataSync.RegisterKeys(RabbitHuntersDefinition.Value.SettingsLobbyDataKey,
             RabbitHuntersDefinition.Value.LiveLobbyDataKey);
+        HuntersState.SubscribeLifecycleEvents();
     }
 
     [CustomRPC]

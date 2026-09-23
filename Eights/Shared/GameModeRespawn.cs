@@ -17,7 +17,7 @@ internal static class GameModeRespawn
     private static string _cachedCenterSceneName = string.Empty;
     private static Vector3 _cachedMapCenter;
     private static bool _hasCachedMapCenter;
-    private static bool _preRoundMovementLockApplied;
+    private static bool _roundResultMovementLockApplied;
 
     private readonly struct CosmeticIndices
     {
@@ -33,8 +33,8 @@ internal static class GameModeRespawn
 
     internal static void ResetForLobbyLeft()
     {
-        ReleasePreRoundMovementLock();
-        _preRoundMovementLockApplied = false;
+        ReleaseRoundResultMovementLock();
+        _roundResultMovementLockApplied = false;
         PendingManagers.Clear();
         PendingSpawnAdjustments.Clear();
         InitialTeamSpawnsApplied.Clear();
@@ -45,8 +45,8 @@ internal static class GameModeRespawn
 
     internal static void ResetForMatch()
     {
-        ReleasePreRoundMovementLock();
-        _preRoundMovementLockApplied = false;
+        ReleaseRoundResultMovementLock();
+        _roundResultMovementLockApplied = false;
         PendingManagers.Clear();
         PendingSpawnAdjustments.Clear();
         InitialTeamSpawnsApplied.Clear();
@@ -275,13 +275,6 @@ internal static class GameModeRespawn
                 yield break;
             }
 
-            if (GameModeManager.IsPreRoundTimerActive)
-            {
-                EnforcePreRoundMovementLock(manager.player);
-                yield return null;
-                continue;
-            }
-
             if (!IsPlayerMovementLocked(manager))
             {
                 yield return null;
@@ -326,9 +319,8 @@ internal static class GameModeRespawn
             return;
         }
 
-        if (GameModeManager.IsPreRoundTimerActive)
+        if (GameModeManager.IsNativeRoundStartActive)
         {
-            EnforcePreRoundMovementLock(player);
             return;
         }
 
@@ -351,10 +343,11 @@ internal static class GameModeRespawn
         }
     }
 
-    internal static void EnforcePreRoundMovementLock()
+    internal static void UpdateRoundResultMovementLock()
     {
-        if (!GameModeManager.IsPreRoundTimerActive)
+        if (!GameModeManager.HasRoundResult)
         {
+            ReleaseRoundResultMovementLock();
             return;
         }
 
@@ -364,28 +357,13 @@ internal static class GameModeRespawn
             return;
         }
 
-        EnforcePreRoundMovementLock(player);
-    }
-
-    private static void EnforcePreRoundMovementLock(FirstPersonController player)
-    {
-        if (player == null || !player || !player.IsOwner)
-        {
-            return;
-        }
-
         player.canMove = false;
-        player.startOfRound = true;
-        if (PauseManager.Instance != null)
-        {
-            PauseManager.Instance.startRound = true;
-        }
-        _preRoundMovementLockApplied = true;
+        _roundResultMovementLockApplied = true;
     }
 
-    internal static void ReleasePreRoundMovementLock()
+    private static void ReleaseRoundResultMovementLock()
     {
-        if (!_preRoundMovementLockApplied || GameModeManager.IsPreRoundTimerActive)
+        if (!_roundResultMovementLockApplied)
         {
             return;
         }
@@ -393,9 +371,15 @@ internal static class GameModeRespawn
         FirstPersonController? player = GetLocalPlayerController();
         if (player != null && player && player.IsOwner)
         {
-            SetPlayerMovable(player);
+            bool wasMovementLocked = !player.canMove;
+            player.canMove = true;
+            if (wasMovementLocked)
+            {
+                player.sync___set_value_canMove(true, true);
+            }
         }
-        _preRoundMovementLockApplied = false;
+
+        _roundResultMovementLockApplied = false;
     }
 
     private static FirstPersonController? GetLocalPlayerController()

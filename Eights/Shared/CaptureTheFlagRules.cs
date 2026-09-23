@@ -103,7 +103,7 @@ internal static class CaptureTheFlagRules
         }
 
         scores.TryGetValue(teamId, out int score);
-        scores[teamId] = Math.Min(pointsToWin, score + CapturePoints);
+        scores[teamId] = ScoreRules.AddPoints(score, CapturePoints, pointsToWin);
         if (scores[teamId] >= pointsToWin)
         {
             winningTeamId = teamId;

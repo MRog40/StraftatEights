@@ -3,29 +3,6 @@ using UnityEngine;
 
 namespace Eights;
 
-[HarmonyPatch(typeof(PlayerManager), "SpawnPlayer", new[] { typeof(int), typeof(int), typeof(Vector3), typeof(Quaternion) })]
-internal static class PlayerManager_GlobalWeaponsSpawn_Patch
-{
-    private static void Postfix(PlayerManager __instance)
-    {
-        if (GameModeManager.ShouldIgnoreGlobalWeaponSettings || !WeaponSettingsState.Enabled
-            || !WeaponSettingsState.Cycle || __instance.player == null
-            || GameModeManager.IsActive(GameMode.Infected))
-        {
-            return;
-        }
-        ClientInstance? client = __instance.GetComponent<ClientInstance>();
-        if (client != null && !JuggernautState.IsCurrentJuggernaut(__instance.player))
-        {
-            string? selectedWeapon = WeaponSettingsState.GetSelectedWeapon(client.PlayerId);
-            if (selectedWeapon != null)
-            {
-                WeaponSettingsState.RequestLoadout(client.PlayerId, selectedWeapon);
-            }
-        }
-    }
-}
-
 [HarmonyPatch(typeof(PlayerPickup), "RightHandFix")]
 internal static class PlayerPickup_WeaponHandPolicy_Patch
 {

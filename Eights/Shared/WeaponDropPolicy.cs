@@ -18,13 +18,6 @@ internal static class WeaponDropPolicy
             return false;
         }
 
-        if (!GameModeManager.IsActive(GameMode.Infected)
-            && !GameModeManager.ShouldIgnoreGlobalWeaponSettings
-            && WeaponSettingsState.Enabled && WeaponSettingsState.Cycle)
-        {
-            return true;
-        }
-
         PlayerHealth? health = pickup.GetComponent<PlayerHealth>();
         if (health == null)
         {

@@ -26,12 +26,7 @@ public partial class Plugin
         MyceliumNetwork.RegisterNetworkObject(this, NinjaHuntersDefinition.Value.ModId);
         ModeLobbyDataSync.RegisterKeys(NinjaHuntersDefinition.Value.SettingsLobbyDataKey,
             NinjaHuntersDefinition.Value.LiveLobbyDataKey);
-        MyceliumNetwork.LobbyCreated += HuntersState.OnLobbyEntered;
-        MyceliumNetwork.LobbyEntered += HuntersState.OnLobbyEntered;
-        MyceliumNetwork.LobbyLeft += HuntersState.OnLobbyLeft;
-        MyceliumNetwork.LobbyDataUpdated += HuntersState.OnLobbyDataUpdated;
-        MyceliumNetwork.PlayerEntered += HuntersState.OnPlayerEntered;
-        MyceliumNetwork.PlayerLeft += HuntersState.OnPlayerLeft;
+        HuntersState.SubscribeLifecycleEvents();
     }
 
     [CustomRPC]

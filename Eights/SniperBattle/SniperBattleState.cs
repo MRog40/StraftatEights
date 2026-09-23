@@ -176,9 +176,14 @@ internal static class SniperBattleState
         }
 
         Points.TryGetValue(killerId, out int currentPoints);
-        int totalPoints = currentPoints + ScoreRules.PointsPerKill;
+        int totalPoints = ScoreRules.AddPoints(currentPoints, ScoreRules.PointsPerKill,
+            PointsToWin);
         Points[killerId] = totalPoints;
-        GameModeHud.ShowScorePopupForPlayer(killerId, ScoreRules.PointsPerKill);
+        int awardedPoints = totalPoints - currentPoints;
+        if (awardedPoints > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(killerId, awardedPoints);
+        }
         if (totalPoints >= PointsToWin)
         {
             WinnerId = killerId;

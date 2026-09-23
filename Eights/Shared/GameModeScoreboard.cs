@@ -83,7 +83,16 @@ internal static class GameModeScoreboard
                 nameColumn.Append("</color>");
             }
 
-            scoreColumn.Append('\n').Append(row.Score);
+            scoreColumn.Append('\n');
+            if (GameModeManager.IsRoundResultWinner(row.TeamId, row.PlayerId))
+            {
+                scoreColumn.Append("<color=#FFCF4A><b>").Append(row.Score)
+                    .Append("</b></color>");
+            }
+            else
+            {
+                scoreColumn.Append(row.Score);
+            }
         }
 
         return new GameModeScoreboardLayout(nameColumn.ToString(), scoreColumn.ToString());

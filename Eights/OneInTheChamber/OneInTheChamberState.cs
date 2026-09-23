@@ -443,8 +443,8 @@ internal static class OneInTheChamberState
     private static void AddBulletToPistol(int playerId)
     {
         PlayerPickup? pickup = FindPickup(playerId);
-        Weapon? weapon = pickup == null ? null : GetWeapon(pickup.objInHand);
-        if (weapon != null && IsPistol(weapon))
+        Weapon? weapon = FindPistol(pickup);
+        if (weapon != null)
         {
             WeaponAmmoTuning.LoadSingleShotRoundIntoMagazine(weapon);
         }
@@ -460,8 +460,8 @@ internal static class OneInTheChamberState
         foreach (int playerId in AlivePlayers)
         {
             PlayerPickup? pickup = FindPickup(playerId);
-            Weapon? weapon = pickup == null ? null : GetWeapon(pickup.objInHand);
-            if (weapon != null && IsPistol(weapon) && WeaponAmmoTuning.IsSingleShot(weapon))
+            Weapon? weapon = FindPistol(pickup);
+            if (weapon != null && WeaponAmmoTuning.IsSingleShot(weapon))
             {
                 ReserveBullets[playerId] = WeaponAmmoTuning.GetSpareRounds(weapon);
             }
@@ -482,8 +482,8 @@ internal static class OneInTheChamberState
         }
 
         PlayerPickup? pickup = ClientInstance.Instance.PlayerSpawner?.player?.playerPickupScript;
-        Weapon? weapon = pickup == null ? null : GetWeapon(pickup.objInHand);
-        if (weapon != null && IsPistol(weapon))
+        Weapon? weapon = FindPistol(pickup);
+        if (weapon != null)
         {
             WeaponAmmoTuning.SetSingleShotSpareRounds(weapon, spareRounds);
         }
@@ -503,6 +503,23 @@ internal static class OneInTheChamberState
     private static Weapon? GetWeapon(GameObject? heldObject)
     {
         return heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
+    }
+
+    private static Weapon? FindPistol(PlayerPickup? pickup)
+    {
+        if (pickup == null)
+        {
+            return null;
+        }
+
+        Weapon? rightWeapon = GetWeapon(pickup.objInHand);
+        if (rightWeapon != null && IsPistol(rightWeapon))
+        {
+            return rightWeapon;
+        }
+
+        Weapon? leftWeapon = GetWeapon(pickup.objInLeftHand);
+        return leftWeapon != null && IsPistol(leftWeapon) ? leftWeapon : null;
     }
 
     private static int GetLastAlivePlayerId()
@@ -717,11 +734,12 @@ internal static class OneInTheChamberState
     private static void AwardScore(int playerId, int amount)
     {
         Scores.TryGetValue(playerId, out int currentScore);
-        int nextScore = currentScore + amount;
+        int nextScore = ScoreRules.AddPoints(currentScore, amount, PointsToWin);
+        int awardedPoints = nextScore - currentScore;
         Scores[playerId] = nextScore;
-        if (amount > 0)
+        if (awardedPoints > 0)
         {
-            GameModeHud.ShowScorePopupForPlayer(playerId, amount);
+            GameModeHud.ShowScorePopupForPlayer(playerId, awardedPoints);
         }
         if (WinnerId < 0 && nextScore >= PointsToWin)
         {

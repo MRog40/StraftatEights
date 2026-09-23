@@ -55,11 +55,6 @@ internal static class WeaponPolicy
         {
             return true;
         }
-        if (WeaponSettingsState.Cycle && !GameModeManager.IsActive(GameMode.Infected))
-        {
-            return false;
-        }
-
         GameObject? prefab = WeaponService.FindPrefab(
             WeaponSettingsState.Allowed[Random.Range(0, WeaponSettingsState.Allowed.Count)]);
         if (prefab != null)

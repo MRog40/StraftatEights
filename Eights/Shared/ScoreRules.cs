@@ -8,4 +8,9 @@ internal static class ScoreRules
     internal const int PointsPerJuggernautCrown = 20;
     internal const int PointsPerRatSurvivalSecond = 3;
     internal const int PointsPerHVTSurvivalSecond = 3;
+
+    internal static int AddPoints(int currentScore, int amount, int pointsToWin)
+    {
+        return System.Math.Min(pointsToWin, currentScore + amount);
+    }
 }

@@ -1016,7 +1016,8 @@ internal static class SearchAndDestroyState
         TakeWinnerId = winningTeamId;
         TakeWinReason = reason;
         Scores.TryGetValue(winningTeamId, out int score);
-        Scores[winningTeamId] = score + PointsPerRoundWin;
+        Scores[winningTeamId] = ScoreRules.AddPoints(score, PointsPerRoundWin,
+            GameModeManager.EffectivePointsToWin);
         AnnounceTakeResult();
         BroadcastLiveState();
         if (SearchAndDestroyRules.IsMatchWon(Scores[winningTeamId],

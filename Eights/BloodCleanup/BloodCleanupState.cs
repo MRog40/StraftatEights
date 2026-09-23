@@ -5,7 +5,7 @@ namespace Eights;
 
 internal static class BloodCleanupState
 {
-    private const int DefaultMaximumBloodEffects = 50;
+    private const int DefaultMaximumBloodEffects = 25;
     private static readonly Queue<GameObject> BloodHistory = new();
 
     internal static void Register(GameObject bloodEffect)

@@ -231,9 +231,13 @@ internal static class HVTState
     private static bool AwardPoints(int playerId, int amount)
     {
         Points.TryGetValue(playerId, out int current);
-        int total = current + amount;
+        int total = ScoreRules.AddPoints(current, amount, PointsToWin);
+        int awardedPoints = total - current;
         Points[playerId] = total;
-        GameModeHud.ShowScorePopupForPlayer(playerId, amount);
+        if (awardedPoints > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(playerId, awardedPoints);
+        }
         if (total >= PointsToWin)
         {
             WinnerId = playerId;

@@ -277,9 +277,13 @@ internal static class JuggernautState
     private static void AwardPoints(int playerId, int amount)
     {
         Points.TryGetValue(playerId, out int value);
-        int total = value + amount;
+        int total = ScoreRules.AddPoints(value, amount, PointsToWin);
+        int awardedPoints = total - value;
         Points[playerId] = total;
-        GameModeHud.ShowScorePopupForPlayer(playerId, amount);
+        if (awardedPoints > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(playerId, awardedPoints);
+        }
         if (total >= PointsToWin)
         {
             WinnerId = playerId;

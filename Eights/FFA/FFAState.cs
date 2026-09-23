@@ -166,9 +166,14 @@ internal static class FFAState
         }
 
         Kills.TryGetValue(killerId, out int currentKills);
-        int totalKills = currentKills + ScoreRules.PointsPerKill;
+        int totalKills = ScoreRules.AddPoints(currentKills, ScoreRules.PointsPerKill,
+            KillsToWin);
         Kills[killerId] = totalKills;
-        GameModeHud.ShowScorePopupForPlayer(killerId, ScoreRules.PointsPerKill);
+        int awardedKills = totalKills - currentKills;
+        if (awardedKills > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(killerId, awardedKills);
+        }
         if (totalKills >= KillsToWin)
         {
             WinnerId = killerId;

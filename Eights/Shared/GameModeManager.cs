@@ -65,6 +65,8 @@ internal static class GameModeManager
 {
     internal const uint ModId = 1618033988u;
     internal const string ActiveModeLobbyDataKey = "Eights_ActiveMode";
+    internal const string RoundResultLobbyDataKey = "Eights_RoundResult";
+    internal const float RoundResultDurationSeconds = 3f;
     private sealed class ModeDescriptor
     {
         internal readonly string Label;
@@ -245,7 +247,7 @@ internal static class GameModeManager
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
             HuntersState.PeriodicPushIfHost, HuntersState.EnsureLoadouts,
             HuntersState.PeriodicPushSettingsIfHost, HuntersState.PollLiveStateIfClient),
-        [GameMode.RabbitHunters] = new ModeDescriptor("RABBIT HUNTERS", new Color32(238, 156, 196, 255),
+        [GameMode.RabbitHunters] = new ModeDescriptor("RABBIT HUNT", new Color32(238, 156, 196, 255),
             () => Plugin.RabbitHuntersEnabled.Value, HuntersReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
@@ -294,6 +296,37 @@ internal static class GameModeManager
 
     internal static bool IsHuntersActive => IsHuntersMode(ActiveMode);
     internal static GameModePhase Phase { get; private set; } = GameModePhase.Inactive;
+    internal static int RoundResultRoundId { get; private set; } = -1;
+    internal static bool HasRoundResult => Phase == GameModePhase.EndingRound
+        && RoundResultRoundId == RoundId;
+    internal static bool HasRoundWinner => HasRoundResult && RoundWinningIds.Count > 0;
+    internal static bool IsLocalRoundResultWinner
+    {
+        get
+        {
+            if (!HasRoundWinner || ClientInstance.Instance == null)
+            {
+                return false;
+            }
+
+            int localPlayerId = ClientInstance.Instance.PlayerId;
+            return IsTeamBased
+                ? TeamAssignment.TryGetTeamId(localPlayerId, out int teamId)
+                    && RoundWinningIds.Contains(teamId)
+                : RoundWinningIds.Contains(localPlayerId);
+        }
+    }
+
+    internal static bool IsRoundResultWinner(int teamId, int playerId)
+    {
+        if (!HasRoundWinner)
+        {
+            return false;
+        }
+
+        int winnerId = IsTeamBased ? teamId : playerId;
+        return winnerId >= 0 && RoundWinningIds.Contains(winnerId);
+    }
     internal static int RoundId { get; private set; }
     private static bool _roundLifecycleStarted;
     internal static string SelectedMapName { get; private set; } = string.Empty;
@@ -307,9 +340,8 @@ internal static class GameModeManager
     internal static int EffectivePointsToWin { get; private set; } = ScoreRules.PointsToWin;
     internal static bool EffectiveMapOverrides { get; private set; }
     private static readonly ModeSyncState Sync = new();
-    private static int _preRoundTimerRoundId = -1;
-    private static float _preRoundTimerEndsAt;
-    private static int _lastPreRoundCountdownSeconds = -1;
+    private static readonly ModeSyncState RoundResultSync = new(livePushInterval: 0.5f);
+    private static readonly HashSet<int> RoundWinningIds = new();
     private static int _lastRoundEndCountdownSeconds = -1;
     private static readonly Dictionary<GameMode, Queue<string>> RecentMapsByMode = new();
     private const int RecentMapHistorySize = 2;
@@ -339,7 +371,8 @@ internal static class GameModeManager
         PointsToWin.SettingChanged += (_, _) => OnGlobalSettingsChanged();
 
         MyceliumNetwork.RegisterNetworkObject(Plugin.Instance, ModId);
-        ModeLobbyDataSync.RegisterKeys(ActiveModeLobbyDataKey, ModeTimeoutState.LiveLobbyDataKey);
+        ModeLobbyDataSync.RegisterKeys(ActiveModeLobbyDataKey, RoundResultLobbyDataKey,
+            ModeTimeoutState.LiveLobbyDataKey);
         PlayerNameSync.Initialize();
         MyceliumNetwork.LobbyCreated += OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += OnLobbyEntered;
@@ -553,6 +586,10 @@ internal static class GameModeManager
         if (Modes.TryGetValue(ActiveMode, out ModeDescriptor? descriptor))
         {
             descriptor.PeriodicPush();
+        }
+        if (HasRoundResult && RoundResultSync.IsLivePushDue())
+        {
+            BroadcastRoundResult();
         }
     }
 
@@ -820,6 +857,7 @@ internal static class GameModeManager
     private static void OnLobbyEntered()
     {
         Sync.ResetForLobby();
+        RoundResultSync.ResetForLobby();
         SessionState.BeginLobby();
         DistributionRandom.ResetForLobby();
         TeamAssignment.ResetDistributionHistory();
@@ -844,6 +882,7 @@ internal static class GameModeManager
         else
         {
             ApplyLobbyActiveModeSnapshot();
+            ApplyLobbyRoundResultSnapshot();
         }
     }
 
@@ -851,6 +890,7 @@ internal static class GameModeManager
     {
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
             || (!ModeLobbyDataSync.ContainsKey(keys, ActiveModeLobbyDataKey)
+                && !ModeLobbyDataSync.ContainsKey(keys, RoundResultLobbyDataKey)
                 && !ModeLobbyDataSync.ContainsKey(keys, ModeTimeoutState.LiveLobbyDataKey)))
         {
             return;
@@ -860,12 +900,17 @@ internal static class GameModeManager
         {
             ApplyLobbyActiveModeSnapshot();
         }
+        if (ModeLobbyDataSync.ContainsKey(keys, RoundResultLobbyDataKey))
+        {
+            ApplyLobbyRoundResultSnapshot();
+        }
         ModeTimeoutState.OnLobbyDataUpdated(keys);
     }
 
     private static void OnLobbyLeft()
     {
         SessionState.EndLobby();
+        RoundResultSync.ResetForLobby();
         ResetMatchState();
         DistributionRandom.ResetForLobby();
         TeamAssignment.ResetDistributionHistory();
@@ -898,6 +943,7 @@ internal static class GameModeManager
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncActiveGameMode), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId,
                 (int)Phase, Sync.LiveRevision, SelectedMapName, EffectiveMapOverrides);
+            SendRoundResultTo(player);
             ModeTimeoutState.OnPlayerEntered(player);
         }
     }
@@ -1341,10 +1387,6 @@ internal static class GameModeManager
         RoundId = roundId;
         Phase = (GameModePhase)phase;
         SelectedMapName = nextMode == GameMode.None ? string.Empty : mapName;
-        if ((modeChanged || phaseChanged) && Phase == GameModePhase.ActiveRound)
-        {
-            StartPreRoundTimer();
-        }
     }
 
     internal static void ResetMatchState()
@@ -1352,14 +1394,13 @@ internal static class GameModeManager
         _roundLifecycleStarted = false;
         _customRoundTransitionPending = false;
         _skipRoundTransitionPending = false;
-        _preRoundTimerRoundId = -1;
-        _preRoundTimerEndsAt = 0f;
-        _lastPreRoundCountdownSeconds = -1;
         _lastRoundEndCountdownSeconds = -1;
+        RoundResultSync.ResetLiveState();
+        RoundResultRoundId = -1;
+        RoundWinningIds.Clear();
+        GameModeHud.ClearRoundResult();
         PendingDeaths.Clear();
-        GameModeHud.ClearPreRoundCountdown();
         GameModeHud.ClearRoundEndCountdown();
-        GameModeRespawn.ReleasePreRoundMovementLock();
         GameModeRespawn.ResetForMatch();
         RespawnProtection.ResetState();
         ModeTimeoutState.ResetMatchState();
@@ -1468,61 +1509,18 @@ internal static class GameModeManager
             BroadcastActiveMode();
         }
 
-        StartPreRoundTimer();
-
         ModeTimeoutState.OnRoundStarted();
 
         return true;
     }
 
-    private static void StartPreRoundTimer()
-    {
-        if (_preRoundTimerRoundId == RoundId)
-        {
-            return;
-        }
+    internal static bool IsNativeRoundStartActive => PauseManager.Instance != null
+        && PauseManager.Instance.startRound;
 
-        _preRoundTimerRoundId = RoundId;
-        _preRoundTimerEndsAt = Time.unscaledTime + EffectivePreRoundSeconds;
-        _lastPreRoundCountdownSeconds = -1;
-    }
-
-    internal static bool IsPreRoundTimerActive => _preRoundTimerRoundId == RoundId
-        && Phase == GameModePhase.ActiveRound && EffectivePreRoundSeconds > 0
-        && Time.unscaledTime < _preRoundTimerEndsAt;
+    internal static bool IsPreRoundTimerActive => IsNativeRoundStartActive;
 
     internal static bool IsRoundGameplayActive => Phase == GameModePhase.ActiveRound
-        && !IsPreRoundTimerActive;
-
-    internal static void UpdatePreRoundTimer()
-    {
-        if (_preRoundTimerRoundId != RoundId || Phase != GameModePhase.ActiveRound)
-        {
-            return;
-        }
-
-        if (!IsPreRoundTimerActive)
-        {
-            if (_lastPreRoundCountdownSeconds >= 0)
-            {
-                _lastPreRoundCountdownSeconds = -1;
-                GameModeHud.ClearPreRoundCountdown();
-            }
-            GameModeRespawn.ReleasePreRoundMovementLock();
-            return;
-        }
-
-        int secondsRemaining = Mathf.CeilToInt(_preRoundTimerEndsAt - Time.unscaledTime);
-        if (secondsRemaining == _lastPreRoundCountdownSeconds)
-        {
-            GameModeRespawn.EnforcePreRoundMovementLock();
-            return;
-        }
-
-        _lastPreRoundCountdownSeconds = secondsRemaining;
-        GameModeHud.ShowPreRoundCountdown(secondsRemaining);
-        GameModeRespawn.EnforcePreRoundMovementLock();
-    }
+        && !IsNativeRoundStartActive;
 
     internal static void UpdateRoundEndCountdown()
     {
@@ -1668,6 +1666,100 @@ internal static class GameModeManager
         ApplyActiveMode(mode, roundId, phase, parts[5], mapOverridesEnabled);
     }
 
+    private static void SetRoundResult(IEnumerable<int> winnerIds)
+    {
+        RoundWinningIds.Clear();
+        foreach (int winnerId in winnerIds)
+        {
+            if (winnerId >= 0)
+            {
+                RoundWinningIds.Add(winnerId);
+            }
+        }
+
+        RoundResultRoundId = RoundId;
+    }
+
+    private static string SerializeRoundResult()
+    {
+        if (RoundWinningIds.Count == 0)
+        {
+            return "-";
+        }
+
+        return string.Join(",", RoundWinningIds.OrderBy(id => id)
+            .Select(id => id.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    private static void ApplyRoundResult(string winnerIdsData, int roundId)
+    {
+        RoundWinningIds.Clear();
+        if (!string.IsNullOrEmpty(winnerIdsData) && winnerIdsData != "-")
+        {
+            foreach (string value in winnerIdsData.Split(','))
+            {
+                if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                    out int winnerId) && winnerId >= 0)
+                {
+                    RoundWinningIds.Add(winnerId);
+                }
+            }
+        }
+
+        RoundResultRoundId = roundId;
+    }
+
+    private static void BroadcastRoundResult()
+    {
+        if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost || !HasRoundResult)
+        {
+            return;
+        }
+
+        int revision = RoundResultSync.NextLiveRevision();
+        string winnerIdsData = SerializeRoundResult();
+        ModeLobbyDataSync.Publish(RoundResultLobbyDataKey, MyceliumNetwork.LobbyHost,
+            RoundId, revision, winnerIdsData);
+        MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncRoundResult), ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, RoundId, revision, winnerIdsData);
+    }
+
+    private static void SendRoundResultTo(CSteamID player)
+    {
+        if (!HasRoundResult)
+        {
+            return;
+        }
+
+        MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncRoundResult), player,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, RoundId,
+            RoundResultSync.LiveRevision, SerializeRoundResult());
+    }
+
+    private static void ApplyLobbyRoundResultSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(RoundResultLobbyDataKey, 1,
+            out CSteamID hostId, out int roundId, out int revision, out string[] fields))
+        {
+            return;
+        }
+
+        ApplyRoundResultSnapshot(hostId, roundId, revision, fields[0],
+            "round-result-lobby-data");
+    }
+
+    internal static void ApplyRoundResultSnapshot(CSteamID hostId, int roundId, int revision,
+        string winnerIdsData, string source)
+    {
+        if (roundId < RoundId || !RoundResultSync.TryAcceptLiveSnapshot(hostId, roundId,
+            revision, source))
+        {
+            return;
+        }
+
+        ApplyRoundResult(winnerIdsData, roundId);
+    }
+
     private static readonly HashSet<int> PendingDeaths = new();
     private static bool _customRoundTransitionPending;
     private static bool _skipRoundTransitionPending;
@@ -1682,8 +1774,12 @@ internal static class GameModeManager
         }
 
         _customRoundTransitionPending = true;
+        SetRoundResult(winningTeamId == NoWinningTeamId
+            ? Array.Empty<int>()
+            : new[] { winningTeamId });
         Phase = GameModePhase.EndingRound;
         BroadcastActiveMode();
+        BroadcastRoundResult();
         int roundId = RoundId;
 
         ScoreManager.Instance.ResetRound();
@@ -1705,8 +1801,10 @@ internal static class GameModeManager
         }
 
         _customRoundTransitionPending = true;
+        SetRoundResult(winningTeamIds);
         Phase = GameModePhase.EndingRound;
         BroadcastActiveMode();
+        BroadcastRoundResult();
         int roundId = RoundId;
 
         ScoreManager.Instance.ResetRound();
@@ -1749,7 +1847,7 @@ internal static class GameModeManager
     private static IEnumerator AdvanceAfterCustomRound(int roundId)
     {
         int sessionGeneration = SessionState.Generation;
-        yield return new WaitForSeconds(4f);
+        yield return new WaitForSecondsRealtime(RoundResultDurationSeconds);
         if (SessionState.IsCurrent(sessionGeneration) && roundId == RoundId
             && Phase == GameModePhase.EndingRound && SceneMotor.Instance != null)
         {
@@ -1995,6 +2093,19 @@ public partial class Plugin
             return;
         }
         GameModeManager.ApplyActiveMode(mode, roundId, phase, mapName, mapOverridesEnabled);
+    }
+
+    [CustomRPC]
+    public void SyncRoundResult(CSteamID hostId, int roundId, int revision,
+        string winnerIdsData, RPCInfo info)
+    {
+        if (MyceliumNetwork.IsHost || !NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
+
+        GameModeManager.ApplyRoundResultSnapshot(hostId, roundId, revision, winnerIdsData,
+            "round-result-rpc");
     }
 }
 
