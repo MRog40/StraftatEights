@@ -41,6 +41,15 @@ internal static class WeaponListParser
     }
 }
 
+internal static class DefaultKnifeRules
+{
+    internal static bool ShouldProvideKnife(bool settingEnabled, bool hasGun,
+        bool spawnGrantResolved)
+    {
+        return !hasGun && (!settingEnabled || !spawnGrantResolved);
+    }
+}
+
 internal static class GuntatRules
 {
     internal static int GetWeaponIndex(int progress, int weaponCount)

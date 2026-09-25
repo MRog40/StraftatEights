@@ -153,11 +153,8 @@ internal static class WeaponSettingsState
 
     internal static void EnsureDefaultKnifeLoadouts()
     {
-        if (!DefaultKnife || !MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
-            || GameModeManager.IsVanillaScene || !GameModeManager.IsCustomMode
-            || GameModeManager.ShouldIgnoreGlobalWeaponSettings
-            || GameModeManager.IsActive(GameMode.Infectedtat)
-            || GameModeManager.IsActive(GameMode.PotatoInftat)
+        if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
+            || !GameModeManager.CanUseDefaultKnifeFallback
             || GameModeManager.Phase != GameModePhase.ActiveRound
             || WeaponService.IsFinalGameScreen)
         {
@@ -179,16 +176,9 @@ internal static class WeaponSettingsState
                 || knownObjectId != playerObjectId)
             {
                 DefaultKnifeObjects[client.PlayerId] = playerObjectId;
-                DefaultKnifeNextAttemptTimes[client.PlayerId] = Time.unscaledTime + 1.5f;
+                DefaultKnifeNextAttemptTimes[client.PlayerId] = Time.unscaledTime
+                    + (DefaultKnife ? 1.5f : 0f);
                 DefaultKnifeResolvedObjects.Remove(client.PlayerId);
-                continue;
-            }
-
-            if (DefaultKnifeResolvedObjects.TryGetValue(client.PlayerId,
-                    out int resolvedObjectId)
-                && resolvedObjectId == playerObjectId)
-            {
-                continue;
             }
 
             PlayerPickup? pickup = player.playerPickupScript;
@@ -197,10 +187,34 @@ internal static class WeaponSettingsState
                 continue;
             }
 
-            GameObject? heldObject = pickup.objInHand;
-            if (heldObject != null && heldObject)
+            Weapon? rightWeapon = GetHeldWeapon(pickup.objInHand);
+            Weapon? leftWeapon = GetHeldWeapon(pickup.objInLeftHand);
+            bool hasGun = IsGun(rightWeapon) || IsGun(leftWeapon);
+            if (hasGun)
             {
-                DefaultKnifeResolvedObjects[client.PlayerId] = playerObjectId;
+                RemoveKnifeIfHeld(pickup, rightWeapon, true);
+                RemoveKnifeIfHeld(pickup, leftWeapon, false);
+                if (DefaultKnife)
+                {
+                    DefaultKnifeResolvedObjects[client.PlayerId] = playerObjectId;
+                }
+                continue;
+            }
+
+            if (IsCouperet(rightWeapon) || IsCouperet(leftWeapon))
+            {
+                if (DefaultKnife)
+                {
+                    DefaultKnifeResolvedObjects[client.PlayerId] = playerObjectId;
+                }
+                continue;
+            }
+
+            bool spawnGrantResolved = DefaultKnifeResolvedObjects.TryGetValue(client.PlayerId,
+                out int resolvedObjectId) && resolvedObjectId == playerObjectId;
+            if (!DefaultKnifeRules.ShouldProvideKnife(DefaultKnife, hasGun,
+                    spawnGrantResolved))
+            {
                 continue;
             }
 
@@ -212,7 +226,33 @@ internal static class WeaponSettingsState
             }
 
             DefaultKnifeNextAttemptTimes[client.PlayerId] = Time.unscaledTime + 1f;
-            WeaponService.GiveWeapon(client.PlayerId, "Couperet", clearBothHands: false);
+            WeaponService.GiveWeapon(client.PlayerId, "Couperet", clearBothHands: false,
+                onlyIfNoGun: true);
+        }
+    }
+
+    private static Weapon? GetHeldWeapon(GameObject? heldObject)
+    {
+        return heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
+    }
+
+    private static bool IsCouperet(Weapon? weapon)
+    {
+        return weapon != null && weapon
+            && weapon.name.StartsWith("Couperet", StringComparison.Ordinal);
+    }
+
+    private static bool IsGun(Weapon? weapon)
+    {
+        return weapon != null && weapon && !IsCouperet(weapon);
+    }
+
+    private static void RemoveKnifeIfHeld(PlayerPickup pickup, Weapon? weapon,
+        bool rightHand)
+    {
+        if (IsCouperet(weapon))
+        {
+            WeaponService.RemoveHeldWeapon(pickup, rightHand, weapon!);
         }
     }
 

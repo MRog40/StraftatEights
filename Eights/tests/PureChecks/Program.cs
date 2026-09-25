@@ -84,6 +84,11 @@ Assert(parsed.SequenceEqual(new[] { "Glock", "SMG" }),
     "Weapon parsing must trim, filter, preserve order, and remove duplicates.");
 Assert(WeaponListParser.Parse(null!, new[] { "Glock" }).Count == 0,
     "A null weapon list must produce an empty result.");
+Assert(DefaultKnifeRules.ShouldProvideKnife(false, false, true)
+    && !DefaultKnifeRules.ShouldProvideKnife(false, true, false)
+    && DefaultKnifeRules.ShouldProvideKnife(true, false, false)
+    && !DefaultKnifeRules.ShouldProvideKnife(true, false, true),
+    "The disabled setting must restore a knife whenever a player has no gun.");
 
 TeamWeaponSequence firstWeaponSequence = new(new[] { "Glock", "SMG", "Shotgun" }, 19);
 TeamWeaponSequence secondWeaponSequence = new(new[] { "Glock", "SMG", "Shotgun" }, 19);

@@ -73,14 +73,14 @@ internal static class WeaponService
     }
 
     internal static void GiveWeapon(int playerId, string weaponName, int? spareMagazines = null,
-        bool unlimitedAmmo = false, bool clearBothHands = true)
+        bool unlimitedAmmo = false, bool clearBothHands = true, bool onlyIfNoGun = false)
     {
         if (Plugin.Instance != null && !IsFinalGameScreen)
         {
             int requestVersion = RequestVersions.Next(playerId);
             Plugin.Instance.StartCoroutine(GiveWeaponCoroutine(playerId, weaponName, spareMagazines, unlimitedAmmo,
                 SessionState.Generation, GameModeManager.RoundId, requestVersion, RequestVersions, true,
-                clearBothHands));
+                clearBothHands, onlyIfNoGun));
         }
     }
 
@@ -91,14 +91,14 @@ internal static class WeaponService
             int requestVersion = LeftHandRequestVersions.Next(playerId);
             Plugin.Instance.StartCoroutine(GiveWeaponCoroutine(playerId, weaponName, null, false,
                 SessionState.Generation, GameModeManager.RoundId, requestVersion,
-                LeftHandRequestVersions, false, false));
+                LeftHandRequestVersions, false, false, false));
         }
     }
 
     private static IEnumerator GiveWeaponCoroutine(int playerId, string weaponName, int? spareMagazines,
         bool unlimitedAmmo,
         int sessionGeneration, int roundId, int requestVersion, RequestVersionTracker requestVersions,
-        bool rightHand, bool clearBothHands)
+        bool rightHand, bool clearBothHands, bool onlyIfNoGun)
     {
         NetworkManager? networkManager = FishNet.InstanceFinder.NetworkManager;
         GameObject? prefab = FindPrefab(weaponName);
@@ -131,7 +131,7 @@ internal static class WeaponService
         }
         if (pickup == null || manager?.player == null || !requestVersions.IsCurrent(playerId, requestVersion)
             || !SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
-            || IsFinalGameScreen) yield break;
+            || IsFinalGameScreen || (onlyIfNoGun && HasHeldGun(pickup))) yield break;
 
         if (clearBothHands)
         {
@@ -157,7 +157,7 @@ internal static class WeaponService
         yield return new WaitForSeconds(0.15f);
         if (!requestVersions.IsCurrent(playerId, requestVersion) || !SessionState.IsCurrent(sessionGeneration)
             || GameModeManager.RoundId != roundId
-            || IsFinalGameScreen) yield break;
+            || IsFinalGameScreen || (onlyIfNoGun && HasHeldGun(pickup))) yield break;
 
         GameObject weapon = UnityEngine.Object.Instantiate(prefab, manager.player.transform.position, manager.player.transform.rotation);
         ItemBehaviour? item = weapon.GetComponent<ItemBehaviour>();
@@ -220,6 +220,23 @@ internal static class WeaponService
         item.InstantComeBackOnFire();
         if (item != null) item.dispenserStart = false;
         NotifyOwnerWeaponAttached(playerId, rightHand);
+    }
+
+    private static bool HasHeldGun(PlayerPickup pickup)
+    {
+        return IsGun(pickup.objInHand) || IsGun(pickup.objInLeftHand);
+    }
+
+    private static bool IsGun(GameObject? heldObject)
+    {
+        if (heldObject == null || !heldObject)
+        {
+            return false;
+        }
+
+        Weapon? weapon = heldObject.GetComponent<Weapon>();
+        return weapon != null && weapon
+            && !weapon.name.StartsWith("Couperet", StringComparison.Ordinal);
     }
 
     internal static void AttachUnparentedWeapon(PlayerPickup pickup)
@@ -303,6 +320,38 @@ internal static class WeaponService
         pickup.sync___set_value_hasObjectInLeftHand(false, true);
         pickup.sync___set_value_objInHand(null, true);
         pickup.sync___set_value_objInLeftHand(null, true);
+    }
+
+    internal static bool RemoveHeldWeapon(PlayerPickup pickup, bool rightHand, Weapon weapon)
+    {
+        NetworkManager? networkManager = FishNet.InstanceFinder.NetworkManager;
+        if (networkManager == null || !networkManager.IsServer || pickup == null
+            || weapon == null || !weapon)
+        {
+            return false;
+        }
+
+        GameObject? heldObject = rightHand ? pickup.objInHand : pickup.objInLeftHand;
+        if (heldObject == null || !heldObject || heldObject != weapon.gameObject)
+        {
+            return false;
+        }
+
+        DespawnHeldWeapon(networkManager, heldObject);
+        if (rightHand)
+        {
+            pickup.sync___set_value_hasObjectInHand(false, true);
+            pickup.sync___set_value_objInHand(null, true);
+        }
+        else
+        {
+            pickup.sync___set_value_hasObjectInLeftHand(false, true);
+            pickup.sync___set_value_objInLeftHand(null, true);
+        }
+
+        pickup.HandsReconstruct();
+        pickup.UpdateIKPoistion();
+        return true;
     }
 
     internal static void AttachGrantedWeaponForOwner(int playerId, bool rightHand)

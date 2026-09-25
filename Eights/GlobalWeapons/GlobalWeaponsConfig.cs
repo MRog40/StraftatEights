@@ -21,7 +21,7 @@ public partial class Plugin
         AllowedWeapons = Config.Bind(section, "Allowed Weapons", "AK-K, AR15, Dispenser, HK_G11, Yangtse, Kusma, M2000, QCW05, SMG, Warden", "Host-controlled: exact weapon IDs allowed on spawners and team-mode loadouts.");
         SpareMagazines = Config.Bind(section, "Spare Magazines", 6, new ConfigDescription("Host-controlled: spare magazines granted with a weapon pickup.", new AcceptableValueRange<int>(2, 10)));
         DefaultKnife = Config.Bind(section, "Default Knife", false,
-            "Host-controlled: gives players a Couperet after spawn or respawn when the right hand is empty.");
+            "Host-controlled: when off, gives players a Couperet while they have no gun in supported gun modes. The knife is removed when they pick up a gun.");
         const string defaultGuntatWeaponOrder =
             "Glock, Webley, SMG, Bukanee, Shotgun, AR15, QCW05, HK_G11, M2000, Couperet";
         ConfigDefinition legacyGuntatDefinition = new("Game Mode Settings", "Gun Game Weapon Order");

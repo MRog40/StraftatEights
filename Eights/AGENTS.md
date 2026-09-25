@@ -195,6 +195,12 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
   capability so global weapon rules do not block normal drops or pickups.
 - **Keep weapon grants host-authoritative.** `WeaponService` exits unless the FishNet server is
   active. Clients must not spawn or equip network objects locally.
+- **Handle default-knife fallback as a transition, not a host polling loop.** The owning client can
+  detect when its hands change from gun to no gun and send one request. The host must validate the
+  setting, mode, and current hands, then grant or remove the Couperet through `WeaponService`.
+  `PlayerPickup` hand fields are SyncVars, and a local-only knife is not a valid networked weapon.
+  Use a separate `DefaultKnifeFallback` mode capability; `IgnoreGlobalWeapons` also applies to
+  ordinary gun modes such as Hardtat, Capturetat, and Sndtat.
 - **Treat generated FishNet method names as version-sensitive.** The current weapon attachment
   path uses `RpcLogic___SetObjectInHandServer_46969756` and
   `RpcLogic___SetObjectInHandObserver_46969756` through reflection. Recheck the shipped DLL after a
@@ -311,6 +317,9 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
   bonus-health-on-kill feature (negative "damage" = heal). The hash suffix is FishNet codegen and may
   change if the game updates — re-verify via decompile if patches stop working. Plain (non-SyncVar)
   fields like `fullHealth` are safe to write directly.
+- **Do not use raw `GameModeManager.RoundId` parity to rotate Countertat sides.** It advances on
+  mode/map activation and official round start. Count distinct official round-start callbacks instead;
+  `TakeId` changes within a round and must not rotate sides.
 - **`[ObserversRpc]`/`[ServerRpc]` methods keep their plain name, but their body gets rewritten** to
   call generated `RpcWriter___.../RpcLogic___..._<hash>` helpers. The **real shared logic lives in
   `RpcLogic___MethodName_<hash>`**, called both by the plain-named wrapper (when `RunLocally = true`)

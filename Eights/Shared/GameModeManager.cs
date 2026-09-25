@@ -60,7 +60,8 @@ internal enum GameModeCapabilities
     ClearOutlines = 16,
     IgnoreGlobalMovement = 32,
     SafeRespawn = 64,
-    TeamBased = 128
+    TeamBased = 128,
+    DefaultKnifeFallback = 256
 }
 
 internal static class GameModeManager
@@ -133,13 +134,13 @@ internal static class GameModeManager
             () => Plugin.StraftatEnabled.Value, StraftatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.IgnoreGlobalMovement
-            | GameModeCapabilities.SafeRespawn,
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.DefaultKnifeFallback,
             StraftatState.PeriodicPushIfHost,
             pollLiveState: StraftatState.PollLiveStateIfClient),
         [GameMode.Ffatat] = new ModeDescriptor("Ffatat", new Color32(85, 204, 255, 255),
             () => Plugin.FfatatEnabled.Value, FfatatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
-            | GameModeCapabilities.SafeRespawn,
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.DefaultKnifeFallback,
                 FfatatState.PeriodicPushIfHost, TeamWeaponLoadouts.EnsureLoadouts,
                 periodicSettingsPush: FfatatState.PeriodicPushSettingsIfHost,
                     pollLiveState: FfatatState.PollLiveStateIfClient),
@@ -207,7 +208,8 @@ internal static class GameModeManager
             InfideltatState.PollLiveStateIfClient),
         [GameMode.Hvtat] = new ModeDescriptor("Hvtat", new Color32(0, 0, 255, 255),
             () => Plugin.HvtatEnabled.Value, HvtatReset,
-            GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn
+            | GameModeCapabilities.DefaultKnifeFallback,
             HvtatState.PeriodicPushIfHost, periodicSettingsPush: HvtatState.PeriodicPushSettingsIfHost,
             pollLiveState: HvtatState.PollLiveStateIfClient),
         [GameMode.Infectedtat] = new ModeDescriptor("Infectedtat", new Color32(139, 0, 0, 255),
@@ -233,34 +235,39 @@ internal static class GameModeManager
         [GameMode.Hardtat] = new ModeDescriptor("Hardtat", new Color32(0, 114, 178, 255),
             () => Plugin.HardtatEnabled.Value, HardtatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
-            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased
+            | GameModeCapabilities.DefaultKnifeFallback,
             HardtatState.PeriodicPushIfHost, TeamWeaponLoadouts.EnsureLoadouts,
             HardtatState.PeriodicPushSettingsIfHost, HardtatState.PollLiveStateIfClient),
         [GameMode.Capturetat] = new ModeDescriptor("Capturetat", new Color32(255, 190, 55, 255),
             () => Plugin.CapturetatEnabled.Value, CapturetatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
-            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased
+            | GameModeCapabilities.DefaultKnifeFallback,
             CapturetatState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
             periodicSettingsPush: CapturetatState.PeriodicPushSettingsIfHost,
             pollLiveState: CapturetatState.PollLiveStateIfClient),
         [GameMode.Sndtat] = new ModeDescriptor("Sndtat", new Color32(225, 70, 70, 255),
             () => Plugin.SndtatEnabled.Value, SndtatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
-            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased
+            | GameModeCapabilities.DefaultKnifeFallback,
             SndtatState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
             periodicSettingsPush: SndtatState.PeriodicPushSettingsIfHost,
             pollLiveState: SndtatState.PollLiveStateIfClient),
         [GameMode.Countertat] = new ModeDescriptor("Countertat", new Color32(80, 170, 235, 255),
             () => Plugin.CountertatEnabled.Value, Noop,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
-            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased
+            | GameModeCapabilities.DefaultKnifeFallback,
             SndtatState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
             periodicSettingsPush: CountertatState.PeriodicPushSettingsIfHost,
             pollLiveState: SndtatState.PollLiveStateIfClient),
         [GameMode.Tdmtat] = new ModeDescriptor("Tdmtat", new Color32(255, 190, 55, 255),
             () => Plugin.TdmtatEnabled.Value, TdmtatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
-            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased
+            | GameModeCapabilities.DefaultKnifeFallback,
             TdmtatState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
             periodicSettingsPush:
             TdmtatState.PeriodicPushSettingsIfHost,
@@ -883,6 +890,9 @@ internal static class GameModeManager
 
     internal static bool ShouldIgnoreGlobalWeaponSettings =>
         IsVanillaScene || HasCapability(GameModeCapabilities.IgnoreGlobalWeapons);
+
+    internal static bool CanUseDefaultKnifeFallback =>
+        !IsVanillaScene && HasCapability(GameModeCapabilities.DefaultKnifeFallback);
 
     internal static bool ShouldIgnoreGlobalHealthSettings =>
         IsVanillaScene || HasCapability(GameModeCapabilities.IgnoreGlobalHealth);
