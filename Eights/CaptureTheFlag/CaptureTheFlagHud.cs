@@ -9,7 +9,7 @@ internal static class CaptureTheFlagHud
         GameModeScoreboardRow[] rows = new GameModeScoreboardRow[2];
         for (int teamId = 0; teamId < 2; teamId++)
         {
-            rows[teamId] = new GameModeScoreboardRow("TEAM " + (teamId + 1),
+            rows[teamId] = new GameModeScoreboardRow(TeamDisplayNames.Get(teamId),
                 CaptureTheFlagState.GetScore(teamId), teamId);
         }
 

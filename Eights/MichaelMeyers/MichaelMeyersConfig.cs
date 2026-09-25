@@ -15,7 +15,7 @@ public partial class Plugin
         MichaelMeyersEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Michael Meyers",
             "Michael hunts the other players with a Couperet while everyone else tries to stay alive. "
-            + "Michael moves 5% faster. Everyone has 10 health until the final battle, when the last survivor "
+            + "Michael moves 10% faster. Everyone has 10 health until the final battle, when the last survivor "
             + "gets a Couperet and both final players return to 100 health. If at least two players remain after "
             + "90 seconds, the take ends without awarding points.");
 

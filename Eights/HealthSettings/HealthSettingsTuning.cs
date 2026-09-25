@@ -23,6 +23,23 @@ internal static class HealthSettingsTuning
 
     private static readonly ConditionalWeakTable<PlayerHealth, Memory> MemoryByInstance = new();
 
+    internal static bool ApplyModeHealth(PlayerHealth controller, Memory memory,
+        float desiredHealth, int playerId)
+    {
+        bool targetChanged = !memory.LastModeSpecificHealth
+            || memory.LastAppliedVersion != HealthSettingsState.TuningVersion
+            || memory.LastAppliedHealthCompensationVersion != TeamAssignment.HealthCompensationVersion
+            || memory.LastAppliedPlayerId != playerId
+            || !Mathf.Approximately(controller.fullHealth, desiredHealth);
+
+        controller.fullHealth = desiredHealth;
+        memory.LastModeSpecificHealth = true;
+        memory.LastAppliedVersion = HealthSettingsState.TuningVersion;
+        memory.LastAppliedHealthCompensationVersion = TeamAssignment.HealthCompensationVersion;
+        memory.LastAppliedPlayerId = playerId;
+        return targetChanged;
+    }
+
     internal static void CaptureBaseline(PlayerHealth controller)
     {
         if (controller == null)
@@ -71,6 +88,16 @@ internal static class HealthSettingsTuning
         if (GameModeManager.IsActive(GameMode.Infected))
         {
             ApplyInfectedHealth(controller, memory, healthMultiplier, version);
+            return;
+        }
+        if (GameModeManager.IsActive(GameMode.HotPotInfected))
+        {
+            ApplyHotPotInfectedHealth(controller, memory, healthMultiplier, version);
+            return;
+        }
+        if (GameModeManager.IsActive(GameMode.Nife))
+        {
+            NifeState.ApplyHealth(controller, memory);
             return;
         }
         if (GameModeManager.IsActive(GameMode.Infidel))
@@ -185,8 +212,7 @@ internal static class HealthSettingsTuning
             return;
         }
 
-        const float DisplayedHealthPerGameUnit = 25f;
-        float gameHealthPerSecond = HealthSettingsState.RegenRate / DisplayedHealthPerGameUnit;
+        float gameHealthPerSecond = HealthUnits.ToInternal(HealthSettingsState.RegenRate);
         memory.RegenAccumulator += Time.unscaledDeltaTime * gameHealthPerSecond;
         if (Time.unscaledTime - memory.LastRegenWriteTime < 0.1f || memory.RegenAccumulator <= 0f)
         {
@@ -221,6 +247,48 @@ internal static class HealthSettingsTuning
         float desiredFullHealth = infected
             ? memory.BaselineFullHealth * healthMultiplier
             : InfectedState.SurvivorHealth;
+        bool roleChanged = !memory.LastModeSpecificHealth || memory.LastInfectedRole != infected;
+        bool maximumChanged = memory.LastAppliedVersion != version
+            || !Mathf.Approximately(controller.fullHealth, desiredFullHealth);
+        float previousHealth = controller.sync___get_value_health();
+
+        controller.fullHealth = desiredFullHealth;
+        memory.LastModeSpecificHealth = true;
+        memory.LastInfectedRole = infected;
+        memory.LastAppliedVersion = version;
+        memory.LastAppliedHealthCompensationVersion = TeamAssignment.HealthCompensationVersion;
+        memory.LastAppliedPlayerId = playerId;
+
+        if (!controller.IsServer || (!roleChanged && !maximumChanged))
+        {
+            return;
+        }
+
+        float healthDelta = desiredFullHealth - previousHealth;
+        if (Mathf.Approximately(healthDelta, 0f))
+        {
+            return;
+        }
+
+        ApplyingPassiveHealth = true;
+        try
+        {
+            FishNetCompatibility.TryRemoveHealth(controller, -healthDelta);
+        }
+        finally
+        {
+            ApplyingPassiveHealth = false;
+        }
+    }
+
+    private static void ApplyHotPotInfectedHealth(PlayerHealth controller, Memory memory,
+        float healthMultiplier, int version)
+    {
+        int playerId = controller.playerValues?.playerClient?.PlayerId ?? -1;
+        bool infected = HotPotInfectedState.IsInfected(controller);
+        float desiredFullHealth = infected
+            ? memory.BaselineFullHealth * healthMultiplier
+            : HotPotInfectedState.SurvivorHealth;
         bool roleChanged = !memory.LastModeSpecificHealth || memory.LastInfectedRole != infected;
         bool maximumChanged = memory.LastAppliedVersion != version
             || !Mathf.Approximately(controller.fullHealth, desiredFullHealth);

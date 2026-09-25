@@ -22,6 +22,11 @@ internal static class GunGameState
 
     internal static void ApplySettings(bool enabled, string weaponOrder)
     {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.GunGame, enabled))
+        {
+            return;
+        }
+
         List<string> nextWeaponOrder = WeaponService.ParseWeaponList(weaponOrder);
         bool changed = Enabled != enabled || !WeaponOrder.SequenceEqual(nextWeaponOrder, StringComparer.Ordinal);
         Enabled = enabled;

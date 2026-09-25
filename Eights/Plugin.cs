@@ -51,11 +51,13 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("Kill The Rat", InitializeKillTheRat);
         InitializeSafely("HVT", InitializeHVT);
         InitializeSafely("Infected", InitializeInfected);
+        InitializeSafely("Hot Pot: Infected", InitializeHotPotInfected);
         InitializeSafely("One in the Chamber", InitializeOneInTheChamber);
         InitializeSafely("Hot Potato", InitializeHotPotato);
         InitializeSafely("Infidel", InitializeInfidel);
         InitializeSafely("Assassin", InitializeAssassin);
         InitializeSafely("Free For All", InitializeFFA);
+        InitializeSafely("Nife", InitializeNife);
         InitializeSafely("Juggernaut", InitializeJuggernaut);
         InitializeSafely("Gun Game", InitializeGunGame);
         InitializeSafely("Sniper Battle", InitializeSniperBattle);
@@ -140,7 +142,6 @@ public partial class Plugin : BaseUnityPlugin
         MyceliumTransportRecovery.Update();
         GameModeManager.EnsureVanillaScene();
         GameModeManager.UpdateRoundEndCountdown();
-        GameModeRespawn.UpdateRoundResultMovementLock();
         GameModeManager.PeriodicPushIfHost();
         GameModeManager.PeriodicActiveModePushIfHost();
         GameModeManager.PollLobbyStateIfClient();
@@ -149,6 +150,10 @@ public partial class Plugin : BaseUnityPlugin
         DefaultGameModeState.ServerTick(Time.unscaledDeltaTime);
         DefaultGameModeState.ClientTick(Time.unscaledDeltaTime);
         CaptureTheFlagState.ServerTick(Time.unscaledDeltaTime);
+        HardpointState.ServerTick(Time.unscaledDeltaTime);
+        JuggernautState.ServerTick(Time.unscaledDeltaTime);
+        HVTState.ServerTick(Time.unscaledDeltaTime);
+        KillTheRatState.ServerTick(Time.unscaledDeltaTime);
         MichaelMeyersState.ServerTick(Time.unscaledDeltaTime);
         MichaelMeyersState.ClientTick(Time.unscaledDeltaTime);
         InfidelState.ServerTick(Time.unscaledDeltaTime);

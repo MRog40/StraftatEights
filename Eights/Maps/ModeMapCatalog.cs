@@ -98,6 +98,7 @@ internal static class ModeMapCatalog
             MapDefinitions.Arena13Name,
             MapDefinitions.Arena14Name
         };
+    private static readonly IReadOnlyList<string> NifeMaps = FreeForAllMaps;
     private static readonly IReadOnlyList<string> JuggernautMaps =
         new[] { "Arena_11_Alt", "Arena_10", "Arena_10_Alt", "Basket_Junglegym" };
     private static readonly IReadOnlyList<string> GunGameMaps = FreeForAllMaps;
@@ -129,6 +130,7 @@ internal static class ModeMapCatalog
     private static readonly IReadOnlyList<string> InfidelMaps =
         new[] { "Bazaar_01", "TheSamePlace_04", "TheSamePlace_12" };
     private static readonly IReadOnlyList<string> InfectedMaps = FreeForAllMaps;
+    private static readonly IReadOnlyList<string> HotPotInfectedMaps = InfectedMaps;
     private static readonly IReadOnlyList<string> NinjaHuntersMaps = HardpointMaps;
     private static readonly IReadOnlyList<string> RabbitHuntersMaps = HardpointMaps;
     private static readonly IReadOnlyList<string> TankBattleMaps = HardpointMaps;
@@ -137,6 +139,7 @@ internal static class ModeMapCatalog
         new Dictionary<GameMode, IReadOnlyList<string>>
         {
             [GameMode.FreeForAll] = FreeForAllMaps,
+            [GameMode.Nife] = NifeMaps,
             [GameMode.Juggernaut] = JuggernautMaps,
             [GameMode.GunGame] = GunGameMaps,
             [GameMode.SniperBattle] = SniperBattleMaps,
@@ -147,6 +150,7 @@ internal static class ModeMapCatalog
             [GameMode.Infidel] = InfidelMaps,
             [GameMode.HVT] = InfidelMaps,
             [GameMode.Infected] = InfectedMaps,
+            [GameMode.HotPotInfected] = HotPotInfectedMaps,
             [GameMode.Assassin] = InfidelMaps,
             [GameMode.Hardpoint] = HardpointMaps,
             [GameMode.CaptureTheFlag] = CaptureTheFlagMaps,

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using BepInEx.Bootstrap;
+using ModMenu.Behaviours.OptionList.ValueControllers;
 using ModMenu.Api;
 using UnityEngine;
 
@@ -69,6 +70,7 @@ internal static class ModMenuIntegration
         const string sectionSuffix = "/Global Settings";
         string? globalHeaderName = null;
         int insertionPosition = -1;
+        int keepTeamsPosition = -1;
         int activePosition = 0;
 
         for (int childIndex = 0; childIndex < context.Root.childCount; childIndex++)
@@ -84,7 +86,11 @@ internal static class ModMenuIntegration
             {
                 globalHeaderName = child.name;
                 insertionPosition = activePosition + 1;
-                break;
+            }
+
+            if (child.name.EndsWith("/Keep Teams", StringComparison.Ordinal))
+            {
+                keepTeamsPosition = activePosition;
             }
 
             activePosition++;
@@ -92,17 +98,71 @@ internal static class ModMenuIntegration
 
         if (globalHeaderName == null)
         {
+            InsertToggleAllButton(context);
             return;
         }
 
         if (insertionPosition >= 0)
         {
-            context.InsertButton(insertionPosition, string.Empty, "Skip round",
-                GameModeManager.SkipCurrentRound);
+            if (keepTeamsPosition >= 0)
+            {
+                context.InsertButton(keepTeamsPosition + 1, "Mixup Teams", "Mixup Teams",
+                    GameModeManager.MixupTeams);
+                context.InsertButton(insertionPosition, "Skip Round", "Skip Round",
+                    GameModeManager.SkipCurrentRound);
+            }
+            else
+            {
+                context.InsertButton(insertionPosition, "Skip Round", "Skip Round",
+                    GameModeManager.SkipCurrentRound);
+                context.InsertButton(insertionPosition + 1, "Mixup Teams", "Mixup Teams",
+                    GameModeManager.MixupTeams);
+            }
         }
         else
         {
-            context.AppendButton(string.Empty, "Skip round", GameModeManager.SkipCurrentRound);
+            context.AppendButton("Mixup Teams", "Mixup Teams", GameModeManager.MixupTeams);
+            context.AppendButton("Skip Round", "Skip Round", GameModeManager.SkipCurrentRound);
+        }
+
+        InsertToggleAllButton(context);
+    }
+
+    private static void InsertToggleAllButton(OptionListContext context)
+    {
+        int activePosition = 0;
+        for (int childIndex = 0; childIndex < context.Root.childCount; childIndex++)
+        {
+            Transform child = context.Root.GetChild(childIndex);
+            if (!child.gameObject.activeSelf)
+            {
+                continue;
+            }
+
+            if (child.name.EndsWith("/Game Mode Settings", StringComparison.Ordinal))
+            {
+                context.InsertButton(activePosition + 1, "Toggle All", "Toggle All",
+                    () => ToggleAllModes(context.Root));
+                return;
+            }
+
+            activePosition++;
+        }
+    }
+
+    private static void ToggleAllModes(Transform optionListRoot)
+    {
+        GameModeManager.ToggleAllModes();
+        foreach (BoolValueController controller in
+            optionListRoot.GetComponentsInChildren<BoolValueController>(true))
+        {
+            if (!controller.gameObject.name.Contains("/Game Mode Settings/",
+                StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            controller.UpdateAppearance();
         }
     }
 }

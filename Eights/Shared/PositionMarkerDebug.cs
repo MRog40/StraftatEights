@@ -8,6 +8,13 @@ internal static class PositionMarkerDebug
 {
     internal static void Update()
     {
+        if (Input.GetKeyDown(KeyCode.F11))
+        {
+            MapLocationDebug.Toggle();
+        }
+
+        MapLocationDebug.Update();
+
         if (!Input.GetKeyDown(KeyCode.F9) && !Input.GetKeyDown(KeyCode.F10))
         {
             return;

@@ -87,6 +87,11 @@ internal static class HuntersState
 
     internal static void ApplySettings(bool enabled)
     {
+        if (GameModeManager.ShouldDeferModeDisable(Variant.Mode, enabled))
+        {
+            return;
+        }
+
         bool changed = Enabled != enabled;
         Enabled = enabled;
         if (changed)
@@ -503,16 +508,13 @@ internal static class HuntersState
 
     internal static void ApplyHealth(PlayerHealth controller, HealthSettingsTuning.Memory memory)
     {
-        float desiredHealth = HealthOverride;
+        float desiredHealth = HealthUnits.ToInternal(HealthOverride);
         float previousHealth = controller.sync___get_value_health();
         int playerId = controller.playerValues?.playerClient?.PlayerId ?? -1;
-        controller.fullHealth = desiredHealth;
-        memory.LastModeSpecificHealth = true;
-        memory.LastAppliedVersion = HealthSettingsState.TuningVersion;
-        memory.LastAppliedHealthCompensationVersion = TeamAssignment.HealthCompensationVersion;
-        memory.LastAppliedPlayerId = playerId;
+        bool targetChanged = HealthSettingsTuning.ApplyModeHealth(controller, memory,
+            desiredHealth, playerId);
 
-        if (!controller.IsServer)
+        if (!controller.IsServer || !targetChanged)
         {
             return;
         }
@@ -810,7 +812,7 @@ internal static class HuntersState
 
     private static string GetTeamName(int teamId)
     {
-        return teamId == 1 ? Variant.TeamOneName : Variant.TeamZeroName;
+        return TeamDisplayNames.Get(teamId);
     }
 
     private static void BroadcastLiveStateWhenDue()

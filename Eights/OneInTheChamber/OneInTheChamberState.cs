@@ -29,6 +29,7 @@ internal static class OneInTheChamberState
     private static float _loadoutsAvailableAt;
     private static readonly ModeSyncState Sync = new(livePushInterval: 1f);
     private static readonly HashSet<int> RoundPlayers = new();
+    private static readonly Dictionary<int, int> PendingMeleeKillers = new();
     private static readonly Dictionary<int, float> PendingRightLoadouts = new();
     private static readonly Dictionary<int, float> PendingLeftLoadouts = new();
     private static bool _startRetryPending;
@@ -38,6 +39,11 @@ internal static class OneInTheChamberState
 
     internal static void ApplySettings(bool enabled)
     {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.OneInTheChamber, enabled))
+        {
+            return;
+        }
+
         bool changed = Enabled != enabled;
         Enabled = enabled;
         if (changed)
@@ -202,6 +208,7 @@ internal static class OneInTheChamberState
         WinnerId = -1;
         AlivePlayers.Clear();
         RoundPlayers.Clear();
+        PendingMeleeKillers.Clear();
         ReserveBullets.Clear();
         Scores.Clear();
         PendingRightLoadouts.Clear();
@@ -266,6 +273,7 @@ internal static class OneInTheChamberState
             return;
         }
 
+        killerId = ConsumeMeleeKiller(deadPlayerId, killerId);
         EnsureTrackedPlayers();
         if (!OneInTheChamberRules.ApplyDeath(AlivePlayers, deadPlayerId, killerId))
         {
@@ -274,7 +282,10 @@ internal static class OneInTheChamberState
 
         if (killerId >= 0 && killerId != deadPlayerId && AlivePlayers.Contains(killerId))
         {
-            AddBulletToPistol(killerId);
+            if (!AwardBulletToPistol(killerId))
+            {
+                Plugin.Logger.LogWarning($"[OneInTheChamber] Could not award the kill bullet to killer={killerId}.");
+            }
         }
 
         if (AlivePlayers.Count <= 1)
@@ -301,6 +312,40 @@ internal static class OneInTheChamberState
 
         SyncReserveBulletsFromWeapons();
         BroadcastLiveState();
+    }
+
+    internal static void RecordMeleeKiller(PlayerHealth deadPlayer, int killerId)
+    {
+        if (deadPlayer == null || !deadPlayer || killerId < 0)
+        {
+            return;
+        }
+
+        int deadPlayerId = deadPlayer.playerValues?.playerClient?.PlayerId ?? -1;
+        if (deadPlayerId < 0)
+        {
+            ClientInstance? client = deadPlayer.GetComponentInParent<ClientInstance>();
+            deadPlayerId = client?.PlayerId ?? -1;
+        }
+        if (deadPlayerId >= 0 && deadPlayerId != killerId)
+        {
+            PendingMeleeKillers[deadPlayerId] = killerId;
+        }
+    }
+
+    internal static bool TryConsumePendingMeleeKiller(int deadPlayerId, out int killerId)
+    {
+        return PendingMeleeKillers.Remove(deadPlayerId, out killerId);
+    }
+
+    private static int ConsumeMeleeKiller(int deadPlayerId, int killerId)
+    {
+        if (!PendingMeleeKillers.Remove(deadPlayerId, out int meleeKillerId))
+        {
+            return killerId;
+        }
+
+        return killerId >= 0 ? killerId : meleeKillerId;
     }
 
     internal static void RequestLoadout(int playerId)
@@ -440,14 +485,20 @@ internal static class OneInTheChamberState
         WeaponService.GiveWeapon(playerId, PistolWeaponName, clearBothHands: false);
     }
 
-    private static void AddBulletToPistol(int playerId)
+    private static bool AwardBulletToPistol(int playerId)
     {
         PlayerPickup? pickup = FindPickup(playerId);
         Weapon? weapon = FindPistol(pickup);
-        if (weapon != null)
+        if (weapon == null)
         {
-            WeaponAmmoTuning.LoadSingleShotRoundIntoMagazine(weapon);
+            return false;
         }
+
+        ReserveBullets.TryGetValue(playerId, out int reserveRounds);
+        WeaponAmmoTuning.AwardSingleShotRound(weapon, reserveRounds);
+        reserveRounds = WeaponAmmoTuning.GetSpareRounds(weapon);
+        ReserveBullets[playerId] = reserveRounds;
+        return true;
     }
 
     private static void SyncReserveBulletsFromWeapons()
@@ -491,6 +542,16 @@ internal static class OneInTheChamberState
 
     private static PlayerPickup? FindPickup(int playerId)
     {
+        PlayerHealth? health = PlayerLookup.FindPlayerHealthById(playerId);
+        if (health != null && health)
+        {
+            PlayerPickup? currentPickup = health.GetComponent<PlayerPickup>();
+            if (currentPickup != null && currentPickup)
+            {
+                return currentPickup;
+            }
+        }
+
         if (!ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client)
             || client == null || !client || client.PlayerSpawner == null || !client.PlayerSpawner)
         {

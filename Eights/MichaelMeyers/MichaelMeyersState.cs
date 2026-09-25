@@ -38,6 +38,11 @@ internal static class MichaelMeyersState
 
     internal static void ApplySettings(bool enabled)
     {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.MichaelMeyers, enabled))
+        {
+            return;
+        }
+
         if (Enabled != enabled)
         {
             ResetMatchState();
@@ -434,6 +439,18 @@ internal static class MichaelMeyersState
             return;
         }
 
+        if (deadPlayerId == CurrentMichaelPlayerId)
+        {
+            CurrentMichaelPlayerId = -1;
+            _oneVsOneSurvivorId = -1;
+            OneVsOne = false;
+            CurrentMichaelPlayerId = DistributionRandom.SelectPlayer("MichaelMeyers",
+                new List<int>(AlivePlayers));
+            Announce(PlayerLookup.GetPlayerNameTag(CurrentMichaelPlayerId)
+                + " is <color=#CC2222><b>Michael Meyers</b></color>!");
+            GiveStartingWeapon(CurrentMichaelPlayerId);
+        }
+
         if (CurrentMichaelPlayerId >= 0 && deadPlayerId != CurrentMichaelPlayerId
             && AlivePlayers.Count == 2 && AlivePlayers.Contains(CurrentMichaelPlayerId))
         {
@@ -492,22 +509,31 @@ internal static class MichaelMeyersState
 
     internal static bool IsMichael(FirstPersonController controller)
     {
-        PlayerHealth? health = controller == null ? null : controller.GetComponent<PlayerHealth>();
-        return health != null && IsMichael(health);
+        if (!GameModeManager.IsActive(GameMode.MichaelMeyers)
+            || controller == null || !controller)
+        {
+            return false;
+        }
+
+        PlayerHealth? health = controller.GetComponent<PlayerHealth>();
+        if (health != null && IsMichael(health))
+        {
+            return true;
+        }
+
+        return controller.IsOwner && ClientInstance.Instance != null
+            && ClientInstance.Instance.PlayerId == CurrentMichaelPlayerId;
     }
 
     internal static void ApplyHealth(PlayerHealth health, HealthSettingsTuning.Memory memory)
     {
-        float desiredHealth = HealthOverride;
+        float desiredHealth = HealthUnits.ToInternal(HealthOverride);
         float previousHealth = health.sync___get_value_health();
         int playerId = health.playerValues?.playerClient?.PlayerId ?? -1;
-        health.fullHealth = desiredHealth;
-        memory.LastModeSpecificHealth = true;
-        memory.LastAppliedVersion = HealthSettingsState.TuningVersion;
-        memory.LastAppliedHealthCompensationVersion = TeamAssignment.HealthCompensationVersion;
-        memory.LastAppliedPlayerId = playerId;
+        bool targetChanged = HealthSettingsTuning.ApplyModeHealth(health, memory,
+            desiredHealth, playerId);
 
-        if (!health.IsServer)
+        if (!health.IsServer || !targetChanged)
         {
             return;
         }

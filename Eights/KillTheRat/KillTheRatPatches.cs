@@ -3,18 +3,6 @@ using UnityEngine;
 
 namespace Eights;
 
-[HarmonyPatch(typeof(GameManager), "Update")]
-internal static class GameManager_KillTheRatTick_Patch
-{
-    private static void Postfix(GameManager __instance)
-    {
-        if (__instance.IsServer)
-        {
-            KillTheRatState.ServerTick(Time.unscaledDeltaTime);
-        }
-    }
-}
-
 [HarmonyPatch(typeof(FirstPersonController), "Update")]
 internal static class FirstPersonController_KillTheRatVoid_Patch
 {

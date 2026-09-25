@@ -7,6 +7,7 @@ internal static class BloodCleanupState
 {
     private const int DefaultMaximumBloodEffects = 25;
     private static readonly Queue<GameObject> BloodHistory = new();
+    private static int _maximumBloodEffects = DefaultMaximumBloodEffects;
 
     internal static void Register(GameObject bloodEffect)
     {
@@ -25,14 +26,17 @@ internal static class BloodCleanupState
         RemoveDestroyedEffects();
     }
 
+    internal static void ApplyMaximumBloodEffects(int maximumBloodEffects)
+    {
+        _maximumBloodEffects = Mathf.Clamp(maximumBloodEffects, 0, 50);
+        TrimToLimit();
+    }
+
     internal static void TrimToLimit()
     {
         RemoveDestroyedEffects();
 
-        int maximumBloodEffects = Plugin.MaximumBloodEffects != null
-            ? Plugin.MaximumBloodEffects.Value
-            : DefaultMaximumBloodEffects;
-        while (BloodHistory.Count > maximumBloodEffects)
+        while (BloodHistory.Count > _maximumBloodEffects)
         {
             GameObject oldestEffect = BloodHistory.Dequeue();
             if (oldestEffect != null && oldestEffect)

@@ -17,7 +17,6 @@ internal static class GameModeRespawn
     private static string _cachedCenterSceneName = string.Empty;
     private static Vector3 _cachedMapCenter;
     private static bool _hasCachedMapCenter;
-    private static bool _roundResultMovementLockApplied;
 
     private readonly struct CosmeticIndices
     {
@@ -33,8 +32,6 @@ internal static class GameModeRespawn
 
     internal static void ResetForLobbyLeft()
     {
-        ReleaseRoundResultMovementLock();
-        _roundResultMovementLockApplied = false;
         PendingManagers.Clear();
         PendingSpawnAdjustments.Clear();
         InitialTeamSpawnsApplied.Clear();
@@ -45,8 +42,6 @@ internal static class GameModeRespawn
 
     internal static void ResetForMatch()
     {
-        ReleaseRoundResultMovementLock();
-        _roundResultMovementLockApplied = false;
         PendingManagers.Clear();
         PendingSpawnAdjustments.Clear();
         InitialTeamSpawnsApplied.Clear();
@@ -341,54 +336,6 @@ internal static class GameModeRespawn
         {
             PauseManager.Instance.startRound = false;
         }
-    }
-
-    internal static void UpdateRoundResultMovementLock()
-    {
-        if (!GameModeManager.HasRoundResult)
-        {
-            ReleaseRoundResultMovementLock();
-            return;
-        }
-
-        FirstPersonController? player = GetLocalPlayerController();
-        if (player == null || !player || !player.IsOwner)
-        {
-            return;
-        }
-
-        player.canMove = false;
-        _roundResultMovementLockApplied = true;
-    }
-
-    private static void ReleaseRoundResultMovementLock()
-    {
-        if (!_roundResultMovementLockApplied)
-        {
-            return;
-        }
-
-        FirstPersonController? player = GetLocalPlayerController();
-        if (player != null && player && player.IsOwner)
-        {
-            bool wasMovementLocked = !player.canMove;
-            player.canMove = true;
-            if (wasMovementLocked)
-            {
-                player.sync___set_value_canMove(true, true);
-            }
-        }
-
-        _roundResultMovementLockApplied = false;
-    }
-
-    private static FirstPersonController? GetLocalPlayerController()
-    {
-        int playerId = ClientInstance.Instance?.PlayerId ?? -1;
-        PlayerHealth? health = playerId >= 0
-            ? PlayerLookup.FindActivePlayerHealthById(playerId)
-            : null;
-        return health?.controller;
     }
 
     private static PlayerManager? FindManagerByPlayerId(int playerId)

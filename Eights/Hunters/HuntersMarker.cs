@@ -50,9 +50,7 @@ internal static class HuntersMarker
             return new Color(1f, 1f, 1f, MarkerAlpha);
         }
 
-        TeamColorData teamColor = TeamRules.GetColor(controller);
-        return new Color(teamColor.Red / 255f, teamColor.Green / 255f,
-            teamColor.Blue / 255f, MarkerAlpha);
+        return TeamColorPolicy.GetRelativeTeamColor(controller, MarkerAlpha);
     }
 
     private static void Clear()

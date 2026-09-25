@@ -41,6 +41,11 @@ internal static class JuggernautState
 
     internal static void ApplySettings(bool enabled)
     {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.Juggernaut, enabled))
+        {
+            return;
+        }
+
         bool wasEnabled = Enabled;
         Enabled = enabled;
 
@@ -210,10 +215,11 @@ internal static class JuggernautState
         return ScoreCodec.Serialize(Points);
     }
 
-    // Host-only: called every frame from GameManager.Update via JuggernautPatches
+        // Host-only: called every frame from Plugin.Update.
     internal static void ServerTick(float deltaTime)
     {
-        if (!Enabled)
+            if (!Enabled || !MyceliumNetwork.IsHost
+                || !GameModeManager.IsActive(GameMode.Juggernaut))
         {
             return;
         }

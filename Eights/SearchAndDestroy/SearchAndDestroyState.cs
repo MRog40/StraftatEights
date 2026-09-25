@@ -83,6 +83,11 @@ internal static class SearchAndDestroyState
 
     internal static void ApplySettings(bool enabled)
     {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.SearchAndDestroy, enabled))
+        {
+            return;
+        }
+
         bool changed = Enabled != enabled;
         Enabled = enabled;
         if (changed)
@@ -1117,7 +1122,7 @@ internal static class SearchAndDestroyState
         }
 
         _lastAnnouncedTakeId = TakeId;
-        TeamColorData teamColor = TeamRules.GetColor(TakeWinnerId);
+        TeamColorData teamColor = TeamColorPolicy.GetRelativeTeamColorData(TakeWinnerId);
         string teamColorMarkup = $"#{teamColor.Red:X2}{teamColor.Green:X2}{teamColor.Blue:X2}";
         string reason = TakeWinReason switch
         {
@@ -1130,8 +1135,8 @@ internal static class SearchAndDestroyState
         };
         string resultText = TakeWinReason == SearchAndDestroyWinReason.BombExploded
             ? $"<color=#FF5A36><b>Boom! Bomb exploded</b></color>\n"
-                + $"<color={teamColorMarkup}><b>Team {TakeWinnerId + 1} won the take</b></color>"
-            : $"<color={teamColorMarkup}><b>Team {TakeWinnerId + 1} "
+                + $"<color={teamColorMarkup}><b>{TeamDisplayNames.Get(TakeWinnerId)} won the take</b></color>"
+            : $"<color={teamColorMarkup}><b>{TeamDisplayNames.Get(TakeWinnerId)} "
                 + $"won the take</b></color>\n<i>{reason}</i>";
         GameModeHud.BroadcastTakeResult(resultText,
             TakeWinReason == SearchAndDestroyWinReason.BombExploded ? 4f : 3f);

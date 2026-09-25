@@ -20,6 +20,14 @@ internal static class SnapshotValidation
     }
 }
 
+internal static class GameModeToggleRules
+{
+    internal static bool ShouldEnableAll(IEnumerable<bool> enabledModes)
+    {
+        return enabledModes.Any(enabled => !enabled);
+    }
+}
+
 internal static class WeaponListParser
 {
     internal static List<string> Parse(string value, IEnumerable<string> validNames)
@@ -72,6 +80,16 @@ internal static class ScoreCodec
 
 }
 
+internal static class HealthUnits
+{
+    internal const float DisplayedHealthPerInternalUnit = 25f;
+
+    internal static float ToInternal(float displayedHealth)
+    {
+        return displayedHealth / DisplayedHealthPerInternalUnit;
+    }
+}
+
 internal static class OneInTheChamberRules
 {
     internal const float PlayerHealth = 0.4f;
@@ -80,6 +98,12 @@ internal static class OneInTheChamberRules
     {
         return weaponName.StartsWith("Revolver", StringComparison.Ordinal)
             || weaponName.StartsWith("Couperet", StringComparison.Ordinal);
+    }
+
+    internal static (int Magazine, int Reserve) AwardBullet(int magazine, int reserve)
+    {
+        int totalRounds = Math.Max(0, magazine) + Math.Max(0, reserve) + 1;
+        return (totalRounds, 0);
     }
 
     internal static bool ApplyDeath(HashSet<int> alivePlayers, int deadPlayerId, int killerId)

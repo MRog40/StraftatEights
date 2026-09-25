@@ -45,12 +45,6 @@ internal static class HealthSettingsState
         RegenDelaySeconds = nextRegenDelaySeconds;
         RegenRate = nextRegenRate;
         TuningVersion++;
-        if (!enabled)
-        {
-        }
-        else
-        {
-        }
     }
 
     private static void ApplyFromHostConfig()

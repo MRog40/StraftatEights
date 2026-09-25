@@ -1,4 +1,5 @@
 using HarmonyLib;
+using MyceliumNetworking;
 
 namespace Eights;
 
@@ -17,6 +18,9 @@ internal static class PauseManager_RoundLifecycle_Patch
         {
             return;
         }
+
+        Plugin.Logger.LogInfo($"[GameMode] Round started: mode={GameModeManager.ActiveMode} "
+            + $"host={MyceliumNetwork.IsHost} phase={GameModeManager.Phase}");
 
         switch (GameModeManager.ActiveMode)
         {
@@ -57,6 +61,12 @@ internal static class PauseManager_RoundLifecycle_Patch
                 break;
             case GameMode.Infected:
                 InfectedState.OnRoundStarted();
+                break;
+            case GameMode.HotPotInfected:
+                HotPotInfectedState.OnRoundStarted();
+                break;
+            case GameMode.Nife:
+                NifeState.OnRoundStarted();
                 break;
         }
 

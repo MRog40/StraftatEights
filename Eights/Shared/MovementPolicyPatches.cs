@@ -94,30 +94,77 @@ internal static class MovementPolicy
                 ForceTankState(controller);
                 controller.movementFactor = 1f;
                 break;
-            case GameMode.Juggernaut:
-                if (JuggernautState.IsCurrentJuggernaut(controller))
+        }
+    }
+
+    internal static void ApplyPerPlayerSpeed(FirstPersonController controller)
+    {
+        if (GameModeManager.IsVanillaScene)
+        {
+            return;
+        }
+
+        float multiplier = 1f;
+        switch (GameModeManager.ActiveMode)
+        {
+            case GameMode.MichaelMeyers:
+                if (MichaelMeyersState.IsMichael(controller))
                 {
-                    controller.movementFactor = IsJuggernautMinigunFiring(controller)
-                        ? JuggernautState.MovementMultiplier
-                        : 1f;
+                    multiplier = MichaelMeyersState.MovementMultiplier;
+                }
+                break;
+            case GameMode.Infected:
+                PlayerHealth? health = controller.GetComponent<PlayerHealth>();
+                if (health != null && health && InfectedState.IsInfected(health))
+                {
+                    multiplier = InfectedState.InfectedSpeedMultiplier;
+                }
+                break;
+            case GameMode.HotPotInfected:
+                PlayerHealth? hotPotInfectedHealth = controller.GetComponent<PlayerHealth>();
+                if (hotPotInfectedHealth != null && hotPotInfectedHealth
+                    && HotPotInfectedState.IsInfected(hotPotInfectedHealth))
+                {
+                    multiplier = HotPotInfectedState.InfectedSpeedMultiplier;
+                }
+                break;
+            case GameMode.Juggernaut:
+                if (JuggernautState.IsCurrentJuggernaut(controller)
+                    && IsJuggernautMinigunFiring(controller))
+                {
+                    multiplier = JuggernautState.MovementMultiplier;
                 }
                 break;
             case GameMode.KillTheRat:
                 if (KillTheRatState.IsRat(controller))
                 {
-                    controller.movementFactor = KillTheRatState.RatMovementMultiplier;
-                }
-                break;
-            case GameMode.MichaelMeyers:
-                if (MichaelMeyersState.IsMichael(controller))
-                {
-                    controller.movementFactor *= MichaelMeyersState.MovementMultiplier;
+                    multiplier = KillTheRatState.RatMovementMultiplier;
                 }
                 break;
             case GameMode.Infidel:
-                controller.movementFactor = InfidelState.MovementMultiplier;
+                multiplier = InfidelState.MovementMultiplier;
                 break;
         }
+
+        if (Mathf.Approximately(multiplier, 1f))
+        {
+            return;
+        }
+
+        Vector3 movement = controller.moveDirection;
+        movement.x *= multiplier;
+        movement.z *= multiplier;
+        controller.moveDirection = movement;
+    }
+}
+
+[HarmonyPatch(typeof(FirstPersonController), "ApplyFinalMovements")]
+[HarmonyPriority(Priority.Last)]
+internal static class FirstPersonController_PerPlayerSpeed_Patch
+{
+    private static void Prefix(FirstPersonController __instance)
+    {
+        MovementPolicy.ApplyPerPlayerSpeed(__instance);
     }
 }
 
@@ -181,11 +228,8 @@ internal static class FirstPersonController_MovementPolicy_Patch
             __instance.isSprinting = false;
         }
 
-    }
-
-    private static void Postfix(FirstPersonController __instance)
-    {
         MovementPolicy.Apply(__instance);
     }
+
 }
 

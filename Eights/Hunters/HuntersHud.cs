@@ -9,8 +9,8 @@ internal static class HuntersHud
     {
         GameModeScoreboardRow[] rows =
         {
-            new GameModeScoreboardRow(HuntersState.TeamZeroName, HuntersState.GetScore(0), 0),
-            new GameModeScoreboardRow(HuntersState.TeamOneName, HuntersState.GetScore(1), 1)
+            new GameModeScoreboardRow(TeamDisplayNames.Get(0), HuntersState.GetScore(0), 0),
+            new GameModeScoreboardRow(TeamDisplayNames.Get(1), HuntersState.GetScore(1), 1)
         };
         string timerText = HuntersState.IsTieBreakActive
             ? "HARDPOINT: " + Mathf.CeilToInt(HuntersState.TieBreakHoldRemaining) + "s"

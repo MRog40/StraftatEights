@@ -52,6 +52,11 @@ internal static class InfidelState
 
     internal static void ApplySettings(bool enabled)
     {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.Infidel, enabled))
+        {
+            return;
+        }
+
         bool changed = Enabled != enabled;
         Enabled = enabled;
         if (changed)

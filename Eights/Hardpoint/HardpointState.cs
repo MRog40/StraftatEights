@@ -36,15 +36,18 @@ internal static class HardpointState
     private static readonly ModeSyncState Sync = new(livePushInterval: 1f);
     private static float _scoreAccumulator;
     private static float _serverTickAccumulator;
-    private static float _serverDiagnosticsAccumulator;
-    private static int _serverFrameHookCount;
-    private static int _serverProcessedTickCount;
     private static bool _roundInitialized;
     private static bool _roundCompletionRequested;
     private static float _nextClientLivePollTime;
+    private static bool _loggedAssignmentFailure;
 
     internal static void ApplySettings(bool enabled)
     {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.Hardpoint, enabled))
+        {
+            return;
+        }
+
         bool changed = Enabled != enabled;
         Enabled = enabled;
         if (changed)
@@ -192,32 +195,36 @@ internal static class HardpointState
         IsSuddenDeath = false;
         _scoreAccumulator = 0f;
         _serverTickAccumulator = 0f;
-        _serverDiagnosticsAccumulator = 0f;
-        _serverFrameHookCount = 0;
-        _serverProcessedTickCount = 0;
         _roundInitialized = false;
         _roundCompletionRequested = false;
+        _loggedAssignmentFailure = false;
     }
 
     internal static void OnRoundStarted()
     {
-        if (!Enabled)
+        if (!Enabled || !GameModeManager.IsActive(GameMode.Hardpoint))
         {
             return;
         }
 
-        _roundInitialized = true;
         if (!MyceliumNetwork.IsHost)
         {
+            _roundInitialized = true;
+            return;
+        }
+
+        EnsureTeamsAssigned();
+        if (TeamAssignment.TeamCount < 2 || TeamAssignment.Current.Count == 0)
+        {
+            Plugin.Logger.LogWarning($"[Hardpoint] Round start deferred: teams={TeamAssignment.TeamCount} "
+                + $"assignments={TeamAssignment.Current.Count} "
+                + $"players={PlayerLookup.GetConnectedPlayerIdsReadOnly().Count}");
+            _roundInitialized = false;
             return;
         }
 
         ResetRoundState();
-        if (!TeamAssignment.AssignForRound())
-        {
-            return;
-        }
-
+        _roundInitialized = true;
         BroadcastLiveState();
     }
 
@@ -244,22 +251,18 @@ internal static class HardpointState
 
     internal static void ServerTick(float deltaTime)
     {
-        if (!Enabled || !MyceliumNetwork.IsHost || !GameModeManager.IsActive(GameMode.Hardpoint)
-            || !GameModeManager.IsRoundGameplayActive || _roundCompletionRequested)
+        if (!Enabled || !MyceliumNetwork.IsHost || !GameModeManager.IsActive(GameMode.Hardpoint))
         {
             return;
         }
 
         float frameElapsed = Mathf.Max(0f, deltaTime);
-        _serverFrameHookCount++;
-        _serverTickAccumulator += frameElapsed;
-        _serverDiagnosticsAccumulator += frameElapsed;
-        if (_serverDiagnosticsAccumulator >= 5f)
+        if (!GameModeManager.IsRoundGameplayActive || _roundCompletionRequested)
         {
-            _serverDiagnosticsAccumulator = 0f;
-            _serverFrameHookCount = 0;
-            _serverProcessedTickCount = 0;
+            return;
         }
+
+        _serverTickAccumulator += frameElapsed;
 
         if (_serverTickAccumulator < ServerTickIntervalSeconds)
         {
@@ -268,13 +271,32 @@ internal static class HardpointState
 
         float elapsed = _serverTickAccumulator;
         _serverTickAccumulator = 0f;
-        _serverProcessedTickCount++;
 
         if (EnsureTeamsAssigned())
         {
             BroadcastLiveState();
         }
-        if (!_roundInitialized || TeamAssignment.Current.Count == 0
+        else if (!_roundInitialized && !_loggedAssignmentFailure)
+        {
+            IReadOnlyList<int> playerIds = PlayerLookup.GetConnectedPlayerIdsReadOnly();
+            Plugin.Logger.LogWarning($"[Hardpoint] Team assignment failed: host={MyceliumNetwork.IsHost} "
+                + $"players=[{string.Join(",", playerIds)}] "
+                + $"active={GameModeManager.IsActive(GameMode.Hardpoint)}");
+            _loggedAssignmentFailure = true;
+        }
+        if (!_roundInitialized)
+        {
+            if (TeamAssignment.TeamCount < 2 || TeamAssignment.Current.Count == 0)
+            {
+                return;
+            }
+
+            ResetRoundState();
+            _roundInitialized = true;
+            BroadcastLiveState();
+        }
+
+        if (TeamAssignment.Current.Count == 0
             || !GameModeManager.TryGetCurrentMapDefinition(out MapDefinition definition)
             || definition.HardpointObjectives.Count == 0)
         {
@@ -283,9 +305,14 @@ internal static class HardpointState
 
         HardpointObjective objective = definition.HardpointObjectives[CurrentObjectiveIndex
             % definition.HardpointObjectives.Count];
-        HashSet<int> teamsOnPoint = GetTeamsOnPoint(objective);
+        HashSet<int> teamsOnPoint = GetTeamsOnPoint(objective,
+            out List<int> playersOnPoint);
         int controller = TeamRules.ResolveController(teamsOnPoint);
         bool controllerChanged = controller != CurrentController;
+        if (controllerChanged)
+        {
+            _scoreAccumulator = 0f;
+        }
         bool stateChanged = controllerChanged;
         CurrentController = controller;
 
@@ -302,8 +329,21 @@ internal static class HardpointState
                     break;
                 }
 
+                int scoreBeforeAward = GetScore(controller);
                 bool roundWon = HardpointRules.TryAwardPoint(Scores, controller,
                     GameModeManager.EffectivePointsToWin, IsSuddenDeath, out int winningTeamId);
+                int awardedPoints = GetScore(controller) - scoreBeforeAward;
+                if (awardedPoints > 0)
+                {
+                    foreach (int playerId in playersOnPoint)
+                    {
+                        if (TeamAssignment.TryGetTeamId(playerId, out int playerTeamId)
+                            && playerTeamId == controller)
+                        {
+                            GameModeHud.ShowScorePopupForPlayer(playerId, awardedPoints);
+                        }
+                    }
+                }
                 stateChanged = true;
                 if (roundWon)
                 {
@@ -438,9 +478,11 @@ internal static class HardpointState
         _roundCompletionRequested = false;
     }
 
-    private static HashSet<int> GetTeamsOnPoint(HardpointObjective objective)
+    private static HashSet<int> GetTeamsOnPoint(HardpointObjective objective,
+        out List<int> playersOnPoint)
     {
         HashSet<int> teams = new();
+        playersOnPoint = new List<int>();
         float radiusSquared = objective.Radius * objective.Radius;
         foreach (KeyValuePair<int, int> assignment in TeamAssignment.Current)
         {
@@ -455,6 +497,7 @@ internal static class HardpointState
                 && delta.x * delta.x + delta.z * delta.z <= radiusSquared)
             {
                 teams.Add(assignment.Value);
+                playersOnPoint.Add(assignment.Key);
             }
         }
 

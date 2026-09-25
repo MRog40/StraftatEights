@@ -152,11 +152,10 @@ internal static class CaptureTheFlagMarker
 
     private static Color GetFlagColor(int flagIndex)
     {
-        TeamColorData teamColor = TeamRules.GetColor(CaptureTheFlagState.GetFlagTeam(flagIndex));
         float alpha = CaptureTheFlagState.GetFlagStatus(flagIndex)
             == CaptureTheFlagFlagStatus.Carried ? 1f : 0.85f;
-        return new Color(teamColor.Red / 255f, teamColor.Green / 255f,
-            teamColor.Blue / 255f, alpha);
+        return TeamColorPolicy.GetRelativeTeamColor(
+            CaptureTheFlagState.GetFlagTeam(flagIndex), alpha);
     }
 
     private static Mesh CreateDiamondMesh()

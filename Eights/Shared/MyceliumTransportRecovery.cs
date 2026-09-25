@@ -14,8 +14,9 @@ internal static class MyceliumTransportRecovery
     private const int Channel = 120;
     private const int AutoRestartBrokenSession = 0x20;
     private const int MaxQueuedMessages = 128;
-    private const int MaxAttempts = 5;
+    private const int MaxProbeAttempts = 5;
     private static readonly float[] RetryDelays = { 0.35f, 0.75f, 1.5f, 3f, 6f };
+    private static readonly int MaxMessageAttempts = RetryDelays.Length + 1;
     private static readonly List<PendingMessage> PendingMessages = new();
     private static readonly Dictionary<ulong, ProbeState> Probes = new();
     private static readonly List<KeyValuePair<ulong, ProbeState>> ProbeEntries = new();
@@ -64,7 +65,7 @@ internal static class MyceliumTransportRecovery
             NextSessionCloseTimes[remote.m_SteamID] = Time.unscaledTime + 1.5f;
         }
 
-        QueueProbe(remote, callback.m_info.m_eState.ToString());
+        QueueProbe(remote);
     }
 
     internal static void OnProbe(CSteamID sender, int probeId)
@@ -103,10 +104,7 @@ internal static class MyceliumTransportRecovery
         }
         catch (Exception exception)
         {
-            if (IsProbeSend(target))
-            {
-            }
-            else
+            if (!IsProbeSend(target))
             {
                 Enqueue(data, target, reliable, exception.GetBaseException().Message);
             }
@@ -117,10 +115,7 @@ internal static class MyceliumTransportRecovery
             return true;
         }
 
-        if (IsProbeSend(target))
-        {
-        }
-        else
+        if (!IsProbeSend(target))
         {
             Enqueue(data, target, reliable, result.ToString());
         }
@@ -164,7 +159,7 @@ internal static class MyceliumTransportRecovery
             }
 
             pending.Attempt++;
-            if (pending.Attempt >= MaxAttempts)
+            if (pending.Attempt >= MaxMessageAttempts)
             {
                 Plugin.Logger.LogWarning($"[Mycelium] Dropped queued message after "
                     + $"{pending.Attempt} attempts to {pending.Target.m_SteamID}: "
@@ -200,7 +195,7 @@ internal static class MyceliumTransportRecovery
                 continue;
             }
 
-            if (probe.Attempt >= MaxAttempts)
+            if (probe.Attempt >= MaxProbeAttempts)
             {
                 Probes.Remove(entry.Key);
                 continue;
@@ -212,7 +207,7 @@ internal static class MyceliumTransportRecovery
         }
     }
 
-    private static void QueueProbe(CSteamID target, string reason)
+    private static void QueueProbe(CSteamID target)
     {
         if (Probes.TryGetValue(target.m_SteamID, out ProbeState? existing))
         {

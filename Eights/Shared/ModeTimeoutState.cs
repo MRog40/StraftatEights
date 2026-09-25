@@ -12,6 +12,14 @@ internal static class ModeTimeoutState
     internal const string LiveLobbyDataKey = "Eights_ModeTimeout_Live";
     internal static float TimeRemaining { get; private set; }
     internal static bool IsSuddenDeath { get; private set; }
+    internal static float RoundElapsedSeconds
+    {
+        get
+        {
+            float duration = GetDuration(GameModeManager.ActiveMode);
+            return Mathf.Clamp(duration - TimeRemaining, 0f, duration);
+        }
+    }
 
     private static readonly ModeSyncState Sync = new(livePushInterval: 1f);
     private static readonly Dictionary<int, int> SuddenDeathScores = new();
@@ -21,6 +29,7 @@ internal static class ModeTimeoutState
     {
         return mode == GameMode.OneInTheChamber
             || mode == GameMode.FreeForAll
+            || mode == GameMode.Nife
             || mode == GameMode.Juggernaut
             || mode == GameMode.GunGame
             || mode == GameMode.SniperBattle
@@ -28,7 +37,8 @@ internal static class ModeTimeoutState
             || mode == GameMode.HotPotato
             || mode == GameMode.HVT
             || mode == GameMode.TeamDeathmatch
-            || mode == GameMode.Infected;
+            || mode == GameMode.Infected
+            || mode == GameMode.HotPotInfected;
     }
 
     internal static void OnTakeStarted()
@@ -195,6 +205,12 @@ internal static class ModeTimeoutState
             return;
         }
 
+        if (GameModeManager.ActiveMode == GameMode.HotPotInfected)
+        {
+            HotPotInfectedState.OnRoundTimeout();
+            return;
+        }
+
         if (GameModeManager.ActiveMode == GameMode.OneInTheChamber)
         {
             OneInTheChamberState.OnTakeTimeout();
@@ -207,7 +223,7 @@ internal static class ModeTimeoutState
             if (winningTeamId >= 0)
             {
                 string winnerLabel = teamScores
-                    ? "TEAM " + (winnerId + 1)
+                    ? TeamDisplayNames.Get(winnerId)
                     : PlayerLookup.GetPlayerNameTag(winnerId);
                 GameModeHud.BroadcastTakeResult("<b>Time expired</b>\n<i>"
                     + winnerLabel + " won on score</i>");
@@ -246,7 +262,7 @@ internal static class ModeTimeoutState
             }
 
             string winnerLabel = teamScores
-                ? "TEAM " + (entry.Key + 1)
+                ? TeamDisplayNames.Get(entry.Key)
                 : PlayerLookup.GetPlayerNameTag(entry.Key);
             GameModeHud.BroadcastTakeResult("<b>" + winnerLabel
                 + " won sudden death</b>");
@@ -302,6 +318,9 @@ internal static class ModeTimeoutState
             case GameMode.FreeForAll:
                 scores = FFAState.Kills;
                 return true;
+            case GameMode.Nife:
+                scores = NifeState.Kills;
+                return true;
             case GameMode.Juggernaut:
                 scores = JuggernautState.Points;
                 return true;
@@ -332,6 +351,9 @@ internal static class ModeTimeoutState
                 return true;
             case GameMode.Infected:
                 scores = InfectedState.Scores;
+                return true;
+            case GameMode.HotPotInfected:
+                scores = HotPotInfectedState.Scores;
                 return true;
             default:
                 scores = new Dictionary<int, int>();

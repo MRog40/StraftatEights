@@ -11,7 +11,7 @@ internal static class HardpointHud
         GameModeScoreboardRow[] rows = new GameModeScoreboardRow[HardpointState.TeamCount];
         for (int teamId = 0; teamId < HardpointState.TeamCount; teamId++)
         {
-            rows[teamId] = new GameModeScoreboardRow("TEAM " + (teamId + 1),
+            rows[teamId] = new GameModeScoreboardRow(TeamDisplayNames.Get(teamId),
                 HardpointState.GetScore(teamId), teamId);
         }
 

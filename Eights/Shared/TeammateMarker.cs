@@ -10,12 +10,13 @@ internal static class TeammateMarker
     private const float RefreshIntervalSeconds = 0.25f;
     private const float MarkerHeight = 2.2f;
     private const float MarkerSize = 0.21f;
-    private const float DeathFlashDurationSeconds = 1f;
+    private const float DeathFlashDurationSeconds = 2f;
     private const float DeathFlashIntervalSeconds = 0.1f;
     private static readonly Color MarkerColor = new(0.22f, 0.57f, 1f, 0.92f);
     private static readonly Color DeathMarkerColor = new(1f, 0.08f, 0.08f, 0.98f);
     private static readonly Dictionary<int, GameObject> Markers = new();
     private static readonly Dictionary<int, PlayerHealth> TrackedPlayers = new();
+    private static readonly Dictionary<int, PlayerHealth> DeadPlayers = new();
     private static readonly Dictionary<int, float> DeathFlashUntil = new();
     private static float _nextRefreshTime;
     private static GameMode _lastMode = GameMode.None;
@@ -67,6 +68,17 @@ internal static class TeammateMarker
             }
 
             PlayerHealth? health = PlayerLookup.FindPlayerHealthById(assignment.Key);
+            if (DeadPlayers.TryGetValue(assignment.Key, out PlayerHealth? deadPlayer))
+            {
+                if (deadPlayer == health)
+                {
+                    continue;
+                }
+
+                DeadPlayers.Remove(assignment.Key);
+                DeathFlashUntil.Remove(assignment.Key);
+            }
+
             if (health == null || !health || !health.gameObject.activeInHierarchy
                 || health.health <= 0f)
             {
@@ -170,6 +182,7 @@ internal static class TeammateMarker
 
         Markers.Clear();
         TrackedPlayers.Clear();
+        DeadPlayers.Clear();
         DeathFlashUntil.Clear();
         _nextRefreshTime = 0f;
     }
@@ -186,7 +199,19 @@ internal static class TeammateMarker
         }
 
         int playerId = player.playerValues?.playerClient?.PlayerId ?? -1;
-        if (playerId < 0 || !Markers.TryGetValue(playerId, out GameObject? marker)
+        if (playerId < 0)
+        {
+            return;
+        }
+
+        if (DeadPlayers.TryGetValue(playerId, out PlayerHealth? deadPlayer)
+            && deadPlayer == player)
+        {
+            return;
+        }
+
+        DeadPlayers[playerId] = player;
+        if (!Markers.TryGetValue(playerId, out GameObject? marker)
             || marker == null || !marker)
         {
             return;

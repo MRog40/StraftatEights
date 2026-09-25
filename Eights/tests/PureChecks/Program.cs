@@ -25,6 +25,10 @@ Assert(!SnapshotValidation.TryAccept(-1, 0, ref lastRound, ref lastRevision),
     "A negative round must be rejected.");
 Assert(!SnapshotValidation.TryAccept(3, -1, ref lastRound, ref lastRevision),
     "A negative revision must be rejected.");
+Assert(GameModeToggleRules.ShouldEnableAll(new[] { false, false })
+    && GameModeToggleRules.ShouldEnableAll(new[] { true, false })
+    && !GameModeToggleRules.ShouldEnableAll(new[] { true, true }),
+    "Toggle All must enable every mode unless all modes are already enabled.");
 
 string lobbyPayload = LobbySnapshotCodec.Build(76561198000000001UL, 7, 12, "1", "points:4", "");
 Assert(LobbySnapshotCodec.TryParse(lobbyPayload, 3, out ulong lobbyHostId,
@@ -147,6 +151,10 @@ Assert(ScoreRules.PointsToWin == 100 && ScoreRules.PointsPerRoundWin == 50
     && ScoreRules.PointsPerJuggernautCrown == 20 && ScoreRules.PointsPerRatSurvivalSecond == 3
     && ScoreRules.PointsPerHVTSurvivalSecond == 3,
     "Shared score rules must use the 100-point target and mode award values.");
+Assert(HealthUnits.DisplayedHealthPerInternalUnit == 25f
+    && Math.Abs(HealthUnits.ToInternal(10f) - 0.4f) < 0.0001f
+    && Math.Abs(HealthUnits.ToInternal(100f) - 4f) < 0.0001f,
+    "Mode health values must convert displayed health to the native internal unit.");
 Assert(ScoreRules.AddPoints(40, 10, 100) == 50
     && ScoreRules.AddPoints(80, 30, 100) == 100
     && ScoreRules.AddPoints(100, 10, 100) == 100,
@@ -288,9 +296,13 @@ Dictionary<int, int> unevenTwoTeams = new() { [1] = 0, [2] = 0, [3] = 1 };
 Assert(Math.Abs(TeamRules.GetTeamHealthMultiplier(unevenTwoTeams, 3) - 2f) < 0.001f,
     "A one-player team must receive 100 percent extra health.");
 Assert(TeamRules.GetColor(TeamRules.BlueTeamId).Equals(new TeamColorData(0, 114, 178))
-    && TeamRules.GetColor(TeamRules.VermillionTeamId).Equals(new TeamColorData(213, 94, 0))
+    && TeamRules.GetColor(TeamRules.VermillionTeamId).Equals(new TeamColorData(220, 38, 38))
     && TeamRules.GetColor(TeamRules.GreenTeamId).Equals(new TeamColorData(0, 158, 115)),
     "Team colors must use the color-distinct palette.");
+Assert(TeamDisplayNames.Get(0) == "Shadow Force"
+    && TeamDisplayNames.Get(1) == "Aboubi"
+    && TeamDisplayNames.Get(2) == "Mercs",
+    "Team display names must use the representative team names.");
 string assignmentData = TeamRules.SerializeAssignments(teamAssignments);
 Dictionary<int, int> parsedAssignments = TeamRules.ParseAssignments(assignmentData, 3);
 Assert(parsedAssignments.Count == teamAssignments.Count
@@ -531,6 +543,20 @@ Assert(OneInTheChamberRules.IsAllowedWeapon("Couperet(Clone)"),
 Assert(!OneInTheChamberRules.IsAllowedWeapon("Webley(Clone)")
     && !OneInTheChamberRules.IsAllowedWeapon("SMG(Clone)"),
     "One in the Chamber must reject unrelated weapon substitutions.");
+var afterMiss = (Magazine: 0, Reserve: 0);
+var afterKnifeKill = OneInTheChamberRules.AwardBullet(afterMiss.Magazine,
+    afterMiss.Reserve);
+var afterShot = (Magazine: 0, Reserve: 0);
+var afterGunKill = OneInTheChamberRules.AwardBullet(afterShot.Magazine,
+    afterShot.Reserve);
+var afterNextKnifeKill = OneInTheChamberRules.AwardBullet(afterGunKill.Magazine,
+    afterGunKill.Reserve);
+Assert(afterKnifeKill.Magazine == 1 && afterKnifeKill.Reserve == 0,
+    "A knife kill after a miss must put one bullet in the empty chamber.");
+Assert(afterGunKill.Magazine == 1 && afterGunKill.Reserve == 0,
+    "A gun kill after firing must refill the empty chamber with one bullet.");
+Assert(afterNextKnifeKill.Magazine == 2 && afterNextKnifeKill.Reserve == 0,
+    "A kill with one bullet loaded must put the next bullet in the magazine without reserve ammo.");
 HashSet<int> alivePlayers = new() { 1, 2, 3 };
 Assert(OneInTheChamberRules.ApplyDeath(alivePlayers, 3, 1)
     && !alivePlayers.Contains(3),

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Reflection;
+using FishNet.Object;
 using HarmonyLib;
 using MyceliumNetworking;
 using UnityEngine;
@@ -8,12 +9,12 @@ namespace Eights;
 
 internal static class RespawnProtection
 {
-    private const float DurationSeconds = 2f;
+    private const float DurationSeconds = 1f;
     private const float ProtectedHealth = 999f / 25f;
-    private const float OutlineWidth = 0.10f;
-    private static readonly Color OutlineColor = new(0.5f, 0.5f, 0.5f);
+    private const float ActiveProtectionSyncIntervalSeconds = 0.25f;
     private static readonly List<Protection> ActiveProtections = new();
     private static readonly Dictionary<int, int> PendingRespawnPlayers = new();
+    private static readonly Dictionary<int, int> PendingActiveProtections = new();
     private static readonly List<int> PendingRespawnPlayerIds = new();
 
     private sealed class Protection
@@ -22,13 +23,20 @@ internal static class RespawnProtection
         {
             Player = player;
             ExpiresAt = expiresAt;
+            NextSyncTime = 0f;
         }
 
         internal PlayerHealth Player { get; }
         internal float ExpiresAt { get; set; }
+        internal float NextSyncTime { get; set; }
     }
 
     internal static void Begin(PlayerHealth player)
+    {
+        Begin(player, true);
+    }
+
+    private static void Begin(PlayerHealth player, bool broadcast)
     {
         if (GameModeManager.IsVanillaScene || player == null || !player)
         {
@@ -41,6 +49,10 @@ internal static class RespawnProtection
             {
                 protection.ExpiresAt = Time.unscaledTime + DurationSeconds;
                 Apply(player);
+                if (broadcast)
+                {
+                    BroadcastActiveProtection(player, true, true);
+                }
                 return;
             }
         }
@@ -48,6 +60,10 @@ internal static class RespawnProtection
         HealthSettingsTuning.CaptureBaseline(player);
         ActiveProtections.Add(new Protection(player, Time.unscaledTime + DurationSeconds));
         Apply(player);
+        if (broadcast)
+        {
+            BroadcastActiveProtection(player, true, true);
+        }
     }
 
     internal static void ArmForRespawn(int playerId)
@@ -118,6 +134,24 @@ internal static class RespawnProtection
         return true;
     }
 
+    internal static void SetActiveRespawn(int playerId, int objectId, bool active)
+    {
+        if (playerId < 0 || objectId < 0)
+        {
+            return;
+        }
+
+        if (!active)
+        {
+            PendingActiveProtections.Remove(playerId);
+            PendingRespawnPlayers.Remove(playerId);
+            return;
+        }
+
+        PendingActiveProtections[playerId] = objectId;
+        TryBeginActiveRespawn(playerId, objectId);
+    }
+
     internal static void Update()
     {
         PendingRespawnPlayerIds.Clear();
@@ -136,6 +170,20 @@ internal static class RespawnProtection
             }
         }
 
+        PendingRespawnPlayerIds.Clear();
+        foreach (int playerId in PendingActiveProtections.Keys)
+        {
+            PendingRespawnPlayerIds.Add(playerId);
+        }
+
+        foreach (int playerId in PendingRespawnPlayerIds)
+        {
+            if (PendingActiveProtections.TryGetValue(playerId, out int objectId))
+            {
+                TryBeginActiveRespawn(playerId, objectId);
+            }
+        }
+
         for (int index = ActiveProtections.Count - 1; index >= 0; index--)
         {
             Protection protection = ActiveProtections[index];
@@ -148,6 +196,7 @@ internal static class RespawnProtection
             if (Time.unscaledTime < protection.ExpiresAt)
             {
                 Apply(protection.Player);
+                BroadcastActiveProtection(protection.Player, true, false);
                 continue;
             }
 
@@ -187,36 +236,33 @@ internal static class RespawnProtection
         return false;
     }
 
-    internal static bool IsProtected(Weapon weapon)
+    private static void TryBeginActiveRespawn(int playerId, int objectId)
     {
-        if (weapon == null)
+        PlayerHealth? player = PlayerLookup.FindPlayerHealthById(playerId);
+        if (player == null || !player || !player.gameObject.activeInHierarchy
+            || GetNetworkObjectId(player) != objectId)
         {
-            return false;
+            return;
         }
 
-        PlayerHealth? player = weapon.playerController == null
-            ? null
-            : weapon.playerController.GetComponent<PlayerHealth>();
-        player ??= weapon.GetComponentInParent<PlayerHealth>();
-        if (player == null && weapon.rootObject != null)
+        PendingActiveProtections.Remove(playerId);
+    PendingRespawnPlayers.Remove(playerId);
+        foreach (Protection protection in ActiveProtections)
         {
-            player = weapon.rootObject.GetComponent<PlayerHealth>();
+            if (protection.Player == player)
+            {
+                return;
+            }
         }
 
-        return player != null && IsProtected(player);
+        Begin(player, false);
     }
 
     internal static void ResetState()
     {
-        foreach (Protection protection in ActiveProtections)
-        {
-            if (protection.Player != null && protection.Player)
-            {
-                PlayerOutline.ClearTemporary(protection.Player, OutlineColor, OutlineWidth);
-            }
-        }
         ActiveProtections.Clear();
         PendingRespawnPlayers.Clear();
+        PendingActiveProtections.Clear();
     }
 
     internal static void ApplyHealth(PlayerHealth player)
@@ -239,23 +285,6 @@ internal static class RespawnProtection
             }
         }
 
-        if (IsLocalPlayer(player))
-        {
-            PlayerOutline.ClearTemporary(player, OutlineColor, OutlineWidth);
-        }
-        else if (!player.IsOwner)
-        {
-            PlayerOutline.ApplyTemporary(player, OutlineColor, OutlineWidth);
-        }
-    }
-
-    private static bool IsLocalPlayer(PlayerHealth player)
-    {
-        int localPlayerId = ClientInstance.Instance == null
-            ? -1
-            : ClientInstance.Instance.PlayerId;
-        return localPlayerId >= 0
-            && player.playerValues?.playerClient?.PlayerId == localPlayerId;
     }
 
     private static void Apply(PlayerHealth player)
@@ -265,7 +294,7 @@ internal static class RespawnProtection
 
     private static void End(PlayerHealth player)
     {
-        PlayerOutline.ClearTemporary(player, OutlineColor, OutlineWidth);
+        BroadcastActiveProtection(player, false, true);
         HealthSettingsTuning.ApplyIfChanged(player, HealthSettingsState.MaxHealthMultiplier,
             HealthSettingsState.TuningVersion);
 
@@ -286,6 +315,47 @@ internal static class RespawnProtection
                 }
             }
         }
+    }
+
+    private static int GetNetworkObjectId(PlayerHealth player)
+    {
+        NetworkObject? networkObject = player.GetComponent<NetworkObject>();
+        if (networkObject == null)
+        {
+            networkObject = player.GetComponentInParent<NetworkObject>();
+        }
+
+        return networkObject == null ? -1 : networkObject.ObjectId;
+    }
+
+    private static void BroadcastActiveProtection(PlayerHealth player, bool active, bool force)
+    {
+        if (!player.IsServer || !MyceliumNetwork.InLobby || player.playerValues == null
+            || player.playerValues.playerClient == null)
+        {
+            return;
+        }
+
+        int objectId = GetNetworkObjectId(player);
+        if (objectId < 0)
+        {
+            return;
+        }
+
+        Protection? protection = ActiveProtections.Find(candidate => candidate.Player == player);
+        if (!force && protection != null && Time.unscaledTime < protection.NextSyncTime)
+        {
+            return;
+        }
+
+        if (protection != null)
+        {
+            protection.NextSyncTime = Time.unscaledTime + ActiveProtectionSyncIntervalSeconds;
+        }
+
+        MyceliumNetwork.RPC(GameModeManager.ModId,
+            nameof(Plugin.SyncRespawnProtectionActive), ReliableType.Reliable,
+            player.playerValues.playerClient.PlayerId, objectId, active);
     }
 }
 

@@ -20,6 +20,11 @@ internal static class TeamDeathmatchState
 
     internal static void ApplySettings(bool enabled)
     {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.TeamDeathmatch, enabled))
+        {
+            return;
+        }
+
         bool changed = Enabled != enabled;
         Enabled = enabled;
         if (changed)
@@ -166,7 +171,7 @@ internal static class TeamDeathmatchState
 
     internal static void PrepareTeamsForRound()
     {
-        if (MyceliumNetwork.IsHost && TeamAssignment.Current.Count == 0)
+        if (MyceliumNetwork.IsHost)
         {
             TeamAssignment.AssignForRound();
         }
@@ -182,7 +187,8 @@ internal static class TeamDeathmatchState
         Scores.Clear();
         _roundInitialized = false;
         _roundCompletionRequested = false;
-        if (!TeamAssignment.AssignForRound())
+        if (!TeamAssignment.HasAssignmentsForConnectedPlayers()
+            && !TeamAssignment.AssignForRound())
         {
             return;
         }

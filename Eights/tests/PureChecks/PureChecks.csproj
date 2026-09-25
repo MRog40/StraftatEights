@@ -12,6 +12,7 @@
     <Compile Include="..\..\Shared\ScoreRules.cs" Link="ScoreRules.cs" />
     <Compile Include="..\..\Shared\ModeTimeoutRules.cs" Link="ModeTimeoutRules.cs" />
     <Compile Include="..\..\Shared\TeamRules.cs" Link="TeamRules.cs" />
+    <Compile Include="..\..\Shared\TeamDisplayNames.cs" Link="TeamDisplayNames.cs" />
     <Compile Include="..\..\Shared\SafeSpawnRules.cs" Link="SafeSpawnRules.cs" />
     <Compile Include="..\..\Shared\HardpointRules.cs" Link="HardpointRules.cs" />
     <Compile Include="..\..\Shared\CaptureTheFlagRules.cs" Link="CaptureTheFlagRules.cs" />

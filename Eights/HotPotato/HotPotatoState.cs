@@ -27,6 +27,11 @@ internal static class HotPotatoState
 
     internal static void ApplySettings(bool enabled, string weaponOrder)
     {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.HotPotato, enabled))
+        {
+            return;
+        }
+
         List<string> nextWeaponOrder = WeaponService.ParseWeaponList(weaponOrder);
         bool changed = Enabled != enabled
             || !WeaponOrder.SequenceEqual(nextWeaponOrder, StringComparer.Ordinal);

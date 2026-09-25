@@ -55,8 +55,12 @@ internal static class WeaponDropPolicy
                 return playerId >= 0 && AssassinState.IsAllowedWeapon(weapon, playerId);
             case GameMode.Infected:
                 return playerId >= 0 && InfectedState.IsInfected(playerId);
+            case GameMode.HotPotInfected:
+                return playerId >= 0 && HotPotInfectedState.IsInfected(playerId);
             case GameMode.SniperBattle:
                 return SniperBattleState.IsSniperWeapon(weapon);
+            case GameMode.Nife:
+                return NifeState.IsSelectedWeapon(weapon);
             default:
                 return false;
         }

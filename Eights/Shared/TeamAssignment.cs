@@ -11,6 +11,7 @@ internal static class TeamAssignment
     private static readonly Dictionary<int, int> PreviousAssignments = new();
     private static readonly HashSet<int> InitialSpawnEligiblePlayers = new();
     private static readonly System.Random TeamAssignmentRandom = new();
+    private static Dictionary<int, int>? ForcedAssignments;
 
     internal static IReadOnlyDictionary<int, int> Current => Assignments;
     internal static int TeamCount { get; private set; }
@@ -56,22 +57,26 @@ internal static class TeamAssignment
             : TeamRules.AssignBalanced(playerIds, TeamAssignmentRandom, PreviousAssignments);
         if (nextAssignments.Count == 0)
         {
+            if (GameModeManager.IsActive(GameMode.Hardpoint))
+            {
+                Plugin.Logger.LogWarning($"[Teams] Hardpoint rule returned no assignments: "
+                    + $"players=[{string.Join(",", playerIds)}] count={playerIds.Count}");
+            }
             return false;
         }
 
-        Assignments.Clear();
-        InitialSpawnEligiblePlayers.Clear();
-        foreach (KeyValuePair<int, int> assignment in nextAssignments)
+        int teamCount = GameModeManager.IsActive(GameMode.Hardpoint)
+            ? TeamRules.GetHardpointTeamCount(playerIds.Count)
+            : isTeamDeathmatch ? 2 : TeamRules.GetTeamCount(playerIds.Count);
+        bool applied = ApplyRoundAssignments(playerIds, teamCount, nextAssignments);
+        if (!applied && GameModeManager.IsActive(GameMode.Hardpoint))
         {
-            Assignments[assignment.Key] = assignment.Value;
-            InitialSpawnEligiblePlayers.Add(assignment.Key);
+            Plugin.Logger.LogWarning($"[Teams] Hardpoint assignment application failed: "
+                + $"players=[{string.Join(",", playerIds)}] teamCount={teamCount} "
+                + $"generated={nextAssignments.Count} keepTeams={GameModeManager.EffectiveKeepTeams}");
         }
 
-        TeamCount = GameModeManager.IsActive(GameMode.Hardpoint)
-            ? TeamRules.GetHardpointTeamCount(Assignments.Count)
-            : isTeamDeathmatch ? 2 : TeamRules.GetTeamCount(Assignments.Count);
-        HealthCompensationVersion++;
-        return true;
+        return applied;
     }
 
     internal static bool AssignCaptureTheFlagRound()
@@ -88,18 +93,8 @@ internal static class TeamAssignment
             return false;
         }
 
-        Assignments.Clear();
-        InitialSpawnEligiblePlayers.Clear();
-        foreach (KeyValuePair<int, int> assignment
-            in TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, PreviousAssignments))
-        {
-            Assignments[assignment.Key] = assignment.Value;
-            InitialSpawnEligiblePlayers.Add(assignment.Key);
-        }
-
-        TeamCount = 2;
-        HealthCompensationVersion++;
-        return true;
+        return ApplyRoundAssignments(playerIds, 2,
+            TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, PreviousAssignments));
     }
 
     internal static bool AssignSearchAndDestroyRound()
@@ -116,18 +111,8 @@ internal static class TeamAssignment
             return false;
         }
 
-        Assignments.Clear();
-        InitialSpawnEligiblePlayers.Clear();
-        foreach (KeyValuePair<int, int> assignment
-            in TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, PreviousAssignments))
-        {
-            Assignments[assignment.Key] = assignment.Value;
-            InitialSpawnEligiblePlayers.Add(assignment.Key);
-        }
-
-        TeamCount = 2;
-        HealthCompensationVersion++;
-        return true;
+        return ApplyRoundAssignments(playerIds, 2,
+            TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, PreviousAssignments));
     }
 
     internal static bool AssignHuntersRound()
@@ -144,17 +129,162 @@ internal static class TeamAssignment
             return false;
         }
 
+        return ApplyRoundAssignments(playerIds, 2,
+            TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, PreviousAssignments));
+    }
+
+    internal static bool QueueMixupForNextRound()
+    {
+        if (!MyceliumNetworking.MyceliumNetwork.IsHost || !GameModeManager.IsTeamBased)
+        {
+            return false;
+        }
+
+        List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
+        if (playerIds.Count == 0 || TeamCount < 2 || Assignments.Count != playerIds.Count)
+        {
+            return false;
+        }
+
+        Dictionary<int, int> nextAssignments = CreateMixupAssignments(playerIds, TeamCount);
+        for (int attempt = 0; attempt < 32 && HasSameTeamPartition(Assignments, nextAssignments);
+            attempt++)
+        {
+            nextAssignments = CreateMixupAssignments(playerIds, TeamCount);
+        }
+
+        if (HasSameTeamPartition(Assignments, nextAssignments))
+        {
+            return false;
+        }
+
+        ForcedAssignments = nextAssignments;
+        TeamLayoutState.SaveAssignments(nextAssignments, TeamCount);
+        return true;
+    }
+
+    internal static void CaptureCurrentLayout()
+    {
+        if (GameModeManager.IsTeamBased && Assignments.Count > 0 && TeamCount >= 2)
+        {
+            TeamLayoutState.SaveAssignments(Assignments, TeamCount);
+        }
+    }
+
+    private static bool ApplyRoundAssignments(IReadOnlyList<int> playerIds, int teamCount,
+        Dictionary<int, int> randomAssignments)
+    {
+        Dictionary<int, int> nextAssignments = randomAssignments;
+        bool usedSavedLayout = false;
+        if (ForcedAssignments != null)
+        {
+            nextAssignments = ApplyForcedAssignments(playerIds, teamCount, ForcedAssignments);
+            ForcedAssignments = null;
+        }
+        else if (GameModeManager.EffectiveKeepTeams)
+        {
+            if (TeamLayoutState.TryApplySaved(playerIds, teamCount,
+                out Dictionary<int, int> savedAssignments))
+            {
+                nextAssignments = savedAssignments;
+                usedSavedLayout = true;
+            }
+        }
+
+        if (nextAssignments.Count == 0)
+        {
+            return false;
+        }
+
         Assignments.Clear();
         InitialSpawnEligiblePlayers.Clear();
-        foreach (KeyValuePair<int, int> assignment
-            in TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, PreviousAssignments))
+        foreach (KeyValuePair<int, int> assignment in nextAssignments)
         {
             Assignments[assignment.Key] = assignment.Value;
             InitialSpawnEligiblePlayers.Add(assignment.Key);
         }
 
-        TeamCount = 2;
+        TeamCount = teamCount;
+        if (GameModeManager.EffectiveKeepTeams && !usedSavedLayout)
+        {
+            TeamLayoutState.SaveAssignments(nextAssignments, teamCount);
+        }
         HealthCompensationVersion++;
+        return true;
+    }
+
+    private static Dictionary<int, int> ApplyForcedAssignments(IReadOnlyList<int> playerIds,
+        int teamCount, IReadOnlyDictionary<int, int> forcedAssignments)
+    {
+        Dictionary<int, int> assignments = new();
+        int[] teamSizes = new int[teamCount];
+        foreach (int playerId in playerIds)
+        {
+            if (forcedAssignments.TryGetValue(playerId, out int teamId)
+                && teamId >= 0 && teamId < teamCount)
+            {
+                assignments[playerId] = teamId;
+                teamSizes[teamId]++;
+            }
+        }
+
+        foreach (int playerId in playerIds.OrderBy(id => id))
+        {
+            if (assignments.ContainsKey(playerId))
+            {
+                continue;
+            }
+
+            int selectedTeam = 0;
+            for (int teamId = 1; teamId < teamCount; teamId++)
+            {
+                if (teamSizes[teamId] < teamSizes[selectedTeam])
+                {
+                    selectedTeam = teamId;
+                }
+            }
+
+            assignments[playerId] = selectedTeam;
+            teamSizes[selectedTeam]++;
+        }
+
+        return assignments;
+    }
+
+    private static Dictionary<int, int> CreateMixupAssignments(IReadOnlyList<int> playerIds,
+        int teamCount)
+    {
+        return GameModeManager.IsActive(GameMode.Hardpoint)
+            ? TeamRules.AssignHardpointBalanced(playerIds, TeamAssignmentRandom, null)
+            : teamCount == 2
+                ? TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, null)
+                : TeamRules.AssignBalanced(playerIds, TeamAssignmentRandom, null);
+    }
+
+    private static bool HasSameTeamPartition(IReadOnlyDictionary<int, int> first,
+        IReadOnlyDictionary<int, int> second)
+    {
+        if (first.Count != second.Count)
+        {
+            return false;
+        }
+
+        List<int> playerIds = first.Keys.OrderBy(id => id).ToList();
+        for (int firstIndex = 0; firstIndex < playerIds.Count; firstIndex++)
+        {
+            for (int secondIndex = firstIndex + 1; secondIndex < playerIds.Count; secondIndex++)
+            {
+                int firstPlayerId = playerIds[firstIndex];
+                int secondPlayerId = playerIds[secondIndex];
+                bool firstTogether = first[firstPlayerId] == first[secondPlayerId];
+                bool secondTogether = second[firstPlayerId] == second[secondPlayerId];
+                if (firstTogether != secondTogether)
+                {
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
 
@@ -226,6 +356,25 @@ internal static class TeamAssignment
         {
             AssignForRound();
         }
+    }
+
+    internal static bool HasAssignmentsForConnectedPlayers()
+    {
+        List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
+        if (playerIds.Count == 0 || Assignments.Count != playerIds.Count)
+        {
+            return false;
+        }
+
+        foreach (int playerId in playerIds)
+        {
+            if (!Assignments.ContainsKey(playerId))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void RememberCurrentAssignments()

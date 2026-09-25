@@ -283,7 +283,7 @@ internal static class TeamRules
         return teamId switch
         {
             BlueTeamId => new TeamColorData(0, 114, 178),
-            VermillionTeamId => new TeamColorData(213, 94, 0),
+            VermillionTeamId => new TeamColorData(220, 38, 38),
             GreenTeamId => new TeamColorData(0, 158, 115),
             _ => new TeamColorData(220, 220, 220)
         };

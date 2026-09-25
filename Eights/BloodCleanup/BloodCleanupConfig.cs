@@ -1,4 +1,5 @@
 using BepInEx.Configuration;
+using MyceliumNetworking;
 
 namespace Eights;
 
@@ -12,6 +13,14 @@ public partial class Plugin
             new ConfigDescription(
                 "Local visual limit for live blood effects. Older effects are removed first.",
             new AcceptableValueRange<int>(0, 50)));
-        MaximumBloodEffects.SettingChanged += (_, _) => BloodCleanupState.TrimToLimit();
+        BloodCleanupState.ApplyMaximumBloodEffects(MaximumBloodEffects.Value);
+        MaximumBloodEffects.SettingChanged += (_, _) =>
+        {
+            if (!MyceliumNetwork.InLobby || MyceliumNetwork.IsHost)
+            {
+                BloodCleanupState.ApplyMaximumBloodEffects(MaximumBloodEffects.Value);
+            }
+            GlobalModifiersState.PushIfHost();
+        };
     }
 }

@@ -73,7 +73,8 @@ internal static class WeaponPolicy
             || mode == GameMode.OneInTheChamber
             || mode == GameMode.HotPotato
             || mode == GameMode.Infidel
-            || mode == GameMode.Assassin;
+            || mode == GameMode.Assassin
+            || mode == GameMode.Nife;
     }
 
     internal static bool CanEquip(PlayerPickup pickup, GameObject obj, bool rightHand)
@@ -102,6 +103,10 @@ internal static class WeaponPolicy
             case GameMode.Infected:
                 return health == null || !InfectedState.IsInfected(health)
                     || weapon.name.StartsWith(InfectedState.KnifeWeaponName,
+                        System.StringComparison.Ordinal);
+            case GameMode.HotPotInfected:
+                return health == null || !HotPotInfectedState.IsInfected(health)
+                    || weapon.name.StartsWith(HotPotInfectedState.GrenadeWeaponName,
                         System.StringComparison.Ordinal);
             case GameMode.Juggernaut:
                 return health == null || !JuggernautState.IsCurrentJuggernaut(health)
@@ -139,6 +144,8 @@ internal static class WeaponPolicy
                 return SniperBattleState.IsSniperWeapon(weapon);
             case GameMode.GunGame:
                 return false;
+            case GameMode.Nife:
+                return NifeState.IsSelectedWeapon(weapon);
             default:
                 return true;
         }
@@ -177,6 +184,31 @@ internal static class ItemSpawner_WeaponPolicy_Patch
 [HarmonyPriority(Priority.First)]
 internal static class PlayerPickup_WeaponPolicy_Patch
 {
+    private static bool Prefix(PlayerPickup __instance, GameObject obj, bool rightHand)
+    {
+        return WeaponPolicy.CanEquip(__instance, obj, rightHand);
+    }
+}
+
+[HarmonyPatch]
+[HarmonyPriority(Priority.First)]
+internal static class PlayerPickup_WeaponServerLogicPolicy_Patch
+{
+    private static System.Reflection.MethodBase? TargetMethod()
+    {
+        return FishNetCompatibility.FindGeneratedMethod(typeof(PlayerPickup),
+            "RpcLogic___SetObjectInHandServer_",
+            method => method.ReturnType == typeof(void)
+                && method.GetParameters() is { Length: 5 } parameters
+                && parameters[0].ParameterType == typeof(GameObject)
+                && parameters[1].ParameterType == typeof(Vector3)
+                && parameters[2].ParameterType == typeof(Quaternion)
+                && parameters[3].ParameterType == typeof(GameObject)
+                && parameters[4].ParameterType == typeof(bool));
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
     private static bool Prefix(PlayerPickup __instance, GameObject obj, bool rightHand)
     {
         return WeaponPolicy.CanEquip(__instance, obj, rightHand);

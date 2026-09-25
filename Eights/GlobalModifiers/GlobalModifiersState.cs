@@ -23,6 +23,7 @@ internal static class GlobalModifiersState
     internal static float MomentumPercent = 100f;
     internal static float AirSpeedRatioPercent = MovementTuning.StockAirSpeedRatioPercent;
     internal static float ShootingSpeedMultiplier = 1f;
+    internal static bool PlayerRadarEnabled = true;
 
     internal static float EffectiveMomentumPercent => GameModeManager.ShouldIgnoreGlobalMovementSettings
         ? 100f
@@ -41,9 +42,14 @@ internal static class GlobalModifiersState
     private static readonly ModeSyncState Sync = new();
     private static float _nextClientSettingsPollTime;
 
-    internal static void Apply(bool enabled, bool wallJump, bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent, int gravityPercent, int momentumPercent, int airSpeedRatioPercent, int shootingSpeedPercent)
+    internal static void Apply(bool enabled, bool wallJump, bool sliding, bool slideBoost,
+        bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent, int gravityPercent,
+        int momentumPercent, int airSpeedRatioPercent, int shootingSpeedPercent,
+        bool playerRadarEnabled, int maximumBloodEffects)
     {
         Enabled = enabled;
+        PlayerRadarEnabled = playerRadarEnabled;
+        BloodCleanupState.ApplyMaximumBloodEffects(maximumBloodEffects);
         if (!enabled)
         {
             WallJumpEnabled = true;
@@ -81,7 +87,13 @@ internal static class GlobalModifiersState
 
     private static void ApplyFromHostConfig()
     {
-        Apply(Plugin.MovementTweaksEnabled.Value, Plugin.WallJumpEnabled.Value, Plugin.SlidingEnabled.Value, Plugin.SlideBoostEnabled.Value, Plugin.WallJumpBoostEnabled.Value, Plugin.MoveSpeedPercent.Value, Plugin.AdsSpeedPercent.Value, Plugin.GravityPercent.Value, Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value, Plugin.ShootingSpeedPercent.Value);
+        Apply(Plugin.MovementTweaksEnabled.Value, Plugin.WallJumpEnabled.Value,
+            Plugin.SlidingEnabled.Value, Plugin.SlideBoostEnabled.Value,
+            Plugin.WallJumpBoostEnabled.Value, Plugin.MoveSpeedPercent.Value,
+            Plugin.AdsSpeedPercent.Value, Plugin.GravityPercent.Value,
+            Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value,
+            Plugin.ShootingSpeedPercent.Value, Plugin.PlayerRadarEnabled.Value,
+            Plugin.MaximumBloodEffects.Value);
     }
 
     internal static void PushIfHost()
@@ -104,7 +116,9 @@ internal static class GlobalModifiersState
             Plugin.GravityPercent.Value.ToString(CultureInfo.InvariantCulture),
             Plugin.MomentumPercent.Value.ToString(CultureInfo.InvariantCulture),
             Plugin.AirSpeedRatioPercent.Value.ToString(CultureInfo.InvariantCulture),
-            Plugin.ShootingSpeedPercent.Value.ToString(CultureInfo.InvariantCulture));
+            Plugin.ShootingSpeedPercent.Value.ToString(CultureInfo.InvariantCulture),
+            Plugin.PlayerRadarEnabled.Value ? "1" : "0",
+            Plugin.MaximumBloodEffects.Value.ToString(CultureInfo.InvariantCulture));
         MyceliumNetwork.RPC(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), ReliableType.Reliable,
             RpcArgs(revision));
     }
@@ -164,7 +178,9 @@ internal static class GlobalModifiersState
     internal static void ResetForLobbyLeft()
     {
         Sync.ResetForLobby();
-        Apply(false, true, true, true, true, 100, 100, 100, 100, Mathf.RoundToInt(MovementTuning.StockAirSpeedRatioPercent), 100);
+        Apply(false, true, true, true, true, 100, 100, 100, 100,
+            Mathf.RoundToInt(MovementTuning.StockAirSpeedRatioPercent), 100, true,
+            Plugin.MaximumBloodEffects.Value);
     }
 
     // Late joiners won't have received earlier broadcasts, so catch them up directly
@@ -186,7 +202,7 @@ internal static class GlobalModifiersState
 
     private static void ApplyLobbySettingsSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 11, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 13, out CSteamID hostId,
                 out int roundId, out int revision, out string[] fields)
             || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
             || !LobbySnapshotCodec.TryParseBool(fields[1], out bool wallJump)
@@ -199,6 +215,8 @@ internal static class GlobalModifiersState
             || !int.TryParse(fields[8], out int momentumPercent)
             || !int.TryParse(fields[9], out int airSpeedRatioPercent)
             || !int.TryParse(fields[10], out int shootingSpeedPercent)
+            || !LobbySnapshotCodec.TryParseBool(fields[11], out bool playerRadarEnabled)
+            || !int.TryParse(fields[12], out int maximumBloodEffects)
             || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
                 ModeLobbyDataSync.Source("global-modifiers", "settings")))
         {
@@ -207,7 +225,7 @@ internal static class GlobalModifiersState
 
         Apply(enabled, wallJump, sliding, slideBoost, wallJumpBoost, moveSpeedPercent,
             adsSpeedPercent, gravityPercent, momentumPercent, airSpeedRatioPercent,
-            shootingSpeedPercent);
+            shootingSpeedPercent, playerRadarEnabled, maximumBloodEffects);
     }
 
     // MyceliumNetworking's serializer only supports primitives
@@ -221,7 +239,9 @@ internal static class GlobalModifiersState
             Plugin.MovementTweaksEnabled.Value,
             Plugin.WallJumpEnabled.Value, Plugin.SlidingEnabled.Value, Plugin.SlideBoostEnabled.Value, Plugin.WallJumpBoostEnabled.Value,
             Plugin.MoveSpeedPercent.Value, Plugin.AdsSpeedPercent.Value, Plugin.GravityPercent.Value,
-            Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value, Plugin.ShootingSpeedPercent.Value
+            Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value,
+            Plugin.ShootingSpeedPercent.Value, Plugin.PlayerRadarEnabled.Value,
+            Plugin.MaximumBloodEffects.Value
         };
     }
 }

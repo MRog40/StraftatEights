@@ -7,13 +7,13 @@ using UnityEngine;
 
 namespace Eights;
 
-internal static class InfectedState
+internal static class HotPotInfectedState
 {
-    internal const string SettingsLobbyDataKey = "Eights_Infected_Settings";
-    internal const string LiveLobbyDataKey = "Eights_Infected_Live";
-    internal const string KnifeWeaponName = "Couperet";
+    internal const string SettingsLobbyDataKey = "Eights_HotPotInfected_Settings";
+    internal const string LiveLobbyDataKey = "Eights_HotPotInfected_Live";
+    internal const string GrenadeWeaponName = "HandGrenade";
     internal const float InfectedSpeedMultiplier = 1.2f;
-    internal const float SurvivorHealth = 10f / 25f;
+    internal static readonly float SurvivorHealth = HealthUnits.ToInternal(10f);
     internal static bool Enabled;
     internal static int InitialInfectedPlayerId { get; private set; } = -1;
     internal static int CurrentInfectedPlayerId => InitialInfectedPlayerId;
@@ -37,7 +37,7 @@ internal static class InfectedState
 
     internal static void ApplySettings(bool enabled)
     {
-        if (GameModeManager.ShouldDeferModeDisable(GameMode.Infected, enabled))
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.HotPotInfected, enabled))
         {
             return;
         }
@@ -50,7 +50,8 @@ internal static class InfectedState
         }
     }
 
-    private static void ApplySettingsFromHostConfig() => ApplySettings(Plugin.InfectedEnabled.Value);
+    private static void ApplySettingsFromHostConfig() =>
+        ApplySettings(Plugin.HotPotInfectedEnabled.Value);
 
     internal static void PushSettingsIfHost()
     {
@@ -62,9 +63,10 @@ internal static class InfectedState
         ApplySettingsFromHostConfig();
         int revision = Sync.NextSettingsRevision();
         PublishSettingsSnapshot(revision);
-        MyceliumNetwork.RPC(Plugin.InfectedModId, nameof(Plugin.SyncInfectedSettings),
-            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId,
-            revision, Plugin.InfectedEnabled.Value);
+        MyceliumNetwork.RPC(Plugin.HotPotInfectedModId,
+            nameof(Plugin.SyncHotPotInfectedSettings), ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
+            Plugin.HotPotInfectedEnabled.Value);
     }
 
     internal static void PeriodicPushSettingsIfHost()
@@ -78,7 +80,7 @@ internal static class InfectedState
     internal static void PeriodicPushIfHost()
     {
         PeriodicPushSettingsIfHost();
-        if (Enabled && GameModeManager.IsActive(GameMode.Infected)
+        if (Enabled && GameModeManager.IsActive(GameMode.HotPotInfected)
             && Sync.IsLivePushDue())
         {
             BroadcastLiveState();
@@ -131,17 +133,17 @@ internal static class InfectedState
             return;
         }
 
-        MyceliumNetwork.RPCTarget(Plugin.InfectedModId,
-            nameof(Plugin.SyncInfectedSettings), player, ReliableType.Reliable,
+        MyceliumNetwork.RPCTarget(Plugin.HotPotInfectedModId,
+            nameof(Plugin.SyncHotPotInfectedSettings), player, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
-            Plugin.InfectedEnabled.Value);
-        MyceliumNetwork.RPCTarget(Plugin.InfectedModId,
-            nameof(Plugin.SyncInfectedLiveState), player, ReliableType.Reliable,
+            Plugin.HotPotInfectedEnabled.Value);
+        MyceliumNetwork.RPCTarget(Plugin.HotPotInfectedModId,
+            nameof(Plugin.SyncHotPotInfectedLiveState), player, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, InitialInfectedPlayerId,
             SerializeInfectedPlayers(), SerializeScores(), WinnerId,
             GameModeManager.RoundId, Sync.LiveRevision);
 
-        if (!GameModeManager.IsActive(GameMode.Infected) || !_rolesInitialized)
+        if (!GameModeManager.IsActive(GameMode.HotPotInfected) || !_rolesInitialized)
         {
             return;
         }
@@ -191,14 +193,14 @@ internal static class InfectedState
             changed = true;
         }
 
-        if (wasRoundPlayer && GameModeManager.IsActive(GameMode.Infected)
+        if (wasRoundPlayer && GameModeManager.IsActive(GameMode.HotPotInfected)
             && !_roundEnding && GetSurvivorIds().Count == 0)
         {
             FinishInfectedWin();
             return;
         }
 
-        if (changed && GameModeManager.IsActive(GameMode.Infected))
+        if (changed && GameModeManager.IsActive(GameMode.HotPotInfected))
         {
             BroadcastLiveState();
         }
@@ -228,7 +230,7 @@ internal static class InfectedState
 
     internal static void OnRoundStarted()
     {
-        if (!Enabled || !GameModeManager.IsActive(GameMode.Infected)
+        if (!Enabled || !GameModeManager.IsActive(GameMode.HotPotInfected)
             || !MyceliumNetwork.IsHost)
         {
             return;
@@ -243,6 +245,7 @@ internal static class InfectedState
         AssignedWeapons.Clear();
         PendingLoadouts.Clear();
         ResolvedLoadouts.Clear();
+        Scores.Clear();
         _rolesInitialized = false;
         _roundEnding = false;
         EnsureRoundRoles();
@@ -276,7 +279,7 @@ internal static class InfectedState
 
     internal static void OnServerKill(int deadPlayerId, int killerId)
     {
-        if (!Enabled || !GameModeManager.IsActive(GameMode.Infected)
+        if (!Enabled || !GameModeManager.IsActive(GameMode.HotPotInfected)
             || !MyceliumNetwork.IsHost || _roundEnding || WinnerId >= 0)
         {
             return;
@@ -307,7 +310,7 @@ internal static class InfectedState
 
     internal static void OnRoundTimeout()
     {
-        if (!Enabled || !GameModeManager.IsActive(GameMode.Infected)
+        if (!Enabled || !GameModeManager.IsActive(GameMode.HotPotInfected)
             || !MyceliumNetwork.IsHost || _roundEnding || WinnerId >= 0)
         {
             return;
@@ -332,7 +335,7 @@ internal static class InfectedState
 
     internal static bool IsInfected(int playerId)
     {
-        return GameModeManager.IsActive(GameMode.Infected)
+        return GameModeManager.IsActive(GameMode.HotPotInfected)
             && playerId >= 0 && InfectedPlayers.Contains(playerId);
     }
 
@@ -344,7 +347,7 @@ internal static class InfectedState
 
     internal static void EnsureLoadouts()
     {
-        if (!Enabled || !GameModeManager.IsActive(GameMode.Infected)
+        if (!Enabled || !GameModeManager.IsActive(GameMode.HotPotInfected)
             || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost
             || GameModeManager.Phase != GameModePhase.ActiveRound
             || WeaponService.IsFinalGameScreen)
@@ -391,7 +394,7 @@ internal static class InfectedState
             Scores.TryAdd(playerId, 0);
         }
 
-        InitialInfectedPlayerId = DistributionRandom.SelectPlayer("Infected", players);
+        InitialInfectedPlayerId = DistributionRandom.SelectPlayer("Hot Pot: Infected", players);
         if (InitialInfectedPlayerId >= 0)
         {
             InfectedPlayers.Add(InitialInfectedPlayerId);
@@ -412,13 +415,13 @@ internal static class InfectedState
         {
             PlayerObjectIds[playerId] = objectId;
             AssignedWeapons[playerId] = IsInfected(playerId)
-                ? KnifeWeaponName
+                ? GrenadeWeaponName
                 : GetRandomAllowedWeapon();
             PendingLoadouts[playerId] = Time.unscaledTime + 1f;
             ResolvedLoadouts.Remove(playerId);
         }
 
-        if (ResolvedLoadouts.Contains(playerId))
+        if (ResolvedLoadouts.Contains(playerId) && !IsInfected(playerId))
         {
             return;
         }
@@ -431,14 +434,14 @@ internal static class InfectedState
 
         bool infected = IsInfected(playerId);
         string weaponName = AssignedWeapons.TryGetValue(playerId, out string? assigned)
-            ? assigned : infected ? KnifeWeaponName : GetRandomAllowedWeapon();
+            ? assigned : infected ? GrenadeWeaponName : GetRandomAllowedWeapon();
         AssignedWeapons[playerId] = weaponName;
 
         if (infected)
         {
             Weapon? rightWeapon = GetHeldWeapon(pickup.objInHand);
             Weapon? leftWeapon = GetHeldWeapon(pickup.objInLeftHand);
-            if (rightWeapon != null && IsCouperet(rightWeapon) && leftWeapon == null)
+            if (rightWeapon != null && IsHandGrenade(rightWeapon) && leftWeapon == null)
             {
                 ResolvedLoadouts.Add(playerId);
                 PendingLoadouts.Remove(playerId);
@@ -472,7 +475,7 @@ internal static class InfectedState
         PendingLoadouts[playerId] = Time.unscaledTime + 1f;
         if (infected)
         {
-            WeaponService.GiveWeapon(playerId, KnifeWeaponName);
+            WeaponService.GiveWeapon(playerId, GrenadeWeaponName);
         }
         else
         {
@@ -488,17 +491,18 @@ internal static class InfectedState
             return string.Empty;
         }
 
-        return WeaponSettingsState.Allowed[UnityEngine.Random.Range(0, WeaponSettingsState.Allowed.Count)];
+        return WeaponSettingsState.Allowed[UnityEngine.Random.Range(0,
+            WeaponSettingsState.Allowed.Count)];
+    }
+
+    private static bool IsHandGrenade(Weapon weapon)
+    {
+        return weapon.name.StartsWith(GrenadeWeaponName, StringComparison.Ordinal);
     }
 
     private static Weapon? GetHeldWeapon(GameObject? heldObject)
     {
         return heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
-    }
-
-    private static bool IsCouperet(Weapon weapon)
-    {
-        return weapon.name.StartsWith(KnifeWeaponName, StringComparison.Ordinal);
     }
 
     private static void FinishInfectedWin()
@@ -611,8 +615,9 @@ internal static class InfectedState
 
         int revision = Sync.NextLiveRevision();
         PublishLiveSnapshot(revision);
-        MyceliumNetwork.RPC(Plugin.InfectedModId, nameof(Plugin.SyncInfectedLiveState),
-            ReliableType.Reliable, MyceliumNetwork.LobbyHost, InitialInfectedPlayerId,
+        MyceliumNetwork.RPC(Plugin.HotPotInfectedModId,
+            nameof(Plugin.SyncHotPotInfectedLiveState), ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, InitialInfectedPlayerId,
             SerializeInfectedPlayers(), SerializeScores(), WinnerId,
             GameModeManager.RoundId, revision);
     }
@@ -620,7 +625,8 @@ internal static class InfectedState
     private static void PublishSettingsSnapshot(int revision)
     {
         ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
-            GameModeManager.RoundId, revision, Plugin.InfectedEnabled.Value ? "1" : "0");
+            GameModeManager.RoundId, revision,
+            Plugin.HotPotInfectedEnabled.Value ? "1" : "0");
     }
 
     private static void PublishLiveSnapshot(int revision)
@@ -636,7 +642,7 @@ internal static class InfectedState
             out int roundId, out int revision, out string[] fields)
             || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
             || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
-                ModeLobbyDataSync.Source("infected", "settings")))
+                ModeLobbyDataSync.Source("hot-pot-infected", "settings")))
         {
             return;
         }
@@ -655,6 +661,6 @@ internal static class InfectedState
         }
 
         ApplyLiveState(hostId, initialInfectedPlayerId, fields[1], fields[2], winnerId,
-            roundId, revision, ModeLobbyDataSync.Source("infected", "live"));
+            roundId, revision, ModeLobbyDataSync.Source("hot-pot-infected", "live"));
     }
 }

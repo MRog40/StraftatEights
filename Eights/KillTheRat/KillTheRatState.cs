@@ -12,7 +12,7 @@ internal static class KillTheRatState
     internal const string LiveLobbyDataKey = "Eights_KillTheRat_Live";
     internal const string HumanWeaponName = "Glock";
     internal const string RatWeaponName = "Taser";
-    internal const float RatMovementMultiplier = 1.3f;
+    internal const float RatMovementMultiplier = 1.2f;
     internal const float VoidDeathY = -300f;
     internal static bool Enabled;
     internal static int CurrentRatPlayerId = -1;
@@ -27,6 +27,11 @@ internal static class KillTheRatState
 
     internal static void ApplySettings(bool enabled)
     {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.KillTheRat, enabled))
+        {
+            return;
+        }
+
         bool changed = Enabled != enabled;
         Enabled = enabled;
         if (changed)

@@ -8,20 +8,6 @@ namespace Eights;
 // Juggernaut-only movement speed. See JuggernautState for the actual game-mode logic and
 // PlayerOutline for the visual outline effect.
 
-[HarmonyPatch(typeof(GameManager), "Update")]
-internal static class GameManager_JuggernautTick_Patch
-{
-    private static void Postfix(GameManager __instance)
-    {
-        if (__instance.IsServer)
-        {
-            if (GameModeManager.IsActive(GameMode.Juggernaut))
-            {
-                JuggernautState.ServerTick(Time.deltaTime);
-            }
-        }
-    }
-}
 [HarmonyPatch(typeof(Minigun), "Update")]
 internal static class Minigun_JuggernautAmmo_Patch
 {

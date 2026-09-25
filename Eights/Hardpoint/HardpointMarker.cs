@@ -94,9 +94,7 @@ internal static class HardpointMarker
             return new Color(1f, 1f, 1f, ActiveAlpha);
         }
 
-        TeamColorData teamColor = TeamRules.GetColor(controller);
-        return new Color(teamColor.Red / 255f, teamColor.Green / 255f,
-            teamColor.Blue / 255f, ActiveAlpha);
+        return TeamColorPolicy.GetRelativeTeamColor(controller, ActiveAlpha);
     }
 
     private static void Clear()

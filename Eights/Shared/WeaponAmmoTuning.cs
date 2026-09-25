@@ -153,7 +153,8 @@ internal static class WeaponAmmoTuning
         }
     }
 
-    internal static void InitializeSingleShot(Weapon weapon, int spareRounds)
+    internal static void InitializeSingleShot(Weapon weapon, int spareRounds,
+        bool loadInitialRound = true)
     {
         if (weapon == null || !weapon.needsAmmo)
         {
@@ -170,7 +171,10 @@ internal static class WeaponAmmoTuning
             memory.SingleShot = true;
             memory.SpareRoundsInitialized = true;
             weapon.reloadWeapon = false;
-            SetCurrentAmmo(weapon, 1);
+            if (loadInitialRound)
+            {
+                SetCurrentAmmo(weapon, 1);
+            }
         }
     }
 
@@ -183,39 +187,33 @@ internal static class WeaponAmmoTuning
         }
     }
 
-    internal static void AddSingleShotSpareRounds(Weapon weapon, int amount)
-    {
-        if (amount <= 0)
-        {
-            return;
-        }
-
-        InitializeSingleShot(weapon, 0);
-        if (MemoryByWeapon.TryGetValue(weapon, out Memory memory))
-        {
-            memory.SpareRounds += amount;
-        }
-    }
-
-    internal static void LoadSingleShotRoundIntoMagazine(Weapon weapon)
+    internal static void AwardSingleShotRound(Weapon weapon, int spareRounds)
     {
         if (weapon == null || !weapon.needsAmmo)
         {
             return;
         }
 
-        InitializeSingleShot(weapon, 0);
+        InitializeSingleShot(weapon, spareRounds, loadInitialRound: false);
         if (!MemoryByWeapon.TryGetValue(weapon, out Memory memory))
         {
             return;
         }
 
-        memory.SpareRounds = 0;
-        memory.Reloading = false;
-        memory.ManualReloadPressed = false;
+        (int magazine, int reserve) = OneInTheChamberRules.AwardBullet(
+            weapon.currentAmmo, memory.SpareRounds);
+        if (memory.Reloading)
+        {
+            memory.Reloading = false;
+            weapon.isReloading = false;
+            SetFieldValue(weapon, "inHandDespawn", memory.OriginalInHandDespawn);
+            memory.OriginalInHandDespawn = false;
+        }
+        memory.SpareRounds = reserve;
+        memory.MagazineSize = Math.Max(memory.MagazineSize, magazine);
+        memory.Initialized = true;
         weapon.CancelInvoke("DespawnObject");
-        weapon.isReloading = false;
-        SetCurrentAmmo(weapon, memory.MagazineSize);
+        SetCurrentAmmo(weapon, magazine);
         weapon.cantTakeSafeBool = false;
         weapon.noAmmoClicks = 0;
     }

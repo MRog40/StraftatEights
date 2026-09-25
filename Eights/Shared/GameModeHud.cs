@@ -17,7 +17,6 @@ internal sealed class GameModeHud : MonoBehaviour
     private const float AnnouncementTopMargin = 0.12f;
     private const float AnnouncementWidth = 600f;
     private const float AnnouncementGap = 8f;
-    private const float RoundResultAnnouncementDuration = GameModeManager.RoundResultDurationSeconds;
     private const float ScorePopupDuration = 0.65f;
     private const float ScorePopupImpactDuration = 0.12f;
     private const float ScorePopupStartScale = 1.18f;
@@ -32,14 +31,14 @@ internal sealed class GameModeHud : MonoBehaviour
     private const float ScoreboardColumnGap = 8f;
     private const float ScoreboardScoreColumnWidth = 60f;
     private const float ScoreboardContentWidth = 220f;
-    private const float ScoreboardPanelWidth = 244f;
+    private const float ScoreboardPanelWidth = 268f;
     private const int PanelTextureSize = 64;
     private const int PanelCornerRadius = 12;
     private const int PanelBorderWidth = 2;
     private static readonly Color32 ScoreboardTextColor = new(225, 238, 220, 255);
     private static readonly Color32 ScoreboardGlowColor = new(92, 105, 84, 180);
     private static readonly Color32 ScoreboardPanelBorderColor = new(138, 116, 58, 230);
-    private static readonly Color32 ScoreboardPanelFillColor = new(28, 35, 33, 248);
+    private static readonly Color32 ScoreboardPanelFillColor = new(28, 35, 33, 220);
     private sealed class PendingTakeResult
     {
         internal int ResultId;
@@ -54,7 +53,6 @@ internal sealed class GameModeHud : MonoBehaviour
     private RectTransform _panelRect = null!;
     private TextMeshProUGUI _announcement = null!;
     private TextMeshProUGUI _targetAnnouncement = null!;
-    private TextMeshProUGUI _roundResult = null!;
     private RectTransform _announcementRect = null!;
     private RectTransform _targetAnnouncementRect = null!;
     private TextMeshProUGUI _objectiveStatus = null!;
@@ -69,9 +67,7 @@ internal sealed class GameModeHud : MonoBehaviour
     private float _nextRefreshTime;
     private float _announcementUntil;
     private float _targetAnnouncementUntil;
-    private float _roundResultUntil;
     private bool _targetAnnouncementAllowsEndingRound;
-    private int _displayedRoundResultId = -1;
     private float _scorePopupUntil;
     private float _scorePopupStartedAt;
     private bool _hasLoggedVisibility;
@@ -139,25 +135,6 @@ internal sealed class GameModeHud : MonoBehaviour
         _targetAnnouncement.outlineColor = new Color(0f, 0f, 0f, 0.9f);
         _targetAnnouncement.raycastTarget = false;
         targetAnnouncementObject.SetActive(false);
-
-        GameObject roundResultObject = new("GameModeRoundResult");
-        roundResultObject.transform.SetParent(transform, false);
-        RectTransform roundResultRect = roundResultObject.AddComponent<RectTransform>();
-        roundResultRect.anchorMin = new Vector2(0.5f, 0.5f);
-        roundResultRect.anchorMax = new Vector2(0.5f, 0.5f);
-        roundResultRect.pivot = new Vector2(0.5f, 0.5f);
-        roundResultRect.sizeDelta = new Vector2(900f, 120f);
-        roundResultRect.anchoredPosition = new Vector2(0f, 190f);
-        _roundResult = roundResultObject.AddComponent<TextMeshProUGUI>();
-        _roundResult.fontSize = 64f;
-        _roundResult.fontStyle = FontStyles.Bold;
-        _roundResult.richText = true;
-        _roundResult.alignment = TextAlignmentOptions.Center;
-        _roundResult.enableWordWrapping = false;
-        _roundResult.outlineWidth = 0.28f;
-        _roundResult.outlineColor = new Color(0f, 0f, 0f, 0.9f);
-        _roundResult.raycastTarget = false;
-        roundResultObject.SetActive(false);
 
         GameObject objectiveStatusObject = new("GameModeObjectiveStatus");
         objectiveStatusObject.transform.SetParent(transform, false);
@@ -317,6 +294,7 @@ internal sealed class GameModeHud : MonoBehaviour
         _respawnProtectionMarker.raycastTarget = false;
         respawnProtectionObject.SetActive(false);
         _panel.SetActive(false);
+        gameObject.AddComponent<PlayerRadar>();
     }
 
     private void Update()
@@ -324,27 +302,6 @@ internal sealed class GameModeHud : MonoBehaviour
         if (_scorePopup.gameObject.activeSelf)
         {
             UpdateScorePopupAnimation();
-        }
-
-        if (GameModeManager.HasRoundResult)
-        {
-            if (_displayedRoundResultId != GameModeManager.RoundResultRoundId)
-            {
-                ShowRoundResult();
-            }
-        }
-        else if (_displayedRoundResultId >= 0)
-        {
-            ClearRoundResult();
-        }
-
-        bool roundResultVisible = _roundResult.gameObject.activeSelf
-            && GameModeManager.HasRoundResult
-            && Time.unscaledTime < _roundResultUntil;
-        if (!roundResultVisible && _roundResult.gameObject.activeSelf
-            && Time.unscaledTime >= _roundResultUntil)
-        {
-            _roundResult.gameObject.SetActive(false);
         }
 
         PauseManager? pauseManager = PauseManager.Instance;
@@ -359,7 +316,6 @@ internal sealed class GameModeHud : MonoBehaviour
             || (GameModeManager.Phase != GameModePhase.ActiveRound
                 && !targetAnnouncementCanContinueAfterRound)
             || GameModeManager.IsMatchOver
-            || roundResultVisible
             || pauseManager?.inMainMenu == true
             || pauseManager?.inVictoryMenu == true;
         if (hideTargetAnnouncement)
@@ -372,7 +328,7 @@ internal sealed class GameModeHud : MonoBehaviour
             _targetAnnouncement.gameObject.SetActive(false);
         }
 
-        if (GameModeManager.IsMatchOver && !GameModeManager.HasRoundResult)
+        if (GameModeManager.IsMatchOver)
         {
             if (!_hasLoggedVisibility || _lastVisible || _lastVisibilityReason != "match-over")
             {
@@ -383,7 +339,6 @@ internal sealed class GameModeHud : MonoBehaviour
 
             _announcement.gameObject.SetActive(false);
             _targetAnnouncement.gameObject.SetActive(false);
-            _roundResult.gameObject.SetActive(false);
             _objectiveStatus.gameObject.SetActive(false);
             _interactionPrompt.gameObject.SetActive(false);
             _panel.SetActive(false);
@@ -413,10 +368,6 @@ internal sealed class GameModeHud : MonoBehaviour
         {
             visibilityReason = "custom-mode-off";
         }
-        else if (roundResultVisible)
-        {
-            visibilityReason = "round-result";
-        }
         else if (shouldHideCustomHud)
         {
             visibilityReason = "mode-hides-hud";
@@ -445,7 +396,7 @@ internal sealed class GameModeHud : MonoBehaviour
             }
         }
 
-        bool visible = visibilityReason == "visible" || visibilityReason == "round-result";
+        bool visible = visibilityReason == "visible";
         if (!_hasLoggedVisibility || visible != _lastVisible || visibilityReason != _lastVisibilityReason)
         {
             _hasLoggedVisibility = true;
@@ -463,13 +414,6 @@ internal sealed class GameModeHud : MonoBehaviour
             RefreshScoreboard();
         }
         UpdateAnnouncementLayout();
-
-        if (roundResultVisible)
-        {
-            _objectiveStatus.gameObject.SetActive(false);
-            _interactionPrompt.gameObject.SetActive(false);
-            return;
-        }
 
         string objectiveStatus = visible && GameModeManager.IsActive(GameMode.SearchAndDestroy)
             ? SearchAndDestroyState.GetLocalBombStatusText()
@@ -550,47 +494,6 @@ internal sealed class GameModeHud : MonoBehaviour
         {
             _instance._targetAnnouncement.gameObject.SetActive(false);
         }
-    }
-
-    internal static void ClearRoundResult()
-    {
-        if (_instance == null)
-        {
-            return;
-        }
-
-        _instance._displayedRoundResultId = -1;
-        _instance._roundResultUntil = 0f;
-        _instance._roundResult.gameObject.SetActive(false);
-    }
-
-    private void ShowRoundResult()
-    {
-        if (!GameModeManager.HasRoundResult)
-        {
-            return;
-        }
-
-        string resultText;
-        if (!GameModeManager.HasRoundWinner)
-        {
-            resultText = "<color=#FFCF4A><size=64><b>Round Complete</b></size></color>";
-        }
-        else if (GameModeManager.IsLocalRoundResultWinner)
-        {
-            resultText = "<color=#5CE87D><size=64><b>Victory</b></size></color>";
-        }
-        else
-        {
-            resultText = "<color=#FF4646><size=64><b>Defeat</b></size></color>";
-        }
-
-        _roundResult.text = resultText;
-        _roundResultUntil = Time.unscaledTime + RoundResultAnnouncementDuration;
-        _displayedRoundResultId = GameModeManager.RoundResultRoundId;
-        _announcement.gameObject.SetActive(false);
-        _targetAnnouncement.gameObject.SetActive(false);
-        _roundResult.gameObject.SetActive(true);
     }
 
     internal static void AnnounceTarget(string text)
@@ -991,6 +894,12 @@ internal sealed class GameModeHud : MonoBehaviour
             scores = FFAState.Kills;
             crownFirst = false;
         }
+        else if (GameModeManager.IsActive(GameMode.Nife))
+        {
+            pointsToWin = NifeState.KillsToWin;
+            scores = NifeState.Kills;
+            crownFirst = false;
+        }
         else if (GameModeManager.IsActive(GameMode.Juggernaut))
         {
             pointsToWin = JuggernautState.PointsToWin;
@@ -1007,6 +916,12 @@ internal sealed class GameModeHud : MonoBehaviour
         {
             pointsToWin = InfectedState.PointsToWin;
             scores = InfectedState.Scores;
+            crownFirst = false;
+        }
+        else if (GameModeManager.IsActive(GameMode.HotPotInfected))
+        {
+            pointsToWin = HotPotInfectedState.PointsToWin;
+            scores = HotPotInfectedState.Scores;
             crownFirst = false;
         }
         else if (GameModeManager.IsActive(GameMode.SniperBattle))

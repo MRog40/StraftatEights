@@ -100,8 +100,6 @@ internal static class FirstPersonController_WallJumpBoost_Patch
 [HarmonyPriority(Priority.First)]
 internal static class FirstPersonController_Speed_Patch
 {
-    private static float _nextOwnerLogTime;
-
     // movementFactor is a plain per-client multiplier read every frame for move speed
     private static void Prefix(FirstPersonController __instance)
     {
@@ -118,13 +116,6 @@ internal static class FirstPersonController_Speed_Patch
                 : 1f;
             __instance.movementFactor = GlobalModifiersState.SpeedMultiplier * adsFactor * shootingFactor;
             __instance.gravityMultiplier = GlobalModifiersState.GravityMultiplier;
-        }
-
-        // Throttled proof-of-life log for the local player only: confirms what this specific client
-        // is actually enforcing every frame, regardless of what was sent/received earlier
-        if (__instance.IsOwner && UnityEngine.Time.unscaledTime >= _nextOwnerLogTime)
-        {
-            _nextOwnerLogTime = UnityEngine.Time.unscaledTime + 5f;
         }
 
         // Cheap version check skips the reflection work on every frame where nothing changed,

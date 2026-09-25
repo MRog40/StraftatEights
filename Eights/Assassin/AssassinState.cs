@@ -54,6 +54,11 @@ internal static class AssassinState
 
     internal static void ApplySettings(bool enabled)
     {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.Assassin, enabled))
+        {
+            return;
+        }
+
         bool changed = Enabled != enabled;
         Enabled = enabled;
         if (changed)
@@ -363,13 +368,25 @@ internal static class AssassinState
 
         if (deadWasAssassin)
         {
-            AwardScore(KingPlayerId, AssassinRules.GetKingAward(deadWasAssassin));
-            foreach (int playerId in Scores.Keys)
+            List<int> winningPlayerIds = new();
+            if (KingPlayerId >= 0)
             {
-                if (playerId != KingPlayerId && playerId != AssassinPlayerId)
+                winningPlayerIds.Add(KingPlayerId);
+            }
+            foreach (int playerId in AlivePlayers)
+            {
+                if (playerId != KingPlayerId && playerId != AssassinPlayerId
+                    && BodyguardPlayerIds.Contains(playerId))
                 {
-                    AwardScore(playerId, AssassinRules.GetBodyguardAward(deadWasAssassin));
+                    winningPlayerIds.Add(playerId);
                 }
+            }
+
+            foreach (int playerId in winningPlayerIds)
+            {
+                AwardScore(playerId, playerId == KingPlayerId
+                    ? AssassinRules.GetKingAward(deadWasAssassin)
+                    : AssassinRules.GetBodyguardAward(deadWasAssassin));
             }
 
             bool killerIsBodyguard = killerId >= 0 && killerId != deadPlayerId
@@ -387,7 +404,23 @@ internal static class AssassinState
                 + " and the bodyguards won the take</b>\n<i>The assassin was eliminated</i>");
             AnnounceResult("The Assassin was "
                 + PlayerLookup.GetPlayerNameTag(AssassinPlayerId) + " and was stopped.");
-            FinishTake();
+            _takeEnding = true;
+            BroadcastLiveState();
+            List<int> winningTeamIds = winningPlayerIds
+                .Select(TeamAssignment.ResolveTeamId)
+                .Where(teamId => teamId >= 0)
+                .Distinct()
+                .ToList();
+            if (winningTeamIds.Count > 0)
+            {
+                GameModeManager.CompleteCustomRound(winningTeamIds);
+            }
+            else
+            {
+                Plugin.Logger.LogWarning("[Assassin] Assassin death had no valid winning players; "
+                    + "ending the round without a team point.");
+                GameModeManager.CompleteCustomRound(GameModeManager.NoWinningTeamId, false);
+            }
             return;
         }
 

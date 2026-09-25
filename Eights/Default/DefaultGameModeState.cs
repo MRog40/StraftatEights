@@ -131,7 +131,8 @@ internal static class DefaultGameModeState
 
     internal static void OnRoundStarted()
     {
-        if (!Plugin.DefaultGameModeEnabled.Value || !GameModeManager.IsActive(GameMode.Default)
+        if (!GameModeManager.IsModeEnabledForCurrentRound(GameMode.Default,
+                Plugin.DefaultGameModeEnabled.Value)
             || !MyceliumNetwork.IsHost)
         {
             return;
@@ -143,7 +144,8 @@ internal static class DefaultGameModeState
 
     internal static void ServerTick(float deltaTime)
     {
-        if (!Plugin.DefaultGameModeEnabled.Value || !MyceliumNetwork.IsHost
+        if (!GameModeManager.IsModeEnabledForCurrentRound(GameMode.Default,
+            Plugin.DefaultGameModeEnabled.Value) || !MyceliumNetwork.IsHost
             || !GameModeManager.IsActive(GameMode.Default)
             || !GameModeManager.IsRoundGameplayActive
             || WinnerId >= 0 || TakeId <= 0)
@@ -160,7 +162,9 @@ internal static class DefaultGameModeState
 
     internal static void ClientTick(float deltaTime)
     {
-        if (MyceliumNetwork.IsHost || !Plugin.DefaultGameModeEnabled.Value
+        if (MyceliumNetwork.IsHost
+            || !GameModeManager.IsModeEnabledForCurrentRound(GameMode.Default,
+                Plugin.DefaultGameModeEnabled.Value)
             || !GameModeManager.IsActive(GameMode.Default)
             || !GameModeManager.IsRoundGameplayActive
             || WinnerId >= 0 || TakeId <= 0)
@@ -169,6 +173,41 @@ internal static class DefaultGameModeState
         }
 
         _timeRemaining = Mathf.Max(0f, _timeRemaining - Mathf.Max(0f, deltaTime));
+    }
+
+    internal static bool HandleVoidFall(FirstPersonController controller)
+    {
+        if (!GameModeManager.IsModeEnabledForCurrentRound(GameMode.Default,
+                Plugin.DefaultGameModeEnabled.Value)
+            || TakeId <= 0 || controller == null || !controller
+            || controller.transform.position.y >= -300f)
+        {
+            return false;
+        }
+
+        PlayerHealth? health = controller.GetComponent<PlayerHealth>();
+        if (health == null || !health || health.sync___get_value_health() <= 0f)
+        {
+            return false;
+        }
+
+        health.fellVoid = true;
+        float lethalDamage = health.sync___get_value_health() + 1f;
+        if (health.IsServer)
+        {
+            if (!FishNetCompatibility.TryRemoveHealth(health, lethalDamage))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            health.RemoveHealth(lethalDamage);
+        }
+
+        controller.transform.position = new Vector3(controller.transform.position.x, -299f,
+            controller.transform.position.z);
+        return true;
     }
 
     internal static void ApplyLiveState(CSteamID hostId, string scoresData, string aliveData,
@@ -202,7 +241,8 @@ internal static class DefaultGameModeState
 
     internal static void OnServerKill(int deadPlayerId)
     {
-        if (!Plugin.DefaultGameModeEnabled.Value || !GameModeManager.IsActive(GameMode.Default)
+        if (!GameModeManager.IsModeEnabledForCurrentRound(GameMode.Default,
+                Plugin.DefaultGameModeEnabled.Value)
             || WinnerId >= 0 || _takeEnding)
         {
             return;
@@ -228,7 +268,7 @@ internal static class DefaultGameModeState
 
         string winnerLabel = winners.Count == 1
             ? PlayerLookup.GetPlayerNameTag(winners[0])
-            : "TEAM " + (winningTeamId + 1);
+            : TeamDisplayNames.Get(winningTeamId);
         GameModeHud.BroadcastTakeResult("<b>" + winnerLabel
             + " won the take</b>\n<i>Last team standing</i>");
         BroadcastLiveState();

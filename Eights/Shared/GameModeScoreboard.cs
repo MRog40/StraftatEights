@@ -70,7 +70,7 @@ internal static class GameModeScoreboard
             }
             if (row.TeamId >= 0)
             {
-                TeamColorData color = TeamRules.GetColor(row.TeamId);
+                TeamColorData color = TeamColorPolicy.GetRelativeTeamColorData(row.TeamId);
                 nameColumn.Append("<color=#").Append(color.Red.ToString("X2"))
                     .Append(color.Green.ToString("X2"))
                     .Append(color.Blue.ToString("X2"))
@@ -84,15 +84,7 @@ internal static class GameModeScoreboard
             }
 
             scoreColumn.Append('\n');
-            if (GameModeManager.IsRoundResultWinner(row.TeamId, row.PlayerId))
-            {
-                scoreColumn.Append("<color=#FFCF4A><b>").Append(row.Score)
-                    .Append("</b></color>");
-            }
-            else
-            {
-                scoreColumn.Append(row.Score);
-            }
+            scoreColumn.Append(row.Score);
         }
 
         return new GameModeScoreboardLayout(nameColumn.ToString(), scoreColumn.ToString());

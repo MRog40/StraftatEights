@@ -22,6 +22,7 @@ public partial class Plugin
     internal static ConfigEntry<int> MomentumPercent = null!;
     internal static ConfigEntry<int> AirSpeedRatioPercent = null!;
     internal static ConfigEntry<int> ShootingSpeedPercent = null!;
+    internal static ConfigEntry<bool> PlayerRadarEnabled = null!;
 
     private void InitializeGlobalModifiers()
     {
@@ -55,7 +56,6 @@ public partial class Plugin
         ShootingSpeedPercent = Config.Bind("Movement Settings", "Shooting Speed %", 100,
             new ConfigDescription("Host-controlled: movement speed while shooting as a percent of normal. 100% = no slowdown.",
                 new AcceptableValueRange<int>(10, 100)));
-
         WallJumpEnabled.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
         MovementTweaksEnabled.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
         SlidingEnabled.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
@@ -67,6 +67,7 @@ public partial class Plugin
         MomentumPercent.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
         AirSpeedRatioPercent.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
         ShootingSpeedPercent.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
+        PlayerRadarEnabled.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
 
         MyceliumNetwork.RegisterNetworkObject(this, GlobalModifiersModId);
         ModeLobbyDataSync.RegisterKeys(GlobalModifiersState.SettingsLobbyDataKey);
@@ -83,7 +84,8 @@ public partial class Plugin
     [CustomRPC]
     public void SyncMovementSettings(CSteamID hostId, int roundId, int revision, bool enabled, bool wallJump,
         bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent,
-        int gravityPercent, int momentumPercent, int airSpeedRatioPercent, int shootingSpeedPercent, RPCInfo info)
+        int gravityPercent, int momentumPercent, int airSpeedRatioPercent, int shootingSpeedPercent,
+        bool playerRadarEnabled, int maximumBloodEffects, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
@@ -93,6 +95,8 @@ public partial class Plugin
         {
             return;
         }
-        GlobalModifiersState.Apply(enabled, wallJump, sliding, slideBoost, wallJumpBoost, moveSpeedPercent, adsSpeedPercent, gravityPercent, momentumPercent, airSpeedRatioPercent, shootingSpeedPercent);
+        GlobalModifiersState.Apply(enabled, wallJump, sliding, slideBoost, wallJumpBoost, moveSpeedPercent,
+            adsSpeedPercent, gravityPercent, momentumPercent, airSpeedRatioPercent,
+            shootingSpeedPercent, playerRadarEnabled, maximumBloodEffects);
     }
 }

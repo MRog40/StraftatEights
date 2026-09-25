@@ -1,7 +1,9 @@
-Description: A large mod that adds health, movement, and weapon tweaks as well as many game modes.
+SnD, HP, CTF, TDM, FFA, Michael Meyers, One in the Chamber, Infected, Assassin, and MORE.
 
-This mod is a work in progress and will be getting fixes and more game modes.
-Ping @MRog40 in the STRAFTAT Discord with any issues.
+Minimap, health regen, custom movement, reloading for all weapons, custom spawns, respawn logic, and MORE.
+
+This mod is a work in progress and will be getting fixes, more maps, and more game modes over time.
+Ping @MRog40 in the STRAFTAT Discord with any issues or suggestions.
 
 ## Game Modes
 
@@ -10,6 +12,9 @@ takes, and the first player or team to reach the shared point target wins the ma
 
 **Free For All (FFA)** awards individual kill points. The first player to reach the shared point target
 wins the round.
+
+**Nife** is a melee-only FFA. Every player has 10 health and uses one randomly selected melee weapon;
+the weapon changes at the start of each round.
 
 **Juggernaut** gives the crown to the first player to draw blood. The Juggernaut uses a Minigun, gains
 health from kills, and moves more slowly; killing the Juggernaut claims the crown and transfers the role.
@@ -45,6 +50,10 @@ pick up guns. Survivors have 10 health and receive random weapons from the globa
 weapon droppers remain active. Any survivor death turns that player Infected. Survivors who outlast the
 round timer all receive a round point, while the initial Infected receives the point when every survivor
 has been infected.
+
+**Hot Pot: Infected** uses the same role conversion, scoring, health, timer, and respawn rules as
+Infected, but infected players use renewable HandGrenades instead of Couperets. Survivors receive
+random weapons from the global allowed list, and every survivor death turns that player Infected.
 
 **HVT** selects a High-Value Target after the first legitimate kill. The HVT earns survival points,
 killing the HVT transfers the role to the killer, and the first player to reach the point target wins.
@@ -91,3 +100,8 @@ Ninja Hunters and Rabbit Hunt use fixed team weapons and do not use the global w
 The host can disable `Enable Map Overrides` under `Global Settings` to use the
 normal STRAFTAT lobby map selection. Hardpoint then runs only on maps with authored
 Hardpoint objectives; other modes can run on every selected map.
+
+The host can enable `Keep Teams` under `Global Settings` to reuse the same team layout
+between rounds when the same players return. The layout is saved separately for two-team
+and three-team matches. The `Mixup teams` button restarts the current map and mode with a
+new balanced layout, resets the round timer and score, and updates the saved layout.

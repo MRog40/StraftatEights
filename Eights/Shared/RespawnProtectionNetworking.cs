@@ -14,4 +14,15 @@ public partial class Plugin
 
         RespawnProtection.SetPendingRespawn(playerId, pending);
     }
+
+    [CustomRPC]
+    public void SyncRespawnProtectionActive(int playerId, int objectId, bool active, RPCInfo info)
+    {
+        if (!NetworkAuthority.IsHostSender(info))
+        {
+            return;
+        }
+
+        RespawnProtection.SetActiveRespawn(playerId, objectId, active);
+    }
 }
