@@ -24,49 +24,50 @@ internal static class PauseManager_RoundLifecycle_Patch
 
         switch (GameModeManager.ActiveMode)
         {
-            case GameMode.Default:
-                DefaultGameModeState.OnRoundStarted();
+            case GameMode.Straftat:
+                StraftatState.OnRoundStarted();
                 break;
-            case GameMode.MichaelMeyers:
-                MichaelMeyersState.OnRoundStarted();
+            case GameMode.Michaeltat:
+                MichaeltatState.OnRoundStarted();
                 break;
-            case GameMode.OneInTheChamber:
-                OneInTheChamberState.OnRoundStarted();
+            case GameMode.Chambertat:
+                ChambertatState.OnRoundStarted();
                 break;
-            case GameMode.HotPotato:
-                HotPotatoState.OnRoundStarted();
+            case GameMode.Potatotat:
+                PotatotatState.OnRoundStarted();
                 break;
-            case GameMode.Infidel:
-                InfidelState.OnRoundStarted();
+            case GameMode.Infideltat:
+                InfideltatState.OnRoundStarted();
                 break;
-            case GameMode.Assassin:
-                AssassinState.OnRoundStarted();
+            case GameMode.Assassintat:
+                AssassintatState.OnRoundStarted();
                 break;
-            case GameMode.Hardpoint:
-                HardpointState.OnRoundStarted();
+            case GameMode.Hardtat:
+                HardtatState.OnRoundStarted();
                 break;
-            case GameMode.CaptureTheFlag:
-                CaptureTheFlagState.OnRoundStarted();
+            case GameMode.Capturetat:
+                CapturetatState.OnRoundStarted();
                 break;
-            case GameMode.SearchAndDestroy:
-                SearchAndDestroyState.OnRoundStarted();
+            case GameMode.Sndtat:
+            case GameMode.Countertat:
+                SndtatState.OnRoundStarted();
                 break;
-            case GameMode.TeamDeathmatch:
-                TeamDeathmatchState.OnRoundStarted();
+            case GameMode.Tdmtat:
+                TdmtatState.OnRoundStarted();
                 break;
-            case GameMode.NinjaHunters:
-            case GameMode.RabbitHunters:
-            case GameMode.TankBattle:
-                HuntersState.OnRoundStarted();
+            case GameMode.Ninjatat:
+            case GameMode.Hunttat:
+            case GameMode.Tanktat:
+                HuntModesState.OnRoundStarted();
                 break;
-            case GameMode.Infected:
-                InfectedState.OnRoundStarted();
+            case GameMode.Infectedtat:
+                InfectedtatState.OnRoundStarted();
                 break;
-            case GameMode.HotPotInfected:
-                HotPotInfectedState.OnRoundStarted();
+            case GameMode.PotatoInftat:
+                PotatoInftatState.OnRoundStarted();
                 break;
-            case GameMode.Nife:
-                NifeState.OnRoundStarted();
+            case GameMode.Nifetat:
+                NifetatState.OnRoundStarted();
                 break;
         }
 

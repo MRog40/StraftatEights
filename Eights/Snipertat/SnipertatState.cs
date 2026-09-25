@@ -1,0 +1,324 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using MyceliumNetworking;
+using Steamworks;
+using UnityEngine;
+
+namespace Eights;
+
+internal static class SnipertatState
+{
+    internal const string WeaponName = "M2000";
+    internal const float PlayerHealth = 0.4f;
+    internal const string SettingsLobbyDataKey = "Eights_Snipertat_Settings";
+    internal const string LiveLobbyDataKey = "Eights_Snipertat_Live";
+    internal static bool Enabled;
+    internal static int PointsToWin => GameModeManager.EffectivePointsToWin;
+    internal static int WinnerId = -1;
+    internal static readonly Dictionary<int, int> Points = new();
+
+    private static readonly Dictionary<int, float> PendingLoadouts = new();
+    private static float _nextLoadoutCheckTime;
+    private static readonly ModeSyncState Sync = new();
+
+    internal static void ApplySettings(bool enabled)
+    {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.Snipertat, enabled))
+        {
+            return;
+        }
+
+        bool changed = Enabled != enabled;
+        Enabled = enabled;
+        if (changed)
+        {
+            ResetMatchState();
+        }
+    }
+
+    private static void ApplyFromConfig() => ApplySettings(Plugin.SnipertatEnabled.Value);
+
+    internal static void PushSettingsIfHost()
+    {
+        if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+        ApplyFromConfig();
+        int revision = Sync.NextSettingsRevision();
+        PublishSettingsSnapshot(revision);
+        MyceliumNetwork.RPC(Plugin.SnipertatModId, nameof(Plugin.SyncSnipertatSettings), ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision, Plugin.SnipertatEnabled.Value);
+    }
+
+    internal static void PeriodicPushSettingsIfHost()
+    {
+        if (Sync.IsSettingsPushDue())
+        {
+            PushSettingsIfHost();
+        }
+    }
+
+    internal static void PeriodicPushIfHost()
+    {
+        PeriodicPushSettingsIfHost();
+        if (Sync.IsLivePushDue())
+        {
+            BroadcastLiveState();
+        }
+    }
+
+    internal static void OnLobbyEntered()
+    {
+        Sync.ResetForLobby();
+        if (MyceliumNetwork.IsHost)
+        {
+            ApplyFromConfig();
+            ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
+        }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void OnPlayerEntered(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+        MyceliumNetwork.RPCTarget(Plugin.SnipertatModId, nameof(Plugin.SyncSnipertatSettings), player,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
+            Plugin.SnipertatEnabled.Value);
+        MyceliumNetwork.RPCTarget(Plugin.SnipertatModId, nameof(Plugin.SyncSnipertatLiveState), player,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializePoints(), WinnerId,
+            GameModeManager.RoundId, Sync.LiveRevision);
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        if (playerId >= 0)
+        {
+            PendingLoadouts.Remove(playerId);
+            if (Points.Remove(playerId) && GameModeManager.IsActive(GameMode.Snipertat))
+            {
+                BroadcastLiveState();
+            }
+        }
+    }
+
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision,
+        string source = "unknown")
+    {
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision, source);
+    }
+
+    internal static void ResetMatchState()
+    {
+        Sync.ResetLiveState();
+        WinnerId = -1;
+        Points.Clear();
+        PendingLoadouts.Clear();
+    }
+
+    internal static void ApplyLiveState(CSteamID hostId, string pointsData, int winnerId, int roundId,
+        int revision, string source = "unknown")
+    {
+        if (winnerId < -1)
+        {
+            return;
+        }
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, "sniper-battle-" + source))
+        {
+            return;
+        }
+        WinnerId = winnerId;
+        Points.Clear();
+        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(pointsData ?? string.Empty, PointsToWin))
+        {
+            Points[entry.Key] = entry.Value;
+        }
+    }
+
+    internal static void OnServerKill(int deadPlayerId, int killerId)
+    {
+        if (!Enabled || WinnerId >= 0 || killerId < 0 || killerId == deadPlayerId)
+        {
+            return;
+        }
+
+        Points.TryGetValue(killerId, out int currentPoints);
+        int totalPoints = ScoreRules.AddPoints(currentPoints, ScoreRules.PointsPerKill,
+            PointsToWin);
+        Points[killerId] = totalPoints;
+        int awardedPoints = totalPoints - currentPoints;
+        if (awardedPoints > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(killerId, awardedPoints);
+        }
+        if (totalPoints >= PointsToWin)
+        {
+            WinnerId = killerId;
+            Announce(PlayerLookup.GetPlayerNameTag(killerId) + " reached " + PointsToWin + " points and won the round!");
+            GameModeManager.CompleteCustomRound(TeamAssignment.ResolveTeamId(killerId));
+        }
+        BroadcastLiveState();
+    }
+
+    internal static void ApplyHealth(PlayerHealth health)
+    {
+        health.fullHealth = PlayerHealth;
+        if (!health.IsServer)
+        {
+            return;
+        }
+
+        float currentHealth = health.sync___get_value_health();
+        if (currentHealth > PlayerHealth)
+        {
+            FishNetCompatibility.TryRemoveHealth(health, currentHealth - PlayerHealth);
+        }
+    }
+
+    internal static bool IsSniperWeapon(Weapon weapon)
+    {
+        return weapon != null && weapon.name.StartsWith(WeaponName, StringComparison.Ordinal);
+    }
+
+    internal static void GiveStartingWeapon(int playerId)
+    {
+        if (Enabled && GameModeManager.IsActive(GameMode.Snipertat))
+        {
+            PendingLoadouts[playerId] = Time.unscaledTime + 5f;
+            WeaponService.GiveWeapon(playerId, WeaponName);
+        }
+    }
+
+    internal static void EnsureLoadouts()
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.Snipertat) || WeaponService.IsFinalGameScreen
+            || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost || Time.unscaledTime < _nextLoadoutCheckTime)
+        {
+            return;
+        }
+
+        _nextLoadoutCheckTime = Time.unscaledTime + 1f;
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client == null || !client || client.PlayerSpawner == null || !client.PlayerSpawner
+                || client.PlayerSpawner.player == null || !client.PlayerSpawner.player)
+            {
+                continue;
+            }
+
+            PlayerPickup? pickup = client.PlayerSpawner.player.playerPickupScript;
+            GameObject? heldObject = pickup?.objInHand;
+            Weapon? heldWeapon = heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
+            if (heldWeapon != null && IsSniperWeapon(heldWeapon))
+            {
+                PendingLoadouts.Remove(client.PlayerId);
+                continue;
+            }
+
+            if (!PendingLoadouts.TryGetValue(client.PlayerId, out float retryTime) || Time.unscaledTime >= retryTime)
+            {
+                GiveStartingWeapon(client.PlayerId);
+            }
+        }
+    }
+
+    private static string SerializePoints()
+    {
+        return ScoreCodec.Serialize(Points);
+    }
+
+    private static void BroadcastLiveState()
+    {
+        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
+        {
+            int revision = Sync.NextLiveRevision();
+            string pointsData = SerializePoints();
+            PublishLiveSnapshot(revision, pointsData);
+            MyceliumNetwork.RPC(Plugin.SnipertatModId, nameof(Plugin.SyncSnipertatLiveState), ReliableType.Reliable,
+                MyceliumNetwork.LobbyHost, pointsData, WinnerId, GameModeManager.RoundId, revision);
+        }
+    }
+
+    private static void PublishSettingsSnapshot(int revision)
+    {
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, Plugin.SnipertatEnabled.Value ? "1" : "0");
+    }
+
+    private static void PublishLiveSnapshot(int revision, string pointsData)
+    {
+        ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, WinnerId.ToString(), pointsData ?? string.Empty);
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled))
+        {
+            return;
+        }
+
+        if (Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision, "sniper-battle-lobby-data"))
+        {
+            ApplySettings(enabled);
+        }
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 2, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !int.TryParse(fields[0], out int winnerId))
+        {
+            return;
+        }
+
+        ApplyLiveState(hostId, fields[1], winnerId, roundId, revision,
+            ModeLobbyDataSync.Source("snipertat", "live"));
+    }
+
+    private static void Announce(string text)
+    {
+        GameModeHud.BroadcastAnnouncement(text);
+    }
+}

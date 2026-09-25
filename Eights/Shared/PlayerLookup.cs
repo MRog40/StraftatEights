@@ -6,8 +6,8 @@ using UnityEngine;
 namespace Eights;
 
 // Cross-game-mode helpers for resolving player identity from PlayerHealth/ClientInstance. Shared by
-// any mode that needs to know "who is this" or "who killed who" (Juggernaut today, future modes
-// like Gun Game later) instead of every feature re-implementing the same lookups.
+// any mode that needs to know "who is this" or "who killed who" (Juggertat today, future modes
+// like Guntat later) instead of every feature re-implementing the same lookups.
 internal static class PlayerLookup
 {
     private const float SceneHealthScanIntervalSeconds = 0.25f;

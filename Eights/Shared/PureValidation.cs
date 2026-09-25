@@ -41,7 +41,7 @@ internal static class WeaponListParser
     }
 }
 
-internal static class GunGameRules
+internal static class GuntatRules
 {
     internal static int GetWeaponIndex(int progress, int weaponCount)
     {
@@ -90,7 +90,7 @@ internal static class HealthUnits
     }
 }
 
-internal static class OneInTheChamberRules
+internal static class ChambertatRules
 {
     internal const float PlayerHealth = 0.4f;
 
@@ -117,7 +117,7 @@ internal static class OneInTheChamberRules
     }
 }
 
-internal static class HotPotatoRules
+internal static class PotatotatRules
 {
     internal const string PotatoWeaponName = "HandGrenade";
 
@@ -153,23 +153,23 @@ internal static class HotPotatoRules
     }
 }
 
-internal static class InfidelRules
+internal static class InfideltatRules
 {
-    internal const int PointsForKillingInfidel = 30;
-    internal const int PointsForInfidelWin = 50;
+    internal const int PointsForKillingInfideltat = 30;
+    internal const int PointsForInfideltatWin = 50;
 
-    internal static int GetKillerAward(bool deadWasInfidel, bool killerIsInfidel)
+    internal static int GetKillerAward(bool deadWasInfideltat, bool killerIsInfideltat)
     {
-        return deadWasInfidel && !killerIsInfidel ? PointsForKillingInfidel : 0;
+        return deadWasInfideltat && !killerIsInfideltat ? PointsForKillingInfideltat : 0;
     }
 
     internal static int GetWinnerAward(bool infidelWon)
     {
-        return infidelWon ? PointsForInfidelWin : 0;
+        return infidelWon ? PointsForInfideltatWin : 0;
     }
 }
 
-internal static class InfectedRules
+internal static class InfectedtatRules
 {
     internal static List<int> GetSurvivors(IEnumerable<int> roundPlayers,
         ISet<int> infectedPlayers)
@@ -178,9 +178,9 @@ internal static class InfectedRules
             .Distinct().OrderBy(playerId => playerId).ToList();
     }
 
-    internal static bool ShouldBecomeInfected(bool deadWasInfected)
+    internal static bool ShouldBecomeInfectedtat(bool deadWasInfectedtat)
     {
-        return !deadWasInfected;
+        return !deadWasInfectedtat;
     }
 
     internal static bool ShouldEndRound(int survivorCount)
@@ -188,14 +188,14 @@ internal static class InfectedRules
         return survivorCount <= 0;
     }
 
-    internal static bool ShouldAwardInitialInfected(int initialInfectedPlayerId,
+    internal static bool ShouldAwardInitialInfectedtat(int initialInfectedtatPlayerId,
         int survivorCount)
     {
-        return initialInfectedPlayerId >= 0 && ShouldEndRound(survivorCount);
+        return initialInfectedtatPlayerId >= 0 && ShouldEndRound(survivorCount);
     }
 }
 
-internal static class MichaelMeyersRules
+internal static class MichaeltatRules
 {
     internal const float RoundTimeLimitSeconds = ModeTimeoutRules.DefaultRoundSeconds;
     internal const float HuntHealth = 10f;
@@ -213,38 +213,38 @@ internal static class MichaelMeyersRules
     }
 }
 
-internal static class AssassinRules
+internal static class AssassintatRules
 {
     internal const float DefaultTakeTimeLimitSeconds = ModeTimeoutRules.DefaultRoundSeconds;
-    internal const int PointsForAssassinWin = 50;
+    internal const int PointsForAssassintatWin = 50;
     internal const int PointsForKingSurvival = 30;
     internal const int PointsForBodyguardSurvival = 10;
     internal const int PointsForBodyguardKill = 20;
 
-    internal static bool IsTerminalDeath(bool deadWasKing, bool deadWasAssassin)
+    internal static bool IsTerminalDeath(bool deadWasKing, bool deadWasAssassintat)
     {
-        return deadWasKing || deadWasAssassin;
+        return deadWasKing || deadWasAssassintat;
     }
 
-    internal static int GetAssassinAward(bool deadWasKing)
+    internal static int GetAssassintatAward(bool deadWasKing)
     {
-        return deadWasKing ? PointsForAssassinWin : 0;
+        return deadWasKing ? PointsForAssassintatWin : 0;
     }
 
-    internal static int GetKingAward(bool deadWasAssassin)
+    internal static int GetKingAward(bool deadWasAssassintat)
     {
-        return deadWasAssassin ? PointsForKingSurvival : 0;
+        return deadWasAssassintat ? PointsForKingSurvival : 0;
     }
 
-    internal static int GetBodyguardAward(bool deadWasAssassin)
+    internal static int GetBodyguardAward(bool deadWasAssassintat)
     {
-        return deadWasAssassin ? PointsForBodyguardSurvival : 0;
+        return deadWasAssassintat ? PointsForBodyguardSurvival : 0;
     }
 
-    internal static int GetBodyguardKillerAward(bool deadWasAssassin, bool killerIsBodyguard,
+    internal static int GetBodyguardKillerAward(bool deadWasAssassintat, bool killerIsBodyguard,
         bool killerIsVictim)
     {
-        return deadWasAssassin && killerIsBodyguard && !killerIsVictim
+        return deadWasAssassintat && killerIsBodyguard && !killerIsVictim
             ? PointsForBodyguardKill
             : 0;
     }

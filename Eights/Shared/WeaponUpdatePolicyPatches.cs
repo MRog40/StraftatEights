@@ -17,44 +17,44 @@ internal static class Weapon_UpdatePolicy_Patch
                 WeaponSettingsState.SpareMagazines);
         }
 
-        if (GameModeManager.IsActive(GameMode.GunGame))
+        if (GameModeManager.IsActive(GameMode.Guntat))
         {
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
-        else if (GameModeManager.IsActive(GameMode.KillTheRat)
-            && KillTheRatState.IsHumanWeapon(__instance))
+        else if (GameModeManager.IsActive(GameMode.Ratatat)
+            && RatatatState.IsHumanWeapon(__instance))
         {
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
-        else if (GameModeManager.IsActive(GameMode.Infidel) && InfidelState.WeaponsUnlocked)
+        else if (GameModeManager.IsActive(GameMode.Infideltat) && InfideltatState.WeaponsUnlocked)
         {
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
-        else if (GameModeManager.IsActive(GameMode.Assassin)
-            && AssassinState.IsUnlimitedWeapon(__instance))
+        else if (GameModeManager.IsActive(GameMode.Assassintat)
+            && AssassintatState.IsUnlimitedWeapon(__instance))
         {
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
-        else if (GameModeManager.IsActive(GameMode.HotPotato)
-            && HotPotatoState.IsHotPotatoWeapon(__instance))
+        else if (GameModeManager.IsActive(GameMode.Potatotat)
+            && PotatotatState.IsPotatotatWeapon(__instance))
         {
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
         else if (GameModeManager.IsHuntersActive
-            && HuntersState.IsExpectedWeapon(__instance))
+            && HuntModesState.IsExpectedWeapon(__instance))
         {
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
 
-        if (GameModeManager.IsActive(GameMode.SniperBattle)
+        if (GameModeManager.IsActive(GameMode.Snipertat)
             && __instance != null
-            && SniperBattleState.IsSniperWeapon(__instance)
+            && SnipertatState.IsSniperWeapon(__instance)
             && __instance.needsAmmo
             && __instance.gameObject.layer == 8
             && __instance.currentAmmo <= 0)
@@ -67,36 +67,36 @@ internal static class Weapon_UpdatePolicy_Patch
 
     private static void Postfix(Weapon __instance)
     {
-        if (GameModeManager.IsActive(GameMode.GunGame))
+        if (GameModeManager.IsActive(GameMode.Guntat))
         {
             WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }
-        else if (GameModeManager.IsActive(GameMode.KillTheRat)
-            && KillTheRatState.IsHumanWeapon(__instance))
+        else if (GameModeManager.IsActive(GameMode.Ratatat)
+            && RatatatState.IsHumanWeapon(__instance))
         {
             WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }
-        else if (GameModeManager.IsActive(GameMode.Infidel) && InfidelState.WeaponsUnlocked)
+        else if (GameModeManager.IsActive(GameMode.Infideltat) && InfideltatState.WeaponsUnlocked)
         {
             WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }
-        else if (GameModeManager.IsActive(GameMode.Assassin)
-            && AssassinState.IsUnlimitedWeapon(__instance))
+        else if (GameModeManager.IsActive(GameMode.Assassintat)
+            && AssassintatState.IsUnlimitedWeapon(__instance))
         {
             WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }
-        else if (GameModeManager.IsActive(GameMode.HotPotato)
-            && HotPotatoState.IsHotPotatoWeapon(__instance))
+        else if (GameModeManager.IsActive(GameMode.Potatotat)
+            && PotatotatState.IsPotatotatWeapon(__instance))
         {
             WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }
         else if (GameModeManager.IsHuntersActive
-            && HuntersState.IsExpectedWeapon(__instance))
+            && HuntModesState.IsExpectedWeapon(__instance))
         {
             WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }
-        else if (GameModeManager.IsActive(GameMode.OneInTheChamber)
-            && OneInTheChamberState.IsPistol(__instance))
+        else if (GameModeManager.IsActive(GameMode.Chambertat)
+            && ChambertatState.IsPistol(__instance))
         {
             PlayerHealth? health = __instance.playerController == null
                 ? null
@@ -104,7 +104,7 @@ internal static class Weapon_UpdatePolicy_Patch
             int playerId = health?.playerValues?.playerClient?.PlayerId ?? -1;
             if (playerId >= 0)
             {
-                OneInTheChamberState.EnforcePistolAmmo(__instance, playerId);
+                ChambertatState.EnforcePistolAmmo(__instance, playerId);
             }
         }
 

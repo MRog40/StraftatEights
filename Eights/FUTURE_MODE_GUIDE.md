@@ -38,19 +38,19 @@ Add the mode to `GameModeManager` with one descriptor containing:
 
 Do not grow one existing mode into a shared miscellaneous file. Put reusable behavior in `Shared/` only when at least two features need the same behavior.
 
-### Assassin mode contract
+### Assassintat mode contract
 
-Assassin uses a host-authoritative take state. One player is the private Assassin, one player is the public King, and all remaining players are Bodyguards. Each player receives only their own private role announcement. The King ID is public through the shared green outline state; the Assassin ID is never included in public live snapshots.
+Assassintat uses a host-authoritative take state. One player is the private Assassin, one player is the public King, and all remaining players are Bodyguards. Each player receives only their own private role announcement. The King ID is public through the shared green outline state; the Assassin ID is never included in public live snapshots.
 
 The King receives `Taser` immediately. After 15 seconds, the Assassin receives `Silenzzio` and Bodyguards receive `Glock`. The role weapons use the shared authoritative weapon service and unlimited-ammo path. Other weapons are blocked while the mode is active.
 
 The Assassin receives 50 points when the King dies, including a friendly-fire King death. When the Assassin dies, the King receives 30 points, every Bodyguard receives 10 points, and the Bodyguard who made the kill receives an additional 20 points. Other deaths do not end the take. Scores persist between takes and use the shared `Points To Win` setting. The Assassin identity is announced publicly only after the take resolves.
 
-Assassin does not override global health or movement settings. Its custom behavior is limited to roles, weapons, scoring, public King presentation, and take respawns.
+Assassintat does not override global health or movement settings. Its custom behavior is limited to roles, weapons, scoring, public King presentation, and take respawns.
 
-### Hardpoint mode contract
+### Hardtat mode contract
 
-Hardpoint assigns teams once at the official round start. It uses three balanced teams when the
+Hardtat assigns teams once at the official round start. It uses three balanced teams when the
 player count is divisible by three; all other non-empty player counts use two teams. Team IDs and
 scores are host-authoritative and are sent in revisioned live snapshots with a lobby-data fallback.
 
@@ -67,7 +67,7 @@ and ground markers are presentation-only and are reapplied on every peer.
 
 ### Team-mode weapon contract
 
-Hardpoint, Capture The Flag, Search And Destroy, and Team Deathmatch share one team weapon path.
+Hardtat, Capturetat, Sndtat, and Tdmtat share one team weapon path.
 Team modes always keep map droppers active, but each dropper selects from the existing `Allowed
 Weapons` list instead of its original map weapon. Picking up a dropped weapon uses the configured
 `Spare Magazines` and shared ammo lifecycle, even when global weapon tweaks are
@@ -175,11 +175,11 @@ Private state uses targeted RPCs. For example, a private role assignment must se
 
 Examples:
 
-- Gun Game, Sniper Battle, One in the Chamber, Hot Potato, Michael Meyers, Kill The Rat, Infidel,
-  Hardpoint, Capture The Flag, Search And Destroy, and Team Deathmatch can ignore global weapons when
+- Guntat, Snipertat, Chambertat, Potatotat, Michaeltat, Ratatat, Infideltat, Hardtat, Capturetat,
+  Sndtat, and Tdmtat can ignore global weapons when
   their loadouts require it.
-- Sniper Battle, One in the Chamber, and Infidel can ignore global health when their health rules require it.
-- A Rat, Infidel, or Juggernaut movement multiplier layers on top of or replaces global movement only when the mode's precedence rule says so.
+- Snipertat, Chambertat, and Infideltat can ignore global health when their health rules require it.
+- Ratatat, Infideltat, and Juggertat movement multipliers layer on top of or replace global movement only when the mode's precedence rule says so.
 - A mode that owns respawn timing must use the shared respawn helper and prevent the normal path from fighting it.
 
 When adding a capability, add the guard at the shared patch boundary. Do not rely on patch ordering to produce precedence.
@@ -202,7 +202,7 @@ Use `WeaponAmmoTuning` for magazine, reserve, reload, and HUD behavior. Native r
 Use the shared safe-spawn path for modes that respawn players. The mode descriptor must opt into the
 `SafeRespawn` capability. It scores scene or mode-provided
 candidates by nearest-enemy distance, host-side line of sight, teammate proximity, and optional
-objective proximity. FFA, Gun Game, and other non-team modes treat every other active player as an
+objective proximity. Ffatat, Guntat, and other non-team modes treat every other active player as an
 enemy. Team modes provide team candidates and classify same-team players as teammates. Line of sight
 is a strong penalty rather than a hard rejection so open maps and incomplete collider timing retain a
 deterministic distance-based fallback.

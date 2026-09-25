@@ -32,13 +32,13 @@ internal static class SafeSpawnService
             return false;
         }
 
-        bool isHardpoint = GameModeManager.IsActive(GameMode.Hardpoint);
-        bool isCaptureTheFlag = GameModeManager.IsActive(GameMode.CaptureTheFlag);
-        bool isTeamDeathmatch = GameModeManager.IsActive(GameMode.TeamDeathmatch);
+        bool isHardtat = GameModeManager.IsActive(GameMode.Hardtat);
+        bool isCapturetat = GameModeManager.IsActive(GameMode.Capturetat);
+        bool isTdmtat = GameModeManager.IsActive(GameMode.Tdmtat);
         int teamId = -1;
         bool hasTeam = GameModeManager.IsTeamBased
             && TeamAssignment.TryGetTeamId(playerId, out teamId);
-        List<TeamPoint> candidates = isTeamDeathmatch
+        List<TeamPoint> candidates = isTdmtat
             ? ToTeamPoints(candidatePositions)
             : SelectCandidateSample(candidatePositions);
         List<TeamPoint> teammates = new();
@@ -73,10 +73,10 @@ internal static class SafeSpawnService
             }
         }
 
-        if (isTeamDeathmatch && enemyPositions.Count > 0)
+        if (isTdmtat && enemyPositions.Count > 0)
         {
             TeamPoint farthest = TeamRules.SelectRandomizedFarthestFromEnemies(candidates,
-                enemyPositions, Plugin.TeamDeathmatchSpawnRandomness,
+                enemyPositions, Plugin.TdmtatSpawnRandomness,
                 UnityEngine.Random.Range(0, int.MaxValue));
             position = new Vector3(farthest.X, farthest.Y, farthest.Z);
             RememberSpawn(playerId, farthest);
@@ -84,20 +84,20 @@ internal static class SafeSpawnService
         }
 
         TeamPoint? objective = null;
-        if (isHardpoint && HardpointState.TryGetCurrentObjective(out HardpointObjective point))
+        if (isHardtat && HardtatState.TryGetCurrentObjective(out HardtatObjective point))
         {
             objective = ToTeamPoint(point.Position);
         }
-        else if (isCaptureTheFlag
-            && CaptureTheFlagState.TryGetEnemyFlagPosition(playerId, out Vector3 flagPosition))
+        else if (isCapturetat
+            && CapturetatState.TryGetEnemyFlagPosition(playerId, out Vector3 flagPosition))
         {
             objective = ToTeamPoint(flagPosition);
         }
 
-        if (isHardpoint && objective.HasValue)
+        if (isHardtat && objective.HasValue)
         {
             TeamPoint hardpointSelected = TeamRules.SelectRandomizedFarthestFromEnemiesAndObjective(
-                candidates, enemyPositions, objective.Value, Plugin.HardpointSpawnRandomness,
+                candidates, enemyPositions, objective.Value, Plugin.HardtatSpawnRandomness,
                 UnityEngine.Random.Range(0, int.MaxValue));
             position = new Vector3(hardpointSelected.X, hardpointSelected.Y,
                 hardpointSelected.Z);

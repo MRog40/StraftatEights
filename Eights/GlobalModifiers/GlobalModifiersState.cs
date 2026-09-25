@@ -127,7 +127,7 @@ internal static class GlobalModifiersState
     // the sending side (see repo memory - "Session request failed" / "ProblemDetectedLocally" in the
     // log), so a single one-shot broadcast on config change or player join isn't reliable enough.
     // Resending periodically regardless of whether anything changed self-heals within a few seconds,
-    // the same way the (working) Juggernaut mod's every-second state rebroadcast does.
+    // the same way the (working) Juggertat mod's every-second state rebroadcast does.
     internal static void PeriodicPushIfHost()
     {
         if (!Sync.IsSettingsPushDue())

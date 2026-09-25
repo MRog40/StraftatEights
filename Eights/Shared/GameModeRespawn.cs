@@ -201,14 +201,14 @@ internal static class GameModeRespawn
 
     private static bool CanRespawnForActiveMode()
     {
-        if (GameModeManager.IsActive(GameMode.CaptureTheFlag))
+        if (GameModeManager.IsActive(GameMode.Capturetat))
         {
-            return CaptureTheFlagState.CanRespawn();
+            return CapturetatState.CanRespawn();
         }
 
-        if (GameModeManager.IsActive(GameMode.Hardpoint))
+        if (GameModeManager.IsActive(GameMode.Hardtat))
         {
-            return HardpointState.CanRespawn();
+            return HardtatState.CanRespawn();
         }
 
         return true;
@@ -396,34 +396,34 @@ internal static class GameModeRespawn
         out Vector3 target)
     {
         target = default;
-        if (GameModeManager.IsActive(GameMode.Hardpoint)
-            && HardpointState.TryGetCurrentObjective(out HardpointObjective objective))
+        if (GameModeManager.IsActive(GameMode.Hardtat)
+            && HardtatState.TryGetCurrentObjective(out HardtatObjective objective))
         {
             target = objective.Position;
             return true;
         }
 
         if (GameModeManager.IsHuntersActive
-            && HuntersState.TryGetTieBreakObjective(out HardpointObjective huntersObjective))
+            && HuntModesState.TryGetTieBreakObjective(out HardtatObjective huntersObjective))
         {
             target = huntersObjective.Position;
             return true;
         }
 
-        if (GameModeManager.IsActive(GameMode.CaptureTheFlag)
-            && CaptureTheFlagState.TryGetEnemyFlagPosition(playerId, out target))
+        if (GameModeManager.IsActive(GameMode.Capturetat)
+            && CapturetatState.TryGetEnemyFlagPosition(playerId, out target))
         {
             return true;
         }
 
-        if (GameModeManager.IsActive(GameMode.SearchAndDestroy))
+        if (GameModeManager.IsBombModeActive)
         {
-            if (SearchAndDestroyState.TryGetBombPosition(out target))
+            if (SndtatState.TryGetBombPosition(out target))
             {
                 return true;
             }
 
-            if (TryGetNearestSearchAndDestroySite(position, out target))
+            if (TryGetNearestSndtatSite(position, out target))
             {
                 return true;
             }
@@ -475,7 +475,7 @@ internal static class GameModeRespawn
         return true;
     }
 
-    private static bool TryGetNearestSearchAndDestroySite(Vector3 position,
+    private static bool TryGetNearestSndtatSite(Vector3 position,
         out Vector3 target)
     {
         target = default;
@@ -483,7 +483,7 @@ internal static class GameModeRespawn
         bool found = false;
         for (int siteIndex = 0; siteIndex < 2; siteIndex++)
         {
-            if (!SearchAndDestroyState.TryGetSitePosition(siteIndex, out Vector3 sitePosition))
+            if (!SndtatState.TryGetSitePosition(siteIndex, out Vector3 sitePosition))
             {
                 continue;
             }
@@ -628,9 +628,9 @@ internal static class GameModeRespawn
         out Vector3 position)
     {
         position = default;
-        bool usesBackWallInitialSpawn = GameModeManager.IsActive(GameMode.TeamDeathmatch)
-            || GameModeManager.IsActive(GameMode.Hardpoint)
-            || GameModeManager.IsActive(GameMode.CaptureTheFlag);
+        bool usesBackWallInitialSpawn = GameModeManager.IsActive(GameMode.Tdmtat)
+            || GameModeManager.IsActive(GameMode.Hardtat)
+            || GameModeManager.IsActive(GameMode.Capturetat);
         if (!usesBackWallInitialSpawn
             || GameManager.Instance == null
             || !GameManager.Instance.IsServer)
@@ -691,8 +691,8 @@ internal static class PlayerManager_CustomRespawnSpawn_Patch
         ref Vector3 position, ref Quaternion rotation)
     {
         GameModeRespawn.ApplyRespawnCosmetics(__instance, ref suitIndex, ref cigIndex);
-        if (SearchAndDestroyState.TryGetRoleSpawnPosition(__instance, out Vector3 rolePosition)
-            || HuntersState.TryGetRoleSpawnPosition(__instance, out rolePosition))
+        if (SndtatState.TryGetRoleSpawnPosition(__instance, out Vector3 rolePosition)
+            || HuntModesState.TryGetRoleSpawnPosition(__instance, out rolePosition))
         {
             position = rolePosition;
         }
@@ -727,7 +727,7 @@ internal static class PlayerManager_CustomRespawnSpawn_Patch
     {
         PlayerLookup.RegisterSpawnedPlayer(__instance);
         TeamWeaponLoadouts.OnPlayerSpawned(__instance);
-        HuntersState.OnPlayerSpawned(__instance);
+        HuntModesState.OnPlayerSpawned(__instance);
     }
 }
 
@@ -756,29 +756,29 @@ internal static class PlayerSetup_CustomRespawnMovement_Patch
 }
 
 [HarmonyPatch(typeof(PlayerManager), "TryRespawn")]
-internal static class PlayerManager_SearchAndDestroyRespawn_Patch
+internal static class PlayerManager_SndtatRespawn_Patch
 {
     private static bool Prefix(PlayerManager __instance)
     {
-        if (GameModeManager.IsActive(GameMode.CaptureTheFlag)
-            && !CaptureTheFlagState.CanRespawn())
+        if (GameModeManager.IsActive(GameMode.Capturetat)
+            && !CapturetatState.CanRespawn())
         {
             return false;
         }
 
-        if (GameModeManager.IsActive(GameMode.Hardpoint)
-            && !HardpointState.CanRespawn())
+        if (GameModeManager.IsActive(GameMode.Hardtat)
+            && !HardtatState.CanRespawn())
         {
             return false;
         }
 
         if (GameModeManager.IsHuntersActive
-            && !HuntersState.CanRespawn(__instance))
+            && !HuntModesState.CanRespawn(__instance))
         {
             return false;
         }
 
-        if (!SearchAndDestroyState.CanRespawn(__instance))
+        if (!SndtatState.CanRespawn(__instance))
         {
             return false;
         }

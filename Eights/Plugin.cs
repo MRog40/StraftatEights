@@ -24,7 +24,7 @@ public partial class Plugin : BaseUnityPlugin
     // auto-respawn) or attach child components (e.g. a HUD) to - the plugin object outlives scenes.
     internal static Plugin Instance = null!;
 
-    // Each feature module (GlobalModifiers, Juggernaut, and future game modes) contributes an
+    // Each feature module (GlobalModifiers, Juggertat, and future game modes) contributes an
     // InitializeXxx() call here and lives in its own folder as a `partial class Plugin` (for
     // config/RPC) plus its own state/patch classes - see GlobalModifiers/ for the reference layout.
     // Shared/ holds cross-mode helpers (player lookups, team/weapon utilities) so future modes don't
@@ -46,28 +46,29 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("global modifiers", InitializeGlobalModifiers);
         InitializeSafely("health settings", InitializeHealthSettings);
         InitializeSafely("global weapons", InitializeGlobalWeapons);
-        InitializeSafely("default game mode", InitializeDefaultGameMode);
-        InitializeSafely("Michael Meyers", InitializeMichaelMeyers);
-        InitializeSafely("Kill The Rat", InitializeKillTheRat);
-        InitializeSafely("HVT", InitializeHVT);
-        InitializeSafely("Infected", InitializeInfected);
-        InitializeSafely("Hot Pot: Infected", InitializeHotPotInfected);
-        InitializeSafely("One in the Chamber", InitializeOneInTheChamber);
-        InitializeSafely("Hot Potato", InitializeHotPotato);
-        InitializeSafely("Infidel", InitializeInfidel);
-        InitializeSafely("Assassin", InitializeAssassin);
-        InitializeSafely("Free For All", InitializeFFA);
-        InitializeSafely("Nife", InitializeNife);
-        InitializeSafely("Juggernaut", InitializeJuggernaut);
-        InitializeSafely("Gun Game", InitializeGunGame);
-        InitializeSafely("Sniper Battle", InitializeSniperBattle);
-        InitializeSafely("Hardpoint", InitializeHardpoint);
-        InitializeSafely("Capture the Flag", InitializeCaptureTheFlag);
-        InitializeSafely("Search and Destroy", InitializeSearchAndDestroy);
-        InitializeSafely("Team Deathmatch", InitializeTeamDeathmatch);
-        InitializeSafely("Ninja Hunters", InitializeNinjaHunters);
-        InitializeSafely("Rabbit Hunt", InitializeRabbitHunters);
-        InitializeSafely("Tank Battle", InitializeTankBattle);
+        InitializeSafely("Straftat", InitializeStraftat);
+        InitializeSafely("Michaeltat", InitializeMichaeltat);
+        InitializeSafely("Ratatat", InitializeRatatat);
+        InitializeSafely("Hvtat", InitializeHvtat);
+        InitializeSafely("Infectedtat", InitializeInfectedtat);
+        InitializeSafely("PotatoInftat", InitializePotatoInftat);
+        InitializeSafely("Chambertat", InitializeChambertat);
+        InitializeSafely("Potatotat", InitializePotatotat);
+        InitializeSafely("Infideltat", InitializeInfideltat);
+        InitializeSafely("Assassintat", InitializeAssassintat);
+        InitializeSafely("Ffatat", InitializeFfatat);
+        InitializeSafely("Nifetat", InitializeNifetat);
+        InitializeSafely("Juggertat", InitializeJuggertat);
+        InitializeSafely("Guntat", InitializeGuntat);
+        InitializeSafely("Snipertat", InitializeSnipertat);
+        InitializeSafely("Hardtat", InitializeHardtat);
+        InitializeSafely("Capturetat", InitializeCapturetat);
+        InitializeSafely("Sndtat", InitializeSndtat);
+        InitializeSafely("Countertat", InitializeCountertat);
+        InitializeSafely("Tdmtat", InitializeTdmtat);
+        InitializeSafely("Ninjatat", InitializeNinjatat);
+        InitializeSafely("Hunttat", InitializeHunttat);
+        InitializeSafely("Tanktat", InitializeTanktat);
         Config.Save();
 
         try
@@ -147,25 +148,25 @@ public partial class Plugin : BaseUnityPlugin
         GameModeManager.PollLobbyStateIfClient();
         PlayerNameSync.PeriodicPushIfHost();
         PlayerNameSync.PollIfClient();
-        DefaultGameModeState.ServerTick(Time.unscaledDeltaTime);
-        DefaultGameModeState.ClientTick(Time.unscaledDeltaTime);
-        CaptureTheFlagState.ServerTick(Time.unscaledDeltaTime);
-        HardpointState.ServerTick(Time.unscaledDeltaTime);
-        JuggernautState.ServerTick(Time.unscaledDeltaTime);
-        HVTState.ServerTick(Time.unscaledDeltaTime);
-        KillTheRatState.ServerTick(Time.unscaledDeltaTime);
-        MichaelMeyersState.ServerTick(Time.unscaledDeltaTime);
-        MichaelMeyersState.ClientTick(Time.unscaledDeltaTime);
-        InfidelState.ServerTick(Time.unscaledDeltaTime);
-        InfidelState.ClientTick(Time.unscaledDeltaTime);
-        AssassinState.ServerTick(Time.unscaledDeltaTime);
-        AssassinState.ClientTick(Time.unscaledDeltaTime);
-        SearchAndDestroyState.ServerTick(Time.unscaledDeltaTime);
-        HuntersState.ServerTick(Time.unscaledDeltaTime);
+        StraftatState.ServerTick(Time.unscaledDeltaTime);
+        StraftatState.ClientTick(Time.unscaledDeltaTime);
+        CapturetatState.ServerTick(Time.unscaledDeltaTime);
+        HardtatState.ServerTick(Time.unscaledDeltaTime);
+        JuggertatState.ServerTick(Time.unscaledDeltaTime);
+        HvtatState.ServerTick(Time.unscaledDeltaTime);
+        RatatatState.ServerTick(Time.unscaledDeltaTime);
+        MichaeltatState.ServerTick(Time.unscaledDeltaTime);
+        MichaeltatState.ClientTick(Time.unscaledDeltaTime);
+        InfideltatState.ServerTick(Time.unscaledDeltaTime);
+        InfideltatState.ClientTick(Time.unscaledDeltaTime);
+        AssassintatState.ServerTick(Time.unscaledDeltaTime);
+        AssassintatState.ClientTick(Time.unscaledDeltaTime);
+        SndtatState.ServerTick(Time.unscaledDeltaTime);
+        HuntModesState.ServerTick(Time.unscaledDeltaTime);
         ModeTimeoutState.ServerTick(Time.unscaledDeltaTime);
         ModeTimeoutState.ClientTick(Time.unscaledDeltaTime);
-        SearchAndDestroyState.PollLocalInput();
-        SearchAndDestroyState.ApplyLocalMovementLock();
+        SndtatState.PollLocalInput();
+        SndtatState.ApplyLocalMovementLock();
         GlobalModifiersState.PeriodicPushIfHost();
         GlobalModifiersState.PollSettingsIfClient();
         HealthSettingsState.PeriodicPushIfHost();
@@ -178,10 +179,10 @@ public partial class Plugin : BaseUnityPlugin
         WeaponSettingsState.EnsureDefaultKnifeLoadouts();
         PlayerOutline.EnforceOutline();
         TeammateMarker.Enforce();
-        HardpointMarker.Update();
-        HuntersMarker.Update();
-        CaptureTheFlagMarker.Update();
-        SearchAndDestroyMarker.Update();
+        HardtatMarker.Update();
+        HuntModesMarker.Update();
+        CapturetatMarker.Update();
+        SndtatMarker.Update();
         RespawnProtection.Update();
     }
 }

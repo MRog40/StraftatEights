@@ -14,11 +14,12 @@
     <Compile Include="..\..\Shared\TeamRules.cs" Link="TeamRules.cs" />
     <Compile Include="..\..\Shared\TeamDisplayNames.cs" Link="TeamDisplayNames.cs" />
     <Compile Include="..\..\Shared\SafeSpawnRules.cs" Link="SafeSpawnRules.cs" />
-    <Compile Include="..\..\Shared\HardpointRules.cs" Link="HardpointRules.cs" />
-    <Compile Include="..\..\Shared\CaptureTheFlagRules.cs" Link="CaptureTheFlagRules.cs" />
-    <Compile Include="..\..\Shared\TeamDeathmatchRules.cs" Link="TeamDeathmatchRules.cs" />
-    <Compile Include="..\..\Shared\HuntersRules.cs" Link="HuntersRules.cs" />
-    <Compile Include="..\..\Shared\SearchAndDestroyRules.cs" Link="SearchAndDestroyRules.cs" />
+    <Compile Include="..\..\Shared\HardtatRules.cs" Link="HardtatRules.cs" />
+    <Compile Include="..\..\Shared\CapturetatRules.cs" Link="CapturetatRules.cs" />
+    <Compile Include="..\..\Shared\TdmtatRules.cs" Link="TdmtatRules.cs" />
+    <Compile Include="..\..\Shared\HuntModesRules.cs" Link="HuntModesRules.cs" />
+    <Compile Include="..\..\Shared\SndtatRules.cs" Link="SndtatRules.cs" />
+    <Compile Include="..\..\Shared\CountertatRules.cs" Link="CountertatRules.cs" />
     <Compile Include="..\..\Shared\TeamWeaponSequence.cs" Link="TeamWeaponSequence.cs" />
     <Compile Include="..\..\Shared\PlayerNameMarkup.cs" Link="PlayerNameMarkup.cs" />
     <Compile Include="..\..\Shared\PlayerNameSnapshotCodec.cs" Link="PlayerNameSnapshotCodec.cs" />

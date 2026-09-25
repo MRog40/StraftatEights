@@ -7,15 +7,15 @@ internal static class WeaponPolicy
 {
     internal static bool PrepareItemSpawn(ItemSpawner spawner)
     {
-        if (GameModeManager.IsActive(GameMode.SearchAndDestroy)
+        if (GameModeManager.IsBombModeActive
             || GameModeManager.IsHuntersActive)
         {
             return false;
         }
 
-        if (GameModeManager.IsActive(GameMode.MichaelMeyers))
+        if (GameModeManager.IsActive(GameMode.Michaeltat))
         {
-            GameObject? flashlight = WeaponService.FindPrefab(MichaelMeyersState.FlashlightWeaponName)
+            GameObject? flashlight = WeaponService.FindPrefab(MichaeltatState.FlashlightWeaponName)
                 ?? WeaponService.FindPrefab("Flashlight");
             if (flashlight != null)
             {
@@ -66,15 +66,15 @@ internal static class WeaponPolicy
 
     private static bool IsExclusiveLoadoutMode(GameMode mode)
     {
-        return mode == GameMode.GunGame
-            || mode == GameMode.SniperBattle
-            || mode == GameMode.MichaelMeyers
-            || mode == GameMode.KillTheRat
-            || mode == GameMode.OneInTheChamber
-            || mode == GameMode.HotPotato
-            || mode == GameMode.Infidel
-            || mode == GameMode.Assassin
-            || mode == GameMode.Nife;
+        return mode == GameMode.Guntat
+            || mode == GameMode.Snipertat
+            || mode == GameMode.Michaeltat
+            || mode == GameMode.Ratatat
+            || mode == GameMode.Chambertat
+            || mode == GameMode.Potatotat
+            || mode == GameMode.Infideltat
+            || mode == GameMode.Assassintat
+            || mode == GameMode.Nifetat;
     }
 
     internal static bool CanEquip(PlayerPickup pickup, GameObject obj, bool rightHand)
@@ -94,58 +94,58 @@ internal static class WeaponPolicy
         PlayerHealth? health = pickup.GetComponent<PlayerHealth>();
         switch (GameModeManager.ActiveMode)
         {
-            case GameMode.NinjaHunters:
-            case GameMode.RabbitHunters:
-            case GameMode.TankBattle:
+            case GameMode.Ninjatat:
+            case GameMode.Hunttat:
+            case GameMode.Tanktat:
                 int huntersPlayerId = health?.playerValues?.playerClient?.PlayerId ?? -1;
                 return huntersPlayerId < 0
-                    || HuntersState.IsExpectedWeapon(weapon, huntersPlayerId);
-            case GameMode.Infected:
-                return health == null || !InfectedState.IsInfected(health)
-                    || weapon.name.StartsWith(InfectedState.KnifeWeaponName,
+                    || HuntModesState.IsExpectedWeapon(weapon, huntersPlayerId);
+            case GameMode.Infectedtat:
+                return health == null || !InfectedtatState.IsInfectedtat(health)
+                    || weapon.name.StartsWith(InfectedtatState.KnifeWeaponName,
                         System.StringComparison.Ordinal);
-            case GameMode.HotPotInfected:
-                return health == null || !HotPotInfectedState.IsInfected(health)
-                    || weapon.name.StartsWith(HotPotInfectedState.GrenadeWeaponName,
+            case GameMode.PotatoInftat:
+                return health == null || !PotatoInftatState.IsInfectedtat(health)
+                    || weapon.name.StartsWith(PotatoInftatState.GrenadeWeaponName,
                         System.StringComparison.Ordinal);
-            case GameMode.Juggernaut:
-                return health == null || !JuggernautState.IsCurrentJuggernaut(health)
-                    || weapon.name.StartsWith(JuggernautState.WeaponName, System.StringComparison.Ordinal);
-            case GameMode.KillTheRat:
+            case GameMode.Juggertat:
+                return health == null || !JuggertatState.IsCurrentJuggertat(health)
+                    || weapon.name.StartsWith(JuggertatState.WeaponName, System.StringComparison.Ordinal);
+            case GameMode.Ratatat:
                 if (health == null)
                 {
                     return true;
                 }
-                return KillTheRatState.IsRat(health)
-                    ? KillTheRatState.IsRatWeapon(weapon)
-                    : KillTheRatState.IsHumanWeapon(weapon);
-            case GameMode.MichaelMeyers:
+                return RatatatState.IsRat(health)
+                    ? RatatatState.IsRatWeapon(weapon)
+                    : RatatatState.IsHumanWeapon(weapon);
+            case GameMode.Michaeltat:
                 return health != null
-                    && ((!MichaelMeyersState.CanHoldCouperet(health)
-                            && MichaelMeyersState.IsFlashlight(weapon))
-                        || (MichaelMeyersState.CanHoldCouperet(health)
-                            && MichaelMeyersState.IsCouperet(weapon))
-                        || (MichaelMeyersState.CanHoldSurvivorWeapon(health)
-                            && weapon.name.StartsWith(MichaelMeyersState.SurvivorWeaponName,
+                    && ((!MichaeltatState.CanHoldCouperet(health)
+                            && MichaeltatState.IsFlashlight(weapon))
+                        || (MichaeltatState.CanHoldCouperet(health)
+                            && MichaeltatState.IsCouperet(weapon))
+                        || (MichaeltatState.CanHoldSurvivorWeapon(health)
+                            && weapon.name.StartsWith(MichaeltatState.SurvivorWeaponName,
                                 System.StringComparison.Ordinal)));
-            case GameMode.Infidel:
+            case GameMode.Infideltat:
                 int infidelPlayerId = health?.playerValues?.playerClient?.PlayerId ?? -1;
-                return infidelPlayerId < 0 || InfidelState.IsAllowedWeapon(weapon, infidelPlayerId);
-            case GameMode.Assassin:
+                return infidelPlayerId < 0 || InfideltatState.IsAllowedWeapon(weapon, infidelPlayerId);
+            case GameMode.Assassintat:
                 int assassinPlayerId = health?.playerValues?.playerClient?.PlayerId ?? -1;
-                return assassinPlayerId < 0 || AssassinState.IsAllowedWeapon(weapon, assassinPlayerId);
-            case GameMode.HotPotato:
+                return assassinPlayerId < 0 || AssassintatState.IsAllowedWeapon(weapon, assassinPlayerId);
+            case GameMode.Potatotat:
                 int potatoPlayerId = health?.playerValues?.playerClient?.PlayerId ?? -1;
-                return potatoPlayerId < 0 || HotPotatoState.IsAllowedWeapon(weapon, potatoPlayerId);
-            case GameMode.OneInTheChamber:
-                return (OneInTheChamberState.IsPistol(weapon) && rightHand)
-                    || (OneInTheChamberState.IsCouperet(weapon) && !rightHand);
-            case GameMode.SniperBattle:
-                return SniperBattleState.IsSniperWeapon(weapon);
-            case GameMode.GunGame:
+                return potatoPlayerId < 0 || PotatotatState.IsAllowedWeapon(weapon, potatoPlayerId);
+            case GameMode.Chambertat:
+                return (ChambertatState.IsPistol(weapon) && rightHand)
+                    || (ChambertatState.IsCouperet(weapon) && !rightHand);
+            case GameMode.Snipertat:
+                return SnipertatState.IsSniperWeapon(weapon);
+            case GameMode.Guntat:
                 return false;
-            case GameMode.Nife:
-                return NifeState.IsSelectedWeapon(weapon);
+            case GameMode.Nifetat:
+                return NifetatState.IsSelectedWeapon(weapon);
             default:
                 return true;
         }

@@ -15,4 +15,9 @@ internal static class TeamDisplayNames
             ? Names[teamId]
             : "Unknown Team";
     }
+
+    internal static string Get(int teamId, int aboubiTeamId, bool countertat)
+    {
+        return countertat ? CountertatRules.GetTeamName(teamId, aboubiTeamId) : Get(teamId);
+    }
 }

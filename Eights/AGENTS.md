@@ -94,7 +94,7 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
   a second per-mode retry queue.
 - Latest-value settings and live state still need host ID, round ID, revision, periodic resend, stale
   cursor rejection, and a lobby-data fallback for important presentation state. Transport retries do not
-  replace state validation. Sniper Battle, Gun Game, and active mode have lobby-data fallbacks.
+  replace state validation. Snipertat, Guntat, and active mode have lobby-data fallbacks.
 - When adding a retryable action, add a command ID and receiver deduplication first. Never periodically
   replay a gameplay command just because an RPC may have been lost. Use revisioned snapshots for state.
 - Before diagnosing a new sync issue, verify both peers use the same plugin DLL and Mycelium version,
@@ -110,7 +110,7 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
 - `ReliableType.Reliable` can still fail when the Steam/Mycelium session fails. For latest-value
   settings and presentation state, register a Steam lobby-data key and publish the host ID, round ID,
   revision, and payload. Read it on lobby entry and `LobbyDataUpdated`, then use the same validation as
-  the RPC path. Gun Game settings/scores and active mode use this fallback.
+  the RPC path. Guntat settings/scores and active mode use this fallback.
 - Every outline, HUD marker, and other networked visual must use a host-authoritative role/player ID
   received through the revisioned live-state path on every peer, then resolve that ID against the
   peer's own live player objects. Never derive a networked visual target from host-only state or a
@@ -184,8 +184,8 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
 - **Use `WeaponSettingsState` for global weapon rules.** The host syncs `Enabled`, `Allowed`,
   `SpareMagazines`, and `DefaultKnife`. Use `WeaponService.GiveWeapon` for server-authoritative
   grants and do not add a client-side weapon spawn or selection path.
-- **Use `TeamWeaponLoadouts` for team-mode allocations.** Hardpoint, Capture The Flag, Search And
-  Destroy, and Team Deathmatch use the configured `WeaponSettingsState.Allowed` list and
+- **Use `TeamWeaponLoadouts` for team-mode allocations.** Hardtat, Capturetat, Sndtat, and Tdmtat
+  use the configured `WeaponSettingsState.Allowed` list and
   `SpareMagazines`, independently of the global weapon toggle. The host creates one
   shuffled `TeamWeaponSequence` per round, maps sorted team slots to the same sequence, and advances
   a separate respawn cursor for each team. Do not add a fixed per-mode weapon grant or a client-side
@@ -201,12 +201,12 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
   game update if weapon grants stop attaching, and update the one shared service rather than adding
   another reflection path.
 
-## Planning for future game modes (Juggernaut is the first; more are coming)
-- `Juggernaut/` is the reference layout for a full **game mode** (as opposed to GlobalModifiers,
-  which is just always-on tweaks): `JuggernautConfig.cs` (config + RPCs), `JuggernautState.cs`
-  (synced runtime state + host-only game logic), `JuggernautPatches.cs` (Harmony hooks into the
+## Planning for future game modes (Juggertat is the first; more are coming)
+- `Juggertat/` is the reference layout for a full **game mode** (as opposed to GlobalModifiers,
+  which is just always-on tweaks): `JuggertatConfig.cs` (config + RPCs), `JuggertatState.cs`
+  (synced runtime state + host-only game logic), `JuggertatPatches.cs` (Harmony hooks into the
   actual game). Shared role outlines live in `Shared/PlayerOutline.cs`; keep any other mode-specific
-  visual helpers with the mode. Copy this shape for the next mode rather than growing Juggernaut's files.
+  visual helpers with the mode. Copy this shape for the next mode rather than growing Juggertat's files.
 - Kill/death hook: the current shipped build exposes `GameManager.RpcLogic___PlayerDied_3140630784(int playerId, uint spawnGeneration)`.
   Resolve the generated method by the `RpcLogic___PlayerDied_` prefix and its signature. The method
   runs host-only (its RpcReader already gates on `IsServer`) - this is the one true "a kill happened"

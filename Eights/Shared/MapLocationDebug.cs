@@ -11,16 +11,16 @@ internal static class MapLocationDebug
 {
     private const float SpawnLineHeight = 3f;
     private const float SpawnLineRadius = 0.06f;
-    private const float HardpointLabelHeight = 4f;
-    private const float HardpointLabelFontSize = 5f;
-    private const float HardpointLabelWidth = 4f;
-    private const float HardpointLabelHeightUnits = 2f;
+    private const float HardtatLabelHeight = 4f;
+    private const float HardtatLabelFontSize = 5f;
+    private const float HardtatLabelWidth = 4f;
+    private const float HardtatLabelHeightUnits = 2f;
     private const float BombSiteRadius = 3f;
     private const float BombSiteOverheadMarkerSize = 0.8f;
     private static readonly Color MarkerColor = new(1f, 1f, 1f, 0.9f);
     private static readonly Color TextColor = Color.white;
     private static readonly List<SpawnMarker> SpawnMarkers = new();
-    private static readonly List<HardpointMarker> HardpointMarkers = new();
+    private static readonly List<HardtatMarker> HardtatMarkers = new();
     private static readonly List<BombMarker> BombMarkers = new();
     private static bool _visible;
     private static string _mapName = string.Empty;
@@ -32,7 +32,7 @@ internal static class MapLocationDebug
         internal Vector3 Position;
     }
 
-    private sealed class HardpointMarker
+    private sealed class HardtatMarker
     {
         internal GameObject Ring = null!;
         internal TextMeshPro Label = null!;
@@ -89,15 +89,15 @@ internal static class MapLocationDebug
             });
         }
 
-        for (int index = 0; index < definition.HardpointObjectives.Count; index++)
+        for (int index = 0; index < definition.HardtatObjectives.Count; index++)
         {
-            HardpointObjective objective = definition.HardpointObjectives[index];
-            HardpointMarkers.Add(new HardpointMarker
+            HardtatObjective objective = definition.HardtatObjectives[index];
+            HardtatMarkers.Add(new HardtatMarker
             {
                 Ring = FloatingObjectiveMarker.CreateRing(
-                    $"MapDebugHardpoint_{index}", MarkerColor),
+                    $"MapDebugHardtat_{index}", MarkerColor),
                 Label = CreateLabel((index + 1).ToString(CultureInfo.InvariantCulture),
-                    $"MapDebugHardpointLabel_{index}"),
+                    $"MapDebugHardtatLabel_{index}"),
                 Position = objective.Position,
                 Radius = objective.Radius
             });
@@ -126,7 +126,7 @@ internal static class MapLocationDebug
             PositionVerticalLine(marker.Line, marker.Position, SpawnLineHeight);
         }
 
-        foreach (HardpointMarker marker in HardpointMarkers)
+        foreach (HardtatMarker marker in HardtatMarkers)
         {
             FloatingObjectiveMarker.PositionRing(marker.Ring, marker.Position, marker.Radius,
                 MarkerColor);
@@ -164,14 +164,14 @@ internal static class MapLocationDebug
         GameObject labelObject = new(name);
         TextMeshPro label = labelObject.AddComponent<TextMeshPro>();
         label.text = value;
-        label.fontSize = HardpointLabelFontSize;
+        label.fontSize = HardtatLabelFontSize;
         label.alignment = TextAlignmentOptions.Center;
         label.color = TextColor;
         label.fontStyle = FontStyles.Bold;
         label.enableWordWrapping = false;
         label.overflowMode = TextOverflowModes.Overflow;
-        label.rectTransform.sizeDelta = new Vector2(HardpointLabelWidth,
-            HardpointLabelHeightUnits);
+        label.rectTransform.sizeDelta = new Vector2(HardtatLabelWidth,
+            HardtatLabelHeightUnits);
         return label;
     }
 
@@ -188,7 +188,7 @@ internal static class MapLocationDebug
     {
         label.gameObject.SetActive(true);
         label.transform.position = FloatingObjectiveMarker.CalculateMarkerPosition(position)
-            + Vector3.up * HardpointLabelHeight;
+            + Vector3.up * HardtatLabelHeight;
         Camera? camera = Camera.main;
         if (camera != null)
         {
@@ -229,13 +229,13 @@ internal static class MapLocationDebug
         }
         SpawnMarkers.Clear();
 
-        foreach (HardpointMarker marker in HardpointMarkers)
+        foreach (HardtatMarker marker in HardtatMarkers)
         {
             FloatingObjectiveMarker.Release(marker.Ring);
             Destroy(marker.Ring);
             Destroy(marker.Label.gameObject);
         }
-        HardpointMarkers.Clear();
+        HardtatMarkers.Clear();
 
         foreach (BombMarker marker in BombMarkers)
         {

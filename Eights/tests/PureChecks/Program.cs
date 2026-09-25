@@ -104,20 +104,51 @@ Assert(firstWeaponSequence.GetAt(3) == secondWeaponSequence.GetAt(3)
     && firstWeaponSequence.GetAt(4) == secondWeaponSequence.GetAt(4),
     "Independent team cursors must resolve the same next weapons.");
 
+int firstRoundAboubiTeam = CountertatRules.GetAboubiTeamId(1);
+int firstRoundShadowForceTeam = CountertatRules.GetShadowForceTeamId(1);
+int secondRoundAboubiTeam = CountertatRules.GetAboubiTeamId(2);
+int secondRoundShadowForceTeam = CountertatRules.GetShadowForceTeamId(2);
+Assert(firstRoundAboubiTeam == 1 && secondRoundAboubiTeam == 0
+    && CountertatRules.GetOffensiveTeamId(1) == firstRoundAboubiTeam
+    && CountertatRules.GetOffensiveTeamId(2) == secondRoundAboubiTeam
+    && TeamDisplayNames.Get(firstRoundAboubiTeam, firstRoundAboubiTeam, true) == "Aboubi"
+    && TeamDisplayNames.Get(firstRoundShadowForceTeam, firstRoundAboubiTeam, true) == "Shadow Force"
+    && TeamDisplayNames.Get(secondRoundAboubiTeam, secondRoundAboubiTeam, true) == "Aboubi"
+    && TeamDisplayNames.Get(secondRoundShadowForceTeam, secondRoundAboubiTeam, true) == "Shadow Force",
+    "Countertat must alternate team roles by official round, not map activation or take.");
+Assert(CountertatRules.GetWeaponName(firstRoundAboubiTeam, 1, firstRoundAboubiTeam, 0) == "Glock"
+    && CountertatRules.GetWeaponName(firstRoundAboubiTeam, 1, firstRoundShadowForceTeam, 5) == "Silenzzio"
+    && CountertatRules.GetWeaponName(secondRoundAboubiTeam, 1, secondRoundAboubiTeam, 0) == "Glock"
+    && CountertatRules.GetWeaponName(secondRoundAboubiTeam, 1, secondRoundShadowForceTeam, 5) == "Silenzzio",
+    "Take one must give each team its single weapon to every player.");
+Assert(CountertatRules.GetWeaponName(firstRoundAboubiTeam, 2, firstRoundAboubiTeam, 0) == "AK-K"
+    && CountertatRules.GetWeaponName(firstRoundAboubiTeam, 2, firstRoundAboubiTeam, 2) == "Mac10"
+    && CountertatRules.GetWeaponName(firstRoundAboubiTeam, 2, firstRoundAboubiTeam, 9) == "Mac10"
+    && CountertatRules.GetWeaponName(firstRoundAboubiTeam, 2, firstRoundShadowForceTeam, 1) == "AR15"
+    && CountertatRules.GetWeaponName(firstRoundAboubiTeam, 2, firstRoundShadowForceTeam, 2) == "SMG",
+    "Take two must assign ordered team weapons and repeat the final weapon for extras.");
+Assert(CountertatRules.GetWeaponName(firstRoundAboubiTeam, 3, firstRoundAboubiTeam, 3) == "Dispenser"
+    && CountertatRules.GetWeaponName(firstRoundAboubiTeam, 3, firstRoundShadowForceTeam, 1) == "QCW05"
+    && CountertatRules.GetWeaponName(firstRoundAboubiTeam, 3, firstRoundShadowForceTeam, 2) == "AR15"
+    && CountertatRules.GetWeaponName(firstRoundAboubiTeam, 4, firstRoundAboubiTeam, 1) == "M2000"
+    && CountertatRules.GetWeaponName(firstRoundAboubiTeam, 4, firstRoundShadowForceTeam, 1) == "M2000"
+    && CountertatRules.GetWeaponName(secondRoundAboubiTeam, 10, secondRoundAboubiTeam, 3) == "AK-K",
+    "Countertat later take weapon lists must match their configured order.");
+
 Dictionary<string, IReadOnlyList<string>> playlistMaps = new()
 {
-    ["FFA"] = new[] { "Barren_01_Alt" },
-    ["MichaelMeyers"] = new[] { "Map_A", "Map_B" },
+    ["Ffatat"] = new[] { "Barren_01_Alt" },
+    ["Michaeltat"] = new[] { "Map_A", "Map_B" },
     ["Unsupported"] = Array.Empty<string>()
 };
 List<MapPlaylistEntry<string>> playlist = MapPlaylist.Build(
-    new[] { "FFA", "MichaelMeyers", "Unsupported", "FFA" },
+    new[] { "Ffatat", "Michaeltat", "Unsupported", "Ffatat" },
     mode => playlistMaps.TryGetValue(mode, out IReadOnlyList<string>? maps)
         ? maps
         : Array.Empty<string>(),
     new Random(17));
-Assert(playlist.Count == 2 && playlist.Any(entry => entry.Mode == "FFA")
-    && playlist.Any(entry => entry.Mode == "MichaelMeyers"),
+Assert(playlist.Count == 2 && playlist.Any(entry => entry.Mode == "Ffatat")
+    && playlist.Any(entry => entry.Mode == "Michaeltat"),
     "Map playlists must keep supported modes once and skip unsupported modes.");
 Random mapCycleRandom = new(23);
 string firstMap = MapPlaylist.SelectNextMap(new[] { "Map_A", "Map_B" }, string.Empty,
@@ -130,9 +161,9 @@ string distributedMap = MapPlaylist.SelectNextMap(new[] { "Map_A", "Map_B", "Map
 Assert(distributedMap == "Map_D",
     "Recent map history must exclude the recent maps when an alternative exists.");
 List<MapPlaylistEntry<string>> firstOrdering = MapPlaylist.Build(
-    new[] { "FFA", "MichaelMeyers" }, mode => playlistMaps[mode], new Random(31));
+    new[] { "Ffatat", "Michaeltat" }, mode => playlistMaps[mode], new Random(31));
 List<MapPlaylistEntry<string>> secondOrdering = MapPlaylist.Build(
-    new[] { "FFA", "MichaelMeyers" }, mode => playlistMaps[mode], new Random(31));
+    new[] { "Ffatat", "Michaeltat" }, mode => playlistMaps[mode], new Random(31));
 Assert(firstOrdering.Count == secondOrdering.Count
     && firstOrdering[0].Mode == secondOrdering[0].Mode
     && firstOrdering[0].MapName == secondOrdering[0].MapName,
@@ -148,8 +179,8 @@ Assert(filteredScores.Count == 2 && filteredScores[1] == 4 && filteredScores[2] 
     "Score parsing must reject malformed/out-of-range entries and keep the last duplicate.");
 Assert(ScoreRules.PointsToWin == 100 && ScoreRules.PointsPerRoundWin == 50
     && ScoreRules.PointsPerKill == 10
-    && ScoreRules.PointsPerJuggernautCrown == 20 && ScoreRules.PointsPerRatSurvivalSecond == 3
-    && ScoreRules.PointsPerHVTSurvivalSecond == 3,
+    && ScoreRules.PointsPerJuggertatCrown == 20 && ScoreRules.PointsPerRatSurvivalSecond == 3
+    && ScoreRules.PointsPerHvtatSurvivalSecond == 3,
     "Shared score rules must use the 100-point target and mode award values.");
 Assert(HealthUnits.DisplayedHealthPerInternalUnit == 25f
     && Math.Abs(HealthUnits.ToInternal(10f) - 0.4f) < 0.0001f
@@ -168,28 +199,28 @@ Assert(ModeTimeoutRules.DefaultRoundSeconds == 90f
         new Dictionary<int, int> { [4] = 60, [9] = 60 }, out _)
     && !ModeTimeoutRules.TryGetUniqueLeader(new Dictionary<int, int>(), out _),
     "A timed score mode must select a unique leader and treat ties or empty scores as sudden death.");
-Assert(AssassinRules.DefaultTakeTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds,
-    "Assassin takes must use the shared ninety-second time limit.");
-Assert(InfectedRules.ShouldBecomeInfected(false)
-    && !InfectedRules.ShouldBecomeInfected(true)
-    && InfectedRules.ShouldEndRound(0)
-    && InfectedRules.ShouldEndRound(-1)
-    && !InfectedRules.ShouldEndRound(1)
-    && InfectedRules.ShouldAwardInitialInfected(7, 0)
-    && !InfectedRules.ShouldAwardInitialInfected(-1, 0)
-    && !InfectedRules.ShouldAwardInitialInfected(7, 1),
-    "Infected survivors must convert on death, and only the original infected wins a wipe.");
-List<int> infectedSurvivors = InfectedRules.GetSurvivors(
+Assert(AssassintatRules.DefaultTakeTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds,
+    "Assassintat takes must use the shared ninety-second time limit.");
+Assert(InfectedtatRules.ShouldBecomeInfectedtat(false)
+    && !InfectedtatRules.ShouldBecomeInfectedtat(true)
+    && InfectedtatRules.ShouldEndRound(0)
+    && InfectedtatRules.ShouldEndRound(-1)
+    && !InfectedtatRules.ShouldEndRound(1)
+    && InfectedtatRules.ShouldAwardInitialInfectedtat(7, 0)
+    && !InfectedtatRules.ShouldAwardInitialInfectedtat(-1, 0)
+    && !InfectedtatRules.ShouldAwardInitialInfectedtat(7, 1),
+    "Infectedtat survivors must convert on death, and only the original infected wins a wipe.");
+List<int> infectedSurvivors = InfectedtatRules.GetSurvivors(
     new[] { 7, 2, 4, 2 }, new HashSet<int> { 4 });
 Assert(infectedSurvivors.SequenceEqual(new[] { 2, 7 }),
-    "The Infected timeout winner list must contain every non-infected round player in sorted order.");
-Assert(MichaelMeyersRules.RoundTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds
-    && MichaelMeyersRules.MovementMultiplier == 1.05f
-    && MichaelMeyersRules.GetHealth(false) == 10f
-    && MichaelMeyersRules.GetHealth(true) == 100f
-    && !MichaelMeyersRules.ShouldEndTimeoutWithoutWinner(1)
-    && MichaelMeyersRules.ShouldEndTimeoutWithoutWinner(2),
-    "Michael Meyers must use the full round timer and end multi-player timeouts without a winner.");
+    "The Infectedtat timeout winner list must contain every non-infected round player in sorted order.");
+Assert(MichaeltatRules.RoundTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds
+    && MichaeltatRules.MovementMultiplier == 1.05f
+    && MichaeltatRules.GetHealth(false) == 10f
+    && MichaeltatRules.GetHealth(true) == 100f
+    && !MichaeltatRules.ShouldEndTimeoutWithoutWinner(1)
+    && MichaeltatRules.ShouldEndTimeoutWithoutWinner(2),
+    "Michaeltat must use the full round timer and end multi-player timeouts without a winner.");
 Assert(TeamRules.GetTeamCount(2) == 2 && TeamRules.GetTeamCount(3) == 3
     && TeamRules.GetTeamCount(4) == 2 && TeamRules.GetTeamCount(6) == 3,
     "Team count must use three teams only for player counts divisible by three.");
@@ -204,7 +235,7 @@ Assert(teamDeathmatchAssignments.Values.Distinct().Count() == 2
     && teamDeathmatchAssignments.Values.Count(teamId => teamId == 0) == 3
     && teamDeathmatchAssignments.Values.Count(teamId => teamId == 1) == 3
     && !teamDeathmatchAssignments.Values.Contains(2),
-    "Team Deathmatch must use a balanced two-team assignment for six players.");
+    "Tdmtat must use a balanced two-team assignment for six players.");
 Assert(TeamRules.ResolveTeamId(teamDeathmatchAssignments, 1) == 0
     && TeamRules.ResolveTeamId(teamDeathmatchAssignments, 6) == 1
     && TeamRules.ResolveTeamId(teamDeathmatchAssignments, 99) == 99,
@@ -223,36 +254,36 @@ Assert(distributedTeamAssignments.Values.Count(teamId => teamId == 0) == 2
     && distributedTeamAssignments.Any(entry =>
         previousTeamAssignments[entry.Key] != entry.Value),
     "Distributed team assignment must stay balanced while reducing repeated teams.");
-Assert(TeamRules.GetHardpointTeamCount(2) == 2
-    && TeamRules.GetHardpointTeamCount(3) == 3
-    && TeamRules.GetHardpointTeamCount(4) == 2
-    && TeamRules.GetHardpointTeamCount(5) == 3
-    && TeamRules.GetHardpointTeamCount(6) == 2
-    && TeamRules.GetHardpointTeamCount(7) == 3
-    && TeamRules.GetHardpointTeamCount(8) == 2
-    && TeamRules.GetHardpointTeamCount(9) == 3
-    && TeamRules.GetHardpointTeamCount(10) == 3,
-    "Hardpoint must use two teams for even rosters through eight players and three teams for odd rosters or nine-plus players.");
+Assert(TeamRules.GetHardtatTeamCount(2) == 2
+    && TeamRules.GetHardtatTeamCount(3) == 3
+    && TeamRules.GetHardtatTeamCount(4) == 2
+    && TeamRules.GetHardtatTeamCount(5) == 3
+    && TeamRules.GetHardtatTeamCount(6) == 2
+    && TeamRules.GetHardtatTeamCount(7) == 3
+    && TeamRules.GetHardtatTeamCount(8) == 2
+    && TeamRules.GetHardtatTeamCount(9) == 3
+    && TeamRules.GetHardtatTeamCount(10) == 3,
+    "Hardtat must use two teams for even rosters through eight players and three teams for odd rosters or nine-plus players.");
 Dictionary<int, int> hardpointTwoAssignments =
-    TeamRules.AssignHardpointBalanced(new[] { 1, 2 });
+    TeamRules.AssignHardtatBalanced(new[] { 1, 2 });
 Dictionary<int, int> hardpointThreeAssignments =
-    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3 });
+    TeamRules.AssignHardtatBalanced(new[] { 1, 2, 3 });
 Dictionary<int, int> hardpointFourAssignments =
-    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4 });
+    TeamRules.AssignHardtatBalanced(new[] { 1, 2, 3, 4 });
 Dictionary<int, int> hardpointFiveAssignments =
-    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5 });
+    TeamRules.AssignHardtatBalanced(new[] { 1, 2, 3, 4, 5 });
 Dictionary<int, int> hardpointSixAssignments =
-    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5, 6 });
+    TeamRules.AssignHardtatBalanced(new[] { 1, 2, 3, 4, 5, 6 });
 Dictionary<int, int> hardpointSevenAssignments =
-    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5, 6, 7 });
+    TeamRules.AssignHardtatBalanced(new[] { 1, 2, 3, 4, 5, 6, 7 });
 Dictionary<int, int> hardpointEightAssignments =
-    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5, 6, 7, 8 });
+    TeamRules.AssignHardtatBalanced(new[] { 1, 2, 3, 4, 5, 6, 7, 8 });
 Dictionary<int, int> hardpointNineAssignments =
-    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+    TeamRules.AssignHardtatBalanced(new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 });
 Dictionary<int, int> hardpointTenAssignments =
-    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
-Dictionary<int, int> randomizedHardpointAssignments =
-    TeamRules.AssignHardpointBalanced(new[] { 1, 2, 3, 4, 5, 6 }, new Random(17));
+    TeamRules.AssignHardtatBalanced(new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+Dictionary<int, int> randomizedHardtatAssignments =
+    TeamRules.AssignHardtatBalanced(new[] { 1, 2, 3, 4, 5, 6 }, new Random(17));
 Assert(hardpointSixAssignments.Values.Count(teamId => teamId == 0) == 3
     && hardpointSixAssignments.Values.Count(teamId => teamId == 1) == 3
     && !hardpointSixAssignments.Values.Contains(2)
@@ -273,25 +304,25 @@ Assert(hardpointSixAssignments.Values.Count(teamId => teamId == 0) == 3
     && hardpointSevenAssignments.Values.Count(teamId => teamId == 0) == 3
     && hardpointSevenAssignments.Values.Count(teamId => teamId == 1) == 2
     && hardpointSevenAssignments.Values.Count(teamId => teamId == 2) == 2,
-    "Hardpoint must use 1v1, 1v1v1, 2v2, 2v2v1, 3v3, and 2v2v3 for two through seven players.");
-Assert(randomizedHardpointAssignments.Values.Count(teamId => teamId == 0) == 3
-    && randomizedHardpointAssignments.Values.Count(teamId => teamId == 1) == 3
-    && !randomizedHardpointAssignments.Values.Contains(2)
-    && randomizedHardpointAssignments.Any(entry =>
+    "Hardtat must use 1v1, 1v1v1, 2v2, 2v2v1, 3v3, and 2v2v3 for two through seven players.");
+Assert(randomizedHardtatAssignments.Values.Count(teamId => teamId == 0) == 3
+    && randomizedHardtatAssignments.Values.Count(teamId => teamId == 1) == 3
+    && !randomizedHardtatAssignments.Values.Contains(2)
+    && randomizedHardtatAssignments.Any(entry =>
         entry.Value != hardpointSixAssignments[entry.Key]),
-    "Hardpoint round assignments must remain balanced while allowing randomized player order.");
+    "Hardtat round assignments must remain balanced while allowing randomized player order.");
 Assert(hardpointNineAssignments.Values.Count(teamId => teamId == 0) == 3
     && hardpointNineAssignments.Values.Count(teamId => teamId == 1) == 3
     && hardpointNineAssignments.Values.Count(teamId => teamId == 2) == 3
     && hardpointTenAssignments.Values.Count(teamId => teamId == 0) == 4
     && hardpointTenAssignments.Values.Count(teamId => teamId == 1) == 3
     && hardpointTenAssignments.Values.Count(teamId => teamId == 2) == 3,
-    "Hardpoint nine- and ten-player assignments must use balanced three-team matches.");
+    "Hardtat nine- and ten-player assignments must use balanced three-team matches.");
 Assert(Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointEightAssignments, 2) - 1f) < 0.001f
     && Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointEightAssignments, 1) - 1f) < 0.001f
     && Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointTenAssignments, 2) - 1.3333333f) < 0.001f
     && Math.Abs(TeamRules.GetTeamHealthMultiplier(hardpointTenAssignments, 1) - 1f) < 0.001f,
-    "Uneven Hardpoint teams must receive health compensation based on player counts.");
+    "Uneven Hardtat teams must receive health compensation based on player counts.");
 Dictionary<int, int> unevenTwoTeams = new() { [1] = 0, [2] = 0, [3] = 1 };
 Assert(Math.Abs(TeamRules.GetTeamHealthMultiplier(unevenTwoTeams, 3) - 2f) < 0.001f,
     "A one-player team must receive 100 percent extra health.");
@@ -312,110 +343,110 @@ Dictionary<int, int> filteredAssignments = TeamRules.ParseAssignments("1:0;2:9;b
 Assert(filteredAssignments.Count == 1 && filteredAssignments[1] == 2,
     "Team assignment parsing must reject invalid teams and keep the last duplicate.");
 Dictionary<int, int> captureTheFlagAssignments =
-    CaptureTheFlagRules.AssignStrictTwoTeams(new[] { 7, 2, 5, 2, -1 });
+    CapturetatRules.AssignStrictTwoTeams(new[] { 7, 2, 5, 2, -1 });
 Assert(captureTheFlagAssignments.Count == 3 && captureTheFlagAssignments[2] == 0
     && captureTheFlagAssignments[5] == 1 && captureTheFlagAssignments[7] == 0,
-    "Capture The Flag assignment must always use two deterministic teams.");
-Assert(CaptureTheFlagRules.GetSpawnCandidateCount(31) == 10
-    && CaptureTheFlagRules.GetSpawnCandidateCount(2) == 1
-    && CaptureTheFlagRules.GetMatchDuration(100) == 200f,
-    "Capture The Flag must use the closest floor-third spawn pool and a two-second-per-point timer.");
-int nearestFlagTeam = CaptureTheFlagRules.FindNearestTeam(new TeamPoint(9f, 0f, 1f),
+    "Capturetat assignment must always use two deterministic teams.");
+Assert(CapturetatRules.GetSpawnCandidateCount(31) == 10
+    && CapturetatRules.GetSpawnCandidateCount(2) == 1
+    && CapturetatRules.GetMatchDuration(100) == 200f,
+    "Capturetat must use the closest floor-third spawn pool and a two-second-per-point timer.");
+int nearestFlagTeam = CapturetatRules.FindNearestTeam(new TeamPoint(9f, 0f, 1f),
     new[] { new TeamPoint(0f, 0f, 0f), new TeamPoint(20f, 0f, 0f) });
 Assert(nearestFlagTeam == 0, "A flag must belong to its nearest authored team origin.");
-Assert(CaptureTheFlagRules.TryPickup(CaptureTheFlagFlagStatus.Home, true,
-        out CaptureTheFlagFlagStatus carried)
-    && carried == CaptureTheFlagFlagStatus.Carried
-    && !CaptureTheFlagRules.TryPickup(carried, true, out _),
+Assert(CapturetatRules.TryPickup(CapturetatFlagStatus.Home, true,
+        out CapturetatFlagStatus carried)
+    && carried == CapturetatFlagStatus.Carried
+    && !CapturetatRules.TryPickup(carried, true, out _),
     "Only an enemy flag can be picked up, and a carried flag cannot be picked up twice.");
-Assert(CaptureTheFlagRules.TryDrop(carried, out CaptureTheFlagFlagStatus dropped)
-    && dropped == CaptureTheFlagFlagStatus.Dropped
-    && CaptureTheFlagRules.TryReturn(dropped, true, out CaptureTheFlagFlagStatus returned)
-    && returned == CaptureTheFlagFlagStatus.Home
-    && !CaptureTheFlagRules.TryReturn(returned, true, out _),
+Assert(CapturetatRules.TryDrop(carried, out CapturetatFlagStatus dropped)
+    && dropped == CapturetatFlagStatus.Dropped
+    && CapturetatRules.TryReturn(dropped, true, out CapturetatFlagStatus returned)
+    && returned == CapturetatFlagStatus.Home
+    && !CapturetatRules.TryReturn(returned, true, out _),
     "A carried flag must drop on death and a dropped home flag must return on touch.");
 Dictionary<int, int> captureScores = new() { [0] = 75, [1] = 20 };
-Assert(CaptureTheFlagRules.TryAwardCapture(captureScores, 0, 100, true, true,
+Assert(CapturetatRules.TryAwardCapture(captureScores, 0, 100, true, true,
         out int captureWinner)
     && captureWinner == 0 && captureScores[0] == 100
-    && !CaptureTheFlagRules.TryAwardCapture(captureScores, 1, 100, true, false, out _),
+    && !CapturetatRules.TryAwardCapture(captureScores, 1, 100, true, false, out _),
     "A capture must require the enemy flag and home flag, award twenty-five points, and win at target.");
-Assert(!CaptureTheFlagRules.TryResolveTimeoutWinner(
+Assert(!CapturetatRules.TryResolveTimeoutWinner(
         new Dictionary<int, int> { [0] = 50, [1] = 50 }, out _)
-    && CaptureTheFlagRules.TryResolveTimeoutWinner(
+    && CapturetatRules.TryResolveTimeoutWinner(
         new Dictionary<int, int> { [0] = 60, [1] = 50 }, out int timeoutWinner)
     && timeoutWinner == 0,
     "A tied CTF timer must enter sudden death, while a unique leader wins.");
-Assert(TeamDeathmatchRules.PointsPerKill == 10
-    && TeamDeathmatchRules.AddKillPoints(0, 100) == 10
-    && TeamDeathmatchRules.AddKillPoints(90, 100) == 100
-    && TeamDeathmatchRules.IsMatchWon(100, 100)
-    && !TeamDeathmatchRules.IsMatchWon(90, 100),
-    "Team Deathmatch must award ten points per kill and stop at the team score limit.");
+Assert(TdmtatRules.PointsPerKill == 10
+    && TdmtatRules.AddKillPoints(0, 100) == 10
+    && TdmtatRules.AddKillPoints(90, 100) == 100
+    && TdmtatRules.IsMatchWon(100, 100)
+    && !TdmtatRules.IsMatchWon(90, 100),
+    "Tdmtat must award ten points per kill and stop at the team score limit.");
 Dictionary<int, int> searchAndDestroyAssignments =
-    SearchAndDestroyRules.AssignStrictTwoTeams(new[] { 7, 2, 5, 2, -1 });
+    SndtatRules.AssignStrictTwoTeams(new[] { 7, 2, 5, 2, -1 });
 Assert(searchAndDestroyAssignments.Count == 3 && searchAndDestroyAssignments[2] == 0
     && searchAndDestroyAssignments[5] == 1 && searchAndDestroyAssignments[7] == 0,
-    "Search and Destroy assignment must always use two deterministic teams.");
-Assert(SearchAndDestroyRules.GetOffensiveTeamId(1) == 0
-    && SearchAndDestroyRules.GetOffensiveTeamId(2) == 1
-    && SearchAndDestroyRules.GetOtherTeamId(0) == 1
-    && SearchAndDestroyRules.GetOtherTeamId(1) == 0
-    && SearchAndDestroyRules.GetOtherTeamId(2) == -1,
-    "Search and Destroy offense must alternate between takes.");
-Assert(SearchAndDestroyRules.PointsPerRoundWin == 40
-    && SearchAndDestroyRules.TakeTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds
-    && SearchAndDestroyRules.PlantDurationSeconds == 5f
-    && SearchAndDestroyRules.DefuseDurationSeconds == 7.5f
-    && SearchAndDestroyRules.FuseDurationSeconds == 30f
-    && SearchAndDestroyRules.PlantSiteRadius == 3f
-    && SearchAndDestroyRules.IsMatchWon(4, 4)
-    && !SearchAndDestroyRules.IsMatchWon(3, 4),
-    "Search and Destroy must use the configured round and interaction timings.");
+    "Sndtat assignment must always use two deterministic teams.");
+Assert(SndtatRules.GetOffensiveTeamId(1) == 0
+    && SndtatRules.GetOffensiveTeamId(2) == 1
+    && SndtatRules.GetOtherTeamId(0) == 1
+    && SndtatRules.GetOtherTeamId(1) == 0
+    && SndtatRules.GetOtherTeamId(2) == -1,
+    "Sndtat offense must alternate between takes.");
+Assert(SndtatRules.PointsPerRoundWin == 40
+    && SndtatRules.TakeTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds
+    && SndtatRules.PlantDurationSeconds == 5f
+    && SndtatRules.DefuseDurationSeconds == 7.5f
+    && SndtatRules.FuseDurationSeconds == 30f
+    && SndtatRules.PlantSiteRadius == 3f
+    && SndtatRules.IsMatchWon(4, 4)
+    && !SndtatRules.IsMatchWon(3, 4),
+    "Sndtat must use the configured round and interaction timings.");
 HashSet<int> searchAndDestroyAlive = new() { 2, 7 };
-Assert(SearchAndDestroyRules.IsTeamWiped(searchAndDestroyAlive,
+Assert(SndtatRules.IsTeamWiped(searchAndDestroyAlive,
         searchAndDestroyAssignments, 1)
-    && !SearchAndDestroyRules.IsTeamWiped(searchAndDestroyAlive,
+    && !SndtatRules.IsTeamWiped(searchAndDestroyAlive,
         searchAndDestroyAssignments, 0),
-    "Search and Destroy must detect a team wipe from the alive-player set.");
-Assert(SearchAndDestroyRules.CanResolveTeamWipe(SearchAndDestroyBombStatus.Planted,
+    "Sndtat must detect a team wipe from the alive-player set.");
+Assert(SndtatRules.CanResolveTeamWipe(SndtatBombStatus.Planted,
         1, 1)
-    && !SearchAndDestroyRules.CanResolveTeamWipe(SearchAndDestroyBombStatus.Planted,
+    && !SndtatRules.CanResolveTeamWipe(SndtatBombStatus.Planted,
         0, 1)
-    && SearchAndDestroyRules.CanResolveTeamWipe(SearchAndDestroyBombStatus.Carried,
+    && SndtatRules.CanResolveTeamWipe(SndtatBombStatus.Carried,
         0, 1),
     "A planted bomb must resolve a defensive wipe but keep an offensive wipe active.");
-Assert(SearchAndDestroyRules.TryRecoverBomb(SearchAndDestroyBombStatus.Dropped,
-        true, true, out SearchAndDestroyBombStatus recoveredBomb)
-    && recoveredBomb == SearchAndDestroyBombStatus.Carried
-    && !SearchAndDestroyRules.TryRecoverBomb(SearchAndDestroyBombStatus.Dropped,
+Assert(SndtatRules.TryRecoverBomb(SndtatBombStatus.Dropped,
+        true, true, out SndtatBombStatus recoveredBomb)
+    && recoveredBomb == SndtatBombStatus.Carried
+    && !SndtatRules.TryRecoverBomb(SndtatBombStatus.Dropped,
         false, true, out _),
     "Only an in-range offense player can recover a dropped bomb.");
-Assert(SearchAndDestroyRules.TryStartPlant(SearchAndDestroyBombStatus.Carried,
-        true, true, out SearchAndDestroyBombStatus plantingBomb)
-    && plantingBomb == SearchAndDestroyBombStatus.Carried
-    && !SearchAndDestroyRules.TryStartPlant(SearchAndDestroyBombStatus.Carried,
+Assert(SndtatRules.TryStartPlant(SndtatBombStatus.Carried,
+        true, true, out SndtatBombStatus plantingBomb)
+    && plantingBomb == SndtatBombStatus.Carried
+    && !SndtatRules.TryStartPlant(SndtatBombStatus.Carried,
         false, true, out _)
-    && !SearchAndDestroyRules.TryCompletePlant(SearchAndDestroyBombStatus.Carried,
-        SearchAndDestroyRules.PlantDurationSeconds - 0.1f, out _)
-    && SearchAndDestroyRules.TryCompletePlant(SearchAndDestroyBombStatus.Carried,
-        SearchAndDestroyRules.PlantDurationSeconds, out SearchAndDestroyBombStatus plantedBomb)
-    && plantedBomb == SearchAndDestroyBombStatus.Planted,
+    && !SndtatRules.TryCompletePlant(SndtatBombStatus.Carried,
+        SndtatRules.PlantDurationSeconds - 0.1f, out _)
+    && SndtatRules.TryCompletePlant(SndtatBombStatus.Carried,
+        SndtatRules.PlantDurationSeconds, out SndtatBombStatus plantedBomb)
+    && plantedBomb == SndtatBombStatus.Planted,
     "Planting must require the carrier and the full plant duration.");
-Assert(SearchAndDestroyRules.TryStartDefuse(SearchAndDestroyBombStatus.Planted,
-        true, true, out SearchAndDestroyBombStatus defusingBomb)
-    && defusingBomb == SearchAndDestroyBombStatus.Planted
-    && !SearchAndDestroyRules.TryStartDefuse(SearchAndDestroyBombStatus.Planted,
+Assert(SndtatRules.TryStartDefuse(SndtatBombStatus.Planted,
+        true, true, out SndtatBombStatus defusingBomb)
+    && defusingBomb == SndtatBombStatus.Planted
+    && !SndtatRules.TryStartDefuse(SndtatBombStatus.Planted,
         false, true, out _)
-    && !SearchAndDestroyRules.TryCompleteDefuse(SearchAndDestroyBombStatus.Planted,
-        SearchAndDestroyRules.DefuseDurationSeconds - 0.1f, out _)
-    && SearchAndDestroyRules.TryCompleteDefuse(SearchAndDestroyBombStatus.Planted,
-        SearchAndDestroyRules.DefuseDurationSeconds, out SearchAndDestroyBombStatus defusedBomb)
-    && defusedBomb == SearchAndDestroyBombStatus.Home,
+    && !SndtatRules.TryCompleteDefuse(SndtatBombStatus.Planted,
+        SndtatRules.DefuseDurationSeconds - 0.1f, out _)
+    && SndtatRules.TryCompleteDefuse(SndtatBombStatus.Planted,
+        SndtatRules.DefuseDurationSeconds, out SndtatBombStatus defusedBomb)
+    && defusedBomb == SndtatBombStatus.Home,
     "Defusing must require a defender and the full defuse duration.");
-Assert(0f - SearchAndDestroyRules.PlantSiteMinVerticalOffset >= 1f
-    && SearchAndDestroyRules.PlantSiteMaxVerticalOffset == 2f,
-    "SnD planting must use a bounded vertical site window.");
+Assert(0f - SndtatRules.PlantSiteMinVerticalOffset >= 1f
+    && SndtatRules.PlantSiteMaxVerticalOffset == 2f,
+    "Sndtat planting must use a bounded vertical site window.");
 Assert(TeamRules.ResolveController(Array.Empty<int>()) == -1
     && TeamRules.ResolveController(new[] { 1, 1 }) == 1
     && TeamRules.ResolveController(new[] { 1, 2 }) == -2,
@@ -433,7 +464,7 @@ TeamPoint deterministicRandomizedRespawn = TeamRules.SelectRandomizedFarthestFro
     new[] { new TeamPoint(0f, 0f, 0f), new TeamPoint(10f, 0f, 0f), new TeamPoint(20f, 0f, 0f) },
     new[] { new TeamPoint(2f, 0f, 0f), new TeamPoint(4f, 0f, 0f) }, 0f, 0);
 Assert(deterministicRandomizedRespawn.X == 20f,
-    "Zero spawn randomness must keep the safest TDM spawn.");
+    "Zero spawn randomness must keep the safest Tdmtat spawn.");
 TeamPoint partiallyRandomizedRespawn = TeamRules.SelectRandomizedFarthestFromEnemies(
     new[] { new TeamPoint(0f, 0f, 0f), new TeamPoint(10f, 0f, 0f), new TeamPoint(20f, 0f, 0f) },
     new[] { new TeamPoint(2f, 0f, 0f), new TeamPoint(4f, 0f, 0f) }, 0.5f, 1);
@@ -448,7 +479,7 @@ TeamPoint hardpointRespawn = TeamRules.SelectRandomizedFarthestFromEnemiesAndObj
     new[] { new TeamPoint(0f, 0f, 0f), new TeamPoint(10f, 0f, 0f), new TeamPoint(20f, 0f, 0f) },
     new[] { new TeamPoint(2f, 0f, 0f) }, new TeamPoint(0f, 0f, 0f), 0f, 0);
 Assert(hardpointRespawn.X == 20f,
-    "Hardpoint respawns must prefer positions far from enemies and the objective.");
+    "Hardtat respawns must prefer positions far from enemies and the objective.");
 List<SpawnCandidate> coveredSpawnCandidates = new()
 {
     new SpawnCandidate(new TeamPoint(10f, 0f, 0f),
@@ -496,60 +527,60 @@ TeamPoint farVisibleSpawn = SafeSpawnRules.SelectBest(visibleSpawnCandidates,
     Array.Empty<TeamPoint>(), null, out _);
 Assert(farVisibleSpawn.X == 30f,
     "When all candidates are visible, enemy distance must remain the fallback priority.");
-Assert(HardpointRules.GetContestTimeLimit(250) == 300
-    && HardpointRules.GetContestTimeLimit(100) == 120
-    && HardpointRules.GetContestTimeLimit(1) == 1,
-    "The Hardpoint contest clock must use 1.2 seconds per point with a one-second minimum.");
-Assert(HardpointRules.GetNextObjectiveIndex(0, 3) == 1
-    && HardpointRules.GetNextObjectiveIndex(2, 3) == 0
-    && HardpointRules.NextObjectiveWarningSeconds == 10f
-    && HardpointRules.IsWarningActive(20f, 30f,
-        HardpointRules.NextObjectiveWarningSeconds),
-    "Hardpoint objectives must rotate in order and warn ten seconds before rotation.");
+Assert(HardtatRules.GetContestTimeLimit(250) == 300
+    && HardtatRules.GetContestTimeLimit(100) == 120
+    && HardtatRules.GetContestTimeLimit(1) == 1,
+    "The Hardtat contest clock must use 1.2 seconds per point with a one-second minimum.");
+Assert(HardtatRules.GetNextObjectiveIndex(0, 3) == 1
+    && HardtatRules.GetNextObjectiveIndex(2, 3) == 0
+    && HardtatRules.NextObjectiveWarningSeconds == 10f
+    && HardtatRules.IsWarningActive(20f, 30f,
+        HardtatRules.NextObjectiveWarningSeconds),
+    "Hardtat objectives must rotate in order and warn ten seconds before rotation.");
 Dictionary<int, int> hardpointScores = new() { [0] = 99, [1] = 20 };
-Assert(HardpointRules.TryAwardPoint(hardpointScores, 0, 100, false, out int scoreWinner)
+Assert(HardtatRules.TryAwardPoint(hardpointScores, 0, 100, false, out int scoreWinner)
     && scoreWinner == 0 && hardpointScores[0] == 100,
     "An uncontested point must win when it reaches the score limit.");
-Assert(HardpointRules.TryAwardPoint(hardpointScores, 1, 100, true, out int suddenDeathWinner)
+Assert(HardtatRules.TryAwardPoint(hardpointScores, 1, 100, true, out int suddenDeathWinner)
     && suddenDeathWinner == 1,
     "The first uncontested point must win sudden death immediately.");
 Dictionary<int, int> tiedScores = new() { [0] = 20, [1] = 20 };
-Assert(!HardpointRules.TryResolveTimerWinner(tiedScores, out _),
+Assert(!HardtatRules.TryResolveTimerWinner(tiedScores, out _),
     "A tied contest-clock expiry must enter sudden death.");
 Dictionary<int, int> leadingScores = new() { [0] = 21, [1] = 20 };
-Assert(HardpointRules.TryResolveTimerWinner(leadingScores, out int timerWinner)
+Assert(HardtatRules.TryResolveTimerWinner(leadingScores, out int timerWinner)
     && timerWinner == 0,
     "The leading team must win when the contest clock expires.");
-List<string> defaultGunGameWeapons = WeaponListParser.Parse(
+List<string> defaultGuntatWeapons = WeaponListParser.Parse(
     "Glock, Webley, SMG, Bukanee, Shotgun, AR15, QCW05, HK_G11, M2000, Couperet",
     new[] { "Glock", "Webley", "SMG", "Bukanee", "Shotgun", "AR15", "QCW05", "HK_G11", "M2000", "Couperet" });
-Assert(defaultGunGameWeapons.Count == 10,
-    "Default Gun Game weapon list must contain exactly ten validated weapons.");
-Assert(defaultGunGameWeapons.Count * 10 == 100,
-    "Gun Game score limit must equal ten times the validated weapon count.");
-Assert(GunGameRules.GetWeaponIndex(0, 10) == 0
-    && GunGameRules.GetWeaponIndex(10, 10) == 1
-    && GunGameRules.GetWeaponIndex(90, 10) == 9
-    && GunGameRules.GetWeaponIndex(100, 10) == 9,
-    "Gun Game must advance one weapon per kill and require a final-gun kill to win.");
+Assert(defaultGuntatWeapons.Count == 10,
+    "Default Guntat weapon list must contain exactly ten validated weapons.");
+Assert(defaultGuntatWeapons.Count * 10 == 100,
+    "Guntat score limit must equal ten times the validated weapon count.");
+Assert(GuntatRules.GetWeaponIndex(0, 10) == 0
+    && GuntatRules.GetWeaponIndex(10, 10) == 1
+    && GuntatRules.GetWeaponIndex(90, 10) == 9
+    && GuntatRules.GetWeaponIndex(100, 10) == 9,
+    "Guntat must advance one weapon per kill and require a final-gun kill to win.");
 Dictionary<int, int> maximumScores = ScoreCodec.Parse("1:100;2:101", ScoreRules.PointsToWin);
 Assert(maximumScores.Count == 1 && maximumScores[1] == ScoreRules.PointsToWin,
     "Score parsing must accept the shared maximum and reject values above it.");
 
-Assert(OneInTheChamberRules.IsAllowedWeapon("Revolver(Clone)"),
-    "One in the Chamber must allow the exact Revolver prefab.");
-Assert(OneInTheChamberRules.IsAllowedWeapon("Couperet(Clone)"),
-    "One in the Chamber must allow the Couperet prefab.");
-Assert(!OneInTheChamberRules.IsAllowedWeapon("Webley(Clone)")
-    && !OneInTheChamberRules.IsAllowedWeapon("SMG(Clone)"),
-    "One in the Chamber must reject unrelated weapon substitutions.");
+Assert(ChambertatRules.IsAllowedWeapon("Revolver(Clone)"),
+    "Chambertat must allow the exact Revolver prefab.");
+Assert(ChambertatRules.IsAllowedWeapon("Couperet(Clone)"),
+    "Chambertat must allow the Couperet prefab.");
+Assert(!ChambertatRules.IsAllowedWeapon("Webley(Clone)")
+    && !ChambertatRules.IsAllowedWeapon("SMG(Clone)"),
+    "Chambertat must reject unrelated weapon substitutions.");
 var afterMiss = (Magazine: 0, Reserve: 0);
-var afterKnifeKill = OneInTheChamberRules.AwardBullet(afterMiss.Magazine,
+var afterKnifeKill = ChambertatRules.AwardBullet(afterMiss.Magazine,
     afterMiss.Reserve);
 var afterShot = (Magazine: 0, Reserve: 0);
-var afterGunKill = OneInTheChamberRules.AwardBullet(afterShot.Magazine,
+var afterGunKill = ChambertatRules.AwardBullet(afterShot.Magazine,
     afterShot.Reserve);
-var afterNextKnifeKill = OneInTheChamberRules.AwardBullet(afterGunKill.Magazine,
+var afterNextKnifeKill = ChambertatRules.AwardBullet(afterGunKill.Magazine,
     afterGunKill.Reserve);
 Assert(afterKnifeKill.Magazine == 1 && afterKnifeKill.Reserve == 0,
     "A knife kill after a miss must put one bullet in the empty chamber.");
@@ -558,75 +589,75 @@ Assert(afterGunKill.Magazine == 1 && afterGunKill.Reserve == 0,
 Assert(afterNextKnifeKill.Magazine == 2 && afterNextKnifeKill.Reserve == 0,
     "A kill with one bullet loaded must put the next bullet in the magazine without reserve ammo.");
 HashSet<int> alivePlayers = new() { 1, 2, 3 };
-Assert(OneInTheChamberRules.ApplyDeath(alivePlayers, 3, 1)
+Assert(ChambertatRules.ApplyDeath(alivePlayers, 3, 1)
     && !alivePlayers.Contains(3),
     "A valid kill must eliminate the victim.");
-Assert(OneInTheChamberRules.ApplyDeath(alivePlayers, 2, -1)
+Assert(ChambertatRules.ApplyDeath(alivePlayers, 2, -1)
     && !alivePlayers.Contains(2),
     "A non-kill death must eliminate the victim.");
 Assert(alivePlayers.Count == 1 && alivePlayers.Contains(1),
     "The last remaining player must be the round winner.");
-Assert(Math.Abs(OneInTheChamberRules.PlayerHealth - 0.4f) < 0.001f,
-    "One in the Chamber must use ten displayed health for every player.");
+Assert(Math.Abs(ChambertatRules.PlayerHealth - 0.4f) < 0.001f,
+    "Chambertat must use ten displayed health for every player.");
 List<string> hotPotatoWeapons = new() { "Shotgun", "Tromblonj", "Gust", "Crisis" };
-Assert(HotPotatoRules.IsAllowedWeapon("HandGrenade(Clone)", true, hotPotatoWeapons)
-    && HotPotatoRules.IsAllowedWeapon("Shotgun(Clone)", false, hotPotatoWeapons)
-    && HotPotatoRules.IsAllowedWeapon("Crisis(Clone)", false, hotPotatoWeapons),
-    "Hot Potato must use the HandGrenade and configured weapon prefabs.");
-Assert(!HotPotatoRules.IsAllowedWeapon("Glock(Clone)", false, hotPotatoWeapons),
-    "Hot Potato must reject unrelated weapons.");
-Assert(HotPotatoRules.ResolvePotato(-1, 5, 2) == 2,
+Assert(PotatotatRules.IsAllowedWeapon("HandGrenade(Clone)", true, hotPotatoWeapons)
+    && PotatotatRules.IsAllowedWeapon("Shotgun(Clone)", false, hotPotatoWeapons)
+    && PotatotatRules.IsAllowedWeapon("Crisis(Clone)", false, hotPotatoWeapons),
+    "Potatotat must use the HandGrenade and configured weapon prefabs.");
+Assert(!PotatotatRules.IsAllowedWeapon("Glock(Clone)", false, hotPotatoWeapons),
+    "Potatotat must reject unrelated weapons.");
+Assert(PotatotatRules.ResolvePotato(-1, 5, 2) == 2,
     "The first player to die must become the Hot Potato.");
-Assert(HotPotatoRules.ResolvePotato(1, 1, 2) == 2
-    && HotPotatoRules.ResolvePotato(1, 3, 2) == 1,
+Assert(PotatotatRules.ResolvePotato(1, 1, 2) == 2
+    && PotatotatRules.ResolvePotato(1, 3, 2) == 1,
     "Only a kill by the current grenade holder may transfer the potato.");
-Assert(InfidelRules.GetKillerAward(true, false) == 30
-    && InfidelRules.GetKillerAward(true, false) == InfidelRules.PointsForKillingInfidel,
-    "A terrorist must receive thirty points for killing the Infidel.");
-Assert(InfidelRules.GetKillerAward(false, true) == 0
-    && InfidelRules.GetKillerAward(false, false) == 0
-    && InfidelRules.GetKillerAward(true, true) == 0
-    && InfidelRules.GetWinnerAward(false) == 0,
-    "Ordinary kills and non-winning events must award no Infidel points.");
-Assert(InfidelRules.GetWinnerAward(true) == 50
-    && InfidelRules.GetWinnerAward(true) == InfidelRules.PointsForInfidelWin,
-    "The Infidel must receive fifty points for winning the take.");
-Assert(AssassinRules.IsTerminalDeath(true, false)
-    && AssassinRules.IsTerminalDeath(false, true)
-    && !AssassinRules.IsTerminalDeath(false, false),
-    "Only King and Assassin deaths must end an Assassin take.");
-Assert(AssassinRules.GetAssassinAward(true) == 50
-    && AssassinRules.GetAssassinAward(false) == 0
-    && AssassinRules.GetAssassinAward(true) == AssassinRules.PointsForAssassinWin,
-    "The Assassin must receive fifty points for a King death.");
-Assert(AssassinRules.GetKingAward(true) == 30
-    && AssassinRules.GetKingAward(false) == 0
-    && AssassinRules.GetKingAward(true) == AssassinRules.PointsForKingSurvival,
-    "The King must receive thirty points when the Assassin dies.");
-Assert(AssassinRules.GetBodyguardAward(true) == 10
-    && AssassinRules.GetBodyguardAward(false) == 0
-    && AssassinRules.GetBodyguardAward(true) == AssassinRules.PointsForBodyguardSurvival,
-    "Each Bodyguard must receive ten points when the Assassin dies.");
-Assert(AssassinRules.GetBodyguardKillerAward(true, true, false) == 20
-    && AssassinRules.GetBodyguardKillerAward(true, false, false) == 0
-    && AssassinRules.GetBodyguardKillerAward(true, true, true) == 0
-    && AssassinRules.GetBodyguardKillerAward(false, true, false) == 0,
-    "Only a non-self Bodyguard kill of the Assassin must receive the twenty-point bonus.");
+Assert(InfideltatRules.GetKillerAward(true, false) == 30
+    && InfideltatRules.GetKillerAward(true, false) == InfideltatRules.PointsForKillingInfideltat,
+    "A terrorist must receive thirty points for killing the Infideltat.");
+Assert(InfideltatRules.GetKillerAward(false, true) == 0
+    && InfideltatRules.GetKillerAward(false, false) == 0
+    && InfideltatRules.GetKillerAward(true, true) == 0
+    && InfideltatRules.GetWinnerAward(false) == 0,
+    "Ordinary kills and non-winning events must award no Infideltat points.");
+Assert(InfideltatRules.GetWinnerAward(true) == 50
+    && InfideltatRules.GetWinnerAward(true) == InfideltatRules.PointsForInfideltatWin,
+    "The Infideltat must receive fifty points for winning the take.");
+Assert(AssassintatRules.IsTerminalDeath(true, false)
+    && AssassintatRules.IsTerminalDeath(false, true)
+    && !AssassintatRules.IsTerminalDeath(false, false),
+    "Only King and Assassintat deaths must end an Assassintat take.");
+Assert(AssassintatRules.GetAssassintatAward(true) == 50
+    && AssassintatRules.GetAssassintatAward(false) == 0
+    && AssassintatRules.GetAssassintatAward(true) == AssassintatRules.PointsForAssassintatWin,
+    "The Assassintat must receive fifty points for a King death.");
+Assert(AssassintatRules.GetKingAward(true) == 30
+    && AssassintatRules.GetKingAward(false) == 0
+    && AssassintatRules.GetKingAward(true) == AssassintatRules.PointsForKingSurvival,
+    "The King must receive thirty points when the Assassintat dies.");
+Assert(AssassintatRules.GetBodyguardAward(true) == 10
+    && AssassintatRules.GetBodyguardAward(false) == 0
+    && AssassintatRules.GetBodyguardAward(true) == AssassintatRules.PointsForBodyguardSurvival,
+    "Each Bodyguard must receive ten points when the Assassintat dies.");
+Assert(AssassintatRules.GetBodyguardKillerAward(true, true, false) == 20
+    && AssassintatRules.GetBodyguardKillerAward(true, false, false) == 0
+    && AssassintatRules.GetBodyguardKillerAward(true, true, true) == 0
+    && AssassintatRules.GetBodyguardKillerAward(false, true, false) == 0,
+    "Only a non-self Bodyguard kill of the Assassintat must receive the twenty-point bonus.");
 
-List<string> modes = new() { "Default", "FFA", "GunGame" };
-Assert(ModeCycle.TrySelectNext(modes, "Default", out string nextMode) && nextMode == "FFA",
+List<string> modes = new() { "Straftat", "Ffatat", "Guntat" };
+Assert(ModeCycle.TrySelectNext(modes, "Straftat", out string nextMode) && nextMode == "Ffatat",
     "Mode selection must choose the next configured mode.");
-Assert(ModeCycle.TrySelectNext(modes, "GunGame", out nextMode) && nextMode == "Default",
+Assert(ModeCycle.TrySelectNext(modes, "Guntat", out nextMode) && nextMode == "Straftat",
     "Mode selection must wrap after the last configured mode.");
-Assert(ModeCycle.TrySelectNext(modes, "Missing", out nextMode) && nextMode == "Default",
+Assert(ModeCycle.TrySelectNext(modes, "Missing", out nextMode) && nextMode == "Straftat",
     "An unconfigured current mode must select the first configured mode.");
-Assert(!ModeCycle.TrySelectNext(Array.Empty<string>(), "Default", out _),
+Assert(!ModeCycle.TrySelectNext(Array.Empty<string>(), "Straftat", out _),
     "Mode selection must report no result when no modes are configured.");
-Assert(ModeCycle.TrySelectRandom(modes, "Default", 0, out nextMode) && nextMode == "FFA",
+Assert(ModeCycle.TrySelectRandom(modes, "Straftat", 0, out nextMode) && nextMode == "Ffatat",
     "Random mode selection must choose an enabled mode other than the current mode.");
-Assert(ModeCycle.TrySelectRandom(modes, "Default", 1, out nextMode) && nextMode == "GunGame",
+Assert(ModeCycle.TrySelectRandom(modes, "Straftat", 1, out nextMode) && nextMode == "Guntat",
     "Random mode selection must reach every non-current enabled mode.");
-Assert(ModeCycle.TrySelectRandom(modes, "Missing", 0, out nextMode) && nextMode == "Default",
+Assert(ModeCycle.TrySelectRandom(modes, "Missing", 0, out nextMode) && nextMode == "Straftat",
     "Random mode selection must choose any enabled mode when the current mode is missing.");
 Assert(ModeCycle.TrySelectRandom(new[] { "Only" }, "Only", 42, out string onlyMode) && onlyMode == "Only",
     "Random mode selection must keep the only enabled mode.");
@@ -642,33 +673,33 @@ requests.Clear();
 Assert(!requests.IsCurrent(7, secondRequest),
     "Clearing pending requests must invalidate the previous request.");
 
-Assert(HuntersRules.GetOriginIndex(0, 1) == 0
-    && HuntersRules.GetOriginIndex(1, 1) == 1
-    && HuntersRules.GetOriginIndex(0, 2) == 1
-    && HuntersRules.GetOriginIndex(1, 2) == 0
-    && HuntersRules.GetOriginIndex(0, 3) == 0,
+Assert(HuntModesRules.GetOriginIndex(0, 1) == 0
+    && HuntModesRules.GetOriginIndex(1, 1) == 1
+    && HuntModesRules.GetOriginIndex(0, 2) == 1
+    && HuntModesRules.GetOriginIndex(1, 2) == 0
+    && HuntModesRules.GetOriginIndex(0, 3) == 0,
     "Hunters must swap team spawn sides on every other take.");
 Dictionary<int, int> huntersAssignments = new() { [1] = 0, [2] = 0, [3] = 1, [4] = 1 };
 HashSet<int> huntersAlive = new() { 1, 2, 3, 4 };
-Assert(!HuntersRules.TryGetTeamWipeWinner(huntersAlive, huntersAssignments, out _),
+Assert(!HuntModesRules.TryGetTeamWipeWinner(huntersAlive, huntersAssignments, out _),
     "A Hunters take must continue while both teams have living players.");
 huntersAlive.Remove(1);
 huntersAlive.Remove(2);
-Assert(HuntersRules.TryGetTeamWipeWinner(huntersAlive, huntersAssignments,
+Assert(HuntModesRules.TryGetTeamWipeWinner(huntersAlive, huntersAssignments,
         out int huntersWipeWinner) && huntersWipeWinner == 1,
     "A team wipe must award the take to the surviving team.");
 float huntersHoldProgress = 0f;
-huntersHoldProgress = HuntersRules.AdvanceTieBreakHold(2f, -1, 0,
+huntersHoldProgress = HuntModesRules.AdvanceTieBreakHold(2f, -1, 0,
     ref huntersHoldProgress);
-huntersHoldProgress = HuntersRules.AdvanceTieBreakHold(2f, 0, 0,
+huntersHoldProgress = HuntModesRules.AdvanceTieBreakHold(2f, 0, 0,
     ref huntersHoldProgress);
-huntersHoldProgress = HuntersRules.AdvanceTieBreakHold(1f, 0, 1,
+huntersHoldProgress = HuntModesRules.AdvanceTieBreakHold(1f, 0, 1,
     ref huntersHoldProgress);
 Assert(Math.Abs(huntersHoldProgress - 1f) < 0.001f,
     "A contested or changed hardpoint controller must reset continuous hold time.");
-Assert(HuntersRules.AddTakePoints(0, 100) == HuntersRules.PointsPerTakeWin
-    && HuntersRules.AddTakePoints(40, 100) == 80
-    && HuntersRules.AddTakePoints(80, 100) == 100,
+Assert(HuntModesRules.AddTakePoints(0, 100) == HuntModesRules.PointsPerTakeWin
+    && HuntModesRules.AddTakePoints(40, 100) == 80
+    && HuntModesRules.AddTakePoints(80, 100) == 100,
     "A Hunters take win must award forty points without exceeding the match limit.");
 
 Console.WriteLine("Pure checks passed.");

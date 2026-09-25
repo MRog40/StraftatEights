@@ -37,45 +37,45 @@ internal static class HarmonyPatchStatus
 
     private static readonly Dictionary<GameMode, Type[]> RequiredModePatches = new()
     {
-        [GameMode.Juggernaut] = new[]
+        [GameMode.Juggertat] = new[]
         {
-            typeof(Minigun_JuggernautAmmo_Patch)
+            typeof(Minigun_JuggertatAmmo_Patch)
         },
-        [GameMode.GunGame] = new[]
+        [GameMode.Guntat] = new[]
         {
-            typeof(PlayerManager_GunGameSpawn_Patch)
+            typeof(PlayerManager_GuntatSpawn_Patch)
         },
-        [GameMode.SniperBattle] = new[]
+        [GameMode.Snipertat] = new[]
         {
-            typeof(PlayerManager_SniperBattleSpawn_Patch)
+            typeof(PlayerManager_SnipertatSpawn_Patch)
         },
-        [GameMode.KillTheRat] = new[]
+        [GameMode.Ratatat] = new[]
         {
-            typeof(FirstPersonController_KillTheRatVoid_Patch),
-            typeof(PlayerManager_KillTheRatSpawn_Patch)
+            typeof(FirstPersonController_RatatatVoid_Patch),
+            typeof(PlayerManager_RatatatSpawn_Patch)
         },
-        [GameMode.OneInTheChamber] = new[]
+        [GameMode.Chambertat] = new[]
         {
-            typeof(PlayerManager_OneInTheChamberSpawn_Patch),
-            typeof(MeleeWeapon_OneInTheChamberKiller_Patch),
+            typeof(PlayerManager_ChambertatSpawn_Patch),
+            typeof(MeleeWeapon_ChambertatKiller_Patch),
         },
-        [GameMode.HotPotato] = new[]
+        [GameMode.Potatotat] = new[]
         {
-            typeof(PlayerManager_HotPotatoSpawn_Patch)
+            typeof(PlayerManager_PotatotatSpawn_Patch)
         },
-        [GameMode.Infidel] = new[]
+        [GameMode.Infideltat] = new[]
         {
-            typeof(PlayerManager_InfidelSpawn_Patch),
+            typeof(PlayerManager_InfideltatSpawn_Patch),
         },
-        [GameMode.Assassin] = new[]
+        [GameMode.Assassintat] = new[]
         {
-            typeof(PlayerManager_AssassinSpawn_Patch),
+            typeof(PlayerManager_AssassintatSpawn_Patch),
         },
-        [GameMode.MichaelMeyers] = new[]
+        [GameMode.Michaeltat] = new[]
         {
-            typeof(PlayerManager_MichaelMeyersSpawn_Patch),
+            typeof(PlayerManager_MichaeltatSpawn_Patch),
         },
-        [GameMode.TankBattle] = new[]
+        [GameMode.Tanktat] = new[]
         {
             typeof(FirstPersonController_TankCrouch_Patch)
         },

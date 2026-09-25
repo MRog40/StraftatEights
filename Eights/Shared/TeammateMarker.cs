@@ -158,13 +158,14 @@ internal static class TeammateMarker
     {
         assignments = mode switch
         {
-            GameMode.Hardpoint => HardpointState.Assignments,
-            GameMode.CaptureTheFlag => CaptureTheFlagState.Assignments,
-            GameMode.TeamDeathmatch => TeamDeathmatchState.Assignments,
-            GameMode.SearchAndDestroy => SearchAndDestroyState.Assignments,
-            GameMode.NinjaHunters => HuntersState.Assignments,
-            GameMode.RabbitHunters => HuntersState.Assignments,
-            GameMode.TankBattle => HuntersState.Assignments,
+            GameMode.Hardtat => HardtatState.Assignments,
+            GameMode.Capturetat => CapturetatState.Assignments,
+            GameMode.Tdmtat => TdmtatState.Assignments,
+            GameMode.Sndtat => SndtatState.Assignments,
+            GameMode.Countertat => SndtatState.Assignments,
+            GameMode.Ninjatat => HuntModesState.Assignments,
+            GameMode.Hunttat => HuntModesState.Assignments,
+            GameMode.Tanktat => HuntModesState.Assignments,
             _ => null!
         };
         return assignments != null;
@@ -189,10 +190,10 @@ internal static class TeammateMarker
 
     internal static void OnPlayerDied(PlayerHealth player)
     {
-        if (player == null || !player || !GameModeManager.IsActive(GameMode.Hardpoint)
-            && !GameModeManager.IsActive(GameMode.CaptureTheFlag)
-            && !GameModeManager.IsActive(GameMode.SearchAndDestroy)
-            && !GameModeManager.IsActive(GameMode.TeamDeathmatch)
+        if (player == null || !player || !GameModeManager.IsActive(GameMode.Hardtat)
+            && !GameModeManager.IsActive(GameMode.Capturetat)
+            && !GameModeManager.IsBombModeActive
+            && !GameModeManager.IsActive(GameMode.Tdmtat)
             && !GameModeManager.IsHuntersActive)
         {
             return;

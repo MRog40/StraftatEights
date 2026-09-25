@@ -25,7 +25,7 @@ internal static class BombBeepAudio
                 * envelope * 0.35f;
         }
 
-        _clip = AudioClip.Create("SearchAndDestroyBombBeep", sampleCount,
+        _clip = AudioClip.Create("SndtatBombBeep", sampleCount,
             1, sampleRate, false);
         _clip.SetData(samples, 0);
         return _clip;

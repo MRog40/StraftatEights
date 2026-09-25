@@ -131,15 +131,15 @@ internal static class TeamRules
         return assignments.TryGetValue(playerId, out int teamId) ? teamId : playerId;
     }
 
-    internal static Dictionary<int, int> AssignHardpointBalanced(IReadOnlyList<int> playerIds)
+    internal static Dictionary<int, int> AssignHardtatBalanced(IReadOnlyList<int> playerIds)
     {
-        return AssignHardpointBalanced(playerIds, null);
+        return AssignHardtatBalanced(playerIds, null);
     }
 
-    internal static Dictionary<int, int> AssignHardpointBalanced(IReadOnlyList<int> playerIds,
+    internal static Dictionary<int, int> AssignHardtatBalanced(IReadOnlyList<int> playerIds,
         Random? random)
     {
-        int teamCount = GetHardpointTeamCount(playerIds.Count);
+        int teamCount = GetHardtatTeamCount(playerIds.Count);
         if (teamCount == 0)
         {
             return new Dictionary<int, int>();
@@ -161,10 +161,10 @@ internal static class TeamRules
         return AssignDistributedBalanced(playerIds, teamCount, random, null);
     }
 
-    internal static Dictionary<int, int> AssignHardpointBalanced(IReadOnlyList<int> playerIds,
+    internal static Dictionary<int, int> AssignHardtatBalanced(IReadOnlyList<int> playerIds,
         Random random, IReadOnlyDictionary<int, int>? previousAssignments)
     {
-        return AssignDistributedBalanced(playerIds, GetHardpointTeamCount(playerIds.Count), random,
+        return AssignDistributedBalanced(playerIds, GetHardtatTeamCount(playerIds.Count), random,
             previousAssignments);
     }
 
@@ -248,7 +248,7 @@ internal static class TeamRules
         }
     }
 
-    internal static int GetHardpointTeamCount(int playerCount)
+    internal static int GetHardtatTeamCount(int playerCount)
     {
         if (playerCount <= 0)
         {

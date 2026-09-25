@@ -1,0 +1,302 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using MyceliumNetworking;
+using Steamworks;
+using UnityEngine;
+
+namespace Eights;
+
+internal static class GuntatState
+{
+    internal static bool Enabled;
+    internal static readonly Dictionary<int, int> Progress = new();
+    internal static List<string> WeaponOrder { get; private set; } = new();
+    internal static int ScoreLimit => WeaponOrder.Count * 10;
+    internal const string SettingsLobbyDataKey = "Eights_Guntat_Settings";
+    internal const string LiveLobbyDataKey = "Eights_Guntat_Live";
+    private static float _nextLoadoutCheckTime;
+    private static readonly Dictionary<int, float> PendingLoadouts = new();
+    private static readonly ModeSyncState Sync = new();
+
+    internal static void ApplySettings(bool enabled, string weaponOrder)
+    {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.Guntat, enabled))
+        {
+            return;
+        }
+
+        List<string> nextWeaponOrder = WeaponService.ParseWeaponList(weaponOrder);
+        bool changed = Enabled != enabled || !WeaponOrder.SequenceEqual(nextWeaponOrder, StringComparer.Ordinal);
+        Enabled = enabled;
+        WeaponOrder = nextWeaponOrder;
+        if (changed) ResetMatchState();
+    }
+
+    private static void ApplyFromConfig() => ApplySettings(Plugin.GuntatEnabled.Value, Plugin.GuntatWeaponOrder.Value);
+    internal static void PushSettingsIfHost()
+    {
+        if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost) return;
+        ApplyFromConfig();
+        int revision = Sync.NextSettingsRevision();
+        PublishSettingsSnapshot(revision);
+        MyceliumNetwork.RPC(Plugin.GuntatModId, nameof(Plugin.SyncGuntatSettings), ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
+            Plugin.GuntatEnabled.Value, Plugin.GuntatWeaponOrder.Value);
+    }
+    internal static void PeriodicPushSettingsIfHost() { if (Sync.IsSettingsPushDue()) PushSettingsIfHost(); }
+       internal static void PeriodicPushIfHost()
+       {
+           PeriodicPushSettingsIfHost();
+           if (Sync.IsLivePushDue()) BroadcastLiveState();
+       }
+    internal static void OnLobbyEntered()
+    {
+        Sync.ResetForLobby();
+        if (MyceliumNetwork.IsHost)
+        {
+            ApplyFromConfig();
+            ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
+        }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+    internal static void OnPlayerEntered(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost) return;
+        MyceliumNetwork.RPCTarget(Plugin.GuntatModId, nameof(Plugin.SyncGuntatSettings), player, ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
+            Plugin.GuntatEnabled.Value, Plugin.GuntatWeaponOrder.Value);
+        MyceliumNetwork.RPCTarget(Plugin.GuntatModId, nameof(Plugin.SyncGuntatLiveState), player,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, SerializeProgress(), GameModeManager.RoundId,
+            Sync.LiveRevision);
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        if (playerId >= 0)
+        {
+            PendingLoadouts.Remove(playerId);
+            if (Progress.Remove(playerId) && GameModeManager.IsActive(GameMode.Guntat))
+            {
+                BroadcastLiveState();
+            }
+        }
+    }
+
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision,
+        string source = "unknown")
+    {
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision, source);
+    }
+    internal static void ResetMatchState()
+    {
+        Sync.ResetLiveState();
+        _nextLoadoutCheckTime = 0f;
+        PendingLoadouts.Clear();
+        Progress.Clear();
+    }
+    internal static void ApplyLiveState(CSteamID hostId, string data, int roundId, int revision,
+        string source = "unknown")
+    {
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
+        {
+            return;
+        }
+        Progress.Clear();
+        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(data, ScoreLimit))
+        {
+            Progress[entry.Key] = entry.Value;
+        }
+    }
+    internal static void OnServerKill(int deadPlayerId, int killerId)
+    {
+        if (!Enabled || killerId < 0 || killerId == deadPlayerId) return;
+        Progress.TryGetValue(killerId, out int current);
+        int next = ScoreRules.AddPoints(current, ScoreRules.PointsPerKill, ScoreLimit);
+        Progress[killerId] = next;
+        int awardedPoints = next - current;
+        if (awardedPoints > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(killerId, awardedPoints);
+        }
+        if (ScoreLimit > 0 && next >= ScoreLimit) GameModeManager.CompleteCustomRound(TeamAssignment.ResolveTeamId(killerId));
+        else if (WeaponOrder.Count > 0) GiveWeaponForProgress(killerId, next);
+        BroadcastLiveState();
+    }
+
+    internal static void EnsureLoadouts()
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.Guntat) || !MyceliumNetwork.InLobby
+            || !MyceliumNetwork.IsHost || WeaponService.IsFinalGameScreen
+            || Time.unscaledTime < _nextLoadoutCheckTime)
+        {
+            return;
+        }
+
+        _nextLoadoutCheckTime = Time.unscaledTime + 1f;
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client == null || !client || client.PlayerSpawner == null || !client.PlayerSpawner
+                || client.PlayerSpawner.player == null || !client.PlayerSpawner.player)
+            {
+                continue;
+            }
+
+            int progress = Progress.TryGetValue(client.PlayerId, out int currentProgress) ? currentProgress : 0;
+            string? expectedWeapon = GetWeaponForProgress(progress);
+            if (expectedWeapon == null)
+            {
+                continue;
+            }
+
+            PlayerPickup? pickup = client.PlayerSpawner.player.playerPickupScript;
+            GameObject? heldObject = pickup?.objInHand;
+            Weapon? heldWeapon = heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
+            if (heldWeapon != null && heldWeapon.name.StartsWith(expectedWeapon, StringComparison.Ordinal))
+            {
+                WeaponAmmoTuning.ApplyUnlimitedToWeapon(heldWeapon);
+                bool ammoReady = !heldWeapon.needsAmmo
+                    || heldWeapon.currentAmmo > 0
+                    || WeaponAmmoTuning.IsReloading(heldWeapon)
+                    || (heldWeapon.reloadWeapon && heldWeapon.chargedBullets > 0);
+                if (ammoReady)
+                {
+                    PendingLoadouts.Remove(client.PlayerId);
+                    continue;
+                }
+            }
+
+            if (!PendingLoadouts.TryGetValue(client.PlayerId, out float retryTime)
+                || Time.unscaledTime >= retryTime)
+            {
+                GiveStartingWeapon(client.PlayerId);
+            }
+        }
+    }
+
+    internal static void GiveStartingWeapon(int playerId)
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.Guntat) || !MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int progress = Progress.TryGetValue(playerId, out int currentProgress) ? currentProgress : 0;
+        GiveWeaponForProgress(playerId, progress);
+    }
+
+    private static void GiveWeaponForProgress(int playerId, int progress)
+    {
+        string? weaponName = GetWeaponForProgress(progress);
+        if (weaponName == null)
+        {
+            return;
+        }
+
+        PendingLoadouts[playerId] = Time.unscaledTime + 5f;
+        WeaponService.GiveWeapon(playerId, weaponName, unlimitedAmmo: true);
+    }
+
+    private static string? GetWeaponForProgress(int progress)
+    {
+        return WeaponOrder.Count == 0 ? null : WeaponOrder[GuntatRules.GetWeaponIndex(progress, WeaponOrder.Count)];
+    }
+    internal static string SerializeProgress()
+    {
+        return ScoreCodec.Serialize(Progress);
+    }
+    private static void BroadcastLiveState()
+    {
+        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
+        {
+            int revision = Sync.NextLiveRevision();
+            string progressData = SerializeProgress();
+            PublishLiveSnapshot(revision, progressData);
+            MyceliumNetwork.RPC(Plugin.GuntatModId, nameof(Plugin.SyncGuntatLiveState), ReliableType.Reliable,
+                MyceliumNetwork.LobbyHost, progressData, GameModeManager.RoundId, revision);
+        }
+    }
+
+    private static void PublishSettingsSnapshot(int revision)
+    {
+        string encodedOrder = Convert.ToBase64String(Encoding.UTF8.GetBytes(Plugin.GuntatWeaponOrder.Value ?? string.Empty));
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, Plugin.GuntatEnabled.Value ? "1" : "0", encodedOrder);
+    }
+
+    private static void PublishLiveSnapshot(int revision, string progressData)
+    {
+        ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, progressData ?? string.Empty);
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 2, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled))
+        {
+            return;
+        }
+
+        try
+        {
+            string weaponOrder = Encoding.UTF8.GetString(Convert.FromBase64String(fields[1]));
+            if (Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("guntat", "settings")))
+            {
+                ApplySettings(enabled, weaponOrder);
+            }
+        }
+        catch (FormatException)
+        {
+            // Steam lobby data can contain an incomplete update while the value is changing.
+        }
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 1, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields))
+        {
+            return;
+        }
+
+        ApplyLiveState(hostId, fields[0], roundId, revision,
+            ModeLobbyDataSync.Source("guntat", "live"));
+    }
+}

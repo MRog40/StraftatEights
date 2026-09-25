@@ -16,11 +16,11 @@ internal sealed class PlayerRadar : MonoBehaviour
     private const float RadarSweepDuration = 1f;
     private const int RadarTextureSize = 256;
     private const int AntialiasSamplesPerAxis = 4;
-    private const int HardpointCurrentObjectiveMarkerId = 1;
-    private const int HardpointNextObjectiveMarkerId = 2;
-    private const int CaptureTheFlagObjectiveMarkerBaseId = 100;
-    private const int SearchAndDestroySiteMarkerBaseId = 200;
-    private const int SearchAndDestroyBombMarkerId = 202;
+    private const int HardtatCurrentObjectiveMarkerId = 1;
+    private const int HardtatNextObjectiveMarkerId = 2;
+    private const int CapturetatObjectiveMarkerBaseId = 100;
+    private const int SndtatSiteMarkerBaseId = 200;
+    private const int SndtatBombMarkerId = 202;
     private const int HuntersObjectiveMarkerId = 300;
     private const float ObjectiveMarkerSize = 18f;
     private const int ArrowTextureSize = 128;
@@ -41,9 +41,9 @@ internal sealed class PlayerRadar : MonoBehaviour
     private static readonly Color RadarLocalColor = RadarBlueColor;
     private static readonly HashSet<GameMode> RadarSweepModes = new()
     {
-        GameMode.Infected,
-        GameMode.HotPotInfected,
-        GameMode.OneInTheChamber
+        GameMode.Infectedtat,
+        GameMode.PotatoInftat,
+        GameMode.Chambertat
     };
     private static Sprite? _backgroundSprite;
     private static Sprite? _arrowSprite;
@@ -265,51 +265,51 @@ internal sealed class PlayerRadar : MonoBehaviour
     {
         _visibleObjectiveIds.Clear();
 
-        if (GameModeManager.IsActive(GameMode.Hardpoint)
-            && HardpointState.TryGetCurrentObjective(out HardpointObjective currentObjective))
+        if (GameModeManager.IsActive(GameMode.Hardtat)
+            && HardtatState.TryGetCurrentObjective(out HardtatObjective currentObjective))
         {
-            SetObjectiveMarker(HardpointCurrentObjectiveMarkerId, currentObjective.Position,
+            SetObjectiveMarker(HardtatCurrentObjectiveMarkerId, currentObjective.Position,
                 localTransform, right, forward, _visibleObjectiveIds, currentObjective.Radius);
-            if (HardpointState.IsWarningActive
-                && HardpointState.TryGetNextObjective(out HardpointObjective nextObjective))
+            if (HardtatState.IsWarningActive
+                && HardtatState.TryGetNextObjective(out HardtatObjective nextObjective))
             {
-                SetObjectiveMarker(HardpointNextObjectiveMarkerId, nextObjective.Position,
+                SetObjectiveMarker(HardtatNextObjectiveMarkerId, nextObjective.Position,
                     localTransform, right, forward, _visibleObjectiveIds, nextObjective.Radius);
             }
         }
 
-        if (GameModeManager.IsActive(GameMode.CaptureTheFlag))
+        if (GameModeManager.IsActive(GameMode.Capturetat))
         {
             for (int flagIndex = 0; flagIndex < 2; flagIndex++)
             {
-                if (CaptureTheFlagState.TryGetFlagPosition(flagIndex, out Vector3 flagPosition))
+                if (CapturetatState.TryGetFlagPosition(flagIndex, out Vector3 flagPosition))
                 {
-                    SetObjectiveMarker(CaptureTheFlagObjectiveMarkerBaseId + flagIndex,
+                    SetObjectiveMarker(CapturetatObjectiveMarkerBaseId + flagIndex,
                         flagPosition, localTransform, right, forward, _visibleObjectiveIds);
                 }
             }
         }
 
-        if (GameModeManager.IsActive(GameMode.SearchAndDestroy))
+        if (GameModeManager.IsBombModeActive)
         {
             for (int siteIndex = 0; siteIndex < 2; siteIndex++)
             {
-                if (SearchAndDestroyState.TryGetSitePosition(siteIndex, out Vector3 sitePosition))
+                if (SndtatState.TryGetSitePosition(siteIndex, out Vector3 sitePosition))
                 {
-                    SetObjectiveMarker(SearchAndDestroySiteMarkerBaseId + siteIndex,
+                    SetObjectiveMarker(SndtatSiteMarkerBaseId + siteIndex,
                         sitePosition, localTransform, right, forward, _visibleObjectiveIds);
                 }
             }
 
-            if (SearchAndDestroyState.TryGetBombPosition(out Vector3 bombPosition))
+            if (SndtatState.TryGetBombPosition(out Vector3 bombPosition))
             {
-                SetObjectiveMarker(SearchAndDestroyBombMarkerId, bombPosition,
+                SetObjectiveMarker(SndtatBombMarkerId, bombPosition,
                     localTransform, right, forward, _visibleObjectiveIds);
             }
         }
 
-        if (HuntersState.IsTieBreakActive
-            && HuntersState.TryGetTieBreakObjective(out HardpointObjective huntersObjective))
+        if (HuntModesState.IsTieBreakActive
+            && HuntModesState.TryGetTieBreakObjective(out HardtatObjective huntersObjective))
         {
             SetObjectiveMarker(HuntersObjectiveMarkerId, huntersObjective.Position,
                 localTransform, right, forward, _visibleObjectiveIds);
@@ -381,35 +381,35 @@ internal sealed class PlayerRadar : MonoBehaviour
 
     private static bool TryGetRadarTeamId(int playerId, out int teamId)
     {
-        if (GameModeManager.IsActive(GameMode.Infected))
+        if (GameModeManager.IsActive(GameMode.Infectedtat))
         {
-            bool roleStateAvailable = InfectedState.InitialInfectedPlayerId >= 0
-                || InfectedState.InfectedPlayers.Count > 0;
+            bool roleStateAvailable = InfectedtatState.InitialInfectedtatPlayerId >= 0
+                || InfectedtatState.InfectedtatPlayers.Count > 0;
             if (!roleStateAvailable)
             {
                 teamId = -1;
                 return false;
             }
 
-            bool isInfected = InfectedState.InitialInfectedPlayerId == playerId
-                || InfectedState.InfectedPlayers.Contains(playerId);
-            teamId = isInfected ? TeamRules.BlueTeamId : TeamRules.VermillionTeamId;
+            bool isInfectedtat = InfectedtatState.InitialInfectedtatPlayerId == playerId
+                || InfectedtatState.InfectedtatPlayers.Contains(playerId);
+            teamId = isInfectedtat ? TeamRules.BlueTeamId : TeamRules.VermillionTeamId;
             return true;
         }
 
-        if (GameModeManager.IsActive(GameMode.HotPotInfected))
+        if (GameModeManager.IsActive(GameMode.PotatoInftat))
         {
-            bool roleStateAvailable = HotPotInfectedState.InitialInfectedPlayerId >= 0
-                || HotPotInfectedState.InfectedPlayers.Count > 0;
+            bool roleStateAvailable = PotatoInftatState.InitialInfectedtatPlayerId >= 0
+                || PotatoInftatState.InfectedtatPlayers.Count > 0;
             if (!roleStateAvailable)
             {
                 teamId = -1;
                 return false;
             }
 
-            bool isInfected = HotPotInfectedState.InitialInfectedPlayerId == playerId
-                || HotPotInfectedState.InfectedPlayers.Contains(playerId);
-            teamId = isInfected ? TeamRules.BlueTeamId : TeamRules.VermillionTeamId;
+            bool isInfectedtat = PotatoInftatState.InitialInfectedtatPlayerId == playerId
+                || PotatoInftatState.InfectedtatPlayers.Contains(playerId);
+            teamId = isInfectedtat ? TeamRules.BlueTeamId : TeamRules.VermillionTeamId;
             return true;
         }
 
@@ -450,8 +450,8 @@ internal sealed class PlayerRadar : MonoBehaviour
 
     private static bool IsRelativeTeamColorMode()
     {
-        return GameModeManager.IsActive(GameMode.CaptureTheFlag)
-            || GameModeManager.IsActive(GameMode.Hardpoint);
+        return GameModeManager.IsActive(GameMode.Capturetat)
+            || GameModeManager.IsActive(GameMode.Hardtat);
     }
 
     private static Color GetEnemyFlashColor(float now)
@@ -500,23 +500,23 @@ internal sealed class PlayerRadar : MonoBehaviour
 
     private static Sprite GetObjectiveMarkerSprite(int markerId)
     {
-        if (markerId == HardpointCurrentObjectiveMarkerId
-            || markerId == HardpointNextObjectiveMarkerId)
+        if (markerId == HardtatCurrentObjectiveMarkerId
+            || markerId == HardtatNextObjectiveMarkerId)
         {
             return GetCircleSprite();
         }
 
-        if (markerId == SearchAndDestroyBombMarkerId)
+        if (markerId == SndtatBombMarkerId)
         {
             return GetSquareSprite();
         }
 
-        if (markerId == SearchAndDestroySiteMarkerBaseId)
+        if (markerId == SndtatSiteMarkerBaseId)
         {
             return GetChevronSprite();
         }
 
-        if (markerId == SearchAndDestroySiteMarkerBaseId + 1)
+        if (markerId == SndtatSiteMarkerBaseId + 1)
         {
             return GetDiamondSprite();
         }
@@ -526,7 +526,7 @@ internal sealed class PlayerRadar : MonoBehaviour
 
     private static Color GetObjectiveMarkerColor(int markerId)
     {
-        return markerId == SearchAndDestroyBombMarkerId
+        return markerId == SndtatBombMarkerId
             ? new Color32(150, 150, 150, 255)
             : Color.white;
     }

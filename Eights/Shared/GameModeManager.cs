@@ -4,7 +4,6 @@ using Steamworks;
 using BepInEx.Configuration;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using FishNet;
 using FishNetSceneLoadData = FishNet.Managing.Scened.SceneLoadData;
@@ -17,28 +16,29 @@ namespace Eights;
 internal enum GameMode
 {
     None = 0,
-    FreeForAll = 1,
-    Juggernaut = 2,
-    GunGame = 3,
-    SniperBattle = 4,
-    Default = 5,
-    MichaelMeyers = 6,
-    KillTheRat = 7,
-    OneInTheChamber = 8,
-    HotPotato = 9,
-    Infidel = 10,
-    HVT = 11,
-    Assassin = 12,
-    Hardpoint = 13,
-    CaptureTheFlag = 14,
-    SearchAndDestroy = 15,
-    TeamDeathmatch = 16,
-    Infected = 17,
-    NinjaHunters = 18,
-    RabbitHunters = 19,
-    TankBattle = 20,
-    Nife = 21,
-    HotPotInfected = 22
+    Ffatat = 1,
+    Juggertat = 2,
+    Guntat = 3,
+    Snipertat = 4,
+    Straftat = 5,
+    Michaeltat = 6,
+    Ratatat = 7,
+    Chambertat = 8,
+    Potatotat = 9,
+    Infideltat = 10,
+    Hvtat = 11,
+    Assassintat = 12,
+    Hardtat = 13,
+    Capturetat = 14,
+    Sndtat = 15,
+    Tdmtat = 16,
+    Infectedtat = 17,
+    Ninjatat = 18,
+    Hunttat = 19,
+    Tanktat = 20,
+    Nifetat = 21,
+    PotatoInftat = 22,
+    Countertat = 23
 }
 
 internal enum GameModePhase
@@ -98,28 +98,29 @@ internal static class GameModeManager
 
     private static readonly GameMode[] ModeOrder =
     {
-        GameMode.Default,
-        GameMode.FreeForAll,
-        GameMode.Nife,
-        GameMode.Juggernaut,
-        GameMode.GunGame,
-        GameMode.SniperBattle,
-        GameMode.MichaelMeyers,
-        GameMode.KillTheRat,
-        GameMode.OneInTheChamber,
-        GameMode.HotPotato,
-        GameMode.Infidel,
-        GameMode.HVT,
-        GameMode.Infected,
-        GameMode.HotPotInfected,
-        GameMode.Assassin,
-        GameMode.Hardpoint,
-        GameMode.CaptureTheFlag,
-        GameMode.SearchAndDestroy,
-        GameMode.TeamDeathmatch,
-        GameMode.NinjaHunters,
-        GameMode.RabbitHunters,
-        GameMode.TankBattle
+        GameMode.Straftat,
+        GameMode.Ffatat,
+        GameMode.Nifetat,
+        GameMode.Juggertat,
+        GameMode.Guntat,
+        GameMode.Snipertat,
+        GameMode.Michaeltat,
+        GameMode.Ratatat,
+        GameMode.Chambertat,
+        GameMode.Potatotat,
+        GameMode.Infideltat,
+        GameMode.Hvtat,
+        GameMode.Infectedtat,
+        GameMode.PotatoInftat,
+        GameMode.Assassintat,
+        GameMode.Hardtat,
+        GameMode.Capturetat,
+        GameMode.Sndtat,
+        GameMode.Countertat,
+        GameMode.Tdmtat,
+        GameMode.Ninjatat,
+        GameMode.Hunttat,
+        GameMode.Tanktat
     };
 
     private const string ScoreboardAccentColor = "B7F47A";
@@ -128,188 +129,195 @@ internal static class GameModeManager
 
     private static readonly Dictionary<GameMode, ModeDescriptor> Modes = new()
     {
-        [GameMode.Default] = new ModeDescriptor("DEFAULT", new Color32(220, 220, 220, 255),
-            () => Plugin.DefaultGameModeEnabled.Value, DefaultReset,
+        [GameMode.Straftat] = new ModeDescriptor("Straftat", new Color32(220, 220, 220, 255),
+            () => Plugin.StraftatEnabled.Value, StraftatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.IgnoreGlobalMovement
             | GameModeCapabilities.SafeRespawn,
-            DefaultGameModeState.PeriodicPushIfHost,
-            pollLiveState: DefaultGameModeState.PollLiveStateIfClient),
-        [GameMode.FreeForAll] = new ModeDescriptor("FFA", new Color32(85, 204, 255, 255),
-            () => Plugin.FFAEnabled.Value, FfaReset,
+            StraftatState.PeriodicPushIfHost,
+            pollLiveState: StraftatState.PollLiveStateIfClient),
+        [GameMode.Ffatat] = new ModeDescriptor("Ffatat", new Color32(85, 204, 255, 255),
+            () => Plugin.FfatatEnabled.Value, FfatatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn,
-                FFAState.PeriodicPushIfHost, TeamWeaponLoadouts.EnsureLoadouts,
-                periodicSettingsPush: FFAState.PeriodicPushSettingsIfHost,
-                    pollLiveState: FFAState.PollLiveStateIfClient),
-        [GameMode.Nife] = new ModeDescriptor("NIFE", new Color32(180, 180, 180, 255),
-            () => Plugin.NifeEnabled.Value, NifeReset,
+                FfatatState.PeriodicPushIfHost, TeamWeaponLoadouts.EnsureLoadouts,
+                periodicSettingsPush: FfatatState.PeriodicPushSettingsIfHost,
+                    pollLiveState: FfatatState.PollLiveStateIfClient),
+        [GameMode.Nifetat] = new ModeDescriptor("Nifetat", new Color32(180, 180, 180, 255),
+            () => Plugin.NifetatEnabled.Value, NifetatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.SafeRespawn,
-            NifeState.PeriodicPushIfHost, NifeState.EnsureLoadouts,
-            NifeState.PeriodicPushSettingsIfHost, NifeState.PollLiveStateIfClient),
-        [GameMode.Juggernaut] = new ModeDescriptor("JUGGERNAUT", new Color32(255, 106, 0, 255),
-            () => Plugin.JuggernautEnabled.Value, JuggernautReset,
+            NifetatState.PeriodicPushIfHost, NifetatState.EnsureLoadouts,
+            NifetatState.PeriodicPushSettingsIfHost, NifetatState.PollLiveStateIfClient),
+        [GameMode.Juggertat] = new ModeDescriptor("Juggertat", new Color32(255, 106, 0, 255),
+            () => Plugin.JuggertatEnabled.Value, JuggertatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
-            JuggernautState.PeriodicPushIfHost, JuggernautState.EnsureLoadout,
-            JuggernautState.PeriodicPushSettingsIfHost,
-            JuggernautState.PollLiveStateIfClient),
-        [GameMode.GunGame] = new ModeDescriptor("GUN GAME", new Color32(255, 221, 85, 255),
-            () => Plugin.GunGameEnabled.Value, GunGameReset,
+            JuggertatState.PeriodicPushIfHost, JuggertatState.EnsureLoadout,
+            JuggertatState.PeriodicPushSettingsIfHost,
+            JuggertatState.PollLiveStateIfClient),
+        [GameMode.Guntat] = new ModeDescriptor("Guntat", new Color32(255, 221, 85, 255),
+            () => Plugin.GuntatEnabled.Value, GuntatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn,
-               GunGameState.PeriodicPushIfHost, GunGameState.EnsureLoadouts,
-                    periodicSettingsPush: GunGameState.PeriodicPushSettingsIfHost,
-                    pollLiveState: GunGameState.PollLiveStateIfClient),
-        [GameMode.SniperBattle] = new ModeDescriptor("SNIPER BATTLE", new Color32(255, 96, 128, 255),
-            () => Plugin.SniperBattleEnabled.Value, SniperBattleReset,
+               GuntatState.PeriodicPushIfHost, GuntatState.EnsureLoadouts,
+                    periodicSettingsPush: GuntatState.PeriodicPushSettingsIfHost,
+                    pollLiveState: GuntatState.PollLiveStateIfClient),
+        [GameMode.Snipertat] = new ModeDescriptor("Snipertat", new Color32(255, 96, 128, 255),
+            () => Plugin.SnipertatEnabled.Value, SnipertatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.ClearOutlines
             | GameModeCapabilities.SafeRespawn,
-               SniperBattleState.PeriodicPushIfHost, SniperBattleState.EnsureLoadouts,
-                    SniperBattleState.PeriodicPushSettingsIfHost,
-                    SniperBattleState.PollLiveStateIfClient),
-        [GameMode.MichaelMeyers] = new ModeDescriptor("MICHAEL MEYERS", new Color32(204, 34, 34, 255),
-            () => Plugin.MichaelMeyersEnabled.Value, MichaelMeyersReset,
+               SnipertatState.PeriodicPushIfHost, SnipertatState.EnsureLoadouts,
+                    SnipertatState.PeriodicPushSettingsIfHost,
+                    SnipertatState.PollLiveStateIfClient),
+        [GameMode.Michaeltat] = new ModeDescriptor("Michaeltat", new Color32(204, 34, 34, 255),
+            () => Plugin.MichaeltatEnabled.Value, MichaeltatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.HideHud,
-            MichaelMeyersPeriodicPush, MichaelMeyersState.EnsureLoadouts,
-            MichaelMeyersState.PeriodicPushSettingsIfHost,
-            MichaelMeyersState.PollLiveStateIfClient),
-        [GameMode.KillTheRat] = new ModeDescriptor("KILL THE RAT", new Color32(170, 170, 170, 255),
-            () => Plugin.KillTheRatEnabled.Value, KillTheRatReset,
+            MichaeltatPeriodicPush, MichaeltatState.EnsureLoadouts,
+            MichaeltatState.PeriodicPushSettingsIfHost,
+            MichaeltatState.PollLiveStateIfClient),
+        [GameMode.Ratatat] = new ModeDescriptor("Ratatat", new Color32(170, 170, 170, 255),
+            () => Plugin.RatatatEnabled.Value, RatatatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn,
-            KillTheRatState.PeriodicPushIfHost, KillTheRatState.EnsureLoadouts,
-            KillTheRatState.PeriodicPushSettingsIfHost,
-            KillTheRatState.PollLiveStateIfClient),
-        [GameMode.OneInTheChamber] = new ModeDescriptor("ONE IN THE CHAMBER", new Color32(180, 180, 180, 255),
-            () => Plugin.OneInTheChamberEnabled.Value, OneInTheChamberReset,
+            RatatatState.PeriodicPushIfHost, RatatatState.EnsureLoadouts,
+            RatatatState.PeriodicPushSettingsIfHost,
+            RatatatState.PollLiveStateIfClient),
+        [GameMode.Chambertat] = new ModeDescriptor("Chambertat", new Color32(180, 180, 180, 255),
+            () => Plugin.ChambertatEnabled.Value, ChambertatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.SafeRespawn,
-            OneInTheChamberState.PeriodicPushIfHost, OneInTheChamberState.EnsureLoadouts,
-            OneInTheChamberState.PeriodicPushSettingsIfHost,
-            OneInTheChamberState.PollLiveStateIfClient),
-        [GameMode.HotPotato] = new ModeDescriptor("HOT POTATO", new Color32(255, 170, 70, 255),
-            () => Plugin.HotPotatoEnabled.Value, HotPotatoReset,
+            ChambertatState.PeriodicPushIfHost, ChambertatState.EnsureLoadouts,
+            ChambertatState.PeriodicPushSettingsIfHost,
+            ChambertatState.PollLiveStateIfClient),
+        [GameMode.Potatotat] = new ModeDescriptor("Potatotat", new Color32(255, 170, 70, 255),
+            () => Plugin.PotatotatEnabled.Value, PotatotatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn,
-            HotPotatoState.PeriodicPushIfHost, HotPotatoState.EnsureLoadouts,
-            HotPotatoState.PeriodicPushSettingsIfHost,
-            HotPotatoState.PollLiveStateIfClient),
-        [GameMode.Infidel] = new ModeDescriptor("INFIDEL", new Color32(204, 64, 64, 255),
-            () => Plugin.InfidelEnabled.Value, InfidelReset,
+            PotatotatState.PeriodicPushIfHost, PotatotatState.EnsureLoadouts,
+            PotatotatState.PeriodicPushSettingsIfHost,
+            PotatotatState.PollLiveStateIfClient),
+        [GameMode.Infideltat] = new ModeDescriptor("Infideltat", new Color32(204, 64, 64, 255),
+            () => Plugin.InfideltatEnabled.Value, InfideltatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.SafeRespawn,
-            InfidelState.PeriodicPushIfHost, InfidelState.EnsureLoadouts,
-            InfidelState.PeriodicPushSettingsIfHost,
-            InfidelState.PollLiveStateIfClient),
-        [GameMode.HVT] = new ModeDescriptor("HVT", new Color32(0, 0, 255, 255),
-            () => Plugin.HVTEnabled.Value, HVTReset,
+            InfideltatState.PeriodicPushIfHost, InfideltatState.EnsureLoadouts,
+            InfideltatState.PeriodicPushSettingsIfHost,
+            InfideltatState.PollLiveStateIfClient),
+        [GameMode.Hvtat] = new ModeDescriptor("Hvtat", new Color32(0, 0, 255, 255),
+            () => Plugin.HvtatEnabled.Value, HvtatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
-            HVTState.PeriodicPushIfHost, periodicSettingsPush: HVTState.PeriodicPushSettingsIfHost,
-            pollLiveState: HVTState.PollLiveStateIfClient),
-        [GameMode.Infected] = new ModeDescriptor("INFECTED", new Color32(139, 0, 0, 255),
-            () => Plugin.InfectedEnabled.Value, InfectedReset,
+            HvtatState.PeriodicPushIfHost, periodicSettingsPush: HvtatState.PeriodicPushSettingsIfHost,
+            pollLiveState: HvtatState.PollLiveStateIfClient),
+        [GameMode.Infectedtat] = new ModeDescriptor("Infectedtat", new Color32(139, 0, 0, 255),
+            () => Plugin.InfectedtatEnabled.Value, InfectedtatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
-            InfectedState.PeriodicPushIfHost, InfectedState.EnsureLoadouts,
-            InfectedState.PeriodicPushSettingsIfHost,
-            InfectedState.PollLiveStateIfClient),
-        [GameMode.HotPotInfected] = new ModeDescriptor("HOT POT: INFECTED",
+            InfectedtatState.PeriodicPushIfHost, InfectedtatState.EnsureLoadouts,
+            InfectedtatState.PeriodicPushSettingsIfHost,
+            InfectedtatState.PollLiveStateIfClient),
+        [GameMode.PotatoInftat] = new ModeDescriptor("PotatoInftat",
             new Color32(255, 80, 40, 255),
-            () => Plugin.HotPotInfectedEnabled.Value, HotPotInfectedReset,
+            () => Plugin.PotatoInftatEnabled.Value, PotatoInftatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.SafeRespawn,
-            HotPotInfectedState.PeriodicPushIfHost, HotPotInfectedState.EnsureLoadouts,
-            HotPotInfectedState.PeriodicPushSettingsIfHost,
-            HotPotInfectedState.PollLiveStateIfClient),
-        [GameMode.Assassin] = new ModeDescriptor("ASSASSIN", new Color32(53, 208, 95, 255),
-            () => Plugin.AssassinEnabled.Value, AssassinReset,
+            PotatoInftatState.PeriodicPushIfHost, PotatoInftatState.EnsureLoadouts,
+            PotatoInftatState.PeriodicPushSettingsIfHost,
+            PotatoInftatState.PollLiveStateIfClient),
+        [GameMode.Assassintat] = new ModeDescriptor("Assassintat", new Color32(53, 208, 95, 255),
+            () => Plugin.AssassintatEnabled.Value, AssassintatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn,
-            AssassinState.PeriodicPushIfHost, AssassinState.EnsureLoadouts,
-            AssassinState.PeriodicPushSettingsIfHost,
-            AssassinState.PollLiveStateIfClient),
-        [GameMode.Hardpoint] = new ModeDescriptor("HARDPOINT", new Color32(0, 114, 178, 255),
-            () => Plugin.HardpointEnabled.Value, HardpointReset,
+            AssassintatState.PeriodicPushIfHost, AssassintatState.EnsureLoadouts,
+            AssassintatState.PeriodicPushSettingsIfHost,
+            AssassintatState.PollLiveStateIfClient),
+        [GameMode.Hardtat] = new ModeDescriptor("Hardtat", new Color32(0, 114, 178, 255),
+            () => Plugin.HardtatEnabled.Value, HardtatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
-            HardpointState.PeriodicPushIfHost, TeamWeaponLoadouts.EnsureLoadouts,
-            HardpointState.PeriodicPushSettingsIfHost, HardpointState.PollLiveStateIfClient),
-        [GameMode.CaptureTheFlag] = new ModeDescriptor("CAPTURE THE FLAG", new Color32(255, 190, 55, 255),
-            () => Plugin.CaptureTheFlagEnabled.Value, CaptureTheFlagReset,
+            HardtatState.PeriodicPushIfHost, TeamWeaponLoadouts.EnsureLoadouts,
+            HardtatState.PeriodicPushSettingsIfHost, HardtatState.PollLiveStateIfClient),
+        [GameMode.Capturetat] = new ModeDescriptor("Capturetat", new Color32(255, 190, 55, 255),
+            () => Plugin.CapturetatEnabled.Value, CapturetatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
-            CaptureTheFlagState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
-            periodicSettingsPush: CaptureTheFlagState.PeriodicPushSettingsIfHost,
-            pollLiveState: CaptureTheFlagState.PollLiveStateIfClient),
-        [GameMode.SearchAndDestroy] = new ModeDescriptor("SEARCH AND DESTROY", new Color32(225, 70, 70, 255),
-            () => Plugin.SearchAndDestroyEnabled.Value, SearchAndDestroyReset,
+            CapturetatState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
+            periodicSettingsPush: CapturetatState.PeriodicPushSettingsIfHost,
+            pollLiveState: CapturetatState.PollLiveStateIfClient),
+        [GameMode.Sndtat] = new ModeDescriptor("Sndtat", new Color32(225, 70, 70, 255),
+            () => Plugin.SndtatEnabled.Value, SndtatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
-            SearchAndDestroyState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
-            periodicSettingsPush: SearchAndDestroyState.PeriodicPushSettingsIfHost,
-            pollLiveState: SearchAndDestroyState.PollLiveStateIfClient),
-        [GameMode.TeamDeathmatch] = new ModeDescriptor("TDM", new Color32(255, 190, 55, 255),
-            () => Plugin.TeamDeathmatchEnabled.Value, TeamDeathmatchReset,
+            SndtatState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
+            periodicSettingsPush: SndtatState.PeriodicPushSettingsIfHost,
+            pollLiveState: SndtatState.PollLiveStateIfClient),
+        [GameMode.Countertat] = new ModeDescriptor("Countertat", new Color32(80, 170, 235, 255),
+            () => Plugin.CountertatEnabled.Value, Noop,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
-            TeamDeathmatchState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
+            SndtatState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
+            periodicSettingsPush: CountertatState.PeriodicPushSettingsIfHost,
+            pollLiveState: SndtatState.PollLiveStateIfClient),
+        [GameMode.Tdmtat] = new ModeDescriptor("Tdmtat", new Color32(255, 190, 55, 255),
+            () => Plugin.TdmtatEnabled.Value, TdmtatReset,
+            GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
+            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
+            TdmtatState.PeriodicPushIfHost, ensureLoadouts: TeamWeaponLoadouts.EnsureLoadouts,
             periodicSettingsPush:
-            TeamDeathmatchState.PeriodicPushSettingsIfHost,
-            pollLiveState: TeamDeathmatchState.PollLiveStateIfClient),
-        [GameMode.NinjaHunters] = new ModeDescriptor("NINJA HUNTERS", new Color32(152, 91, 224, 255),
-            () => Plugin.NinjaHuntersEnabled.Value, HuntersReset,
+            TdmtatState.PeriodicPushSettingsIfHost,
+            pollLiveState: TdmtatState.PollLiveStateIfClient),
+        [GameMode.Ninjatat] = new ModeDescriptor("Ninjatat", new Color32(152, 91, 224, 255),
+            () => Plugin.NinjatatEnabled.Value, HuntersReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
-            HuntersState.PeriodicPushIfHost, HuntersState.EnsureLoadouts,
-            HuntersState.PeriodicPushSettingsIfHost, HuntersState.PollLiveStateIfClient),
-        [GameMode.RabbitHunters] = new ModeDescriptor("RABBIT HUNT", new Color32(238, 156, 196, 255),
-            () => Plugin.RabbitHuntersEnabled.Value, HuntersReset,
+            HuntModesState.PeriodicPushIfHost, HuntModesState.EnsureLoadouts,
+            HuntModesState.PeriodicPushSettingsIfHost, HuntModesState.PollLiveStateIfClient),
+        [GameMode.Hunttat] = new ModeDescriptor("Hunttat", new Color32(238, 156, 196, 255),
+            () => Plugin.HunttatEnabled.Value, HuntersReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
-            HuntersState.PeriodicPushIfHost, HuntersState.EnsureLoadouts,
-            HuntersState.PeriodicPushSettingsIfHost, HuntersState.PollLiveStateIfClient),
-        [GameMode.TankBattle] = new ModeDescriptor("TANK BATTLE", new Color32(190, 118, 52, 255),
-            () => Plugin.TankBattleEnabled.Value, HuntersReset,
+            HuntModesState.PeriodicPushIfHost, HuntModesState.EnsureLoadouts,
+            HuntModesState.PeriodicPushSettingsIfHost, HuntModesState.PollLiveStateIfClient),
+        [GameMode.Tanktat] = new ModeDescriptor("Tanktat", new Color32(190, 118, 52, 255),
+            () => Plugin.TanktatEnabled.Value, HuntersReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.IgnoreGlobalMovement
             | GameModeCapabilities.SafeRespawn | GameModeCapabilities.TeamBased,
-            HuntersState.PeriodicPushIfHost, HuntersState.EnsureLoadouts,
-            HuntersState.PeriodicPushSettingsIfHost, HuntersState.PollLiveStateIfClient)
+            HuntModesState.PeriodicPushIfHost, HuntModesState.EnsureLoadouts,
+            HuntModesState.PeriodicPushSettingsIfHost, HuntModesState.PollLiveStateIfClient)
     };
 
-    private static void DefaultReset() => DefaultGameModeState.ResetMatchState();
+    private static void StraftatReset() => StraftatState.ResetMatchState();
     private static void Noop() { }
-    private static void MichaelMeyersPeriodicPush()
+    private static void MichaeltatPeriodicPush()
     {
-        MichaelMeyersState.PeriodicPushSettingsIfHost();
-        MichaelMeyersState.PeriodicPushLiveStateIfHost();
+        MichaeltatState.PeriodicPushSettingsIfHost();
+        MichaeltatState.PeriodicPushLiveStateIfHost();
     }
-    private static void FfaReset() => FFAState.ResetMatchState();
-    private static void NifeReset() => NifeState.ResetMatchState();
-    private static void JuggernautReset() => JuggernautState.ResetMatchState();
-    private static void GunGameReset() => GunGameState.ResetMatchState();
-    private static void SniperBattleReset() => SniperBattleState.ResetMatchState();
-    private static void MichaelMeyersReset() => MichaelMeyersState.ResetMatchState();
-    private static void KillTheRatReset() => KillTheRatState.ResetMatchState();
-    private static void OneInTheChamberReset() => OneInTheChamberState.ResetMatchState();
-    private static void HotPotatoReset() => HotPotatoState.ResetMatchState();
-    private static void InfidelReset() => InfidelState.ResetMatchState();
-    private static void HVTReset() => HVTState.ResetMatchState();
-    private static void InfectedReset() => InfectedState.ResetMatchState();
-    private static void HotPotInfectedReset() => HotPotInfectedState.ResetMatchState();
-    private static void AssassinReset() => AssassinState.ResetMatchState();
-    private static void HardpointReset() => HardpointState.ResetMatchState();
-    private static void CaptureTheFlagReset() => CaptureTheFlagState.ResetMatchState();
-    private static void SearchAndDestroyReset() => SearchAndDestroyState.ResetMatchState();
-    private static void HuntersReset() => HuntersState.ResetMatchState();
-    private static void TeamDeathmatchReset() => TeamDeathmatchState.ResetMatchState();
+    private static void FfatatReset() => FfatatState.ResetMatchState();
+    private static void NifetatReset() => NifetatState.ResetMatchState();
+    private static void JuggertatReset() => JuggertatState.ResetMatchState();
+    private static void GuntatReset() => GuntatState.ResetMatchState();
+    private static void SnipertatReset() => SnipertatState.ResetMatchState();
+    private static void MichaeltatReset() => MichaeltatState.ResetMatchState();
+    private static void RatatatReset() => RatatatState.ResetMatchState();
+    private static void ChambertatReset() => ChambertatState.ResetMatchState();
+    private static void PotatotatReset() => PotatotatState.ResetMatchState();
+    private static void InfideltatReset() => InfideltatState.ResetMatchState();
+    private static void HvtatReset() => HvtatState.ResetMatchState();
+    private static void InfectedtatReset() => InfectedtatState.ResetMatchState();
+    private static void PotatoInftatReset() => PotatoInftatState.ResetMatchState();
+    private static void AssassintatReset() => AssassintatState.ResetMatchState();
+    private static void HardtatReset() => HardtatState.ResetMatchState();
+    private static void CapturetatReset() => CapturetatState.ResetMatchState();
+    private static void SndtatReset() => SndtatState.ResetMatchState();
+    private static void HuntersReset() => HuntModesState.ResetMatchState();
+    private static void TdmtatReset() => TdmtatState.ResetMatchState();
 
     internal static GameMode ActiveMode { get; private set; }
     internal static bool IsHuntersMode(GameMode mode)
     {
-        return mode == GameMode.NinjaHunters || mode == GameMode.RabbitHunters
-            || mode == GameMode.TankBattle;
+        return mode == GameMode.Ninjatat || mode == GameMode.Hunttat
+            || mode == GameMode.Tanktat;
     }
 
     internal static bool IsHuntersActive => IsHuntersMode(ActiveMode);
@@ -346,11 +354,11 @@ internal static class GameModeManager
             "Host-controlled: use the plugin's mode-specific map overrides instead of the normal lobby map playlist.");
         EnableMapOverrides.SettingChanged += (_, _) => OnGlobalSettingsChanged();
         RespawnDelaySeconds = Plugin.Instance.Config.Bind("Global Settings", "Respawn Delay (seconds)", 2.5f,
-            new ConfigDescription("Host-controlled: how long a killed player waits before respawning. Team-based modes with respawns (Capture the Flag, Hardpoint, and Team Deathmatch) use twice this delay for balance.",
+            new ConfigDescription("Host-controlled: how long a killed player waits before respawning. Team-based modes with respawns (Capturetat, Hardtat, and Tdmtat) use twice this delay for balance.",
                 new AcceptableValueRange<float>(0f, 10f)));
         RespawnDelaySeconds.SettingChanged += (_, _) => OnGlobalSettingsChanged();
         PreRoundTimerSeconds = Plugin.Instance.Config.Bind("Global Settings", "Pre-round Timer (seconds)", 5,
-            new ConfigDescription("Host-controlled: FFA modes use this setting; Team modes use 2x this setting.",
+            new ConfigDescription("Host-controlled: Ffatat modes use this setting; Team modes use 2x this setting.",
                 new AcceptableValueRange<int>(0, 15)));
         PreRoundTimerSeconds.SettingChanged += (_, _) => OnGlobalSettingsChanged();
         PointsToWin = Plugin.Instance.Config.Bind("Global Settings", "Points To Win", ScoreRules.PointsToWin,
@@ -438,25 +446,25 @@ internal static class GameModeManager
     private static void ResetPointModeStates()
     {
         ModeTimeoutState.ResetMatchState();
-        DefaultGameModeState.ResetMatchState();
-        FFAState.ResetMatchState();
-        JuggernautState.ResetMatchState();
-        GunGameState.ResetMatchState();
-        SniperBattleState.ResetMatchState();
-        HVTState.ResetMatchState();
-        AssassinState.ResetMatchState();
-        HardpointState.ResetMatchState();
-        CaptureTheFlagState.ResetMatchState();
-        SearchAndDestroyState.ResetMatchState();
-        MichaelMeyersState.ResetMatchState();
-        KillTheRatState.ResetMatchState();
-        OneInTheChamberState.ResetMatchState();
-        HotPotatoState.ResetMatchState();
-        InfidelState.ResetMatchState();
-        InfectedState.ResetMatchState();
-        HotPotInfectedState.ResetMatchState();
-        NifeState.ResetMatchState();
-        TeamDeathmatchState.ResetMatchState();
+        StraftatState.ResetMatchState();
+        FfatatState.ResetMatchState();
+        JuggertatState.ResetMatchState();
+        GuntatState.ResetMatchState();
+        SnipertatState.ResetMatchState();
+        HvtatState.ResetMatchState();
+        AssassintatState.ResetMatchState();
+        HardtatState.ResetMatchState();
+        CapturetatState.ResetMatchState();
+        SndtatState.ResetMatchState();
+        MichaeltatState.ResetMatchState();
+        RatatatState.ResetMatchState();
+        ChambertatState.ResetMatchState();
+        PotatotatState.ResetMatchState();
+        InfideltatState.ResetMatchState();
+        InfectedtatState.ResetMatchState();
+        PotatoInftatState.ResetMatchState();
+        NifetatState.ResetMatchState();
+        TdmtatState.ResetMatchState();
     }
 
     private static void BroadcastGlobalSettings()
@@ -471,28 +479,28 @@ internal static class GameModeManager
     {
         ConfigEntry<bool>[] modeSettings =
         {
-            Plugin.DefaultGameModeEnabled,
-            Plugin.FFAEnabled,
-            Plugin.NifeEnabled,
-            Plugin.JuggernautEnabled,
-            Plugin.GunGameEnabled,
-            Plugin.SniperBattleEnabled,
-            Plugin.MichaelMeyersEnabled,
-            Plugin.KillTheRatEnabled,
-            Plugin.OneInTheChamberEnabled,
-            Plugin.HotPotatoEnabled,
-            Plugin.InfidelEnabled,
-            Plugin.HVTEnabled,
-            Plugin.InfectedEnabled,
-            Plugin.HotPotInfectedEnabled,
-            Plugin.AssassinEnabled,
-            Plugin.HardpointEnabled,
-            Plugin.CaptureTheFlagEnabled,
-            Plugin.SearchAndDestroyEnabled,
-            Plugin.TeamDeathmatchEnabled,
-            Plugin.NinjaHuntersEnabled,
-            Plugin.RabbitHuntersEnabled,
-            Plugin.TankBattleEnabled
+            Plugin.StraftatEnabled,
+            Plugin.FfatatEnabled,
+            Plugin.NifetatEnabled,
+            Plugin.JuggertatEnabled,
+            Plugin.GuntatEnabled,
+            Plugin.SnipertatEnabled,
+            Plugin.MichaeltatEnabled,
+            Plugin.RatatatEnabled,
+            Plugin.ChambertatEnabled,
+            Plugin.PotatotatEnabled,
+            Plugin.InfideltatEnabled,
+            Plugin.HvtatEnabled,
+            Plugin.InfectedtatEnabled,
+            Plugin.PotatoInftatEnabled,
+            Plugin.AssassintatEnabled,
+            Plugin.HardtatEnabled,
+            Plugin.CapturetatEnabled,
+            Plugin.SndtatEnabled,
+            Plugin.TdmtatEnabled,
+            Plugin.NinjatatEnabled,
+            Plugin.HunttatEnabled,
+            Plugin.TanktatEnabled
         };
         bool enableAll = GameModeToggleRules.ShouldEnableAll(
             modeSettings.Select(setting => setting.Value));
@@ -572,49 +580,50 @@ internal static class GameModeManager
         }
         switch (ActiveMode)
         {
-            case GameMode.Default:
-                DefaultGameModeState.OnRoundStarted();
+            case GameMode.Straftat:
+                StraftatState.OnRoundStarted();
                 break;
-            case GameMode.MichaelMeyers:
-                MichaelMeyersState.OnRoundStarted();
+            case GameMode.Michaeltat:
+                MichaeltatState.OnRoundStarted();
                 break;
-            case GameMode.OneInTheChamber:
-                OneInTheChamberState.OnRoundStarted();
+            case GameMode.Chambertat:
+                ChambertatState.OnRoundStarted();
                 break;
-            case GameMode.HotPotato:
-                HotPotatoState.OnRoundStarted();
+            case GameMode.Potatotat:
+                PotatotatState.OnRoundStarted();
                 break;
-            case GameMode.Infidel:
-                InfidelState.OnRoundStarted();
+            case GameMode.Infideltat:
+                InfideltatState.OnRoundStarted();
                 break;
-            case GameMode.Assassin:
-                AssassinState.OnRoundStarted();
+            case GameMode.Assassintat:
+                AssassintatState.OnRoundStarted();
                 break;
-            case GameMode.Hardpoint:
-                HardpointState.OnRoundStarted();
+            case GameMode.Hardtat:
+                HardtatState.OnRoundStarted();
                 break;
-            case GameMode.CaptureTheFlag:
-                CaptureTheFlagState.OnRoundStarted();
+            case GameMode.Capturetat:
+                CapturetatState.OnRoundStarted();
                 break;
-            case GameMode.SearchAndDestroy:
-                SearchAndDestroyState.OnRoundStarted();
+            case GameMode.Sndtat:
+            case GameMode.Countertat:
+                SndtatState.OnRoundStarted();
                 break;
-            case GameMode.TeamDeathmatch:
-                TeamDeathmatchState.OnRoundStarted();
+            case GameMode.Tdmtat:
+                TdmtatState.OnRoundStarted();
                 break;
-            case GameMode.NinjaHunters:
-            case GameMode.RabbitHunters:
-            case GameMode.TankBattle:
-                HuntersState.OnRoundStarted();
+            case GameMode.Ninjatat:
+            case GameMode.Hunttat:
+            case GameMode.Tanktat:
+                HuntModesState.OnRoundStarted();
                 break;
-            case GameMode.Infected:
-                InfectedState.OnRoundStarted();
+            case GameMode.Infectedtat:
+                InfectedtatState.OnRoundStarted();
                 break;
-            case GameMode.HotPotInfected:
-                HotPotInfectedState.OnRoundStarted();
+            case GameMode.PotatoInftat:
+                PotatoInftatState.OnRoundStarted();
                 break;
-            case GameMode.Nife:
-                NifeState.OnRoundStarted();
+            case GameMode.Nifetat:
+                NifetatState.OnRoundStarted();
                 break;
         }
     }
@@ -740,25 +749,25 @@ internal static class GameModeManager
             return;
         }
 
-        if (ActiveMode == GameMode.Hardpoint)
+        if (ActiveMode == GameMode.Hardtat)
         {
             TeamAssignment.AssignForRound();
         }
-        else if (ActiveMode == GameMode.CaptureTheFlag)
+        else if (ActiveMode == GameMode.Capturetat)
         {
-            CaptureTheFlagState.PrepareTeamsForRound();
+            CapturetatState.PrepareTeamsForRound();
         }
-        else if (ActiveMode == GameMode.SearchAndDestroy)
+        else if (IsBombMode(ActiveMode))
         {
-            SearchAndDestroyState.PrepareTeamsForRound();
+            SndtatState.PrepareTeamsForRound();
         }
         else if (IsHuntersMode(ActiveMode))
         {
-            HuntersState.PrepareTeamsForRound();
+            HuntModesState.PrepareTeamsForRound();
         }
-        else if (ActiveMode == GameMode.TeamDeathmatch)
+        else if (ActiveMode == GameMode.Tdmtat)
         {
-            TeamDeathmatchState.PrepareTeamsForRound();
+            TdmtatState.PrepareTeamsForRound();
         }
     }
 
@@ -849,6 +858,13 @@ internal static class GameModeManager
         return !IsVanillaScene && ActiveMode == mode;
     }
 
+    internal static bool IsBombMode(GameMode mode)
+    {
+        return mode == GameMode.Sndtat || mode == GameMode.Countertat;
+    }
+
+    internal static bool IsBombModeActive => IsBombMode(ActiveMode) && !IsVanillaScene;
+
     internal static bool IsCurrentRoundMode(GameMode mode)
     {
         return IsActive(mode)
@@ -881,7 +897,7 @@ internal static class GameModeManager
     {
         return IsTeamBased ? baseDelay * 2f : baseDelay;
     }
-    internal static bool UsesTeamWeaponLoadouts => IsTeamBased || IsActive(GameMode.FreeForAll);
+    internal static bool UsesTeamWeaponLoadouts => IsTeamBased || IsActive(GameMode.Ffatat);
     internal static bool ShouldHideCustomHud => !IsVanillaScene && HasCapability(GameModeCapabilities.HideHud);
     internal static bool ShouldClearPlayerOutlines => !IsVanillaScene && HasCapability(GameModeCapabilities.ClearOutlines);
     internal static bool IsVanillaScene => SceneMotor.Instance != null && SceneMotor.Instance.testMap
@@ -894,7 +910,7 @@ internal static class GameModeManager
     internal static bool ShouldIgnoreGlobalWeaponSettingsFor(Weapon weapon)
     {
         return ShouldIgnoreGlobalWeaponSettings ||
-            (ActiveMode == GameMode.Juggernaut && JuggernautState.IsCurrentJuggernautWeapon(weapon));
+            (ActiveMode == GameMode.Juggertat && JuggertatState.IsCurrentJuggertatWeapon(weapon));
     }
 
     internal static string GetModeLabelMarkup(GameMode mode)
@@ -909,19 +925,8 @@ internal static class GameModeManager
             return "<b>Unknown</b>";
         }
 
-        string label = ToReadableModeLabel(labelOverride ?? descriptor.Label);
+        string label = labelOverride ?? descriptor.Label;
         return $"<b><color=#{ColorUtility.ToHtmlStringRGB(descriptor.Color)}>{label}</color></b>";
-    }
-
-    private static string ToReadableModeLabel(string label)
-    {
-        return label switch
-        {
-            "FFA" => "FFA",
-            "HVT" => "HVT",
-            "TDM" => "TDM",
-            _ => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(label.ToLowerInvariant())
-        };
     }
 
     internal static string GetScoreboardModeLabelMarkup(GameMode mode, string? labelOverride)
@@ -1398,30 +1403,30 @@ internal static class GameModeManager
         RecalculateEffectivePreRoundSeconds();
         Phase = MyceliumNetwork.InLobby ? GameModePhase.Lobby : GameModePhase.Inactive;
         RoundId++;
-        if ((mode == GameMode.Hardpoint || mode == GameMode.CaptureTheFlag
-            || mode == GameMode.SearchAndDestroy || mode == GameMode.TeamDeathmatch
+        if ((mode == GameMode.Hardtat || mode == GameMode.Capturetat
+            || IsBombMode(mode) || mode == GameMode.Tdmtat
             || IsHuntersMode(mode))
             && MyceliumNetwork.IsHost)
         {
-            if (mode == GameMode.Hardpoint)
+            if (mode == GameMode.Hardtat)
             {
                 TeamAssignment.AssignForRound();
             }
-            else if (mode == GameMode.CaptureTheFlag)
+            else if (mode == GameMode.Capturetat)
             {
-                CaptureTheFlagState.PrepareTeamsForRound();
+                CapturetatState.PrepareTeamsForRound();
             }
-            else if (mode == GameMode.SearchAndDestroy)
+            else if (IsBombMode(mode))
             {
-                SearchAndDestroyState.PrepareTeamsForRound();
+                SndtatState.PrepareTeamsForRound();
             }
             else if (IsHuntersMode(mode))
             {
-                HuntersState.PrepareTeamsForRound();
+                HuntModesState.PrepareTeamsForRound();
             }
             else
             {
-                TeamDeathmatchState.PrepareTeamsForRound();
+                TdmtatState.PrepareTeamsForRound();
             }
         }
         if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
@@ -1526,32 +1531,32 @@ internal static class GameModeManager
         {
             PendingDeaths.Clear();
             GameModeRespawn.ResetForMatch();
-            if (MyceliumNetwork.IsHost && (ActiveMode == GameMode.Hardpoint
-                || ActiveMode == GameMode.CaptureTheFlag
-                || ActiveMode == GameMode.SearchAndDestroy
-                || ActiveMode == GameMode.TeamDeathmatch
+            if (MyceliumNetwork.IsHost && (ActiveMode == GameMode.Hardtat
+                || ActiveMode == GameMode.Capturetat
+                || IsBombMode(ActiveMode)
+                || ActiveMode == GameMode.Tdmtat
                 || IsHuntersMode(ActiveMode))
                 && MyceliumNetwork.InLobby)
             {
-                if (ActiveMode == GameMode.Hardpoint)
+                if (ActiveMode == GameMode.Hardtat)
                 {
                     TeamAssignment.AssignForRound();
                 }
-                else if (ActiveMode == GameMode.CaptureTheFlag)
+                else if (ActiveMode == GameMode.Capturetat)
                 {
-                    CaptureTheFlagState.PrepareTeamsForRound();
+                    CapturetatState.PrepareTeamsForRound();
                 }
-                else if (ActiveMode == GameMode.SearchAndDestroy)
+                else if (IsBombMode(ActiveMode))
                 {
-                    SearchAndDestroyState.PrepareTeamsForRound();
+                    SndtatState.PrepareTeamsForRound();
                 }
                 else if (IsHuntersMode(ActiveMode))
                 {
-                    HuntersState.PrepareTeamsForRound();
+                    HuntModesState.PrepareTeamsForRound();
                 }
                 else
                 {
-                    TeamDeathmatchState.PrepareTeamsForRound();
+                    TdmtatState.PrepareTeamsForRound();
                 }
             }
             return;
@@ -1560,30 +1565,30 @@ internal static class GameModeManager
         ResetMatchState();
         if (MyceliumNetwork.IsHost)
         {
-            if ((ActiveMode == GameMode.Hardpoint || ActiveMode == GameMode.CaptureTheFlag
-                || ActiveMode == GameMode.SearchAndDestroy || ActiveMode == GameMode.TeamDeathmatch
+            if ((ActiveMode == GameMode.Hardtat || ActiveMode == GameMode.Capturetat
+                || IsBombMode(ActiveMode) || ActiveMode == GameMode.Tdmtat
                 || IsHuntersMode(ActiveMode))
                 && MyceliumNetwork.InLobby)
             {
-                if (ActiveMode == GameMode.Hardpoint)
+                if (ActiveMode == GameMode.Hardtat)
                 {
                     TeamAssignment.AssignForRound();
                 }
-                else if (ActiveMode == GameMode.CaptureTheFlag)
+                else if (ActiveMode == GameMode.Capturetat)
                 {
-                    CaptureTheFlagState.PrepareTeamsForRound();
+                    CapturetatState.PrepareTeamsForRound();
                 }
-                else if (ActiveMode == GameMode.SearchAndDestroy)
+                else if (IsBombMode(ActiveMode))
                 {
-                    SearchAndDestroyState.PrepareTeamsForRound();
+                    SndtatState.PrepareTeamsForRound();
                 }
                 else if (IsHuntersMode(ActiveMode))
                 {
-                    HuntersState.PrepareTeamsForRound();
+                    HuntModesState.PrepareTeamsForRound();
                 }
                 else
                 {
-                    TeamDeathmatchState.PrepareTeamsForRound();
+                    TdmtatState.PrepareTeamsForRound();
                 }
             }
             RoundId++;
@@ -1666,38 +1671,39 @@ internal static class GameModeManager
 
         switch (ActiveMode)
         {
-            case GameMode.Default:
+            case GameMode.Straftat:
                 label = "TAKE ENDS IN";
-                timeRemaining = DefaultGameModeState.TimeRemaining;
+                timeRemaining = StraftatState.TimeRemaining;
                 return true;
-            case GameMode.MichaelMeyers:
-                timeRemaining = MichaelMeyersState.TimeRemaining;
+            case GameMode.Michaeltat:
+                timeRemaining = MichaeltatState.TimeRemaining;
                 return true;
-            case GameMode.Infidel:
+            case GameMode.Infideltat:
                 label = "TAKE ENDS IN";
-                timeRemaining = InfidelState.TakeTimeRemaining;
+                timeRemaining = InfideltatState.TakeTimeRemaining;
                 return true;
-            case GameMode.Assassin:
+            case GameMode.Assassintat:
                 label = "TAKE ENDS IN";
-                timeRemaining = AssassinState.TakeTimeRemaining;
+                timeRemaining = AssassintatState.TakeTimeRemaining;
                 return true;
-            case GameMode.CaptureTheFlag:
-                timeRemaining = CaptureTheFlagState.MatchTimeRemaining;
+            case GameMode.Capturetat:
+                timeRemaining = CapturetatState.MatchTimeRemaining;
                 return true;
-            case GameMode.SearchAndDestroy:
+            case GameMode.Sndtat:
+            case GameMode.Countertat:
                 label = "TAKE ENDS IN";
-                timeRemaining = SearchAndDestroyState.BombStatus
-                    == SearchAndDestroyBombStatus.Planted
-                    ? SearchAndDestroyState.FuseTimeRemaining
-                    : SearchAndDestroyState.TakeTimeRemaining;
+                timeRemaining = SndtatState.BombStatus
+                    == SndtatBombStatus.Planted
+                    ? SndtatState.FuseTimeRemaining
+                    : SndtatState.TakeTimeRemaining;
                 return true;
-            case GameMode.NinjaHunters:
-            case GameMode.RabbitHunters:
-            case GameMode.TankBattle:
+            case GameMode.Ninjatat:
+            case GameMode.Hunttat:
+            case GameMode.Tanktat:
                 label = "TAKE ENDS IN";
-                timeRemaining = HuntersState.IsTieBreakActive
-                    ? HuntersState.TieBreakHoldRemaining
-                    : HuntersState.TakeTimeRemaining;
+                timeRemaining = HuntModesState.IsTieBreakActive
+                    ? HuntModesState.TieBreakHoldRemaining
+                    : HuntModesState.TakeTimeRemaining;
                 return true;
             default:
                 if (ModeTimeoutState.IsTimedMode(ActiveMode))
@@ -1936,8 +1942,8 @@ internal static class GameModeManager
             return false;
         }
 
-        if (mode != GameMode.MichaelMeyers && mode != GameMode.OneInTheChamber
-            && mode != GameMode.Assassin
+        if (mode != GameMode.Michaeltat && mode != GameMode.Chambertat
+            && mode != GameMode.Assassintat
             && !FishNetCompatibility.CanRespawn)
         {
             Plugin.Logger.LogWarning($"[GameMode] Custom death handling disabled for {mode}: FishNet respawn API is unavailable.");
@@ -1967,13 +1973,13 @@ internal static class GameModeManager
 
         PlayerHealth? deadHealth = null;
         int killerId = -1;
-        int maxKillerResolutionAttempts = mode == GameMode.OneInTheChamber ? 12 : 3;
+        int maxKillerResolutionAttempts = mode == GameMode.Chambertat ? 12 : 3;
         for (int attempt = 0; attempt < maxKillerResolutionAttempts && killerId < 0; attempt++)
         {
             deadHealth = PlayerLookup.FindPlayerHealthById(playerId);
             killerId = PlayerLookup.FindKillerId(deadHealth);
-            if (killerId < 0 && mode == GameMode.OneInTheChamber
-                && OneInTheChamberState.TryConsumePendingMeleeKiller(playerId, out int meleeKillerId))
+            if (killerId < 0 && mode == GameMode.Chambertat
+                && ChambertatState.TryConsumePendingMeleeKiller(playerId, out int meleeKillerId))
             {
                 killerId = meleeKillerId;
             }
@@ -1986,89 +1992,90 @@ internal static class GameModeManager
         PendingDeaths.Remove(playerId);
         switch (mode)
         {
-            case GameMode.FreeForAll:
-                FFAState.OnServerKill(playerId, killerId);
+            case GameMode.Ffatat:
+                FfatatState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
-            case GameMode.Nife:
-                NifeState.OnServerKill(playerId, killerId);
+            case GameMode.Nifetat:
+                NifetatState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
-            case GameMode.Default:
-                DefaultGameModeState.OnServerKill(playerId);
+            case GameMode.Straftat:
+                StraftatState.OnServerKill(playerId);
                 break;
-            case GameMode.Juggernaut:
-                JuggernautState.OnServerKill(playerId, killerId);
+            case GameMode.Juggertat:
+                JuggertatState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
-            case GameMode.GunGame:
-                GunGameState.OnServerKill(playerId, killerId);
+            case GameMode.Guntat:
+                GuntatState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
-            case GameMode.SniperBattle:
-                SniperBattleState.OnServerKill(playerId, killerId);
+            case GameMode.Snipertat:
+                SnipertatState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
-            case GameMode.MichaelMeyers:
-                MichaelMeyersState.OnServerKill(playerId, killerId);
+            case GameMode.Michaeltat:
+                MichaeltatState.OnServerKill(playerId, killerId);
                 break;
-            case GameMode.KillTheRat:
-                KillTheRatState.OnServerKill(playerId, killerId);
+            case GameMode.Ratatat:
+                RatatatState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
-            case GameMode.OneInTheChamber:
-                OneInTheChamberState.OnServerKill(playerId, killerId);
+            case GameMode.Chambertat:
+                ChambertatState.OnServerKill(playerId, killerId);
                 break;
-            case GameMode.HotPotato:
-                HotPotatoState.OnServerKill(playerId, killerId);
+            case GameMode.Potatotat:
+                PotatotatState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
-            case GameMode.Infidel:
-                InfidelState.OnServerKill(playerId, killerId);
+            case GameMode.Infideltat:
+                InfideltatState.OnServerKill(playerId, killerId);
                 break;
-            case GameMode.Assassin:
-                AssassinState.OnServerKill(playerId, killerId);
+            case GameMode.Assassintat:
+                AssassintatState.OnServerKill(playerId, killerId);
                 break;
-            case GameMode.Hardpoint:
-                HardpointState.OnServerKill(playerId, killerId);
-                if (HardpointState.CanRespawn())
+            case GameMode.Hardtat:
+                HardtatState.OnServerKill(playerId, killerId);
+                if (HardtatState.CanRespawn())
                 {
                     GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 }
                 break;
-            case GameMode.CaptureTheFlag:
-                CaptureTheFlagState.OnServerKill(playerId, killerId);
-                if (CaptureTheFlagState.CanRespawn())
+            case GameMode.Capturetat:
+                CapturetatState.OnServerKill(playerId, killerId);
+                if (CapturetatState.CanRespawn())
                 {
                     GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 }
                 break;
-            case GameMode.SearchAndDestroy:
-                SearchAndDestroyState.OnServerKill(playerId, killerId);
+            case GameMode.Sndtat:
+            case GameMode.Countertat:
+                SndtatState.OnServerKill(playerId, killerId);
                 break;
-            case GameMode.NinjaHunters:
-            case GameMode.RabbitHunters:
-            case GameMode.TankBattle:
-                HuntersState.OnServerKill(playerId, killerId);
+            case GameMode.Ninjatat:
+            case GameMode.Hunttat:
+            case GameMode.Tanktat:
+                HuntModesState.OnServerKill(playerId, killerId);
                 break;
-            case GameMode.TeamDeathmatch:
-                TeamDeathmatchState.OnServerKill(playerId, killerId);
+            case GameMode.Tdmtat:
+                TdmtatState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
-            case GameMode.HVT:
-                HVTState.OnServerKill(playerId, killerId);
+            case GameMode.Hvtat:
+                HvtatState.OnServerKill(playerId, killerId);
                 GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 break;
-            case GameMode.Infected:
-                InfectedState.OnServerKill(playerId, killerId);
-                if (!InfectedState.IsRoundEnding)
+            case GameMode.Infectedtat:
+                InfectedtatState.OnServerKill(playerId, killerId);
+                if (!InfectedtatState.IsRoundEnding)
                 {
                     GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 }
                 break;
-            case GameMode.HotPotInfected:
-                HotPotInfectedState.OnServerKill(playerId, killerId);
-                if (!HotPotInfectedState.IsRoundEnding)
+            case GameMode.PotatoInftat:
+                PotatoInftatState.OnServerKill(playerId, killerId);
+                if (!PotatoInftatState.IsRoundEnding)
                 {
                     GameModeRespawn.Schedule(playerId, EffectiveRespawnDelaySeconds);
                 }

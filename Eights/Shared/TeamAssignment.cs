@@ -48,30 +48,30 @@ internal static class TeamAssignment
 
         RememberCurrentAssignments();
         List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
-        bool isTeamDeathmatch = GameModeManager.IsActive(GameMode.TeamDeathmatch);
-        Dictionary<int, int> nextAssignments = GameModeManager.IsActive(GameMode.Hardpoint)
-            ? TeamRules.AssignHardpointBalanced(playerIds, TeamAssignmentRandom,
+        bool isTdmtat = GameModeManager.IsActive(GameMode.Tdmtat);
+        Dictionary<int, int> nextAssignments = GameModeManager.IsActive(GameMode.Hardtat)
+            ? TeamRules.AssignHardtatBalanced(playerIds, TeamAssignmentRandom,
                 PreviousAssignments)
-            : isTeamDeathmatch ? TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom,
+            : isTdmtat ? TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom,
                 PreviousAssignments)
             : TeamRules.AssignBalanced(playerIds, TeamAssignmentRandom, PreviousAssignments);
         if (nextAssignments.Count == 0)
         {
-            if (GameModeManager.IsActive(GameMode.Hardpoint))
+            if (GameModeManager.IsActive(GameMode.Hardtat))
             {
-                Plugin.Logger.LogWarning($"[Teams] Hardpoint rule returned no assignments: "
+                Plugin.Logger.LogWarning($"[Teams] Hardtat rule returned no assignments: "
                     + $"players=[{string.Join(",", playerIds)}] count={playerIds.Count}");
             }
             return false;
         }
 
-        int teamCount = GameModeManager.IsActive(GameMode.Hardpoint)
-            ? TeamRules.GetHardpointTeamCount(playerIds.Count)
-            : isTeamDeathmatch ? 2 : TeamRules.GetTeamCount(playerIds.Count);
+        int teamCount = GameModeManager.IsActive(GameMode.Hardtat)
+            ? TeamRules.GetHardtatTeamCount(playerIds.Count)
+            : isTdmtat ? 2 : TeamRules.GetTeamCount(playerIds.Count);
         bool applied = ApplyRoundAssignments(playerIds, teamCount, nextAssignments);
-        if (!applied && GameModeManager.IsActive(GameMode.Hardpoint))
+        if (!applied && GameModeManager.IsActive(GameMode.Hardtat))
         {
-            Plugin.Logger.LogWarning($"[Teams] Hardpoint assignment application failed: "
+            Plugin.Logger.LogWarning($"[Teams] Hardtat assignment application failed: "
                 + $"players=[{string.Join(",", playerIds)}] teamCount={teamCount} "
                 + $"generated={nextAssignments.Count} keepTeams={GameModeManager.EffectiveKeepTeams}");
         }
@@ -79,7 +79,7 @@ internal static class TeamAssignment
         return applied;
     }
 
-    internal static bool AssignCaptureTheFlagRound()
+    internal static bool AssignCapturetatRound()
     {
         if (!MyceliumNetworking.MyceliumNetwork.IsHost)
         {
@@ -97,7 +97,7 @@ internal static class TeamAssignment
             TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, PreviousAssignments));
     }
 
-    internal static bool AssignSearchAndDestroyRound()
+    internal static bool AssignSndtatRound()
     {
         if (!MyceliumNetworking.MyceliumNetwork.IsHost)
         {
@@ -254,8 +254,8 @@ internal static class TeamAssignment
     private static Dictionary<int, int> CreateMixupAssignments(IReadOnlyList<int> playerIds,
         int teamCount)
     {
-        return GameModeManager.IsActive(GameMode.Hardpoint)
-            ? TeamRules.AssignHardpointBalanced(playerIds, TeamAssignmentRandom, null)
+        return GameModeManager.IsActive(GameMode.Hardtat)
+            ? TeamRules.AssignHardtatBalanced(playerIds, TeamAssignmentRandom, null)
             : teamCount == 2
                 ? TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, null)
                 : TeamRules.AssignBalanced(playerIds, TeamAssignmentRandom, null);
@@ -340,13 +340,13 @@ internal static class TeamAssignment
             return;
         }
 
-        if (GameModeManager.IsActive(GameMode.CaptureTheFlag))
+        if (GameModeManager.IsActive(GameMode.Capturetat))
         {
-            AssignCaptureTheFlagRound();
+            AssignCapturetatRound();
         }
-        else if (GameModeManager.IsActive(GameMode.SearchAndDestroy))
+        else if (GameModeManager.IsBombModeActive)
         {
-            AssignSearchAndDestroyRound();
+            AssignSndtatRound();
         }
         else if (GameModeManager.IsHuntersActive)
         {
@@ -597,10 +597,10 @@ internal static class TeamAssignment
 
     private static List<Vector3> GetCandidates(MapDefinition definition, int teamId)
     {
-        if (GameModeManager.IsActive(GameMode.CaptureTheFlag))
+        if (GameModeManager.IsActive(GameMode.Capturetat))
         {
             Vector3 origin = definition.TeamOrigins[Mathf.Clamp(teamId, 0, 1)];
-            int candidateCount = CaptureTheFlagRules.GetSpawnCandidateCount(
+            int candidateCount = CapturetatRules.GetSpawnCandidateCount(
                 definition.SpawnPoints.Count);
             return definition.SpawnPoints
                 .OrderBy(position => HorizontalDistanceSquared(position, origin))

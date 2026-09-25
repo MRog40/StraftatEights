@@ -12,7 +12,7 @@ internal static class MovementPolicy
 
     internal static void ForceTankState(FirstPersonController controller)
     {
-        if (!HuntersState.IsTankBattle)
+        if (!HuntModesState.IsTanktat)
         {
             return;
         }
@@ -25,13 +25,13 @@ internal static class MovementPolicy
         SlideSprintingField?.SetValue(controller, false);
     }
 
-    private static bool IsJuggernautMinigunFiring(FirstPersonController controller)
+    private static bool IsJuggertatMinigunFiring(FirstPersonController controller)
     {
         PlayerPickup? pickup = controller.playerPickupScript;
         GameObject? heldObject = pickup?.objInHand;
         Weapon? weapon = heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
         if (weapon == null
-            || !weapon.name.StartsWith(JuggernautState.WeaponName, System.StringComparison.Ordinal))
+            || !weapon.name.StartsWith(JuggertatState.WeaponName, System.StringComparison.Ordinal))
         {
             return false;
         }
@@ -47,12 +47,12 @@ internal static class MovementPolicy
             return true;
         }
 
-        if (HuntersState.IsTankBattle)
+        if (HuntModesState.IsTanktat)
         {
             return false;
         }
 
-        return !JuggernautState.IsCurrentJuggernaut(controller)
+        return !JuggertatState.IsCurrentJuggertat(controller)
             && (GameModeManager.ShouldIgnoreGlobalMovementSettings || GlobalModifiersState.SlidingEnabled);
     }
 
@@ -63,18 +63,18 @@ internal static class MovementPolicy
             return true;
         }
 
-        if (HuntersState.IsTankBattle)
+        if (HuntModesState.IsTanktat)
         {
             controller.CanWallJump = false;
             return false;
         }
 
-        if (JuggernautState.IsCurrentJuggernaut(controller))
+        if (JuggertatState.IsCurrentJuggertat(controller))
         {
             return false;
         }
 
-        if (GameModeManager.IsActive(GameMode.MichaelMeyers))
+        if (GameModeManager.IsActive(GameMode.Michaeltat))
         {
             controller.CanWallJump = false;
         }
@@ -90,7 +90,7 @@ internal static class MovementPolicy
 
         switch (GameModeManager.ActiveMode)
         {
-            case GameMode.TankBattle:
+            case GameMode.Tanktat:
                 ForceTankState(controller);
                 controller.movementFactor = 1f;
                 break;
@@ -107,42 +107,42 @@ internal static class MovementPolicy
         float multiplier = 1f;
         switch (GameModeManager.ActiveMode)
         {
-            case GameMode.MichaelMeyers:
-                if (MichaelMeyersState.IsMichael(controller))
+            case GameMode.Michaeltat:
+                if (MichaeltatState.IsMichael(controller))
                 {
-                    multiplier = MichaelMeyersState.MovementMultiplier;
+                    multiplier = MichaeltatState.MovementMultiplier;
                 }
                 break;
-            case GameMode.Infected:
+            case GameMode.Infectedtat:
                 PlayerHealth? health = controller.GetComponent<PlayerHealth>();
-                if (health != null && health && InfectedState.IsInfected(health))
+                if (health != null && health && InfectedtatState.IsInfectedtat(health))
                 {
-                    multiplier = InfectedState.InfectedSpeedMultiplier;
+                    multiplier = InfectedtatState.InfectedtatSpeedMultiplier;
                 }
                 break;
-            case GameMode.HotPotInfected:
-                PlayerHealth? hotPotInfectedHealth = controller.GetComponent<PlayerHealth>();
-                if (hotPotInfectedHealth != null && hotPotInfectedHealth
-                    && HotPotInfectedState.IsInfected(hotPotInfectedHealth))
+            case GameMode.PotatoInftat:
+                PlayerHealth? hotPotInfectedtatHealth = controller.GetComponent<PlayerHealth>();
+                if (hotPotInfectedtatHealth != null && hotPotInfectedtatHealth
+                    && PotatoInftatState.IsInfectedtat(hotPotInfectedtatHealth))
                 {
-                    multiplier = HotPotInfectedState.InfectedSpeedMultiplier;
+                    multiplier = PotatoInftatState.InfectedtatSpeedMultiplier;
                 }
                 break;
-            case GameMode.Juggernaut:
-                if (JuggernautState.IsCurrentJuggernaut(controller)
-                    && IsJuggernautMinigunFiring(controller))
+            case GameMode.Juggertat:
+                if (JuggertatState.IsCurrentJuggertat(controller)
+                    && IsJuggertatMinigunFiring(controller))
                 {
-                    multiplier = JuggernautState.MovementMultiplier;
+                    multiplier = JuggertatState.MovementMultiplier;
                 }
                 break;
-            case GameMode.KillTheRat:
-                if (KillTheRatState.IsRat(controller))
+            case GameMode.Ratatat:
+                if (RatatatState.IsRat(controller))
                 {
-                    multiplier = KillTheRatState.RatMovementMultiplier;
+                    multiplier = RatatatState.RatMovementMultiplier;
                 }
                 break;
-            case GameMode.Infidel:
-                multiplier = InfidelState.MovementMultiplier;
+            case GameMode.Infideltat:
+                multiplier = InfideltatState.MovementMultiplier;
                 break;
         }
 
@@ -201,9 +201,9 @@ internal static class FirstPersonController_WallJumpPolicy_Patch
 {
     private static void Postfix(FirstPersonController __instance)
     {
-        if (HuntersState.IsTankBattle
+        if (HuntModesState.IsTanktat
             || (!GameModeManager.ShouldIgnoreGlobalMovementSettings && !GlobalModifiersState.WallJumpEnabled)
-            || GameModeManager.IsActive(GameMode.MichaelMeyers))
+            || GameModeManager.IsActive(GameMode.Michaeltat))
         {
             __instance.CanWallJump = false;
         }
@@ -218,12 +218,12 @@ internal static class FirstPersonController_MovementPolicy_Patch
     {
         MovementPolicy.ForceTankState(__instance);
 
-        if (GameModeManager.IsActive(GameMode.MichaelMeyers))
+        if (GameModeManager.IsActive(GameMode.Michaeltat))
         {
             __instance.CanWallJump = false;
         }
 
-        if (JuggernautState.IsCurrentJuggernaut(__instance))
+        if (JuggertatState.IsCurrentJuggertat(__instance))
         {
             __instance.isSprinting = false;
         }

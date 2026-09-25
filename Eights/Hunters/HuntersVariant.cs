@@ -2,9 +2,9 @@ using UnityEngine;
 
 namespace Eights;
 
-internal sealed class HuntersVariantDefinition
+internal sealed class HuntModeVariantDefinition
 {
-    internal HuntersVariantDefinition(GameMode mode, string label, Color color, uint modId,
+    internal HuntModeVariantDefinition(GameMode mode, string label, Color color, uint modId,
         string settingsLobbyDataKey, string liveLobbyDataKey, string settingsRpcName,
         string liveRpcName, string teamZeroName, string teamOneName,
         string teamZeroWeaponName, string teamOneWeaponName,
@@ -47,52 +47,51 @@ internal sealed class HuntersVariantDefinition
     internal bool DisableHealthRegen { get; }
 }
 
-internal static class NinjaHuntersDefinition
+internal static class NinjatatDefinition
 {
-    internal static readonly HuntersVariantDefinition Value = new(
-        GameMode.NinjaHunters,
+    internal static readonly HuntModeVariantDefinition Value = new(
+        GameMode.Ninjatat,
         "NINJA HUNTERS",
         new Color32(152, 91, 224, 255),
         1618033999u,
-        "Eights_NinjaHunters_Settings",
-        "Eights_NinjaHunters_Live",
-        "SyncNinjaHuntersSettings",
-        "SyncNinjaHuntersLiveState",
+        "Eights_Ninjatat_Settings",
+        "Eights_Ninjatat_Live",
+        "SyncNinjatatSettings",
+        "SyncNinjatatLiveState",
         "NINJAS",
         "HUNTERS",
         "Katana",
         "FG42");
 }
 
-internal static class RabbitHuntersDefinition
+internal static class HunttatDefinition
 {
-    internal static readonly HuntersVariantDefinition Value = new(
-        GameMode.RabbitHunters,
-        "RABBIT HUNT",
+    internal static readonly HuntModeVariantDefinition Value = new(
+        GameMode.Hunttat,
+        "Hunttat",
         new Color32(238, 156, 196, 255),
         1618034000u,
-        "Eights_RabbitHunters_Settings",
-        "Eights_RabbitHunters_Live",
-        "SyncRabbitHuntersSettings",
-        "SyncRabbitHuntersLiveState",
+        "Eights_Hunttat_Settings",
+        "Eights_Hunttat_Live",
+        "SyncHunttatSettings",
+        "SyncHunttatLiveState",
         "RABBITS",
         "HUNTERS",
-        "Stylus",
-        "Tromblonj",
-        teamZeroDualWield: true);
+        "SmithCarbine",
+        "Tromblonj");
 }
 
-    internal static class TankBattleDefinition
+    internal static class TanktatDefinition
     {
-        internal static readonly HuntersVariantDefinition Value = new(
-        GameMode.TankBattle,
+        internal static readonly HuntModeVariantDefinition Value = new(
+        GameMode.Tanktat,
         "TANK BATTLE",
         new Color32(190, 118, 52, 255),
         1618034001u,
-        "Eights_TankBattle_Settings",
-        "Eights_TankBattle_Live",
-        "SyncTankBattleSettings",
-        "SyncTankBattleLiveState",
+        "Eights_Tanktat_Settings",
+        "Eights_Tanktat_Live",
+        "SyncTanktatSettings",
+        "SyncTanktatLiveState",
         "TANKS A",
         "TANKS B",
         "HK_Caws",

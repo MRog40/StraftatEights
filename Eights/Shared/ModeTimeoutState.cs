@@ -27,23 +27,23 @@ internal static class ModeTimeoutState
 
     internal static bool IsTimedMode(GameMode mode)
     {
-        return mode == GameMode.OneInTheChamber
-            || mode == GameMode.FreeForAll
-            || mode == GameMode.Nife
-            || mode == GameMode.Juggernaut
-            || mode == GameMode.GunGame
-            || mode == GameMode.SniperBattle
-            || mode == GameMode.KillTheRat
-            || mode == GameMode.HotPotato
-            || mode == GameMode.HVT
-            || mode == GameMode.TeamDeathmatch
-            || mode == GameMode.Infected
-            || mode == GameMode.HotPotInfected;
+        return mode == GameMode.Chambertat
+            || mode == GameMode.Ffatat
+            || mode == GameMode.Nifetat
+            || mode == GameMode.Juggertat
+            || mode == GameMode.Guntat
+            || mode == GameMode.Snipertat
+            || mode == GameMode.Ratatat
+            || mode == GameMode.Potatotat
+            || mode == GameMode.Hvtat
+            || mode == GameMode.Tdmtat
+            || mode == GameMode.Infectedtat
+            || mode == GameMode.PotatoInftat;
     }
 
     internal static void OnTakeStarted()
     {
-        if (GameModeManager.ActiveMode != GameMode.OneInTheChamber)
+        if (GameModeManager.ActiveMode != GameMode.Chambertat)
         {
             return;
         }
@@ -68,7 +68,7 @@ internal static class ModeTimeoutState
 
         return IsSuddenDeath
             ? "Sudden Death"
-            : (GameModeManager.ActiveMode == GameMode.OneInTheChamber
+            : (GameModeManager.ActiveMode == GameMode.Chambertat
                 ? "Take: "
                 : "Round: ") + Mathf.CeilToInt(TimeRemaining) + "s";
     }
@@ -199,21 +199,21 @@ internal static class ModeTimeoutState
 
     private static void ResolveTimeout()
     {
-        if (GameModeManager.ActiveMode == GameMode.Infected)
+        if (GameModeManager.ActiveMode == GameMode.Infectedtat)
         {
-            InfectedState.OnRoundTimeout();
+            InfectedtatState.OnRoundTimeout();
             return;
         }
 
-        if (GameModeManager.ActiveMode == GameMode.HotPotInfected)
+        if (GameModeManager.ActiveMode == GameMode.PotatoInftat)
         {
-            HotPotInfectedState.OnRoundTimeout();
+            PotatoInftatState.OnRoundTimeout();
             return;
         }
 
-        if (GameModeManager.ActiveMode == GameMode.OneInTheChamber)
+        if (GameModeManager.ActiveMode == GameMode.Chambertat)
         {
-            OneInTheChamberState.OnTakeTimeout();
+            ChambertatState.OnTakeTimeout();
             return;
         }
 
@@ -315,45 +315,45 @@ internal static class ModeTimeoutState
         teamScores = false;
         switch (GameModeManager.ActiveMode)
         {
-            case GameMode.FreeForAll:
-                scores = FFAState.Kills;
+            case GameMode.Ffatat:
+                scores = FfatatState.Kills;
                 return true;
-            case GameMode.Nife:
-                scores = NifeState.Kills;
+            case GameMode.Nifetat:
+                scores = NifetatState.Kills;
                 return true;
-            case GameMode.Juggernaut:
-                scores = JuggernautState.Points;
+            case GameMode.Juggertat:
+                scores = JuggertatState.Points;
                 return true;
-            case GameMode.GunGame:
-                scores = GunGameState.Progress;
+            case GameMode.Guntat:
+                scores = GuntatState.Progress;
                 return true;
-            case GameMode.SniperBattle:
-                scores = SniperBattleState.Points;
+            case GameMode.Snipertat:
+                scores = SnipertatState.Points;
                 return true;
-            case GameMode.KillTheRat:
-                scores = KillTheRatState.Points;
+            case GameMode.Ratatat:
+                scores = RatatatState.Points;
                 return true;
-            case GameMode.OneInTheChamber:
-                scores = OneInTheChamberState.Scores;
+            case GameMode.Chambertat:
+                scores = ChambertatState.Scores;
                 return true;
-            case GameMode.HotPotato:
-                scores = HotPotatoState.Kills;
+            case GameMode.Potatotat:
+                scores = PotatotatState.Kills;
                 return true;
-            case GameMode.Assassin:
-                scores = AssassinState.Scores;
+            case GameMode.Assassintat:
+                scores = AssassintatState.Scores;
                 return true;
-            case GameMode.HVT:
-                scores = HVTState.Points;
+            case GameMode.Hvtat:
+                scores = HvtatState.Points;
                 return true;
-            case GameMode.TeamDeathmatch:
-                scores = TeamDeathmatchState.Scores;
+            case GameMode.Tdmtat:
+                scores = TdmtatState.Scores;
                 teamScores = true;
                 return true;
-            case GameMode.Infected:
-                scores = InfectedState.Scores;
+            case GameMode.Infectedtat:
+                scores = InfectedtatState.Scores;
                 return true;
-            case GameMode.HotPotInfected:
-                scores = HotPotInfectedState.Scores;
+            case GameMode.PotatoInftat:
+                scores = PotatoInftatState.Scores;
                 return true;
             default:
                 scores = new Dictionary<int, int>();
@@ -380,7 +380,7 @@ internal static class ModeTimeoutState
 
     private static float GetDuration(GameMode mode)
     {
-        return mode == GameMode.OneInTheChamber
+        return mode == GameMode.Chambertat
             ? ModeTimeoutRules.DefaultRoundSeconds
             : ModeTimeoutRules.LongRoundSeconds;
     }

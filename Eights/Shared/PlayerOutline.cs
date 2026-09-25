@@ -16,10 +16,10 @@ internal static class PlayerOutline
     private static readonly Dictionary<int, PlayerHealth> MultiTargets = new();
     private static readonly ConditionalWeakTable<PlayerHealth, RendererCache> RendererCaches = new();
     private static readonly Color HvtColor = Color.blue;
-    private static readonly Color JuggernautColor = new(1f, 0.42f, 0f);
-    private static readonly Color KillTheRatColor = Color.yellow;
-    private static readonly Color MichaelMeyersColor = Color.red;
-    private static readonly Color AssassinKingColor = new(0.2f, 0.82f, 0.37f);
+    private static readonly Color JuggertatColor = new(1f, 0.42f, 0f);
+    private static readonly Color RatatatColor = Color.yellow;
+    private static readonly Color MichaeltatColor = Color.red;
+    private static readonly Color AssassintatKingColor = new(0.2f, 0.82f, 0.37f);
     private static GameMode _lastMode = GameMode.None;
     private static GameMode _roleMode = GameMode.None;
     private static int _rolePlayerId = -1;
@@ -100,9 +100,9 @@ internal static class PlayerOutline
         }
         _nextVisualRefreshTime = Time.unscaledTime + VisualRefreshIntervalSeconds;
 
-        if (activeMode == GameMode.MichaelMeyers)
+        if (activeMode == GameMode.Michaeltat)
         {
-            EnforceMichaelMeyersOutline();
+            EnforceMichaeltatOutline();
             return;
         }
 
@@ -199,26 +199,26 @@ internal static class PlayerOutline
 
     private static bool IsOutlineMode(GameMode mode)
     {
-        return mode == GameMode.HVT
-            || mode == GameMode.Juggernaut
-            || mode == GameMode.KillTheRat
-            || mode == GameMode.MichaelMeyers
-            || mode == GameMode.Assassin;
+        return mode == GameMode.Hvtat
+            || mode == GameMode.Juggertat
+            || mode == GameMode.Ratatat
+            || mode == GameMode.Michaeltat
+            || mode == GameMode.Assassintat;
     }
 
     private static Color GetColor(GameMode mode)
     {
         return mode switch
         {
-            GameMode.HVT => HvtColor,
-            GameMode.Juggernaut => JuggernautColor,
-            GameMode.KillTheRat => KillTheRatColor,
-            GameMode.Assassin => AssassinKingColor,
-            _ => MichaelMeyersColor
+            GameMode.Hvtat => HvtColor,
+            GameMode.Juggertat => JuggertatColor,
+            GameMode.Ratatat => RatatatColor,
+            GameMode.Assassintat => AssassintatKingColor,
+            _ => MichaeltatColor
         };
     }
 
-    private static void EnforceMichaelMeyersOutline()
+    private static void EnforceMichaeltatOutline()
     {
         int localPlayerId = ClientInstance.Instance == null ? -1 : ClientInstance.Instance.PlayerId;
         if (localPlayerId < 0 || _rolePlayerId != localPlayerId)
@@ -257,7 +257,7 @@ internal static class PlayerOutline
         {
             if (health != null && health.gameObject.activeInHierarchy)
             {
-                Apply(health, MichaelMeyersColor);
+                Apply(health, MichaeltatColor);
             }
         }
     }
@@ -379,11 +379,11 @@ internal static class PlayerOutline
     {
         return mode switch
         {
-            GameMode.HVT => HVTState.CurrentHVTPlayerId,
-            GameMode.Juggernaut => JuggernautState.CurrentJuggernautPlayerId,
-            GameMode.KillTheRat => KillTheRatState.CurrentRatPlayerId,
-            GameMode.MichaelMeyers => MichaelMeyersState.CurrentMichaelPlayerId,
-            GameMode.Assassin => AssassinState.KingPlayerId,
+            GameMode.Hvtat => HvtatState.CurrentHvtatPlayerId,
+            GameMode.Juggertat => JuggertatState.CurrentJuggertatPlayerId,
+            GameMode.Ratatat => RatatatState.CurrentRatPlayerId,
+            GameMode.Michaeltat => MichaeltatState.CurrentMichaelPlayerId,
+            GameMode.Assassintat => AssassintatState.KingPlayerId,
             _ => -1
         };
     }

@@ -415,10 +415,10 @@ internal sealed class GameModeHud : MonoBehaviour
         }
         UpdateAnnouncementLayout();
 
-        string objectiveStatus = visible && GameModeManager.IsActive(GameMode.SearchAndDestroy)
-            ? SearchAndDestroyState.GetLocalBombStatusText()
+        string objectiveStatus = visible && GameModeManager.IsBombModeActive
+            ? SndtatState.GetLocalBombStatusText()
             : visible && GameModeManager.IsHuntersActive
-                ? HuntersState.GetLocalObjectiveStatusText()
+                ? HuntModesState.GetLocalObjectiveStatusText()
                 : string.Empty;
         if (_lastObjectiveStatusText != objectiveStatus)
         {
@@ -427,8 +427,8 @@ internal sealed class GameModeHud : MonoBehaviour
         }
         _objectiveStatus.gameObject.SetActive(objectiveStatus.Length > 0);
 
-        string interactionPrompt = visible && GameModeManager.IsActive(GameMode.SearchAndDestroy)
-            ? SearchAndDestroyState.GetLocalInteractionPrompt()
+        string interactionPrompt = visible && GameModeManager.IsBombModeActive
+            ? SndtatState.GetLocalInteractionPrompt()
             : string.Empty;
         if (_lastInteractionPromptText != interactionPrompt)
         {
@@ -437,11 +437,11 @@ internal sealed class GameModeHud : MonoBehaviour
         }
         _interactionPrompt.gameObject.SetActive(interactionPrompt.Length > 0);
 
-        if (visible && GameModeManager.IsActive(GameMode.OneInTheChamber))
+        if (visible && GameModeManager.IsActive(GameMode.Chambertat))
         {
             if (!GameModeManager.IsPreRoundTimerActive)
             {
-                string countdown = OneInTheChamberState.GetLoadoutCountdownText();
+                string countdown = ChambertatState.GetLoadoutCountdownText();
                 if (countdown.Length > 0)
                 {
                     _targetAnnouncement.text = countdown;
@@ -842,45 +842,45 @@ internal sealed class GameModeHud : MonoBehaviour
 
     private void RefreshScoreboard()
     {
-        if (GameModeManager.IsActive(GameMode.CaptureTheFlag))
+        if (GameModeManager.IsActive(GameMode.Capturetat))
         {
-            SetScoreboardText(CaptureTheFlagHud.BuildScoreboard());
+            SetScoreboardText(CapturetatHud.BuildScoreboard());
             return;
         }
 
-        if (GameModeManager.IsActive(GameMode.SearchAndDestroy))
+        if (GameModeManager.IsBombModeActive)
         {
-            SetScoreboardText(SearchAndDestroyHud.BuildScoreboard());
+            SetScoreboardText(SndtatHud.BuildScoreboard());
             return;
         }
 
-        if (GameModeManager.IsActive(GameMode.TeamDeathmatch))
+        if (GameModeManager.IsActive(GameMode.Tdmtat))
         {
-            SetScoreboardText(TeamDeathmatchHud.BuildScoreboard());
+            SetScoreboardText(TdmtatHud.BuildScoreboard());
             return;
         }
 
-        if (GameModeManager.IsActive(GameMode.Hardpoint))
+        if (GameModeManager.IsActive(GameMode.Hardtat))
         {
-            SetScoreboardText(HardpointHud.BuildScoreboard());
+            SetScoreboardText(HardtatHud.BuildScoreboard());
             return;
         }
 
         if (GameModeManager.IsHuntersActive)
         {
-            SetScoreboardText(HuntersHud.BuildScoreboard());
+            SetScoreboardText(HuntModesHud.BuildScoreboard());
             return;
         }
 
-        if (GameModeManager.IsActive(GameMode.MichaelMeyers))
+        if (GameModeManager.IsActive(GameMode.Michaeltat))
         {
             GameModeScoreboardRow[] survivorRows =
             {
-                new GameModeScoreboardRow("Survivors", MichaelMeyersState.SurvivorCount)
+                new GameModeScoreboardRow("Survivors", MichaeltatState.SurvivorCount)
             };
-                SetScoreboardText(GameModeScoreboard.Build(GameMode.MichaelMeyers, null, null,
-                survivorRows, MichaelMeyersState.TimeRemaining > 0f
-                    ? "Round: " + Mathf.CeilToInt(MichaelMeyersState.TimeRemaining) + "s"
+                SetScoreboardText(GameModeScoreboard.Build(GameMode.Michaeltat, null, null,
+                survivorRows, MichaeltatState.TimeRemaining > 0f
+                    ? "Round: " + Mathf.CeilToInt(MichaeltatState.TimeRemaining) + "s"
                     : string.Empty));
             return;
         }
@@ -888,97 +888,97 @@ internal sealed class GameModeHud : MonoBehaviour
         bool crownFirst;
         int pointsToWin;
         string? timerText = null;
-        if (GameModeManager.IsActive(GameMode.FreeForAll))
+        if (GameModeManager.IsActive(GameMode.Ffatat))
         {
-            pointsToWin = FFAState.KillsToWin;
-            scores = FFAState.Kills;
+            pointsToWin = FfatatState.KillsToWin;
+            scores = FfatatState.Kills;
             crownFirst = false;
         }
-        else if (GameModeManager.IsActive(GameMode.Nife))
+        else if (GameModeManager.IsActive(GameMode.Nifetat))
         {
-            pointsToWin = NifeState.KillsToWin;
-            scores = NifeState.Kills;
+            pointsToWin = NifetatState.KillsToWin;
+            scores = NifetatState.Kills;
             crownFirst = false;
         }
-        else if (GameModeManager.IsActive(GameMode.Juggernaut))
+        else if (GameModeManager.IsActive(GameMode.Juggertat))
         {
-            pointsToWin = JuggernautState.PointsToWin;
-            scores = JuggernautState.Points;
+            pointsToWin = JuggertatState.PointsToWin;
+            scores = JuggertatState.Points;
             crownFirst = true;
         }
-        else if (GameModeManager.IsActive(GameMode.HVT))
+        else if (GameModeManager.IsActive(GameMode.Hvtat))
         {
-            pointsToWin = HVTState.PointsToWin;
-            scores = HVTState.Points;
+            pointsToWin = HvtatState.PointsToWin;
+            scores = HvtatState.Points;
             crownFirst = true;
         }
-        else if (GameModeManager.IsActive(GameMode.Infected))
+        else if (GameModeManager.IsActive(GameMode.Infectedtat))
         {
-            pointsToWin = InfectedState.PointsToWin;
-            scores = InfectedState.Scores;
+            pointsToWin = InfectedtatState.PointsToWin;
+            scores = InfectedtatState.Scores;
             crownFirst = false;
         }
-        else if (GameModeManager.IsActive(GameMode.HotPotInfected))
+        else if (GameModeManager.IsActive(GameMode.PotatoInftat))
         {
-            pointsToWin = HotPotInfectedState.PointsToWin;
-            scores = HotPotInfectedState.Scores;
+            pointsToWin = PotatoInftatState.PointsToWin;
+            scores = PotatoInftatState.Scores;
             crownFirst = false;
         }
-        else if (GameModeManager.IsActive(GameMode.SniperBattle))
+        else if (GameModeManager.IsActive(GameMode.Snipertat))
         {
-            pointsToWin = SniperBattleState.PointsToWin;
-            scores = SniperBattleState.Points;
+            pointsToWin = SnipertatState.PointsToWin;
+            scores = SnipertatState.Points;
             crownFirst = false;
         }
-        else if (GameModeManager.IsActive(GameMode.KillTheRat))
+        else if (GameModeManager.IsActive(GameMode.Ratatat))
         {
-            pointsToWin = KillTheRatState.PointsToWin;
-            scores = KillTheRatState.Points;
+            pointsToWin = RatatatState.PointsToWin;
+            scores = RatatatState.Points;
             crownFirst = false;
         }
-        else if (GameModeManager.IsActive(GameMode.HotPotato))
+        else if (GameModeManager.IsActive(GameMode.Potatotat))
         {
-            pointsToWin = HotPotatoState.KillsToWin;
-            scores = HotPotatoState.Kills;
+            pointsToWin = PotatotatState.KillsToWin;
+            scores = PotatotatState.Kills;
             crownFirst = false;
         }
-        else if (GameModeManager.IsActive(GameMode.Infidel))
+        else if (GameModeManager.IsActive(GameMode.Infideltat))
         {
-            pointsToWin = InfidelState.KillsToWin;
-            scores = InfidelState.Scores;
+            pointsToWin = InfideltatState.KillsToWin;
+            scores = InfideltatState.Scores;
             crownFirst = false;
-            timerText = InfidelState.TakeTimeRemaining > 0f
-                ? "Take: " + Mathf.CeilToInt(InfidelState.TakeTimeRemaining) + "s"
+            timerText = InfideltatState.TakeTimeRemaining > 0f
+                ? "Take: " + Mathf.CeilToInt(InfideltatState.TakeTimeRemaining) + "s"
                 : string.Empty;
         }
-        else if (GameModeManager.IsActive(GameMode.Assassin))
+        else if (GameModeManager.IsActive(GameMode.Assassintat))
         {
-            pointsToWin = AssassinState.PointsToWin;
-            scores = AssassinState.Scores;
+            pointsToWin = AssassintatState.PointsToWin;
+            scores = AssassintatState.Scores;
             crownFirst = false;
-            timerText = AssassinState.TakeTimeRemaining > 0f
-                ? "Take: " + Mathf.CeilToInt(AssassinState.TakeTimeRemaining) + "s"
+            timerText = AssassintatState.TakeTimeRemaining > 0f
+                ? "Take: " + Mathf.CeilToInt(AssassintatState.TakeTimeRemaining) + "s"
                 : string.Empty;
         }
-        else if (GameModeManager.IsActive(GameMode.OneInTheChamber))
+        else if (GameModeManager.IsActive(GameMode.Chambertat))
         {
-            pointsToWin = OneInTheChamberState.PointsToWin;
-            scores = OneInTheChamberState.Scores;
+            pointsToWin = ChambertatState.PointsToWin;
+            scores = ChambertatState.Scores;
             crownFirst = false;
         }
-        else if (GameModeManager.IsActive(GameMode.Default))
+        else if (GameModeManager.IsActive(GameMode.Straftat))
         {
-            pointsToWin = DefaultGameModeState.PointsToWin;
-            scores = DefaultGameModeState.Scores;
+            pointsToWin = StraftatState.PointsToWin;
+            scores = StraftatState.Scores;
             crownFirst = false;
-            timerText = DefaultGameModeState.TimeRemaining > 0f
-                ? "Take: " + Mathf.CeilToInt(DefaultGameModeState.TimeRemaining) + "s"
+            timerText = StraftatState.TimeRemaining > 0f
+                ? "Take: " + Mathf.CeilToInt(StraftatState.TimeRemaining) + "s"
                 : string.Empty;
         }
         else
         {
-            pointsToWin = GunGameState.ScoreLimit;
-            scores = GunGameState.Progress;
+            pointsToWin = GuntatState.ScoreLimit;
+            scores = GuntatState.Progress;
             crownFirst = false;
         }
 
@@ -991,14 +991,14 @@ internal sealed class GameModeHud : MonoBehaviour
         }
 
         List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
-        int specialPlayerId = GameModeManager.IsActive(GameMode.HVT)
-            ? HVTState.CurrentHVTPlayerId
-            : GameModeManager.IsActive(GameMode.Juggernaut)
-                ? JuggernautState.CurrentJuggernautPlayerId
-                : GameModeManager.IsActive(GameMode.KillTheRat)
-                    ? KillTheRatState.CurrentRatPlayerId
-                    : GameModeManager.IsActive(GameMode.HotPotato)
-                        ? HotPotatoState.PotatoPlayerId
+        int specialPlayerId = GameModeManager.IsActive(GameMode.Hvtat)
+            ? HvtatState.CurrentHvtatPlayerId
+            : GameModeManager.IsActive(GameMode.Juggertat)
+                ? JuggertatState.CurrentJuggertatPlayerId
+                : GameModeManager.IsActive(GameMode.Ratatat)
+                    ? RatatatState.CurrentRatPlayerId
+                    : GameModeManager.IsActive(GameMode.Potatotat)
+                        ? PotatotatState.PotatoPlayerId
                         : -1;
         playerIds.Sort((left, right) =>
         {

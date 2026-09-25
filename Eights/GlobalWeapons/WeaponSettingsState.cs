@@ -156,8 +156,8 @@ internal static class WeaponSettingsState
         if (!DefaultKnife || !MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
             || GameModeManager.IsVanillaScene || !GameModeManager.IsCustomMode
             || GameModeManager.ShouldIgnoreGlobalWeaponSettings
-            || GameModeManager.IsActive(GameMode.Infected)
-            || GameModeManager.IsActive(GameMode.HotPotInfected)
+            || GameModeManager.IsActive(GameMode.Infectedtat)
+            || GameModeManager.IsActive(GameMode.PotatoInftat)
             || GameModeManager.Phase != GameModePhase.ActiveRound
             || WeaponService.IsFinalGameScreen)
         {

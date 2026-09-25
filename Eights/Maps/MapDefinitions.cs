@@ -5,12 +5,12 @@ using UnityEngine;
 
 namespace Eights;
 
-internal sealed class HardpointObjective
+internal sealed class HardtatObjective
 {
     internal Vector3 Position { get; }
     internal float Radius { get; }
 
-    internal HardpointObjective(Vector3 position, float radius)
+    internal HardtatObjective(Vector3 position, float radius)
     {
         if (radius <= 0f)
         {
@@ -27,8 +27,8 @@ internal sealed class MapDefinition
     internal string Name { get; }
     internal IReadOnlyList<Vector3> SpawnPoints { get; }
     internal IReadOnlyList<Vector3> SndObjectives { get; }
-    internal IReadOnlyList<HardpointObjective> HardpointObjectives { get; }
-    internal IReadOnlyList<Vector3> CaptureTheFlagObjectives { get; }
+    internal IReadOnlyList<HardtatObjective> HardtatObjectives { get; }
+    internal IReadOnlyList<Vector3> CapturetatObjectives { get; }
     internal IReadOnlyList<Vector3> TeamOrigins { get; }
 
     internal MapDefinition(string name, IReadOnlyList<Vector3> spawnPoints)
@@ -41,13 +41,13 @@ internal sealed class MapDefinition
         Name = name;
         SpawnPoints = Copy(spawnPoints);
         SndObjectives = Array.Empty<Vector3>();
-        HardpointObjectives = Array.Empty<HardpointObjective>();
-        CaptureTheFlagObjectives = Array.Empty<Vector3>();
+        HardtatObjectives = Array.Empty<HardtatObjective>();
+        CapturetatObjectives = Array.Empty<Vector3>();
         TeamOrigins = Array.Empty<Vector3>();
     }
 
     internal MapDefinition(string name, IReadOnlyList<Vector3> spawnPoints,
-        IReadOnlyList<Vector3> sndObjectives, IReadOnlyList<HardpointObjective> hardpointObjectives,
+        IReadOnlyList<Vector3> sndObjectives, IReadOnlyList<HardtatObjective> hardpointObjectives,
         IReadOnlyList<Vector3> captureTheFlagObjectives, IReadOnlyList<Vector3> teamOrigins)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -67,8 +67,8 @@ internal sealed class MapDefinition
         Name = name;
         SpawnPoints = Copy(spawnPoints);
         SndObjectives = Copy(sndObjectives);
-        HardpointObjectives = Copy(hardpointObjectives);
-        CaptureTheFlagObjectives = Copy(captureTheFlagObjectives);
+        HardtatObjectives = Copy(hardpointObjectives);
+        CapturetatObjectives = Copy(captureTheFlagObjectives);
         TeamOrigins = Copy(teamOrigins);
     }
 
@@ -150,9 +150,9 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(12.447f, 7.007f, 8.975f), 6f),
-                    new HardpointObjective(new Vector3(40.771f, 7.078f, 26.327f), 6f),
-                    new HardpointObjective(new Vector3(15.493f, 6.988f, -9.839f), 6f)
+                    new HardtatObjective(new Vector3(12.447f, 7.007f, 8.975f), 6f),
+                    new HardtatObjective(new Vector3(40.771f, 7.078f, 26.327f), 6f),
+                    new HardtatObjective(new Vector3(15.493f, 6.988f, -9.839f), 6f)
                 },
                 new[]
                 {
@@ -216,11 +216,11 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(-20.059f, 9.725f, 42.464f), 6f),
-                    new HardpointObjective(new Vector3(-14.757f, 6.692f, 78.28f), 6f),
-                    new HardpointObjective(new Vector3(-28.439f, 12.187f, 20.911f), 6f),
-                    new HardpointObjective(new Vector3(-33.587f, 14.722f, 65.717f), 6f),
-                    new HardpointObjective(new Vector3(-0.782f, 9.689f, 21.067f), 6f)
+                    new HardtatObjective(new Vector3(-20.059f, 9.725f, 42.464f), 6f),
+                    new HardtatObjective(new Vector3(-14.757f, 6.692f, 78.28f), 6f),
+                    new HardtatObjective(new Vector3(-28.439f, 12.187f, 20.911f), 6f),
+                    new HardtatObjective(new Vector3(-33.587f, 14.722f, 65.717f), 6f),
+                    new HardtatObjective(new Vector3(-0.782f, 9.689f, 21.067f), 6f)
                 },
                 new[]
                 {
@@ -290,10 +290,10 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(0.149f, 0f, 6.361f), 6f),
-                    new HardpointObjective(new Vector3(17.175f, 0.463f, 10.164f), 6f),
-                    new HardpointObjective(new Vector3(-19.433f, 5.2f, 8.965f), 6f),
-                    new HardpointObjective(new Vector3(2.349f, 0f, -12.355f), 6f)
+                    new HardtatObjective(new Vector3(0.149f, 0f, 6.361f), 6f),
+                    new HardtatObjective(new Vector3(17.175f, 0.463f, 10.164f), 6f),
+                    new HardtatObjective(new Vector3(-19.433f, 5.2f, 8.965f), 6f),
+                    new HardtatObjective(new Vector3(2.349f, 0f, -12.355f), 6f)
                 },
                 new[]
                 {
@@ -363,10 +363,10 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(2.524f, 0.2f, -15.63f), 6f),
-                    new HardpointObjective(new Vector3(14.416f, 0.442f, 26.654f), 6f),
-                    new HardpointObjective(new Vector3(-33.882f, 0.2f, -35.439f), 6f),
-                    new HardpointObjective(new Vector3(-31.074f, 0.2f, -2.388f), 6f)
+                    new HardtatObjective(new Vector3(2.524f, 0.2f, -15.63f), 6f),
+                    new HardtatObjective(new Vector3(14.416f, 0.442f, 26.654f), 6f),
+                    new HardtatObjective(new Vector3(-33.882f, 0.2f, -35.439f), 6f),
+                    new HardtatObjective(new Vector3(-31.074f, 0.2f, -2.388f), 6f)
                 },
                 new[]
                 {
@@ -416,9 +416,9 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(-0.497f, 0.348f, 0.039f), 6f),
-                    new HardpointObjective(new Vector3(-2.144f, 0.219f, 21.935f), 6f),
-                    new HardpointObjective(new Vector3(2.016f, 0.219f, -22.054f), 6f)
+                    new HardtatObjective(new Vector3(-0.497f, 0.348f, 0.039f), 6f),
+                    new HardtatObjective(new Vector3(-2.144f, 0.219f, 21.935f), 6f),
+                    new HardtatObjective(new Vector3(2.016f, 0.219f, -22.054f), 6f)
                 },
                 new[]
                 {
@@ -485,9 +485,9 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(8.784f, 3.8f, 6.381f), 6f),
-                    new HardpointObjective(new Vector3(-19.991f, 3.8f, -0.779f), 6f),
-                    new HardpointObjective(new Vector3(26.281f, 3.6f, -4.258f), 6f)
+                    new HardtatObjective(new Vector3(8.784f, 3.8f, 6.381f), 6f),
+                    new HardtatObjective(new Vector3(-19.991f, 3.8f, -0.779f), 6f),
+                    new HardtatObjective(new Vector3(26.281f, 3.6f, -4.258f), 6f)
                 },
                 new[]
                 {
@@ -541,11 +541,11 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(0.019f, 0.223f, -0.346f), 6f),
-                    new HardpointObjective(new Vector3(-0.632f, 0.182f, -23.584f), 6f),
-                    new HardpointObjective(new Vector3(0.152f, 0.111f, 23.003f), 6f),
-                    new HardpointObjective(new Vector3(15.265f, 0.102f, 7.146f), 6f),
-                    new HardpointObjective(new Vector3(-15.823f, 0.132f, -8.445f), 6f)
+                    new HardtatObjective(new Vector3(0.019f, 0.223f, -0.346f), 6f),
+                    new HardtatObjective(new Vector3(-0.632f, 0.182f, -23.584f), 6f),
+                    new HardtatObjective(new Vector3(0.152f, 0.111f, 23.003f), 6f),
+                    new HardtatObjective(new Vector3(15.265f, 0.102f, 7.146f), 6f),
+                    new HardtatObjective(new Vector3(-15.823f, 0.132f, -8.445f), 6f)
                 },
                 new[]
                 {
@@ -622,10 +622,10 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(-0.092f, 1.552f, 0.162f), 6f),
-                    new HardpointObjective(new Vector3(-22.57f, 0.755f, 24.284f), 6f),
-                    new HardpointObjective(new Vector3(14.167f, 0.496f, 10.26f), 6f),
-                    new HardpointObjective(new Vector3(6.866f, 1.681f, -28.378f), 6f)
+                    new HardtatObjective(new Vector3(-0.092f, 1.552f, 0.162f), 6f),
+                    new HardtatObjective(new Vector3(-22.57f, 0.755f, 24.284f), 6f),
+                    new HardtatObjective(new Vector3(14.167f, 0.496f, 10.26f), 6f),
+                    new HardtatObjective(new Vector3(6.866f, 1.681f, -28.378f), 6f)
                 },
                 new[]
                 {
@@ -680,11 +680,11 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(-0.64f, 0.747f, -0.62f), 6f),
-                    new HardpointObjective(new Vector3(13.429f, 0.2f, -9.913f), 6f),
-                    new HardpointObjective(new Vector3(-13.028f, 0.2f, 9.895f), 6f),
-                    new HardpointObjective(new Vector3(33.866f, 0.2f, 0.699f), 6f),
-                    new HardpointObjective(new Vector3(-33.363f, 0.2f, 2.51f), 6f)
+                    new HardtatObjective(new Vector3(-0.64f, 0.747f, -0.62f), 6f),
+                    new HardtatObjective(new Vector3(13.429f, 0.2f, -9.913f), 6f),
+                    new HardtatObjective(new Vector3(-13.028f, 0.2f, 9.895f), 6f),
+                    new HardtatObjective(new Vector3(33.866f, 0.2f, 0.699f), 6f),
+                    new HardtatObjective(new Vector3(-33.363f, 0.2f, 2.51f), 6f)
                 },
                 new[]
                 {
@@ -740,11 +740,11 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(-0.567f, -3.176f, -0.469f), 6f),
-                    new HardpointObjective(new Vector3(-19.303f, -2.953f, 11.364f), 6f),
-                    new HardpointObjective(new Vector3(26.109f, -2.39f, -11.389f), 6f),
-                    new HardpointObjective(new Vector3(-9.434f, -3.176f, -18.868f), 6f),
-                    new HardpointObjective(new Vector3(-14.363f, 7.042f, 17.662f), 6f)
+                    new HardtatObjective(new Vector3(-0.567f, -3.176f, -0.469f), 6f),
+                    new HardtatObjective(new Vector3(-19.303f, -2.953f, 11.364f), 6f),
+                    new HardtatObjective(new Vector3(26.109f, -2.39f, -11.389f), 6f),
+                    new HardtatObjective(new Vector3(-9.434f, -3.176f, -18.868f), 6f),
+                    new HardtatObjective(new Vector3(-14.363f, 7.042f, 17.662f), 6f)
                 },
                 new[]
                 {
@@ -809,11 +809,11 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(0.534f, 0.203f, -0.171f), 6f),
-                    new HardpointObjective(new Vector3(32.868f, -0.1f, -26.333f), 6f),
-                    new HardpointObjective(new Vector3(-17.283f, 0.2f, 30.123f), 6f),
-                    new HardpointObjective(new Vector3(-8.027f, 0.423f, -9.463f), 6f),
-                    new HardpointObjective(new Vector3(-6.264f, -0.1f, -40.675f), 6f)
+                    new HardtatObjective(new Vector3(0.534f, 0.203f, -0.171f), 6f),
+                    new HardtatObjective(new Vector3(32.868f, -0.1f, -26.333f), 6f),
+                    new HardtatObjective(new Vector3(-17.283f, 0.2f, 30.123f), 6f),
+                    new HardtatObjective(new Vector3(-8.027f, 0.423f, -9.463f), 6f),
+                    new HardtatObjective(new Vector3(-6.264f, -0.1f, -40.675f), 6f)
                 },
                 new[]
                 {
@@ -879,11 +879,11 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(0.075f, 0.281f, 2.322f), 6f),
-                    new HardpointObjective(new Vector3(-13.904f, 1.953f, 12.02f), 6f),
-                    new HardpointObjective(new Vector3(14.059f, 0.233f, -13.464f), 6f),
-                    new HardpointObjective(new Vector3(-15.628f, 8.446f, 24.558f), 6f),
-                    new HardpointObjective(new Vector3(21.071f, 1.337f, -0.481f), 6f)
+                    new HardtatObjective(new Vector3(0.075f, 0.281f, 2.322f), 6f),
+                    new HardtatObjective(new Vector3(-13.904f, 1.953f, 12.02f), 6f),
+                    new HardtatObjective(new Vector3(14.059f, 0.233f, -13.464f), 6f),
+                    new HardtatObjective(new Vector3(-15.628f, 8.446f, 24.558f), 6f),
+                    new HardtatObjective(new Vector3(21.071f, 1.337f, -0.481f), 6f)
                 },
                 new[]
                 {
@@ -952,11 +952,11 @@ internal static class MapDefinitions
                 },
                 new[]
                 {
-                    new HardpointObjective(new Vector3(-3.914f, -2.967f, 7.339f), 6f),
-                    new HardpointObjective(new Vector3(16.344f, -3.336f, -30.243f), 6f),
-                    new HardpointObjective(new Vector3(-27.172f, -4.161f, -6.629f), 6f),
-                    new HardpointObjective(new Vector3(-20.736f, -2.967f, 24.654f), 6f),
-                    new HardpointObjective(new Vector3(11.274f, -2.967f, 35.522f), 6f)
+                    new HardtatObjective(new Vector3(-3.914f, -2.967f, 7.339f), 6f),
+                    new HardtatObjective(new Vector3(16.344f, -3.336f, -30.243f), 6f),
+                    new HardtatObjective(new Vector3(-27.172f, -4.161f, -6.629f), 6f),
+                    new HardtatObjective(new Vector3(-20.736f, -2.967f, 24.654f), 6f),
+                    new HardtatObjective(new Vector3(11.274f, -2.967f, 35.522f), 6f)
                 },
                 new[]
                 {
@@ -1090,11 +1090,11 @@ internal static class MapDefinitions
             },
             new[]
             {
-                new HardpointObjective(new Vector3(0.188f, -18.218f, -0.767f), 6f),
-                new HardpointObjective(new Vector3(16.633f, -18.218f, 40.17f), 6f),
-                new HardpointObjective(new Vector3(11.78f, -14.218f, -24.813f), 6f),
-                new HardpointObjective(new Vector3(-41.731f, -18.218f, -3.857f), 6f),
-                new HardpointObjective(new Vector3(-1.034f, -18.218f, 45.592f), 6f)
+                new HardtatObjective(new Vector3(0.188f, -18.218f, -0.767f), 6f),
+                new HardtatObjective(new Vector3(16.633f, -18.218f, 40.17f), 6f),
+                new HardtatObjective(new Vector3(11.78f, -14.218f, -24.813f), 6f),
+                new HardtatObjective(new Vector3(-41.731f, -18.218f, -3.857f), 6f),
+                new HardtatObjective(new Vector3(-1.034f, -18.218f, 45.592f), 6f)
             },
             new[]
             {

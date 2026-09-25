@@ -200,7 +200,7 @@ internal static class WeaponAmmoTuning
             return;
         }
 
-        (int magazine, int reserve) = OneInTheChamberRules.AwardBullet(
+        (int magazine, int reserve) = ChambertatRules.AwardBullet(
             weapon.currentAmmo, memory.SpareRounds);
         if (memory.Reloading)
         {

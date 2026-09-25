@@ -27,40 +27,40 @@ internal static class WeaponDropPolicy
         int playerId = health.playerValues?.playerClient?.PlayerId ?? -1;
         switch (GameModeManager.ActiveMode)
         {
-            case GameMode.NinjaHunters:
-            case GameMode.RabbitHunters:
-            case GameMode.TankBattle:
-                return playerId >= 0 && HuntersState.IsExpectedWeapon(weapon, playerId);
-            case GameMode.GunGame:
-                return GunGameState.Enabled;
-            case GameMode.Juggernaut:
-                return JuggernautState.IsCurrentJuggernautWeapon(weapon);
-            case GameMode.MichaelMeyers:
-                return MichaelMeyersState.IsCouperet(weapon)
-                    && (MichaelMeyersState.CanHoldCouperet(health)
-                        || MichaelMeyersState.CanHoldSurvivorWeapon(health));
-            case GameMode.KillTheRat:
-                return KillTheRatState.IsRat(health)
-                    ? KillTheRatState.IsRatWeapon(weapon)
-                    : KillTheRatState.IsHumanWeapon(weapon);
-            case GameMode.OneInTheChamber:
-                return (rightHand && OneInTheChamberState.IsPistol(weapon))
-                    || (!rightHand && OneInTheChamberState.IsCouperet(weapon));
-            case GameMode.HotPotato:
-                return playerId >= 0 && HotPotatoState.IsAllowedWeapon(weapon, playerId);
-            case GameMode.Infidel:
+            case GameMode.Ninjatat:
+            case GameMode.Hunttat:
+            case GameMode.Tanktat:
+                return playerId >= 0 && HuntModesState.IsExpectedWeapon(weapon, playerId);
+            case GameMode.Guntat:
+                return GuntatState.Enabled;
+            case GameMode.Juggertat:
+                return JuggertatState.IsCurrentJuggertatWeapon(weapon);
+            case GameMode.Michaeltat:
+                return MichaeltatState.IsCouperet(weapon)
+                    && (MichaeltatState.CanHoldCouperet(health)
+                        || MichaeltatState.CanHoldSurvivorWeapon(health));
+            case GameMode.Ratatat:
+                return RatatatState.IsRat(health)
+                    ? RatatatState.IsRatWeapon(weapon)
+                    : RatatatState.IsHumanWeapon(weapon);
+            case GameMode.Chambertat:
+                return (rightHand && ChambertatState.IsPistol(weapon))
+                    || (!rightHand && ChambertatState.IsCouperet(weapon));
+            case GameMode.Potatotat:
+                return playerId >= 0 && PotatotatState.IsAllowedWeapon(weapon, playerId);
+            case GameMode.Infideltat:
                 return playerId >= 0
-                    && weapon.name.StartsWith(InfidelState.WeaponName, StringComparison.Ordinal);
-            case GameMode.Assassin:
-                return playerId >= 0 && AssassinState.IsAllowedWeapon(weapon, playerId);
-            case GameMode.Infected:
-                return playerId >= 0 && InfectedState.IsInfected(playerId);
-            case GameMode.HotPotInfected:
-                return playerId >= 0 && HotPotInfectedState.IsInfected(playerId);
-            case GameMode.SniperBattle:
-                return SniperBattleState.IsSniperWeapon(weapon);
-            case GameMode.Nife:
-                return NifeState.IsSelectedWeapon(weapon);
+                    && weapon.name.StartsWith(InfideltatState.WeaponName, StringComparison.Ordinal);
+            case GameMode.Assassintat:
+                return playerId >= 0 && AssassintatState.IsAllowedWeapon(weapon, playerId);
+            case GameMode.Infectedtat:
+                return playerId >= 0 && InfectedtatState.IsInfectedtat(playerId);
+            case GameMode.PotatoInftat:
+                return playerId >= 0 && PotatoInftatState.IsInfectedtat(playerId);
+            case GameMode.Snipertat:
+                return SnipertatState.IsSniperWeapon(weapon);
+            case GameMode.Nifetat:
+                return NifetatState.IsSelectedWeapon(weapon);
             default:
                 return false;
         }

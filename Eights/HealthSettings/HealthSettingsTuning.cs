@@ -16,7 +16,7 @@ internal static class HealthSettingsTuning
         public float RegenAccumulator;
         public float LastRegenWriteTime;
         public bool LastModeSpecificHealth;
-        public bool LastInfectedRole;
+        public bool LastInfectedtatRole;
         public int LastAppliedHealthCompensationVersion = -1;
         public int LastAppliedPlayerId = -1;
     }
@@ -75,60 +75,60 @@ internal static class HealthSettingsTuning
         }
 
         Memory memory = MemoryByInstance.GetOrCreateValue(controller);
-        if (GameModeManager.IsHuntersActive && HuntersState.HealthOverride > 0f)
+        if (GameModeManager.IsHuntersActive && HuntModesState.HealthOverride > 0f)
         {
-            HuntersState.ApplyHealth(controller, memory);
+            HuntModesState.ApplyHealth(controller, memory);
             return;
         }
-        if (GameModeManager.IsActive(GameMode.MichaelMeyers))
+        if (GameModeManager.IsActive(GameMode.Michaeltat))
         {
-            MichaelMeyersState.ApplyHealth(controller, memory);
+            MichaeltatState.ApplyHealth(controller, memory);
             return;
         }
-        if (GameModeManager.IsActive(GameMode.Infected))
+        if (GameModeManager.IsActive(GameMode.Infectedtat))
         {
-            ApplyInfectedHealth(controller, memory, healthMultiplier, version);
+            ApplyInfectedtatHealth(controller, memory, healthMultiplier, version);
             return;
         }
-        if (GameModeManager.IsActive(GameMode.HotPotInfected))
+        if (GameModeManager.IsActive(GameMode.PotatoInftat))
         {
-            ApplyHotPotInfectedHealth(controller, memory, healthMultiplier, version);
+            ApplyPotatoInftatHealth(controller, memory, healthMultiplier, version);
             return;
         }
-        if (GameModeManager.IsActive(GameMode.Nife))
+        if (GameModeManager.IsActive(GameMode.Nifetat))
         {
-            NifeState.ApplyHealth(controller, memory);
+            NifetatState.ApplyHealth(controller, memory);
             return;
         }
-        if (GameModeManager.IsActive(GameMode.Infidel))
+        if (GameModeManager.IsActive(GameMode.Infideltat))
         {
-            InfidelState.ApplyHealth(controller);
+            InfideltatState.ApplyHealth(controller);
             memory.LastModeSpecificHealth = true;
             memory.LastAppliedVersion = version;
             return;
         }
-        if (GameModeManager.IsActive(GameMode.OneInTheChamber))
+        if (GameModeManager.IsActive(GameMode.Chambertat))
         {
-            OneInTheChamberState.ApplyHealth(controller);
+            ChambertatState.ApplyHealth(controller);
             memory.LastModeSpecificHealth = true;
             memory.LastAppliedVersion = version;
             return;
         }
-        if (GameModeManager.IsActive(GameMode.Juggernaut) && JuggernautState.IsCurrentJuggernaut(controller))
+        if (GameModeManager.IsActive(GameMode.Juggertat) && JuggertatState.IsCurrentJuggertat(controller))
         {
-            JuggernautState.ApplyHealth(controller);
+            JuggertatState.ApplyHealth(controller);
             memory.LastModeSpecificHealth = true;
             memory.LastAppliedVersion = version;
             return;
         }
-        if (GameModeManager.IsActive(GameMode.SniperBattle))
+        if (GameModeManager.IsActive(GameMode.Snipertat))
         {
-            SniperBattleState.ApplyHealth(controller);
+            SnipertatState.ApplyHealth(controller);
             memory.LastModeSpecificHealth = true;
             memory.LastAppliedVersion = version;
             return;
         }
-        if (GameModeManager.IsActive(GameMode.Default))
+        if (GameModeManager.IsActive(GameMode.Straftat))
         {
             controller.fullHealth = memory.BaselineFullHealth;
             memory.LastModeSpecificHealth = true;
@@ -179,9 +179,9 @@ internal static class HealthSettingsTuning
 
     internal static void RegenerateIfNeeded(PlayerHealth controller, Memory memory)
     {
-        bool juggernautHealth = GameModeManager.IsActive(GameMode.Juggernaut) && JuggernautState.IsCurrentJuggernaut(controller);
-        bool ratHealth = GameModeManager.IsActive(GameMode.KillTheRat) && KillTheRatState.IsRat(controller);
-        if (juggernautHealth || ratHealth || HuntersState.DisableHealthRegen
+        bool juggernautHealth = GameModeManager.IsActive(GameMode.Juggertat) && JuggertatState.IsCurrentJuggertat(controller);
+        bool ratHealth = GameModeManager.IsActive(GameMode.Ratatat) && RatatatState.IsRat(controller);
+        if (juggernautHealth || ratHealth || HuntModesState.DisableHealthRegen
             || GameModeManager.ShouldIgnoreGlobalHealthSettings || !controller.IsServer
             || !controller.gameObject.activeInHierarchy || controller.health <= 0f)
         {
@@ -239,22 +239,22 @@ internal static class HealthSettingsTuning
         return MemoryByInstance.GetOrCreateValue(controller);
     }
 
-    private static void ApplyInfectedHealth(PlayerHealth controller, Memory memory,
+    private static void ApplyInfectedtatHealth(PlayerHealth controller, Memory memory,
         float healthMultiplier, int version)
     {
         int playerId = controller.playerValues?.playerClient?.PlayerId ?? -1;
-        bool infected = InfectedState.IsInfected(controller);
+        bool infected = InfectedtatState.IsInfectedtat(controller);
         float desiredFullHealth = infected
             ? memory.BaselineFullHealth * healthMultiplier
-            : InfectedState.SurvivorHealth;
-        bool roleChanged = !memory.LastModeSpecificHealth || memory.LastInfectedRole != infected;
+            : InfectedtatState.SurvivorHealth;
+        bool roleChanged = !memory.LastModeSpecificHealth || memory.LastInfectedtatRole != infected;
         bool maximumChanged = memory.LastAppliedVersion != version
             || !Mathf.Approximately(controller.fullHealth, desiredFullHealth);
         float previousHealth = controller.sync___get_value_health();
 
         controller.fullHealth = desiredFullHealth;
         memory.LastModeSpecificHealth = true;
-        memory.LastInfectedRole = infected;
+        memory.LastInfectedtatRole = infected;
         memory.LastAppliedVersion = version;
         memory.LastAppliedHealthCompensationVersion = TeamAssignment.HealthCompensationVersion;
         memory.LastAppliedPlayerId = playerId;
@@ -281,22 +281,22 @@ internal static class HealthSettingsTuning
         }
     }
 
-    private static void ApplyHotPotInfectedHealth(PlayerHealth controller, Memory memory,
+    private static void ApplyPotatoInftatHealth(PlayerHealth controller, Memory memory,
         float healthMultiplier, int version)
     {
         int playerId = controller.playerValues?.playerClient?.PlayerId ?? -1;
-        bool infected = HotPotInfectedState.IsInfected(controller);
+        bool infected = PotatoInftatState.IsInfectedtat(controller);
         float desiredFullHealth = infected
             ? memory.BaselineFullHealth * healthMultiplier
-            : HotPotInfectedState.SurvivorHealth;
-        bool roleChanged = !memory.LastModeSpecificHealth || memory.LastInfectedRole != infected;
+            : PotatoInftatState.SurvivorHealth;
+        bool roleChanged = !memory.LastModeSpecificHealth || memory.LastInfectedtatRole != infected;
         bool maximumChanged = memory.LastAppliedVersion != version
             || !Mathf.Approximately(controller.fullHealth, desiredFullHealth);
         float previousHealth = controller.sync___get_value_health();
 
         controller.fullHealth = desiredFullHealth;
         memory.LastModeSpecificHealth = true;
-        memory.LastInfectedRole = infected;
+        memory.LastInfectedtatRole = infected;
         memory.LastAppliedVersion = version;
         memory.LastAppliedHealthCompensationVersion = TeamAssignment.HealthCompensationVersion;
         memory.LastAppliedPlayerId = playerId;

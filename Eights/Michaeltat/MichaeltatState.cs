@@ -1,0 +1,749 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using MyceliumNetworking;
+using Steamworks;
+using UnityEngine;
+
+namespace Eights;
+
+internal static class MichaeltatState
+{
+    internal const string SettingsLobbyDataKey = "Eights_Michaeltat_Settings";
+    internal const string LiveLobbyDataKey = "Eights_Michaeltat_Live";
+    internal const string WeaponName = "Couperet";
+    internal const string SurvivorWeaponName = WeaponName;
+    internal const string FlashlightWeaponName = "FlashLight";
+    private const float SurvivorWeaponDelaySeconds = 3f;
+    internal const float MovementMultiplier = MichaeltatRules.MovementMultiplier;
+    internal const float RoundTimeLimitSeconds = MichaeltatRules.RoundTimeLimitSeconds;
+    internal static bool Enabled;
+    internal static int CurrentMichaelPlayerId = -1;
+    internal static int SurvivorCount { get; private set; }
+    internal static float HealthOverride => MichaeltatRules.GetHealth(OneVsOne);
+    internal static float TimeRemaining => Mathf.Max(0f, _timeRemaining);
+    private static int _oneVsOneSurvivorId = -1;
+    internal static bool OneVsOne;
+    internal static readonly Dictionary<int, int> Scores = new();
+
+    private static int _winnerId = -1;
+    private static int _roundToken;
+    private static float _timeRemaining;
+    private static float _nextLoadoutCheckTime;
+    private static readonly ModeSyncState Sync = new();
+    private static readonly HashSet<int> RoundPlayers = new();
+    private static readonly HashSet<int> AlivePlayers = new();
+    private static readonly Dictionary<int, float> PendingLoadouts = new();
+
+    internal static void ApplySettings(bool enabled)
+    {
+        if (GameModeManager.ShouldDeferModeDisable(GameMode.Michaeltat, enabled))
+        {
+            return;
+        }
+
+        if (Enabled != enabled)
+        {
+            ResetMatchState();
+        }
+        Enabled = enabled;
+    }
+
+    private static void ApplyFromConfig()
+    {
+        ApplySettings(Plugin.MichaeltatEnabled.Value);
+    }
+
+    internal static void PushSettingsIfHost()
+    {
+        if (!MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        ApplyFromConfig();
+        int revision = Sync.NextSettingsRevision();
+        PublishSettingsSnapshot(revision);
+        MyceliumNetwork.RPC(Plugin.MichaeltatModId, nameof(Plugin.SyncMichaeltatSettings), ReliableType.Reliable,
+            MyceliumNetwork.LobbyHost, GameModeManager.RoundId, revision,
+            Plugin.MichaeltatEnabled.Value);
+    }
+
+    internal static void PeriodicPushSettingsIfHost()
+    {
+        if (Sync.IsSettingsPushDue())
+        {
+            PushSettingsIfHost();
+        }
+    }
+
+    internal static void PeriodicPushLiveStateIfHost()
+    {
+        if (Sync.IsLivePushDue())
+        {
+            BroadcastLiveState();
+        }
+    }
+
+    internal static void OnLobbyEntered()
+    {
+        Sync.ResetForLobby();
+        if (MyceliumNetwork.IsHost)
+        {
+            ApplyFromConfig();
+            ResetMatchState();
+            PushSettingsIfHost();
+            BroadcastLiveState();
+        }
+        else
+        {
+            ApplyLobbySettingsSnapshot();
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void PollLiveStateIfClient()
+    {
+        ApplyLobbyLiveSnapshot();
+    }
+
+    internal static void OnLobbyDataUpdated(List<string> keys)
+    {
+        if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby)
+        {
+            return;
+        }
+
+        if (ModeLobbyDataSync.ContainsKey(keys, SettingsLobbyDataKey))
+        {
+            ApplyLobbySettingsSnapshot();
+        }
+        if (ModeLobbyDataSync.ContainsKey(keys, LiveLobbyDataKey))
+        {
+            ApplyLobbyLiveSnapshot();
+        }
+    }
+
+    internal static void OnPlayerEntered(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        MyceliumNetwork.RPCTarget(Plugin.MichaeltatModId, nameof(Plugin.SyncMichaeltatSettings), player,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, GameModeManager.RoundId, Sync.SettingsRevision,
+            Plugin.MichaeltatEnabled.Value);
+        MyceliumNetwork.RPCTarget(Plugin.MichaeltatModId, nameof(Plugin.SyncMichaeltatLiveState), player,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, SurvivorCount, OneVsOne,
+            SerializeScores(), TimeRemaining,
+            GameModeManager.RoundId, Sync.LiveRevision);
+    }
+
+    internal static void OnPlayerLeft(CSteamID player)
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(player);
+        bool wasAlive = playerId >= 0 && AlivePlayers.Remove(playerId);
+        bool changed = wasAlive || (playerId >= 0 && RoundPlayers.Remove(playerId));
+        PendingLoadouts.Remove(playerId);
+        if (playerId >= 0 && _oneVsOneSurvivorId == playerId)
+        {
+            _oneVsOneSurvivorId = -1;
+            OneVsOne = false;
+            changed = true;
+        }
+
+        bool wasMichael = playerId >= 0 && CurrentMichaelPlayerId == playerId;
+        if (wasMichael)
+        {
+            CurrentMichaelPlayerId = -1;
+            OneVsOne = false;
+            _oneVsOneSurvivorId = -1;
+            changed = true;
+        }
+
+        if (wasAlive && GameModeManager.IsActive(GameMode.Michaeltat)
+            && _winnerId < 0)
+        {
+            if (AlivePlayers.Count <= 1)
+            {
+                int winnerId = -1;
+                foreach (int alivePlayerId in AlivePlayers)
+                {
+                    winnerId = alivePlayerId;
+                    break;
+                }
+                FinishRound(winnerId);
+            }
+            else if (wasMichael)
+            {
+                List<int> candidates = new(AlivePlayers);
+                CurrentMichaelPlayerId = DistributionRandom.SelectPlayer("Michaeltat", candidates);
+                PrepareOneVsOneSurvivor();
+                Announce(PlayerLookup.GetPlayerNameTag(CurrentMichaelPlayerId)
+                    + " is <color=#CC2222><b>Michael Meyers</b></color>!");
+                GiveStartingWeapon(CurrentMichaelPlayerId);
+            }
+        }
+
+        if (changed && GameModeManager.IsActive(GameMode.Michaeltat))
+        {
+            SurvivorCount = CountAliveSurvivors();
+            BroadcastLiveState();
+        }
+    }
+
+    internal static bool TryAcceptSettingsSnapshot(CSteamID hostId, int roundId, int revision)
+    {
+        return Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision);
+    }
+
+    internal static void ResetMatchState()
+    {
+        _roundToken++;
+        Sync.ResetLiveState();
+        _winnerId = -1;
+        _timeRemaining = 0f;
+        CurrentMichaelPlayerId = -1;
+        SurvivorCount = 0;
+        _oneVsOneSurvivorId = -1;
+        OneVsOne = false;
+        RoundPlayers.Clear();
+        AlivePlayers.Clear();
+        Scores.Clear();
+        PendingLoadouts.Clear();
+        _nextLoadoutCheckTime = 0f;
+    }
+
+    internal static void ApplyLiveState(CSteamID hostId, int michaelPlayerId, int survivorCount, bool oneVsOne,
+        string scoresData, float timeRemaining, int roundId, int revision, string source = "rpc")
+    {
+        if (michaelPlayerId < -1 || survivorCount < 0 || timeRemaining < 0f
+            || timeRemaining > RoundTimeLimitSeconds
+            || float.IsNaN(timeRemaining) || float.IsInfinity(timeRemaining))
+        {
+            return;
+        }
+        if (!Sync.TryAcceptLiveSnapshot(hostId, roundId, revision, source))
+        {
+            return;
+        }
+        CurrentMichaelPlayerId = michaelPlayerId;
+        SurvivorCount = survivorCount;
+        OneVsOne = oneVsOne;
+        _timeRemaining = timeRemaining;
+        Scores.Clear();
+        foreach (KeyValuePair<int, int> entry in ScoreCodec.Parse(scoresData, GameModeManager.EffectivePointsToWin))
+        {
+            Scores[entry.Key] = entry.Value;
+        }
+    }
+
+    internal static void OnRoundStarted()
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.Michaeltat) || !MyceliumNetwork.IsHost)
+        {
+            return;
+        }
+
+        ResetMatchState();
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client != null && client)
+            {
+                RoundPlayers.Add(client.PlayerId);
+                AlivePlayers.Add(client.PlayerId);
+            }
+        }
+        SurvivorCount = CountAliveSurvivors();
+        _timeRemaining = RoundTimeLimitSeconds;
+
+        if (RoundPlayers.Count < 2 || Plugin.Instance == null)
+        {
+            return;
+        }
+
+        int token = _roundToken;
+        Plugin.Instance.StartCoroutine(SelectMichaelAfterDelay(token, SessionState.Generation, GameModeManager.RoundId));
+        BroadcastLiveState();
+    }
+
+    internal static void ServerTick(float deltaTime)
+    {
+        if (!Enabled || !MyceliumNetwork.IsHost
+            || !GameModeManager.IsActive(GameMode.Michaeltat)
+            || !GameModeManager.IsRoundGameplayActive
+            || _winnerId >= 0 || CurrentMichaelPlayerId < 0)
+        {
+            return;
+        }
+
+        _timeRemaining = Mathf.Max(0f, _timeRemaining - Mathf.Max(0f, deltaTime));
+        if (_timeRemaining <= 0f)
+        {
+            CompleteTimeoutWin();
+        }
+    }
+
+    internal static void ClientTick(float deltaTime)
+    {
+        if (MyceliumNetwork.IsHost || !Enabled
+            || !GameModeManager.IsActive(GameMode.Michaeltat)
+            || !GameModeManager.IsRoundGameplayActive
+            || _winnerId >= 0 || CurrentMichaelPlayerId < 0)
+        {
+            return;
+        }
+
+        _timeRemaining = Mathf.Max(0f, _timeRemaining - Mathf.Max(0f, deltaTime));
+    }
+
+    private static IEnumerator SelectMichaelAfterDelay(int token, int sessionGeneration, int roundId)
+    {
+        yield return new WaitForSeconds(5f);
+        if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
+            || token != _roundToken || !Enabled || !GameModeManager.IsActive(GameMode.Michaeltat)
+            || _winnerId >= 0)
+        {
+            yield break;
+        }
+
+        List<int> candidates = new();
+        foreach (int playerId in AlivePlayers)
+        {
+            if (ClientInstance.playerInstances.ContainsKey(playerId))
+            {
+                candidates.Add(playerId);
+            }
+        }
+
+        if (candidates.Count < 2)
+        {
+            yield break;
+        }
+
+        CurrentMichaelPlayerId = DistributionRandom.SelectPlayer("Michaeltat", candidates);
+        PrepareOneVsOneSurvivor();
+        Announce(PlayerLookup.GetPlayerNameTag(CurrentMichaelPlayerId) + " is <color=#CC2222><b>Michael Meyers</b></color>!");
+        BroadcastLiveState();
+        GiveStartingWeapon(CurrentMichaelPlayerId);
+    }
+
+    internal static void EnsureLoadouts()
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.Michaeltat)
+            || !MyceliumNetwork.InLobby || !MyceliumNetwork.IsHost || WeaponService.IsFinalGameScreen
+            || Time.unscaledTime < _nextLoadoutCheckTime)
+        {
+            return;
+        }
+
+        _nextLoadoutCheckTime = Time.unscaledTime + 0.5f;
+        foreach (int playerId in AlivePlayers)
+        {
+            PlayerPickup? pickup = FindPickup(playerId);
+            if (pickup == null)
+            {
+                continue;
+            }
+
+            if (CanHoldCouperet(playerId))
+            {
+                if (IsCouperetHeld(pickup))
+                {
+                    PendingLoadouts.Remove(playerId);
+                }
+                else if (!PendingLoadouts.TryGetValue(playerId, out float retryTime)
+                    || Time.unscaledTime >= retryTime)
+                {
+                    PendingLoadouts[playerId] = Time.unscaledTime + 2f;
+                    WeaponService.GiveWeapon(playerId, WeaponName);
+                }
+            }
+            else if (CanHoldSurvivorWeapon(playerId))
+            {
+                if (IsWeaponHeld(pickup, SurvivorWeaponName))
+                {
+                    PendingLoadouts.Remove(playerId);
+                }
+                else if (!PendingLoadouts.TryGetValue(playerId, out float retryTime)
+                    || Time.unscaledTime >= retryTime)
+                {
+                    PendingLoadouts[playerId] = Time.unscaledTime + 2f;
+                    WeaponService.GiveWeapon(playerId, SurvivorWeaponName);
+                }
+            }
+            else if (IsFlashlightHeld(pickup))
+            {
+                PendingLoadouts.Remove(playerId);
+            }
+            else if (HasHeldObject(pickup))
+            {
+                WeaponService.ClearHeldWeapons(pickup);
+            }
+        }
+    }
+
+    internal static void RequestLoadout(int playerId)
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.Michaeltat)
+            || !MyceliumNetwork.IsHost || WeaponService.IsFinalGameScreen)
+        {
+            return;
+        }
+
+        if (CanHoldCouperet(playerId) || CanHoldSurvivorWeapon(playerId))
+        {
+            PendingLoadouts[playerId] = Time.unscaledTime + 2f;
+            WeaponService.GiveWeapon(playerId, WeaponName);
+            return;
+        }
+
+        PendingLoadouts.Remove(playerId);
+        PlayerPickup? pickup = FindPickup(playerId);
+        if (pickup != null && HasHeldObject(pickup))
+        {
+            WeaponService.ClearHeldWeapons(pickup);
+        }
+    }
+
+    internal static void OnServerKill(int deadPlayerId, int killerId)
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.Michaeltat) || _winnerId >= 0)
+        {
+            return;
+        }
+
+        EnsureTrackedPlayers();
+        if (!AlivePlayers.Remove(deadPlayerId))
+        {
+            return;
+        }
+        SurvivorCount = CountAliveSurvivors();
+
+        if (AlivePlayers.Count <= 1)
+        {
+            int winnerId = -1;
+            foreach (int playerId in AlivePlayers)
+            {
+                winnerId = playerId;
+                break;
+            }
+            FinishRound(winnerId);
+            return;
+        }
+
+        if (deadPlayerId == CurrentMichaelPlayerId)
+        {
+            CurrentMichaelPlayerId = -1;
+            _oneVsOneSurvivorId = -1;
+            OneVsOne = false;
+            CurrentMichaelPlayerId = DistributionRandom.SelectPlayer("Michaeltat",
+                new List<int>(AlivePlayers));
+            Announce(PlayerLookup.GetPlayerNameTag(CurrentMichaelPlayerId)
+                + " is <color=#CC2222><b>Michael Meyers</b></color>!");
+            GiveStartingWeapon(CurrentMichaelPlayerId);
+        }
+
+        if (CurrentMichaelPlayerId >= 0 && deadPlayerId != CurrentMichaelPlayerId
+            && AlivePlayers.Count == 2 && AlivePlayers.Contains(CurrentMichaelPlayerId))
+        {
+            PrepareOneVsOneSurvivor();
+        }
+
+        BroadcastLiveState();
+    }
+
+    private static void CompleteTimeoutWin()
+    {
+        if (_winnerId >= 0 || ScoreManager.Instance == null)
+        {
+            return;
+        }
+
+        if (!MichaeltatRules.ShouldEndTimeoutWithoutWinner(AlivePlayers.Count))
+        {
+            return;
+        }
+
+        GameModeHud.BroadcastTakeResult("<b>The Michaeltat round ended</b>\n<i>Time expired</i>");
+        BroadcastLiveState();
+        GameModeManager.CompleteCustomRound(GameModeManager.NoWinningTeamId, false);
+    }
+
+    internal static bool IsMichael(PlayerHealth health)
+    {
+        return GameModeManager.IsActive(GameMode.Michaeltat)
+            && health.playerValues?.playerClient?.PlayerId == CurrentMichaelPlayerId;
+    }
+
+    internal static bool CanHoldCouperet(PlayerHealth health)
+    {
+        int playerId = health.playerValues?.playerClient?.PlayerId ?? -1;
+        return CanHoldCouperet(playerId);
+    }
+
+    private static bool CanHoldCouperet(int playerId)
+    {
+        return playerId >= 0 && GameModeManager.IsActive(GameMode.Michaeltat)
+            && playerId == CurrentMichaelPlayerId;
+    }
+
+    internal static bool CanHoldSurvivorWeapon(PlayerHealth health)
+    {
+        int playerId = health.playerValues?.playerClient?.PlayerId ?? -1;
+        return CanHoldSurvivorWeapon(playerId);
+    }
+
+    private static bool CanHoldSurvivorWeapon(int playerId)
+    {
+        return playerId >= 0 && GameModeManager.IsActive(GameMode.Michaeltat)
+            && OneVsOne && playerId == _oneVsOneSurvivorId;
+    }
+
+    internal static bool IsMichael(FirstPersonController controller)
+    {
+        if (!GameModeManager.IsActive(GameMode.Michaeltat)
+            || controller == null || !controller)
+        {
+            return false;
+        }
+
+        PlayerHealth? health = controller.GetComponent<PlayerHealth>();
+        if (health != null && IsMichael(health))
+        {
+            return true;
+        }
+
+        return controller.IsOwner && ClientInstance.Instance != null
+            && ClientInstance.Instance.PlayerId == CurrentMichaelPlayerId;
+    }
+
+    internal static void ApplyHealth(PlayerHealth health, HealthSettingsTuning.Memory memory)
+    {
+        float desiredHealth = HealthUnits.ToInternal(HealthOverride);
+        float previousHealth = health.sync___get_value_health();
+        int playerId = health.playerValues?.playerClient?.PlayerId ?? -1;
+        bool targetChanged = HealthSettingsTuning.ApplyModeHealth(health, memory,
+            desiredHealth, playerId);
+
+        if (!health.IsServer || !targetChanged)
+        {
+            return;
+        }
+
+        float healthDelta = desiredHealth - previousHealth;
+        if (Mathf.Approximately(healthDelta, 0f))
+        {
+            return;
+        }
+
+        HealthSettingsTuning.ApplyingPassiveHealth = true;
+        try
+        {
+            FishNetCompatibility.TryRemoveHealth(health, -healthDelta);
+        }
+        finally
+        {
+            HealthSettingsTuning.ApplyingPassiveHealth = false;
+        }
+    }
+
+    internal static bool IsCouperet(Weapon weapon)
+    {
+        return weapon != null && weapon.name.StartsWith(WeaponName, StringComparison.Ordinal);
+    }
+
+    internal static bool IsFlashlight(Weapon weapon)
+    {
+        return weapon != null && (weapon.name.StartsWith(FlashlightWeaponName,
+            StringComparison.OrdinalIgnoreCase) || weapon.name.StartsWith("Flashlight",
+            StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void EnsureTrackedPlayers()
+    {
+        if (RoundPlayers.Count != 0)
+        {
+            return;
+        }
+
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client != null && client)
+            {
+                RoundPlayers.Add(client.PlayerId);
+                AlivePlayers.Add(client.PlayerId);
+            }
+        }
+    }
+
+    private static PlayerPickup? FindPickup(int playerId)
+    {
+        if (!ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client)
+            || client == null || !client || client.PlayerSpawner == null || !client.PlayerSpawner)
+        {
+            return null;
+        }
+
+        return client.PlayerSpawner.player?.playerPickupScript;
+    }
+
+    private static bool IsCouperetHeld(PlayerPickup pickup)
+    {
+        return IsWeaponHeld(pickup, WeaponName);
+    }
+
+    private static bool IsFlashlightHeld(PlayerPickup pickup)
+    {
+        Weapon? rightWeapon = GetWeapon(pickup.objInHand);
+        Weapon? leftWeapon = GetWeapon(pickup.objInLeftHand);
+        return (rightWeapon != null && IsFlashlight(rightWeapon))
+            || (leftWeapon != null && IsFlashlight(leftWeapon));
+    }
+
+    private static bool IsWeaponHeld(PlayerPickup pickup, string weaponName)
+    {
+        Weapon? rightWeapon = GetWeapon(pickup.objInHand);
+        Weapon? leftWeapon = GetWeapon(pickup.objInLeftHand);
+        return (rightWeapon != null && rightWeapon.name.StartsWith(weaponName, StringComparison.Ordinal))
+            || (leftWeapon != null && leftWeapon.name.StartsWith(weaponName, StringComparison.Ordinal));
+    }
+
+    private static bool HasHeldObject(PlayerPickup pickup)
+    {
+        return (pickup.objInHand != null && pickup.objInHand)
+            || (pickup.objInLeftHand != null && pickup.objInLeftHand);
+    }
+
+    private static Weapon? GetWeapon(GameObject? heldObject)
+    {
+        return heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
+    }
+
+    private static void FinishRound(int winnerId)
+    {
+        if (winnerId < 0 || ScoreManager.Instance == null)
+        {
+            return;
+        }
+
+        _winnerId = winnerId;
+        Announce(PlayerLookup.GetPlayerNameTag(winnerId) + " won the <b>Michael Meyers</b> round!");
+        BroadcastLiveState();
+        GameModeManager.CompleteCustomRound(TeamAssignment.ResolveTeamId(winnerId));
+    }
+
+    private static int CountAliveSurvivors()
+    {
+        return AlivePlayers.Count - (CurrentMichaelPlayerId >= 0
+            && AlivePlayers.Contains(CurrentMichaelPlayerId) ? 1 : 0);
+    }
+
+    private static void AwardScore(int playerId, int amount)
+    {
+        Scores.TryGetValue(playerId, out int currentScore);
+        int nextScore = ScoreRules.AddPoints(currentScore, amount,
+            GameModeManager.EffectivePointsToWin);
+        int awardedPoints = nextScore - currentScore;
+        Scores[playerId] = nextScore;
+        if (awardedPoints > 0)
+        {
+            GameModeHud.ShowScorePopupForPlayer(playerId, awardedPoints);
+        }
+    }
+
+    internal static void GiveStartingWeapon(int playerId)
+    {
+        RequestLoadout(playerId);
+    }
+
+    private static void PrepareOneVsOneSurvivor()
+    {
+        if (AlivePlayers.Count != 2 || CurrentMichaelPlayerId < 0 || !AlivePlayers.Contains(CurrentMichaelPlayerId))
+        {
+            return;
+        }
+
+        foreach (int playerId in AlivePlayers)
+        {
+            if (playerId == CurrentMichaelPlayerId)
+            {
+                continue;
+            }
+
+            _oneVsOneSurvivorId = playerId;
+            OneVsOne = true;
+            PendingLoadouts[playerId] = Time.unscaledTime + SurvivorWeaponDelaySeconds;
+            Announce(PlayerLookup.GetPlayerNameTag(playerId) + " will receive a <b>Couperet</b> for the final fight!");
+            return;
+        }
+    }
+
+    private static void BroadcastLiveState()
+    {
+        if (MyceliumNetwork.InLobby && MyceliumNetwork.IsHost)
+        {
+            int revision = Sync.NextLiveRevision();
+            ModeLobbyDataSync.Publish(LiveLobbyDataKey, MyceliumNetwork.LobbyHost,
+                GameModeManager.RoundId, revision, CurrentMichaelPlayerId.ToString(),
+                SurvivorCount.ToString(), OneVsOne ? "1" : "0", SerializeScores(),
+                TimeRemaining.ToString(CultureInfo.InvariantCulture));
+            MyceliumNetwork.RPC(Plugin.MichaeltatModId, nameof(Plugin.SyncMichaeltatLiveState),
+                ReliableType.Reliable, MyceliumNetwork.LobbyHost, CurrentMichaelPlayerId, SurvivorCount, OneVsOne,
+                SerializeScores(), TimeRemaining,
+                GameModeManager.RoundId, revision);
+        }
+    }
+
+    private static void PublishSettingsSnapshot(int revision)
+    {
+        ModeLobbyDataSync.Publish(SettingsLobbyDataKey, MyceliumNetwork.LobbyHost,
+            GameModeManager.RoundId, revision, Plugin.MichaeltatEnabled.Value ? "1" : "0");
+    }
+
+    private static void ApplyLobbySettingsSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 1, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
+            || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
+                ModeLobbyDataSync.Source("michaeltat", "settings")))
+        {
+            return;
+        }
+
+        ApplySettings(enabled);
+    }
+
+    private static void ApplyLobbyLiveSnapshot()
+    {
+        if (!ModeLobbyDataSync.TryRead(LiveLobbyDataKey, 5, out CSteamID hostId,
+            out int roundId, out int revision, out string[] fields)
+            || !int.TryParse(fields[0], out int michaelPlayerId)
+            || !int.TryParse(fields[1], out int survivorCount)
+            || !LobbySnapshotCodec.TryParseBool(fields[2], out bool oneVsOne)
+            || !float.TryParse(fields[4], NumberStyles.Float, CultureInfo.InvariantCulture,
+                out float timeRemaining))
+        {
+            return;
+        }
+
+        ApplyLiveState(hostId, michaelPlayerId, survivorCount, oneVsOne, fields[3], timeRemaining,
+            roundId, revision,
+            ModeLobbyDataSync.Source("michaeltat", "live"));
+    }
+
+    private static string SerializeScores() => ScoreCodec.Serialize(Scores);
+
+    private static void Announce(string text)
+    {
+        GameModeHud.BroadcastAnnouncement(text);
+    }
+}

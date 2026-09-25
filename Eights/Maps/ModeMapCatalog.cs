@@ -8,7 +8,7 @@ namespace Eights;
 
 internal static class ModeMapCatalog
 {
-    private static readonly IReadOnlyList<string> HardpointMaps =
+    private static readonly IReadOnlyList<string> HardtatMaps =
         new[]
         {
             MapDefinitions.Barren01AltName,
@@ -27,7 +27,7 @@ internal static class ModeMapCatalog
             // MapDefinitions.BasketSwirlyAltName,
             MapDefinitions.Republic08Name
         };
-    private static readonly IReadOnlyList<string> CaptureTheFlagMaps =
+    private static readonly IReadOnlyList<string> CapturetatMaps =
         new[]
         {
             // MapDefinitions.Barren01AltName,
@@ -46,7 +46,7 @@ internal static class ModeMapCatalog
             MapDefinitions.BasketSwirlyAltName,
             MapDefinitions.Republic08Name
         };
-    private static readonly IReadOnlyList<string> SearchAndDestroyMaps =
+    private static readonly IReadOnlyList<string> SndtatMaps =
         new[]
         {
             // MapDefinitions.Barren01AltName,
@@ -65,7 +65,8 @@ internal static class ModeMapCatalog
             // MapDefinitions.BasketSwirlyAltName,
             // MapDefinitions.Republic08Name
         };
-    private static readonly IReadOnlyList<string> TeamDeathmatchMaps =
+    private static readonly IReadOnlyList<string> CountertatMaps = SndtatMaps;
+    private static readonly IReadOnlyList<string> TdmtatMaps =
         new[]
         {
             MapDefinitions.Barren01AltName,
@@ -84,7 +85,7 @@ internal static class ModeMapCatalog
             MapDefinitions.BasketSwirlyAltName,
             // MapDefinitions.Republic08Name
         };
-    private static readonly IReadOnlyList<string> FreeForAllMaps =
+    private static readonly IReadOnlyList<string> FfatatMaps =
         new[]
         {
             MapDefinitions.DragonflyNeighbourhoodName,
@@ -98,11 +99,11 @@ internal static class ModeMapCatalog
             MapDefinitions.Arena13Name,
             MapDefinitions.Arena14Name
         };
-    private static readonly IReadOnlyList<string> NifeMaps = FreeForAllMaps;
-    private static readonly IReadOnlyList<string> JuggernautMaps =
+    private static readonly IReadOnlyList<string> NifetatMaps = FfatatMaps;
+    private static readonly IReadOnlyList<string> JuggertatMaps =
         new[] { "Arena_11_Alt", "Arena_10", "Arena_10_Alt", "Basket_Junglegym" };
-    private static readonly IReadOnlyList<string> GunGameMaps = FreeForAllMaps;
-    private static readonly IReadOnlyList<string> SniperBattleMaps =
+    private static readonly IReadOnlyList<string> GuntatMaps = FfatatMaps;
+    private static readonly IReadOnlyList<string> SnipertatMaps =
         new[]
         {
             MapDefinitions.Adobe02Name,
@@ -112,7 +113,7 @@ internal static class ModeMapCatalog
             MapDefinitions.Garden01AltName,
             MapDefinitions.Chateaux01Name
         };
-    private static readonly IReadOnlyList<string> MichaelMeyersMaps =
+    private static readonly IReadOnlyList<string> MichaeltatMaps =
         new[]
         {
             "Bazaar_Alleyway_Alt", "WestVillage_04_Alt", "Adobe_01_Alt",
@@ -122,43 +123,44 @@ internal static class ModeMapCatalog
             "Bazaar_Charshi_Alt", "Corridor_00_Alt", "Dragonfly_Basalt", "HK_02_Alt",
             "Parking_alt"
         };
-    private static readonly IReadOnlyList<string> KillTheRatMaps =
+    private static readonly IReadOnlyList<string> RatatatMaps =
         new[] { "WestVillage_04", "Toilets_00", "Arena_13", "JF_Poolrooms_01" };
-    private static readonly IReadOnlyList<string> OneInTheChamberMaps =
+    private static readonly IReadOnlyList<string> ChambertatMaps =
         new[] { "TheSamePlace_02", "StLucia_01", "Chateaux_04" };
-    private static readonly IReadOnlyList<string> HotPotatoMaps = FreeForAllMaps;
-    private static readonly IReadOnlyList<string> InfidelMaps =
+    private static readonly IReadOnlyList<string> PotatotatMaps = FfatatMaps;
+    private static readonly IReadOnlyList<string> InfideltatMaps =
         new[] { "Bazaar_01", "TheSamePlace_04", "TheSamePlace_12" };
-    private static readonly IReadOnlyList<string> InfectedMaps = FreeForAllMaps;
-    private static readonly IReadOnlyList<string> HotPotInfectedMaps = InfectedMaps;
-    private static readonly IReadOnlyList<string> NinjaHuntersMaps = HardpointMaps;
-    private static readonly IReadOnlyList<string> RabbitHuntersMaps = HardpointMaps;
-    private static readonly IReadOnlyList<string> TankBattleMaps = HardpointMaps;
+    private static readonly IReadOnlyList<string> InfectedtatMaps = FfatatMaps;
+    private static readonly IReadOnlyList<string> PotatoInftatMaps = InfectedtatMaps;
+    private static readonly IReadOnlyList<string> NinjatatMaps = HardtatMaps;
+    private static readonly IReadOnlyList<string> HunttatMaps = HardtatMaps;
+    private static readonly IReadOnlyList<string> TanktatMaps = HardtatMaps;
 
     private static readonly IReadOnlyDictionary<GameMode, IReadOnlyList<string>> MapsByMode =
         new Dictionary<GameMode, IReadOnlyList<string>>
         {
-            [GameMode.FreeForAll] = FreeForAllMaps,
-            [GameMode.Nife] = NifeMaps,
-            [GameMode.Juggernaut] = JuggernautMaps,
-            [GameMode.GunGame] = GunGameMaps,
-            [GameMode.SniperBattle] = SniperBattleMaps,
-            [GameMode.MichaelMeyers] = MichaelMeyersMaps,
-            [GameMode.KillTheRat] = KillTheRatMaps,
-            [GameMode.OneInTheChamber] = OneInTheChamberMaps,
-            [GameMode.HotPotato] = HotPotatoMaps,
-            [GameMode.Infidel] = InfidelMaps,
-            [GameMode.HVT] = InfidelMaps,
-            [GameMode.Infected] = InfectedMaps,
-            [GameMode.HotPotInfected] = HotPotInfectedMaps,
-            [GameMode.Assassin] = InfidelMaps,
-            [GameMode.Hardpoint] = HardpointMaps,
-            [GameMode.CaptureTheFlag] = CaptureTheFlagMaps,
-            [GameMode.SearchAndDestroy] = SearchAndDestroyMaps,
-            [GameMode.TeamDeathmatch] = TeamDeathmatchMaps,
-            [GameMode.NinjaHunters] = NinjaHuntersMaps,
-            [GameMode.RabbitHunters] = RabbitHuntersMaps,
-            [GameMode.TankBattle] = TankBattleMaps
+            [GameMode.Ffatat] = FfatatMaps,
+            [GameMode.Nifetat] = NifetatMaps,
+            [GameMode.Juggertat] = JuggertatMaps,
+            [GameMode.Guntat] = GuntatMaps,
+            [GameMode.Snipertat] = SnipertatMaps,
+            [GameMode.Michaeltat] = MichaeltatMaps,
+            [GameMode.Ratatat] = RatatatMaps,
+            [GameMode.Chambertat] = ChambertatMaps,
+            [GameMode.Potatotat] = PotatotatMaps,
+            [GameMode.Infideltat] = InfideltatMaps,
+            [GameMode.Hvtat] = InfideltatMaps,
+            [GameMode.Infectedtat] = InfectedtatMaps,
+            [GameMode.PotatoInftat] = PotatoInftatMaps,
+            [GameMode.Assassintat] = InfideltatMaps,
+            [GameMode.Hardtat] = HardtatMaps,
+            [GameMode.Capturetat] = CapturetatMaps,
+            [GameMode.Sndtat] = SndtatMaps,
+            [GameMode.Countertat] = CountertatMaps,
+            [GameMode.Tdmtat] = TdmtatMaps,
+            [GameMode.Ninjatat] = NinjatatMaps,
+            [GameMode.Hunttat] = HunttatMaps,
+            [GameMode.Tanktat] = TanktatMaps
         };
 
     internal static IReadOnlyList<string> GetMapNames(GameMode mode)
@@ -181,13 +183,13 @@ internal static class ModeMapCatalog
 
     internal static bool RequiresMapOverride(GameMode mode)
     {
-        return mode == GameMode.CaptureTheFlag || mode == GameMode.Hardpoint
-            || mode == GameMode.SearchAndDestroy || GameModeManager.IsHuntersMode(mode);
+        return mode == GameMode.Capturetat || mode == GameMode.Hardtat
+            || GameModeManager.IsBombMode(mode) || GameModeManager.IsHuntersMode(mode);
     }
 
     private static IReadOnlyList<string> GetOverrideMapNames(GameMode mode)
     {
-        if (mode == GameMode.Default)
+        if (mode == GameMode.Straftat)
         {
             return GetDefaultMapNames();
         }
@@ -261,8 +263,8 @@ internal static class ModeMapCatalog
 
     private static bool RequiresMapDefinition(GameMode mode)
     {
-        return mode == GameMode.Hardpoint || mode == GameMode.CaptureTheFlag
-            || mode == GameMode.SearchAndDestroy || GameModeManager.IsHuntersMode(mode);
+        return mode == GameMode.Hardtat || mode == GameMode.Capturetat
+            || GameModeManager.IsBombMode(mode) || GameModeManager.IsHuntersMode(mode);
     }
 
     private static bool HasRequiredDefinition(GameMode mode, string mapName)
@@ -275,12 +277,13 @@ internal static class ModeMapCatalog
 
         return mode switch
         {
-            GameMode.Hardpoint => definition.HardpointObjectives.Count > 0,
-            GameMode.CaptureTheFlag => definition.CaptureTheFlagObjectives.Count == 2,
-            GameMode.SearchAndDestroy => definition.SndObjectives.Count == 2,
-            GameMode.NinjaHunters => definition.HardpointObjectives.Count > 0,
-            GameMode.RabbitHunters => definition.HardpointObjectives.Count > 0,
-            GameMode.TankBattle => definition.HardpointObjectives.Count > 0,
+            GameMode.Hardtat => definition.HardtatObjectives.Count > 0,
+            GameMode.Capturetat => definition.CapturetatObjectives.Count == 2,
+            GameMode.Sndtat => definition.SndObjectives.Count == 2,
+            GameMode.Countertat => definition.SndObjectives.Count == 2,
+            GameMode.Ninjatat => definition.HardtatObjectives.Count > 0,
+            GameMode.Hunttat => definition.HardtatObjectives.Count > 0,
+            GameMode.Tanktat => definition.HardtatObjectives.Count > 0,
             _ => true
         };
     }

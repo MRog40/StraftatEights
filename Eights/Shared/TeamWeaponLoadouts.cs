@@ -31,6 +31,7 @@ internal static class TeamWeaponLoadouts
     private static int _roundId = -1;
     private static int _assignmentVersion = -1;
     private static int _initialSlotCount;
+    private static int _countertatTakeId = -1;
     private static float _nextLoadoutCheckTime;
 
     internal static void ResetMatchState()
@@ -44,13 +45,14 @@ internal static class TeamWeaponLoadouts
         _roundId = -1;
         _assignmentVersion = -1;
         _initialSlotCount = 0;
+        _countertatTakeId = -1;
         _nextLoadoutCheckTime = 0f;
     }
 
     internal static void EnsureLoadouts()
     {
         if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
-            || (!GameModeManager.IsTeamBased && !GameModeManager.IsActive(GameMode.FreeForAll))
+            || (!GameModeManager.IsTeamBased && !GameModeManager.IsActive(GameMode.Ffatat))
             || GameModeManager.Phase != GameModePhase.ActiveRound
             || WeaponService.IsFinalGameScreen
             || Time.unscaledTime < _nextLoadoutCheckTime)
@@ -60,7 +62,12 @@ internal static class TeamWeaponLoadouts
 
         _nextLoadoutCheckTime = Time.unscaledTime + 0.5f;
 
-        if (WeaponSettingsState.Allowed.Count == 0)
+        bool countertat = GameModeManager.IsActive(GameMode.Countertat);
+        if (countertat && SndtatState.TakeId < 1)
+        {
+            return;
+        }
+        if (!countertat && WeaponSettingsState.Allowed.Count == 0)
         {
             return;
         }
@@ -84,10 +91,12 @@ internal static class TeamWeaponLoadouts
     internal static void OnPlayerSpawned(PlayerManager manager)
     {
         if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
-            || (!GameModeManager.IsTeamBased && !GameModeManager.IsActive(GameMode.FreeForAll))
+            || (!GameModeManager.IsTeamBased && !GameModeManager.IsActive(GameMode.Ffatat))
             || GameModeManager.Phase != GameModePhase.ActiveRound
             || WeaponService.IsFinalGameScreen || manager == null || !manager
-            || manager.player == null || !manager.player)
+            || manager.player == null || !manager.player
+            || (GameModeManager.IsActive(GameMode.Countertat)
+                && SndtatState.TakeId < 1))
         {
             return;
         }
@@ -110,7 +119,9 @@ internal static class TeamWeaponLoadouts
             _roundId = GameModeManager.RoundId;
         }
 
-        if (!AllowedSnapshot.SequenceEqual(WeaponSettingsState.Allowed, StringComparer.Ordinal))
+        bool countertat = GameModeManager.IsActive(GameMode.Countertat);
+        if (!countertat
+            && !AllowedSnapshot.SequenceEqual(WeaponSettingsState.Allowed, StringComparer.Ordinal))
         {
             AllowedSnapshot.Clear();
             AllowedSnapshot.AddRange(WeaponSettingsState.Allowed);
@@ -121,6 +132,14 @@ internal static class TeamWeaponLoadouts
             _weaponSequence = null;
             _assignmentVersion = -1;
             _initialSlotCount = 0;
+        }
+
+        if (countertat && _countertatTakeId != SndtatState.TakeId)
+        {
+            _countertatTakeId = SndtatState.TakeId;
+            PlayerObjectIds.Clear();
+            TeamRespawnCounts.Clear();
+            LoadoutRequests.Clear();
         }
 
         if (_assignmentVersion == TeamAssignment.HealthCompensationVersion)
@@ -161,7 +180,7 @@ internal static class TeamWeaponLoadouts
 
     private static IEnumerable<KeyValuePair<int, int>> GetLoadoutAssignments()
     {
-        if (GameModeManager.IsActive(GameMode.FreeForAll))
+        if (GameModeManager.IsActive(GameMode.Ffatat))
         {
             foreach (int playerId in PlayerLookup.GetConnectedPlayerIdsReadOnly())
             {
@@ -180,7 +199,7 @@ internal static class TeamWeaponLoadouts
 
     private static bool TryGetLoadoutAssignment(int playerId, out int teamId)
     {
-        if (GameModeManager.IsActive(GameMode.FreeForAll))
+        if (GameModeManager.IsActive(GameMode.Ffatat))
         {
             teamId = playerId;
             return true;
@@ -196,28 +215,44 @@ internal static class TeamWeaponLoadouts
         if (!PlayerObjectIds.TryGetValue(playerId, out int previousObjectId)
             || previousObjectId != playerObjectId)
         {
-            bool isRespawn = PlayerObjectIds.ContainsKey(playerId);
-            int weaponIndex;
-            if (isRespawn)
+            string weaponName;
+            if (GameModeManager.IsActive(GameMode.Countertat))
             {
-                TeamRespawnCounts.TryGetValue(teamId, out int respawnCount);
-                respawnCount++;
-                TeamRespawnCounts[teamId] = respawnCount;
-                weaponIndex = _initialSlotCount + respawnCount - 1;
+                if (!InitialWeaponSlots.TryGetValue(playerId, out int playerSlot))
+                {
+                    playerSlot = _initialSlotCount++;
+                    InitialWeaponSlots[playerId] = playerSlot;
+                }
+
+                weaponName = CountertatRules.GetWeaponName(SndtatState.OffensiveTeamId,
+                    SndtatState.TakeId, teamId, playerSlot);
             }
             else
             {
-                weaponIndex = InitialWeaponSlots.TryGetValue(playerId, out int initialSlot)
-                    ? initialSlot
-                    : _initialSlotCount;
-                if (!InitialWeaponSlots.ContainsKey(playerId))
+                bool isRespawn = PlayerObjectIds.ContainsKey(playerId);
+                int weaponIndex;
+                if (isRespawn)
                 {
-                    InitialWeaponSlots[playerId] = weaponIndex;
-                    _initialSlotCount++;
+                    TeamRespawnCounts.TryGetValue(teamId, out int respawnCount);
+                    respawnCount++;
+                    TeamRespawnCounts[teamId] = respawnCount;
+                    weaponIndex = _initialSlotCount + respawnCount - 1;
                 }
+                else
+                {
+                    weaponIndex = InitialWeaponSlots.TryGetValue(playerId, out int initialSlot)
+                        ? initialSlot
+                        : _initialSlotCount;
+                    if (!InitialWeaponSlots.ContainsKey(playerId))
+                    {
+                        InitialWeaponSlots[playerId] = weaponIndex;
+                        _initialSlotCount++;
+                    }
+                }
+
+                weaponName = GetWeaponAt(weaponIndex);
             }
 
-            string weaponName = GetWeaponAt(weaponIndex);
             PlayerObjectIds[playerId] = playerObjectId;
             LoadoutRequests[playerId] = new LoadoutRequest(playerObjectId, weaponName);
         }

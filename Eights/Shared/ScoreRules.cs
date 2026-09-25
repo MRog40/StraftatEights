@@ -5,9 +5,9 @@ internal static class ScoreRules
     internal const int PointsToWin = 100;
     internal const int PointsPerRoundWin = 50;
     internal const int PointsPerKill = 10;
-    internal const int PointsPerJuggernautCrown = 20;
+    internal const int PointsPerJuggertatCrown = 20;
     internal const int PointsPerRatSurvivalSecond = 3;
-    internal const int PointsPerHVTSurvivalSecond = 3;
+    internal const int PointsPerHvtatSurvivalSecond = 3;
 
     internal static int AddPoints(int currentScore, int amount, int pointsToWin)
     {

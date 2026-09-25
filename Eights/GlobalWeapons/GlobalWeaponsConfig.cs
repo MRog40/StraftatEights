@@ -12,7 +12,7 @@ public partial class Plugin
     internal static ConfigEntry<string> AllowedWeapons = null!;
     internal static ConfigEntry<int> SpareMagazines = null!;
     internal static ConfigEntry<bool> DefaultKnife = null!;
-    internal static ConfigEntry<string> GunGameWeaponOrder = null!;
+    internal static ConfigEntry<string> GuntatWeaponOrder = null!;
 
     private void InitializeGlobalWeapons()
     {
@@ -22,19 +22,26 @@ public partial class Plugin
         SpareMagazines = Config.Bind(section, "Spare Magazines", 6, new ConfigDescription("Host-controlled: spare magazines granted with a weapon pickup.", new AcceptableValueRange<int>(2, 10)));
         DefaultKnife = Config.Bind(section, "Default Knife", false,
             "Host-controlled: gives players a Couperet after spawn or respawn when the right hand is empty.");
-        const string defaultGunGameWeaponOrder =
+        const string defaultGuntatWeaponOrder =
             "Glock, Webley, SMG, Bukanee, Shotgun, AR15, QCW05, HK_G11, M2000, Couperet";
-        ConfigDefinition legacyGunGameDefinition = new("Game Mode Settings", "Gun Game Weapon Order");
-        bool hasLegacyGunGameOrder = Config.Keys.Contains(legacyGunGameDefinition);
-        ConfigEntry<string>? legacyGunGameOrder = hasLegacyGunGameOrder
-            ? Config.Bind(legacyGunGameDefinition, defaultGunGameWeaponOrder,
+        ConfigDefinition legacyGuntatDefinition = new("Game Mode Settings", "Gun Game Weapon Order");
+        ConfigDefinition previousGuntatWeaponsDefinition = new(section, "Gun Game Weapons");
+        bool hasLegacyGuntatOrder = Config.Keys.Contains(legacyGuntatDefinition);
+        bool hasPreviousGuntatWeapons = Config.Keys.Contains(previousGuntatWeaponsDefinition);
+        ConfigEntry<string>? legacyGuntatOrder = hasLegacyGuntatOrder
+            ? Config.Bind(legacyGuntatDefinition, defaultGuntatWeaponOrder,
                 new ConfigDescription("Host-controlled: exact prefab IDs in progression order."))
             : null;
-        GunGameWeaponOrder = Config.Bind(section, "Gun Game Weapons",
-            legacyGunGameOrder?.Value ?? defaultGunGameWeaponOrder,
+        ConfigEntry<string>? previousGuntatWeapons = hasPreviousGuntatWeapons
+            ? Config.Bind(previousGuntatWeaponsDefinition, defaultGuntatWeaponOrder,
+                new ConfigDescription("Host-controlled: exact prefab IDs in progression order."))
+            : null;
+        GuntatWeaponOrder = Config.Bind(section, "Guntat Weapons",
+            previousGuntatWeapons?.Value ?? legacyGuntatOrder?.Value ?? defaultGuntatWeaponOrder,
             "Host-controlled: exact prefab IDs in progression order.");
-        Config.Remove(legacyGunGameDefinition);
-        if (hasLegacyGunGameOrder)
+        Config.Remove(legacyGuntatDefinition);
+        Config.Remove(previousGuntatWeaponsDefinition);
+        if (hasLegacyGuntatOrder || hasPreviousGuntatWeapons)
         {
             Config.Save();
         }
@@ -48,7 +55,7 @@ public partial class Plugin
         AllowedWeapons.SettingChanged += (_, _) => WeaponSettingsState.PushIfHost();
         SpareMagazines.SettingChanged += (_, _) => WeaponSettingsState.PushIfHost();
         DefaultKnife.SettingChanged += (_, _) => WeaponSettingsState.PushIfHost();
-        GunGameWeaponOrder.SettingChanged += (_, _) => GunGameState.PushSettingsIfHost();
+        GuntatWeaponOrder.SettingChanged += (_, _) => GuntatState.PushSettingsIfHost();
         MyceliumNetwork.RegisterNetworkObject(this, GlobalWeaponsModId);
         ModeLobbyDataSync.RegisterKeys(WeaponSettingsState.SettingsLobbyDataKey);
         MyceliumNetwork.LobbyCreated += WeaponSettingsState.OnLobbyEntered;

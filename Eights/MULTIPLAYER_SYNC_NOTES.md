@@ -7,7 +7,7 @@ repository. Read them before adding a networked game mode or patch.
 
 The long two-machine test on 2026-09-10 completed without a scoreboard desync. The client log had no
 error-level entries, exceptions, dropped RPCs, Mycelium send errors, or failed session messages. It had
-one expected stale-snapshot warning: a Sniper Battle lobby-data revision arrived after the client had
+one expected stale-snapshot warning: a Snipertat lobby-data revision arrived after the client had
 already accepted the newer RPC revision. The client rejected the old revision and continued accepting
 new score snapshots.
 
@@ -34,7 +34,7 @@ Transport recovery is only one part of the contract. Latest-value state must sti
 include the host Steam ID, round ID, and revision; reject stale or foreign snapshots; periodically resend
 host state; and use a Steam lobby-data fallback for important presentation state. The fallback is required
 because it uses a separate Steam lobby metadata path and does not depend on the Mycelium peer session.
-Sniper Battle now follows the same fallback pattern as Gun Game and active-mode state.
+Snipertat now follows the same fallback pattern as Guntat and active-mode state.
 
 When testing a future networking change, verify the following before changing gameplay code:
 
@@ -60,8 +60,8 @@ an action that must be retried.
 - `ReliableType.Reliable` does not remove the Steam/Mycelium session failure mode. For small latest-value
   state that controls client presentation, use a registered Steam lobby-data key as a second channel.
   Publish the host ID, round ID, revision, and payload; read it on lobby entry and on
-  `LobbyDataUpdated`; apply the same host and cursor validation as the RPC path. Gun Game settings,
-  Gun Game scores, Sniper Battle settings/scores, and the active game mode use this fallback.
+  `LobbyDataUpdated`; apply the same host and cursor validation as the RPC path. Guntat settings,
+  Guntat scores, Snipertat settings/scores, and the active game mode use this fallback.
 - Accept snapshots by host identity, round ID, and revision. A newer round must accept a reset
   revision, and client mode state must reset when the round ID advances even if the mode is unchanged.
 - Reset all per-match dictionaries and IDs when the mode, round, lobby, or session changes. Do not
@@ -69,7 +69,7 @@ an action that must be retried.
 - Mycelium serializers support primitives and selected arrays only. Flatten dictionaries into a
   string such as `id:score;id:score`, then validate IDs and score limits when parsing.
 
-## Kill The Rat
+## Ratatat
 
 - The host owns the current Rat, points, and role transfers. A valid player kill awards 10 points
   to the killer; the Rat earns 1 point per second while active, up to the shared 100-point target.
@@ -81,7 +81,7 @@ an action that must be retried.
 - Rat loadouts are retried after every respawn because player and weapon objects are recreated. Role
   state is keyed by `ClientInstance.PlayerId`, not by a cached player object.
 
-## One in the Chamber
+## Chambertat
 
 - The host owns the alive-player set and each player's reserve bullet count. A valid Pistol or
   Couperet kill awards one reserve bullet; environmental and other non-kill deaths only remove the
@@ -93,10 +93,10 @@ an action that must be retried.
   and use the shared manual reload path; the mode does not use Webley or Glock.
 - Every player has exactly 10 health while the mode is active. The host clamps excess health through
   the normal FishNet health path, so the Pistol's first hit is lethal.
-- One in the Chamber never schedules a respawn. The last remaining alive player completes the custom
+- Chambertat never schedules a respawn. The last remaining alive player completes the custom
   round through the host's normal round transition.
 
-## Hot Potato
+## Potatotat
 
 - The host owns the score and current grenade holder. Every valid kill awards the shared 10-point kill
   score; the first player to the global 100-point target wins.
@@ -104,10 +104,10 @@ an action that must be retried.
   grenade when the current one is thrown. When the holder kills a player, the victim becomes the
   grenade holder after respawning and the former holder receives a Shotgun. The host uses the normal
   `PlayerHealth.killer` attribution path, so grenade explosions need no special mode tracking.
-- Hot Potato uses the normal custom-mode respawn path. Loadouts are retried after each respawn because
+- Potatotat uses the normal custom-mode respawn path. Loadouts are retried after each respawn because
   the game creates new player and weapon objects.
 
-## Infidel
+## Infideltat
 
 - The host keeps the Infidel identity private by sending each peer only its own role. The identity is
   not included in the broadcast live-state payload.
@@ -120,7 +120,7 @@ an action that must be retried.
   the Infidel awards the killer 10 points for each Terrorist still alive after the kill. All players
   then respawn for a new take, and scores persist until a player reaches 100 points.
 
-## Hardpoint
+## Hardtat
 
 - The host assigns teams at each official round start. Three teams are used only when the current
   player count is divisible by three; otherwise two teams are used. Assignments stay stable through
@@ -132,7 +132,7 @@ an action that must be retried.
   second inside the horizontal radius and the vertical range `y - 1` through `y + 1`. The point warns
   five seconds before rotation. A contested or empty point drains the contest clock; a tied clock
   expiry enters sudden death.
-- Weapon allocation is shared with Capture The Flag, Search And Destroy, and Team Deathmatch. At each
+- Weapon allocation is shared with Capturetat, Sndtat, and Tdmtat. At each
   official round, the host builds one shuffled permutation from `WeaponSettingsState.Allowed`. Players
   in the same team slot receive the same weapon, and each team's respawns advance independently through
   the sequence. Every grant passes `WeaponSettingsState.SpareMagazines` to `WeaponService.GiveWeapon`.
@@ -246,7 +246,7 @@ When a result is asymmetric, compare the host and client logs and verify these f
 - A mode's state class keeps the RPC method signature, payload construction, payload validation,
   gameplay state, and thin acceptance adapters. This keeps the wire contract stable while removing
   repeated transport code.
-- Custom resend intervals belong in the mode's `ModeSyncState` constructor. Juggernaut uses a one
+- Custom resend intervals belong in the mode's `ModeSyncState` constructor. Juggertat uses a one
   second live-state interval; ordinary settings and live streams use the shared default interval.
 
 ## Global systems
@@ -265,7 +265,7 @@ When a result is asymmetric, compare the host and client logs and verify these f
   temporary invincibility or a special player outline.
 - Modes with the `SafeRespawn` capability select spawn positions on the FishNet server through the shared safe-spawn
   scorer. It ranks candidates by nearest-enemy distance, line-of-sight cover, teammate proximity,
-  and optional objective proximity. FFA and Gun Game classify every other active player as an enemy;
+  and optional objective proximity. Ffatat and Guntat classify every other active player as an enemy;
   team modes use the authoritative team assignment to separate enemies from teammates. LOS is a
   strong penalty, not a universal rejection, so open maps fall back to deterministic distance choice.
 
