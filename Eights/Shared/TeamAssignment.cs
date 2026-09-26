@@ -48,16 +48,20 @@ internal static class TeamAssignment
 
         RememberCurrentAssignments();
         List<int> playerIds = PlayerLookup.GetConnectedPlayerIds();
+        bool isHardtat = GameModeManager.IsActive(GameMode.Hardtat);
         bool isTdmtat = GameModeManager.IsActive(GameMode.Tdmtat);
-        Dictionary<int, int> nextAssignments = GameModeManager.IsActive(GameMode.Hardtat)
-            ? TeamRules.AssignHardtatBalanced(playerIds, TeamAssignmentRandom,
-                PreviousAssignments)
+        bool preferTwoTeamHardtat = isHardtat && GameModeManager.EffectivePreferTwoTeamHardtat;
+        Dictionary<int, int> nextAssignments = isHardtat
+            ? preferTwoTeamHardtat
+                ? TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, PreviousAssignments)
+                : TeamRules.AssignHardtatBalanced(playerIds, TeamAssignmentRandom,
+                    PreviousAssignments)
             : isTdmtat ? TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom,
                 PreviousAssignments)
             : TeamRules.AssignBalanced(playerIds, TeamAssignmentRandom, PreviousAssignments);
         if (nextAssignments.Count == 0)
         {
-            if (GameModeManager.IsActive(GameMode.Hardtat))
+            if (isHardtat)
             {
                 Plugin.Logger.LogWarning($"[Teams] Hardtat rule returned no assignments: "
                     + $"players=[{string.Join(",", playerIds)}] count={playerIds.Count}");
@@ -65,8 +69,9 @@ internal static class TeamAssignment
             return false;
         }
 
-        int teamCount = GameModeManager.IsActive(GameMode.Hardtat)
-            ? TeamRules.GetHardtatTeamCount(playerIds.Count)
+        int teamCount = isHardtat
+            ? TeamRules.GetHardtatTeamCount(playerIds.Count,
+                GameModeManager.EffectivePreferTwoTeamHardtat)
             : isTdmtat ? 2 : TeamRules.GetTeamCount(playerIds.Count);
         bool applied = ApplyRoundAssignments(playerIds, teamCount, nextAssignments);
         if (!applied && GameModeManager.IsActive(GameMode.Hardtat))
@@ -146,7 +151,11 @@ internal static class TeamAssignment
             return false;
         }
 
-        Dictionary<int, int> nextAssignments = CreateMixupAssignments(playerIds, TeamCount);
+        int nextTeamCount = GameModeManager.IsActive(GameMode.Hardtat)
+            ? TeamRules.GetHardtatTeamCount(playerIds.Count,
+                GameModeManager.EffectivePreferTwoTeamHardtat)
+            : TeamCount;
+        Dictionary<int, int> nextAssignments = CreateMixupAssignments(playerIds, nextTeamCount);
         for (int attempt = 0; attempt < 32 && HasSameTeamPartition(Assignments, nextAssignments);
             attempt++)
         {
@@ -159,7 +168,7 @@ internal static class TeamAssignment
         }
 
         ForcedAssignments = nextAssignments;
-        TeamLayoutState.SaveAssignments(nextAssignments, TeamCount);
+        TeamLayoutState.SaveAssignments(nextAssignments, nextTeamCount);
         return true;
     }
 
@@ -254,11 +263,16 @@ internal static class TeamAssignment
     private static Dictionary<int, int> CreateMixupAssignments(IReadOnlyList<int> playerIds,
         int teamCount)
     {
-        return GameModeManager.IsActive(GameMode.Hardtat)
-            ? TeamRules.AssignHardtatBalanced(playerIds, TeamAssignmentRandom, null)
-            : teamCount == 2
+        if (GameModeManager.IsActive(GameMode.Hardtat))
+        {
+            return GameModeManager.EffectivePreferTwoTeamHardtat
                 ? TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, null)
-                : TeamRules.AssignBalanced(playerIds, TeamAssignmentRandom, null);
+                : TeamRules.AssignHardtatBalanced(playerIds, TeamAssignmentRandom, null);
+        }
+
+        return teamCount == 2
+            ? TeamRules.AssignTwoTeams(playerIds, TeamAssignmentRandom, null)
+            : TeamRules.AssignBalanced(playerIds, TeamAssignmentRandom, null);
     }
 
     private static bool HasSameTeamPartition(IReadOnlyDictionary<int, int> first,

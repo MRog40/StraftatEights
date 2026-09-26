@@ -20,7 +20,7 @@ internal static class SndtatHud
                 + Mathf.CeilToInt(SndtatState.FuseTimeRemaining) + "s</b></color>"
             : "Take: " + Mathf.CeilToInt(SndtatState.TakeTimeRemaining) + "s";
         return GameModeScoreboard.Build(countertat ? GameMode.Countertat : GameMode.Sndtat,
-            countertat ? "COUNTERTAT" : "SND",
+            countertat ? "COUNTERTAT" : "Sndtat",
             GameModeManager.EffectivePointsToWin, rows, timerText);
     }
 }

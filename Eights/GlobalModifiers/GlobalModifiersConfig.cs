@@ -15,6 +15,7 @@ public partial class Plugin
     internal static ConfigEntry<bool> WallJumpEnabled = null!;
     internal static ConfigEntry<bool> WallJumpBoostEnabled = null!;
     internal static ConfigEntry<bool> SlidingEnabled = null!;
+    internal static ConfigEntry<bool> SilentWalking = null!;
     internal static ConfigEntry<bool> SlideBoostEnabled = null!;
     internal static ConfigEntry<int> MoveSpeedPercent = null!;
     internal static ConfigEntry<int> AdsSpeedPercent = null!;
@@ -36,6 +37,8 @@ public partial class Plugin
             "Host-controlled: allows crouch-sliding for everyone in the lobby.");
         SlideBoostEnabled = Config.Bind("Movement Settings", "Enable Slide Speed Boost", false,
             "Host-controlled: whether sliding gives the usual Straftat speed boost. Disable to slide like most other games.");
+        SilentWalking = Config.Bind("Movement Settings", "Silent walking", true,
+            "Host-controlled: mutes walking footsteps while sprint footsteps remain audible.");
         MoveSpeedPercent = Config.Bind("Movement Settings", "Move Speed %", 100,
             new ConfigDescription("Host-controlled: overall movement speed as a percent of normal.", new AcceptableValueRange<int>(50, 200)));
         AdsSpeedPercent = Config.Bind("Movement Settings", "ADS Speed %", 100,
@@ -59,6 +62,7 @@ public partial class Plugin
         WallJumpEnabled.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
         MovementTweaksEnabled.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
         SlidingEnabled.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
+        SilentWalking.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
         SlideBoostEnabled.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
         WallJumpBoostEnabled.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
         MoveSpeedPercent.SettingChanged += (_, _) => GlobalModifiersState.PushIfHost();
@@ -85,7 +89,7 @@ public partial class Plugin
     public void SyncMovementSettings(CSteamID hostId, int roundId, int revision, bool enabled, bool wallJump,
         bool sliding, bool slideBoost, bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent,
         int gravityPercent, int momentumPercent, int airSpeedRatioPercent, int shootingSpeedPercent,
-        bool playerRadarEnabled, int maximumBloodEffects, RPCInfo info)
+        bool playerRadarEnabled, int maximumBloodEffects, bool silentWalking, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
@@ -97,6 +101,6 @@ public partial class Plugin
         }
         GlobalModifiersState.Apply(enabled, wallJump, sliding, slideBoost, wallJumpBoost, moveSpeedPercent,
             adsSpeedPercent, gravityPercent, momentumPercent, airSpeedRatioPercent,
-            shootingSpeedPercent, playerRadarEnabled, maximumBloodEffects);
+            shootingSpeedPercent, playerRadarEnabled, maximumBloodEffects, silentWalking);
     }
 }

@@ -15,11 +15,23 @@ internal static class WeaponSettingsState
     internal static bool DefaultKnife;
     internal static int SpareMagazines = 5;
     internal static List<string> Allowed = new();
-    private static readonly Dictionary<int, int> DefaultKnifeObjects = new();
-    private static readonly Dictionary<int, float> DefaultKnifeNextAttemptTimes = new();
-    private static readonly Dictionary<int, int> DefaultKnifeResolvedObjects = new();
+    private const float DefaultKnifeSpawnGraceSeconds = 1.5f;
+    private const float DefaultKnifeDropGraceSeconds = 0.35f;
+    private const float DefaultKnifeRequestIntervalSeconds = 1f;
+    private const float DefaultKnifeGrantRetrySeconds = 1.5f;
+    private static readonly Dictionary<int, int> LastDefaultKnifeRequestIds = new();
+    private static readonly Dictionary<int, float> NextDefaultKnifeGrantTimes = new();
     private static readonly ModeSyncState Sync = new();
     private static float _nextClientSettingsPollTime;
+    private static int _localDefaultKnifePlayerId = -1;
+    private static int _localDefaultKnifePickupId = -1;
+    private static int _localDefaultKnifeRoundId = -1;
+    private static bool _localDefaultKnifeHadGun;
+    private static bool _localDefaultKnifeInitialGrace;
+    private static float _localDefaultKnifeNoGunSince;
+    private static float _nextLocalDefaultKnifeRequestTime;
+    private static int _localDefaultKnifeRequestId;
+    private static int _nextLocalDefaultKnifeRequestId;
     internal static void Apply(bool enabled, string allowedWeapons, int spareMagazines,
         bool defaultKnife)
     {
@@ -39,9 +51,7 @@ internal static class WeaponSettingsState
         if (settingsChanged || allowedChanged)
         {
             WeaponService.ResetPendingRequests();
-            DefaultKnifeObjects.Clear();
-            DefaultKnifeNextAttemptTimes.Clear();
-            DefaultKnifeResolvedObjects.Clear();
+            ResetDefaultKnifeRequestState(false);
         }
     }
     private static void ApplyFromConfig() => Apply(Plugin.WeaponTweaksEnabled.Value,
@@ -65,9 +75,7 @@ internal static class WeaponSettingsState
     internal static void OnLobbyEntered()
     {
         Sync.ResetForLobby();
-        DefaultKnifeObjects.Clear();
-        DefaultKnifeNextAttemptTimes.Clear();
-        DefaultKnifeResolvedObjects.Clear();
+        ResetDefaultKnifeRequestState(true);
         _nextClientSettingsPollTime = 0f;
         if (MyceliumNetwork.IsHost)
         {
@@ -81,8 +89,7 @@ internal static class WeaponSettingsState
 
     internal static void ResetForLobbyLeft()
     {
-        DefaultKnifeObjects.Clear();
-        DefaultKnifeNextAttemptTimes.Clear();
+        ResetDefaultKnifeRequestState(true);
         Sync.ResetForLobby();
         Apply(false, string.Empty, 5, false);
     }
@@ -123,9 +130,12 @@ internal static class WeaponSettingsState
         int playerId = PlayerLookup.FindPlayerId(player);
         if (playerId >= 0)
         {
-            DefaultKnifeObjects.Remove(playerId);
-            DefaultKnifeNextAttemptTimes.Remove(playerId);
-            DefaultKnifeResolvedObjects.Remove(playerId);
+            LastDefaultKnifeRequestIds.Remove(playerId);
+            NextDefaultKnifeGrantTimes.Remove(playerId);
+            if (_localDefaultKnifePlayerId == playerId)
+            {
+                ResetLocalDefaultKnifeTracking();
+            }
         }
     }
 
@@ -151,84 +161,231 @@ internal static class WeaponSettingsState
         Apply(enabled, fields[1], spareMagazines, defaultKnife);
     }
 
-    internal static void EnsureDefaultKnifeLoadouts()
+    internal static void TrackLocalDefaultKnifeFallback(PlayerPickup pickup)
     {
-        if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
-            || !GameModeManager.CanUseDefaultKnifeFallback
-            || GameModeManager.Phase != GameModePhase.ActiveRound
-            || WeaponService.IsFinalGameScreen)
+        if (pickup == null || !pickup || !pickup.IsOwner)
         {
             return;
         }
 
-        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        if (!MyceliumNetwork.InLobby || !DefaultKnife
+            || (MyceliumNetwork.IsHost && !GameModeManager.CanUseDefaultKnifeFallback)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || WeaponService.IsFinalGameScreen)
         {
-            if (client == null || !client || client.PlayerSpawner == null
-                || !client.PlayerSpawner || client.PlayerSpawner.player == null
-                || !client.PlayerSpawner.player)
-            {
-                continue;
-            }
-
-            FirstPersonController player = client.PlayerSpawner.player;
-            int playerObjectId = player.GetInstanceID();
-            if (!DefaultKnifeObjects.TryGetValue(client.PlayerId, out int knownObjectId)
-                || knownObjectId != playerObjectId)
-            {
-                DefaultKnifeObjects[client.PlayerId] = playerObjectId;
-                DefaultKnifeNextAttemptTimes[client.PlayerId] = Time.unscaledTime
-                    + (DefaultKnife ? 1.5f : 0f);
-                DefaultKnifeResolvedObjects.Remove(client.PlayerId);
-            }
-
-            PlayerPickup? pickup = player.playerPickupScript;
-            if (pickup == null || !pickup)
-            {
-                continue;
-            }
-
-            Weapon? rightWeapon = GetHeldWeapon(pickup.objInHand);
-            Weapon? leftWeapon = GetHeldWeapon(pickup.objInLeftHand);
-            bool hasGun = IsGun(rightWeapon) || IsGun(leftWeapon);
-            if (hasGun)
-            {
-                RemoveKnifeIfHeld(pickup, rightWeapon, true);
-                RemoveKnifeIfHeld(pickup, leftWeapon, false);
-                if (DefaultKnife)
-                {
-                    DefaultKnifeResolvedObjects[client.PlayerId] = playerObjectId;
-                }
-                continue;
-            }
-
-            if (IsCouperet(rightWeapon) || IsCouperet(leftWeapon))
-            {
-                if (DefaultKnife)
-                {
-                    DefaultKnifeResolvedObjects[client.PlayerId] = playerObjectId;
-                }
-                continue;
-            }
-
-            bool spawnGrantResolved = DefaultKnifeResolvedObjects.TryGetValue(client.PlayerId,
-                out int resolvedObjectId) && resolvedObjectId == playerObjectId;
-            if (!DefaultKnifeRules.ShouldProvideKnife(DefaultKnife, hasGun,
-                    spawnGrantResolved))
-            {
-                continue;
-            }
-
-            if (DefaultKnifeNextAttemptTimes.TryGetValue(client.PlayerId,
-                    out float nextAttemptTime)
-                && Time.unscaledTime < nextAttemptTime)
-            {
-                continue;
-            }
-
-            DefaultKnifeNextAttemptTimes[client.PlayerId] = Time.unscaledTime + 1f;
-            WeaponService.GiveWeapon(client.PlayerId, "Couperet", clearBothHands: false,
-                onlyIfNoGun: true);
+            ResetLocalDefaultKnifeTracking();
+            return;
         }
+
+        int playerId = pickup.playerValues?.playerClient?.PlayerId
+            ?? pickup.GetComponent<PlayerHealth>()?.playerValues?.playerClient?.PlayerId ?? -1;
+        if (playerId < 0)
+        {
+            ResetLocalDefaultKnifeTracking();
+            return;
+        }
+
+        int pickupId = pickup.GetInstanceID();
+        int roundId = GameModeManager.RoundId;
+        float now = Time.unscaledTime;
+        Weapon? rightWeapon = GetHeldWeapon(pickup, true);
+        Weapon? leftWeapon = GetHeldWeapon(pickup, false);
+        bool hasGun = IsGun(rightWeapon) || IsGun(leftWeapon);
+        bool hasDefaultKnife = IsDefaultKnife(rightWeapon) || IsDefaultKnife(leftWeapon);
+
+        if (_localDefaultKnifePlayerId != playerId || _localDefaultKnifePickupId != pickupId
+            || _localDefaultKnifeRoundId != roundId)
+        {
+            _localDefaultKnifePlayerId = playerId;
+            _localDefaultKnifePickupId = pickupId;
+            _localDefaultKnifeRoundId = roundId;
+            _localDefaultKnifeHadGun = hasGun;
+            _localDefaultKnifeInitialGrace = !hasGun && !hasDefaultKnife;
+            _localDefaultKnifeNoGunSince = now;
+            _localDefaultKnifeRequestId = 0;
+            _nextLocalDefaultKnifeRequestTime = now;
+        }
+
+        if (hasGun)
+        {
+            _localDefaultKnifeHadGun = true;
+            _localDefaultKnifeInitialGrace = false;
+            _localDefaultKnifeNoGunSince = now;
+            _localDefaultKnifeRequestId = 0;
+            return;
+        }
+
+        if (IsDefaultKnife(rightWeapon)
+            && WeaponService.IsOwnerHandObjectUnattached(pickup, true))
+        {
+            WeaponService.AttachUnparentedWeapon(pickup);
+        }
+        if (IsDefaultKnife(leftWeapon)
+            && WeaponService.IsOwnerHandObjectUnattached(pickup, false))
+        {
+            WeaponService.AttachUnparentedLeftWeapon(pickup);
+        }
+
+        if (hasDefaultKnife)
+        {
+            _localDefaultKnifeHadGun = false;
+            _localDefaultKnifeInitialGrace = false;
+            _localDefaultKnifeNoGunSince = now;
+            _localDefaultKnifeRequestId = 0;
+            return;
+        }
+
+        if (_localDefaultKnifeHadGun)
+        {
+            _localDefaultKnifeHadGun = false;
+            _localDefaultKnifeInitialGrace = false;
+            _localDefaultKnifeNoGunSince = now;
+            _localDefaultKnifeRequestId = 0;
+        }
+
+        float graceSeconds = _localDefaultKnifeInitialGrace
+            ? DefaultKnifeSpawnGraceSeconds
+            : DefaultKnifeDropGraceSeconds;
+        if (now - _localDefaultKnifeNoGunSince < graceSeconds)
+        {
+            return;
+        }
+        _localDefaultKnifeInitialGrace = false;
+
+        if (!DefaultKnifeRules.ShouldProvideKnife(DefaultKnife, false))
+        {
+            return;
+        }
+
+        if (_localDefaultKnifeRequestId == 0)
+        {
+            _localDefaultKnifeRequestId = NextLocalDefaultKnifeRequestId();
+        }
+        if (now < _nextLocalDefaultKnifeRequestTime)
+        {
+            return;
+        }
+
+        _nextLocalDefaultKnifeRequestTime = now + DefaultKnifeRequestIntervalSeconds;
+        if (MyceliumNetwork.IsHost)
+        {
+            TryGrantDefaultKnifeFallback(playerId, _localDefaultKnifeRequestId, roundId);
+        }
+        else
+        {
+            MyceliumNetwork.RPC(Plugin.GlobalWeaponsModId,
+                nameof(Plugin.RequestDefaultKnifeFallback), ReliableType.Reliable,
+                playerId, _localDefaultKnifeRequestId, roundId);
+        }
+    }
+
+    internal static void TryGrantDefaultKnifeFallback(int playerId, int requestId, int roundId)
+    {
+        if (!MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby || playerId < 0 || requestId <= 0
+            || roundId != GameModeManager.RoundId || !DefaultKnife
+            || !GameModeManager.CanUseDefaultKnifeFallback
+            || GameModeManager.Phase != GameModePhase.ActiveRound || WeaponService.IsFinalGameScreen)
+        {
+            return;
+        }
+
+        if (LastDefaultKnifeRequestIds.TryGetValue(playerId, out int lastRequestId)
+            && requestId < lastRequestId)
+        {
+            return;
+        }
+
+        PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(playerId);
+        FirstPersonController? player = health != null && health
+            ? health.GetComponent<FirstPersonController>()
+            : null;
+        if (player == null || !player || !player.gameObject.activeInHierarchy)
+        {
+            return;
+        }
+
+        PlayerPickup? pickup = player.playerPickupScript;
+        if (pickup == null || !pickup || !pickup.IsServer)
+        {
+            return;
+        }
+
+        Weapon? rightWeapon = GetHeldWeapon(pickup, true);
+        Weapon? leftWeapon = GetHeldWeapon(pickup, false);
+        bool hasGun = IsGun(rightWeapon) || IsGun(leftWeapon);
+        if (hasGun)
+        {
+            RemoveKnifeIfHeld(pickup, rightWeapon, true);
+            RemoveKnifeIfHeld(pickup, leftWeapon, false);
+            return;
+        }
+
+        if (IsDefaultKnife(rightWeapon) || IsDefaultKnife(leftWeapon))
+        {
+            LastDefaultKnifeRequestIds[playerId] = requestId;
+            if (!NextDefaultKnifeGrantTimes.TryGetValue(playerId, out float attachmentRetryTime)
+                || Time.unscaledTime >= attachmentRetryTime)
+            {
+                NextDefaultKnifeGrantTimes[playerId] = Time.unscaledTime
+                    + DefaultKnifeGrantRetrySeconds;
+                WeaponService.NotifyOwnerWeaponAttached(playerId, IsDefaultKnife(rightWeapon));
+            }
+            return;
+        }
+
+        int playerObjectId = player.GetInstanceID();
+        if (GameModeManager.UsesTeamWeaponLoadouts
+            && TeamWeaponLoadouts.IsWeaponGrantPending(playerId, playerObjectId))
+        {
+            return;
+        }
+
+        if (requestId == lastRequestId
+            && NextDefaultKnifeGrantTimes.TryGetValue(playerId, out float retryTime)
+            && Time.unscaledTime < retryTime)
+        {
+            return;
+        }
+
+        LastDefaultKnifeRequestIds[playerId] = requestId;
+        NextDefaultKnifeGrantTimes[playerId] = Time.unscaledTime + DefaultKnifeGrantRetrySeconds;
+        Plugin.Logger.LogDebug($"[GlobalWeapons] Granting default knife: playerId={playerId}, "
+            + $"requestId={requestId}, round={roundId}.");
+        WeaponService.GiveWeapon(playerId, DefaultKnifeRules.DefaultWeaponName,
+            clearBothHands: false, onlyIfNoGun: true);
+    }
+
+    private static int NextLocalDefaultKnifeRequestId()
+    {
+        _nextLocalDefaultKnifeRequestId = unchecked(_nextLocalDefaultKnifeRequestId + 1);
+        if (_nextLocalDefaultKnifeRequestId <= 0)
+        {
+            _nextLocalDefaultKnifeRequestId = 1;
+        }
+        return _nextLocalDefaultKnifeRequestId;
+    }
+
+    private static void ResetDefaultKnifeRequestState(bool resetSequence)
+    {
+        LastDefaultKnifeRequestIds.Clear();
+        NextDefaultKnifeGrantTimes.Clear();
+        ResetLocalDefaultKnifeTracking();
+        if (resetSequence)
+        {
+            _nextLocalDefaultKnifeRequestId = 0;
+        }
+    }
+
+    private static void ResetLocalDefaultKnifeTracking()
+    {
+        _localDefaultKnifePlayerId = -1;
+        _localDefaultKnifePickupId = -1;
+        _localDefaultKnifeRoundId = -1;
+        _localDefaultKnifeHadGun = false;
+        _localDefaultKnifeInitialGrace = false;
+        _localDefaultKnifeNoGunSince = 0f;
+        _nextLocalDefaultKnifeRequestTime = 0f;
+        _localDefaultKnifeRequestId = 0;
     }
 
     private static Weapon? GetHeldWeapon(GameObject? heldObject)
@@ -236,21 +393,29 @@ internal static class WeaponSettingsState
         return heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
     }
 
-    private static bool IsCouperet(Weapon? weapon)
+    private static Weapon? GetHeldWeapon(PlayerPickup pickup, bool rightHand)
+    {
+        bool hasObject = rightHand ? pickup.hasObjectInHand : pickup.hasObjectInLeftHand;
+        return hasObject
+            ? GetHeldWeapon(rightHand ? pickup.objInHand : pickup.objInLeftHand)
+            : null;
+    }
+
+    private static bool IsDefaultKnife(Weapon? weapon)
     {
         return weapon != null && weapon
-            && weapon.name.StartsWith("Couperet", StringComparison.Ordinal);
+            && DefaultKnifeRules.IsDefaultKnife(weapon.name);
     }
 
     private static bool IsGun(Weapon? weapon)
     {
-        return weapon != null && weapon && !IsCouperet(weapon);
+        return weapon != null && weapon && !DefaultKnifeRules.IsKnife(weapon.name);
     }
 
     private static void RemoveKnifeIfHeld(PlayerPickup pickup, Weapon? weapon,
         bool rightHand)
     {
-        if (IsCouperet(weapon))
+        if (IsDefaultKnife(weapon))
         {
             WeaponService.RemoveHeldWeapon(pickup, rightHand, weapon!);
         }

@@ -526,6 +526,28 @@ internal sealed class PlayerRadar : MonoBehaviour
 
     private static Color GetObjectiveMarkerColor(int markerId)
     {
+        int capturetatFlagIndex = markerId - CapturetatObjectiveMarkerBaseId;
+        if (capturetatFlagIndex >= 0 && capturetatFlagIndex < 2
+            && GameModeManager.IsActive(GameMode.Capturetat))
+        {
+            int flagTeamId = CapturetatState.GetFlagTeam(capturetatFlagIndex);
+            if (flagTeamId >= 0)
+            {
+                return TeamColorPolicy.GetRelativeTeamColor(flagTeamId);
+            }
+        }
+
+        if (markerId == HardtatCurrentObjectiveMarkerId
+            && GameModeManager.IsActive(GameMode.Hardtat)
+            && HardtatState.CurrentController >= 0
+            && TeamAssignment.TryGetTeamId(ClientInstance.Instance?.PlayerId ?? -1,
+                out int localTeamId))
+        {
+            return HardtatState.CurrentController == localTeamId
+                ? TeamColorPolicy.GetRelativeTeamColor(localTeamId)
+                : new Color(1f, 0.06f, 0.06f, 1f);
+        }
+
         return markerId == SndtatBombMarkerId
             ? new Color32(150, 150, 150, 255)
             : Color.white;

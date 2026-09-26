@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializeGuntat()
     {
-        const string modeSection = "Game Mode Settings";
+        const string modeSection = "Game Modes Enabled";
         GuntatEnabled = ModeConfigMigration.BindModeEnabled(Config, modeSection, "Guntat",
             "Players advance through the configured weapon list by getting kills, receiving the next weapon after each progression step. "
             + "Each kill adds 10 progression points, and the first player to complete the weapon progression wins.");

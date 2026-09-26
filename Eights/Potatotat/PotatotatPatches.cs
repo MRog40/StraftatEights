@@ -1,3 +1,4 @@
+using System;
 using HarmonyLib;
 using UnityEngine;
 
@@ -19,5 +20,28 @@ internal static class PlayerManager_PotatotatSpawn_Patch
         {
             PotatotatState.RequestLoadout(client.PlayerId);
         }
+    }
+}
+[HarmonyPatch(typeof(HandGrenade), "HandleExplosion")]
+internal static class HandGrenade_PotatotatDeath_Patch
+{
+    private static void Prefix()
+    {
+        PotatotatState.BeginGrenadeExplosion();
+    }
+
+    private static Exception? Finalizer(Exception? __exception)
+    {
+        PotatotatState.EndGrenadeExplosion();
+        return __exception;
+    }
+}
+
+[HarmonyPatch(typeof(PlayerHealth), nameof(PlayerHealth.Explode))]
+internal static class PlayerHealth_PotatotatGrenadeDeath_Patch
+{
+    private static void Prefix(PlayerHealth __instance)
+    {
+        PotatotatState.MarkGrenadeDeath(__instance);
     }
 }

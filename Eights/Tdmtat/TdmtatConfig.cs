@@ -12,7 +12,7 @@ public partial class Plugin
 
     private void InitializeTdmtat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         TdmtatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Tdmtat",
             "Teams respawn and fight for kills throughout the match. Each kill awards 10 points to the team, and the first team to reach the configured point limit wins.");

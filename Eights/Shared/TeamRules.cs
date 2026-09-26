@@ -258,6 +258,11 @@ internal static class TeamRules
         return playerCount >= 9 || (playerCount >= 3 && playerCount % 2 == 1) ? 3 : 2;
     }
 
+    internal static int GetHardtatTeamCount(int playerCount, bool preferTwoTeams)
+    {
+        return playerCount <= 0 ? 0 : preferTwoTeams ? 2 : GetHardtatTeamCount(playerCount);
+    }
+
     internal static float GetTeamHealthMultiplier(IReadOnlyDictionary<int, int> assignments,
         int playerId)
     {

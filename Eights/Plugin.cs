@@ -176,7 +176,6 @@ public partial class Plugin : BaseUnityPlugin
         WeaponSettingsState.PeriodicPushIfHost();
         WeaponSettingsState.PollSettingsIfClient();
         GameModeManager.EnsureActiveModeLoadouts();
-        WeaponSettingsState.EnsureDefaultKnifeLoadouts();
         PlayerOutline.EnforceOutline();
         TeammateMarker.Enforce();
         HardtatMarker.Update();

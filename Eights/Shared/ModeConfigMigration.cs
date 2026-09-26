@@ -6,6 +6,7 @@ namespace Eights;
 
 internal static class ModeConfigMigration
 {
+    private const string PreviousModeSection = "Game Mode Settings";
     private static readonly IReadOnlyDictionary<string, string[]> PreviousModeKeys =
         new Dictionary<string, string[]>
         {
@@ -50,19 +51,27 @@ internal static class ModeConfigMigration
         bool legacyValue = true;
         foreach (string legacyKey in legacyKeys)
         {
-            ConfigDefinition legacyDefinition = new(section, legacyKey);
-            if (!config.Keys.Contains(legacyDefinition))
+            ConfigDefinition[] legacyDefinitions =
             {
-                continue;
-            }
+                new(section, legacyKey),
+                new(PreviousModeSection, legacyKey)
+            };
+            foreach (ConfigDefinition legacyDefinition in legacyDefinitions)
+            {
+                if (!config.Keys.Contains(legacyDefinition))
+                {
+                    continue;
+                }
 
-            ConfigEntry<bool> legacyEntry = config.Bind(section, legacyKey, true, description);
-            if (!hasLegacyValue)
-            {
-                hasLegacyValue = true;
-                legacyValue = legacyEntry.Value;
+                ConfigEntry<bool> legacyEntry = config.Bind(legacyDefinition, true,
+                    new ConfigDescription(description));
+                if (!hasLegacyValue)
+                {
+                    hasLegacyValue = true;
+                    legacyValue = legacyEntry.Value;
+                }
+                config.Remove(legacyDefinition);
             }
-            config.Remove(legacyDefinition);
         }
 
         ConfigEntry<bool> entry = config.Bind(section, key,

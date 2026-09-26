@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializeNifetat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         NifetatEnabled = ModeConfigMigration.BindModeEnabled(Config, section, "Nifetat",
             "Melee-only Ffatat. Every player has 10 health and uses one randomly selected melee weapon each round.");
 

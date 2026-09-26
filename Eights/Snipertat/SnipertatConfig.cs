@@ -12,7 +12,7 @@ public partial class Plugin
 
     private void InitializeSnipertat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         SnipertatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Snipertat",
             "Players respawn with only the M2000 sniper rifle, unlimited ammunition, and reduced health. "

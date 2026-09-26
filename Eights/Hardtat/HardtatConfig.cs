@@ -13,10 +13,10 @@ public partial class Plugin
 
     private void InitializeHardtat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         HardtatEnabled = ModeConfigMigration.BindModeEnabled(Config, section, "Hardtat",
             "Teams rotate between map hardpoints and earn 1 point for every second of uncontested control. "
-            + "The first team to reach the configured point limit wins; if the match timer expires while tied, the game enters sudden death.");
+            + "The first team to reach the configured point limit wins; if the match timer expires while tied, play continues until a team takes the lead.");
 
         HardtatEnabled.SettingChanged += (_, _) =>
         {
@@ -50,7 +50,7 @@ public partial class Plugin
     [CustomRPC]
     public void SyncHardtatLiveState(CSteamID hostId, string assignmentsData, int teamCount,
         string scoresData, int objectiveIndex, float objectiveElapsed, float contestTimeRemaining,
-        int controller, bool suddenDeath, int roundId, int revision, RPCInfo info)
+        int controller, bool overtime, int roundId, int revision, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
@@ -58,7 +58,7 @@ public partial class Plugin
         }
 
         HardtatState.ApplyLiveState(hostId, assignmentsData, teamCount, scoresData,
-            objectiveIndex, objectiveElapsed, contestTimeRemaining, controller, suddenDeath,
+            objectiveIndex, objectiveElapsed, contestTimeRemaining, controller, overtime,
             roundId, revision);
     }
 }

@@ -175,41 +175,6 @@ internal static class StraftatState
         _timeRemaining = Mathf.Max(0f, _timeRemaining - Mathf.Max(0f, deltaTime));
     }
 
-    internal static bool HandleVoidFall(FirstPersonController controller)
-    {
-        if (!GameModeManager.IsModeEnabledForCurrentRound(GameMode.Straftat,
-                Plugin.StraftatEnabled.Value)
-            || TakeId <= 0 || controller == null || !controller
-            || controller.transform.position.y >= -300f)
-        {
-            return false;
-        }
-
-        PlayerHealth? health = controller.GetComponent<PlayerHealth>();
-        if (health == null || !health || health.sync___get_value_health() <= 0f)
-        {
-            return false;
-        }
-
-        health.fellVoid = true;
-        float lethalDamage = health.sync___get_value_health() + 1f;
-        if (health.IsServer)
-        {
-            if (!FishNetCompatibility.TryRemoveHealth(health, lethalDamage))
-            {
-                return false;
-            }
-        }
-        else
-        {
-            health.RemoveHealth(lethalDamage);
-        }
-
-        controller.transform.position = new Vector3(controller.transform.position.x, -299f,
-            controller.transform.position.z);
-        return true;
-    }
-
     internal static void ApplyLiveState(CSteamID hostId, string scoresData, string aliveData,
         int takeId, int winnerId, float timeRemaining, int roundId, int revision,
         string source = "rpc")

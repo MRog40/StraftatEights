@@ -9,6 +9,8 @@ namespace Eights;
 
 internal static class TeamWeaponLoadouts
 {
+    private const float WeaponGrantPendingTimeoutSeconds = 12f;
+
     private sealed class LoadoutRequest
     {
         internal LoadoutRequest(int playerObjectId, string weaponName)
@@ -20,6 +22,7 @@ internal static class TeamWeaponLoadouts
         internal int PlayerObjectId { get; }
         internal string WeaponName { get; }
         internal bool Complete { get; set; }
+        internal float GrantPendingUntil { get; set; }
     }
 
     private static readonly Dictionary<int, int> InitialWeaponSlots = new();
@@ -33,6 +36,13 @@ internal static class TeamWeaponLoadouts
     private static int _initialSlotCount;
     private static int _countertatTakeId = -1;
     private static float _nextLoadoutCheckTime;
+
+    internal static bool IsWeaponGrantPending(int playerId, int playerObjectId)
+    {
+        return LoadoutRequests.TryGetValue(playerId, out LoadoutRequest? request)
+            && request.PlayerObjectId == playerObjectId
+            && request.GrantPendingUntil > Time.unscaledTime;
+    }
 
     internal static void ResetMatchState()
     {
@@ -270,6 +280,7 @@ internal static class TeamWeaponLoadouts
         if (heldWeapon != null
             && heldWeapon.name.StartsWith(request.WeaponName, StringComparison.Ordinal))
         {
+            request.GrantPendingUntil = 0f;
             if (!request.Complete)
             {
                 WeaponAmmoTuning.InitializeFromSpawnerPickup(heldWeapon,
@@ -292,6 +303,7 @@ internal static class TeamWeaponLoadouts
         }
 
         request.Complete = true;
+        request.GrantPendingUntil = Time.unscaledTime + WeaponGrantPendingTimeoutSeconds;
         WeaponService.GiveWeapon(playerId, request.WeaponName,
             WeaponSettingsState.SpareMagazines);
     }

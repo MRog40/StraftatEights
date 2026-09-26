@@ -642,7 +642,7 @@ internal static class SndtatState
             float progress = GetDisplayedInteractionProgress(PlantProgress,
                 _lastLivePlantProgress, PlantingPlayerId, _lastLivePlantingPlayerId,
                 PlantDurationSeconds);
-            return FormatInteractionCountdown("PLANTING BOMB", progress,
+            return FormatInteractionCountdown("Planting Bomb", progress,
                 PlantDurationSeconds);
         }
 
@@ -651,7 +651,7 @@ internal static class SndtatState
             float progress = GetDisplayedInteractionProgress(DefuseProgress,
                 _lastLiveDefuseProgress, DefuserPlayerId, _lastLiveDefuserPlayerId,
                 DefuseDurationSeconds);
-            return FormatInteractionCountdown("DEFUSING BOMB", progress,
+            return FormatInteractionCountdown("Defusing Bomb", progress,
                 DefuseDurationSeconds);
         }
 
@@ -660,13 +660,6 @@ internal static class SndtatState
             && FindNearbySite(playerId) >= 0)
         {
             return "Hold P to plant";
-        }
-
-        if (BombStatus == SndtatBombStatus.Dropped
-            && IsOffensePlayer(playerId)
-            && IsNearPlayer(playerId, BombPosition))
-        {
-            return "Hold P to pick up bomb";
         }
 
         if (BombStatus == SndtatBombStatus.Planted
@@ -698,20 +691,18 @@ internal static class SndtatState
 
         if (PlantingPlayerId == playerId)
         {
-            return GetRoleLabel(playerId) + "\nPlanting the bomb";
+            return string.Empty;
         }
 
         if (DefuserPlayerId == playerId)
         {
-            return GetRoleLabel(playerId) + "\nDefusing the bomb";
+            return string.Empty;
         }
 
-        string action = BombStatus == SndtatBombStatus.Carried
-            && BombCarrierPlayerId == playerId
-            ? "Carrying the bomb"
-            : string.Empty;
-        return GetRoleLabel(playerId) + (action.Length > 0
-            ? "\n" + action + "\nL: Drop the bomb"
+        bool carryingBomb = BombStatus == SndtatBombStatus.Carried
+            && BombCarrierPlayerId == playerId;
+        return GetRoleLabel(playerId) + (carryingBomb
+            ? "\n<color=#C08B24>L to drop bomb</color>"
             : string.Empty);
     }
 
@@ -951,10 +942,15 @@ internal static class SndtatState
         broadcastImmediately = false;
         if (BombStatus == SndtatBombStatus.Dropped)
         {
+            if (_bombDropperPlayerId >= 0
+                && !IsNearPlayer(_bombDropperPlayerId, BombPosition))
+            {
+                _bombDropperPlayerId = -1;
+            }
+
             foreach (int playerId in AlivePlayers)
             {
                 if (playerId == _bombDropperPlayerId || !IsOffensePlayer(playerId)
-                    || !IsInteractionHeld(playerId)
                     || !IsNearPlayer(playerId, BombPosition))
                 {
                     continue;
@@ -1303,14 +1299,14 @@ internal static class SndtatState
         float duration)
     {
         float remaining = Mathf.Max(0f, duration - Mathf.Clamp(progress, 0f, duration));
-        return label + "\n" + remaining.ToString("F1", CultureInfo.InvariantCulture) + "s";
+        return label + " " + remaining.ToString("F1", CultureInfo.InvariantCulture) + "s";
     }
 
     private static string GetRoleLabel(int playerId)
     {
         return IsOffensePlayer(playerId)
-            ? "<color=#F05A47>OFFENSE</color>"
-            : "<color=#5797F2>DEFENSE</color>";
+            ? "<color=#F05A47>Attack</color>"
+            : "<color=#5797F2>Defend</color>";
     }
 
     private static bool IsLookingAtBomb(int playerId)
@@ -1352,11 +1348,6 @@ internal static class SndtatState
             || !AlivePlayers.Contains(playerId))
         {
             return false;
-        }
-
-        if (BombStatus == SndtatBombStatus.Dropped && IsOffensePlayer(playerId))
-        {
-            return IsNearPlayer(playerId, BombPosition);
         }
 
         if (BombStatus == SndtatBombStatus.Carried

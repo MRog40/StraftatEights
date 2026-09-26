@@ -10,7 +10,7 @@ public partial class Plugin
 
     private void InitializeHunttat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         HunttatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Hunttat",
             "Hunters with Tromblonj fight Rabbits with Smith Carbine in single-life team takes. "

@@ -179,11 +179,6 @@ internal static class PlayerLookup
                     CachedPlayerHealthById[playerId] = health;
                     return health;
                 }
-                if (IsMappedLivePlayerHealth(health, client))
-                {
-                    CachedPlayerHealthById[playerId] = health;
-                    return health;
-                }
             }
             PlayerHealth? clientHealth = client.GetComponent<PlayerHealth>();
             if (IsPlayerHealthForId(clientHealth, playerId))
@@ -247,11 +242,6 @@ internal static class PlayerLookup
                     CachedPlayerHealthById[playerId] = health;
                     return health;
                 }
-                if (IsMappedLivePlayerHealth(health, client))
-                {
-                    CachedPlayerHealthById[playerId] = health;
-                    return health;
-                }
             }
 
             PlayerHealth? clientHealth = client.GetComponent<PlayerHealth>();
@@ -295,13 +285,6 @@ internal static class PlayerLookup
     private static bool IsPlayerHealthForId(PlayerHealth? health, int playerId)
     {
         return health != null && health.playerValues?.playerClient?.PlayerId == playerId;
-    }
-
-    private static bool IsMappedLivePlayerHealth(PlayerHealth? health, ClientInstance client)
-    {
-        return health != null && health && health.gameObject.activeInHierarchy
-            && client.PlayerSpawner != null && client.PlayerSpawner.player != null
-            && client.PlayerSpawner.player.GetComponent<PlayerHealth>() == health;
     }
 
     // Resolves a killer's PlayerId from a dead player's PlayerHealth.killer transform - every weapon

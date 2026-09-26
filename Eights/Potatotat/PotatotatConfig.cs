@@ -8,28 +8,22 @@ public partial class Plugin
 {
     internal const uint PotatotatModId = 2718281830u;
     internal static ConfigEntry<bool> PotatotatEnabled = null!;
-    internal static ConfigEntry<string> PotatotatWeaponOrder = null!;
 
     private void InitializePotatotat()
     {
-        const string modeSection = "Game Mode Settings";
+        const string modeSection = "Game Modes Enabled";
         const string weaponSection = "Weapon Settings";
-        const string defaultWeaponOrder = "Shotgun, Tromblonj, Gust, Crisis";
-        ConfigDefinition previousWeaponOrderDefinition = new(weaponSection, "Hot Potato Weapons");
-        bool hasPreviousWeaponOrder = Config.Keys.Contains(previousWeaponOrderDefinition);
-        ConfigEntry<string>? previousWeaponOrder = hasPreviousWeaponOrder
-            ? Config.Bind(previousWeaponOrderDefinition, defaultWeaponOrder,
-                new ConfigDescription("Host-controlled: exact prefab IDs rotated through by non-potato players."))
-            : null;
         PotatotatEnabled = ModeConfigMigration.BindModeEnabled(Config, modeSection, "Potatotat",
-            "One player carries a renewable grenade while everyone else rotates through the configured weapons. All players can fight "
-            + "and kill each other. Each kill awards 10 points, the potato passes after its carrier kills, and the first player to "
-            + "reach the configured point limit wins.");
-        PotatotatWeaponOrder = Config.Bind(weaponSection, "Potatotat Weapons",
-            previousWeaponOrder?.Value ?? defaultWeaponOrder,
-            "Host-controlled: exact prefab IDs rotated through by non-potato players.");
+            "The grenade holder passes the potato to their victim on a kill. Other players score 20 points per kill and progress through "
+            + "Elephant, Smith Carbine, Shotgun, Gust, and Tromblonj. A grenade death resets the victim to 0 points. Reach 100 points "
+            + "to win with the Tromblonj.");
+        ConfigDefinition previousWeaponOrderDefinition = new(weaponSection, "Hot Potato Weapons");
+        ConfigDefinition weaponOrderDefinition = new(weaponSection, "Potatotat Weapons");
+        bool hasOldWeaponConfig = Config.Keys.Contains(previousWeaponOrderDefinition)
+            || Config.Keys.Contains(weaponOrderDefinition);
         Config.Remove(previousWeaponOrderDefinition);
-        if (hasPreviousWeaponOrder)
+        Config.Remove(weaponOrderDefinition);
+        if (hasOldWeaponConfig)
         {
             Config.Save();
         }
@@ -39,7 +33,6 @@ public partial class Plugin
             PotatotatState.PushSettingsIfHost();
             GameModeManager.OnSettingsChanged();
         };
-        PotatotatWeaponOrder.SettingChanged += (_, _) => PotatotatState.PushSettingsIfHost();
 
         MyceliumNetwork.RegisterNetworkObject(this, PotatotatModId);
         ModeLobbyDataSync.RegisterKeys(PotatotatState.SettingsLobbyDataKey, PotatotatState.LiveLobbyDataKey);
@@ -52,7 +45,7 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncPotatotatSettings(CSteamID hostId, int roundId, int revision, bool enabled,
-        string? weaponOrder, RPCInfo info)
+        RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
@@ -62,7 +55,7 @@ public partial class Plugin
         {
             return;
         }
-        PotatotatState.ApplySettings(enabled, weaponOrder ?? string.Empty);
+        PotatotatState.ApplySettings(enabled);
     }
 
     [CustomRPC]

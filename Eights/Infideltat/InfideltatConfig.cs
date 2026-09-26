@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializeInfideltat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         InfideltatEnabled = ModeConfigMigration.BindModeEnabled(Config, section, "Infideltat",
             "One hidden Infideltat faces the terrorists, with delayed weapons and different health and movement rules for each role. "
             + "Terrorists earn 30 points for killing the Infideltat, while the Infideltat earns 50 points for outliving all terrorists; "

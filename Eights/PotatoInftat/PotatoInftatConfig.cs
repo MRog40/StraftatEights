@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializePotatoInftat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         PotatoInftatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "PotatoInftat",
             "Infectedtat players use HandGrenades instead of Couperets. Survivors use 10 health and random allowed weapons; survivors who die become infected.");

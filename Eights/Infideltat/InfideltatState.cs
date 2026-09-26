@@ -22,7 +22,9 @@ internal static class InfideltatState
     private const float InfideltatBeepInitialDelaySeconds = 15f;
     private const float InfideltatBeepIntervalSeconds = 15f;
     internal const float DefaultTakeTimeLimitSeconds = ModeTimeoutRules.DefaultRoundSeconds;
-    internal const float RoleAnnouncementDuration = WeaponDelaySeconds + 10f;
+    internal static float RoleAnnouncementDuration => LocalIsInfideltat
+        ? DefaultTakeTimeLimitSeconds
+        : WeaponDelaySeconds + 10f;
 
     internal static bool Enabled;
     internal static int InfideltatPlayerId { get; private set; } = -1;

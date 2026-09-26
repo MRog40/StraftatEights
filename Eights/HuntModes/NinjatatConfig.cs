@@ -10,7 +10,7 @@ public partial class Plugin
 
     private void InitializeNinjatat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         NinjatatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Ninjatat",
             "Ninjas with Katanas fight Hunters with FG42s in single-life team takes. "

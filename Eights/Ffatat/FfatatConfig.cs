@@ -12,7 +12,7 @@ public partial class Plugin
 
     private void InitializeFfatat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         FfatatEnabled = ModeConfigMigration.BindModeEnabled(Config, section, "Ffatat",
             "Every player fights independently and respawns after death. Each kill awards 10 points, and the first player to reach "
             + "the configured point limit wins.");

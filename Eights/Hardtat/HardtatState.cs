@@ -22,7 +22,7 @@ internal static class HardtatState
     internal static float ObjectiveElapsedSeconds { get; private set; }
     internal static float ContestTimeRemaining { get; private set; }
     internal static int CurrentController { get; private set; } = -1;
-    internal static bool IsSuddenDeath { get; private set; }
+    internal static bool IsOvertime { get; private set; }
     internal static bool IsWarningActive => HardtatRules.IsWarningActive(ObjectiveElapsedSeconds,
         ObjectiveDurationSeconds, WarningDurationSeconds);
     internal static int TeamCount => TeamAssignment.TeamCount;
@@ -30,7 +30,7 @@ internal static class HardtatState
 
     internal static bool CanRespawn()
     {
-        return !IsSuddenDeath && !_roundCompletionRequested;
+        return !_roundCompletionRequested;
     }
 
     private static readonly ModeSyncState Sync = new(livePushInterval: 1f);
@@ -192,7 +192,7 @@ internal static class HardtatState
         ObjectiveElapsedSeconds = 0f;
         ContestTimeRemaining = 0f;
         CurrentController = -1;
-        IsSuddenDeath = false;
+        IsOvertime = false;
         _scoreAccumulator = 0f;
         _serverTickAccumulator = 0f;
         _roundInitialized = false;
@@ -323,15 +323,9 @@ internal static class HardtatState
             while (_scoreAccumulator >= 1f && !_roundCompletionRequested)
             {
                 _scoreAccumulator -= 1f;
-                if (IsSuddenDeath)
-                {
-                    CompleteRound(controller);
-                    break;
-                }
-
                 int scoreBeforeAward = GetScore(controller);
                 bool roundWon = HardtatRules.TryAwardPoint(Scores, controller,
-                    GameModeManager.EffectivePointsToWin, IsSuddenDeath, out int winningTeamId);
+                    GameModeManager.EffectivePointsToWin, out int winningTeamId);
                 int awardedPoints = GetScore(controller) - scoreBeforeAward;
                 if (awardedPoints > 0)
                 {
@@ -345,6 +339,11 @@ internal static class HardtatState
                     }
                 }
                 stateChanged = true;
+                if (!roundWon && IsOvertime)
+                {
+                    roundWon = HardtatRules.TryResolveTimerWinner(Scores,
+                        out winningTeamId);
+                }
                 if (roundWon)
                 {
                     CompleteRound(winningTeamId);
@@ -355,7 +354,7 @@ internal static class HardtatState
         {
             _scoreAccumulator = 0f;
             ContestTimeRemaining = Mathf.Max(0f, ContestTimeRemaining - elapsed);
-            if (ContestTimeRemaining <= 0f && !IsSuddenDeath)
+            if (ContestTimeRemaining <= 0f && !IsOvertime)
             {
                 if (HardtatRules.TryResolveTimerWinner(Scores, out int winnerTeamId))
                 {
@@ -363,9 +362,9 @@ internal static class HardtatState
                 }
                 else
                 {
-                    IsSuddenDeath = true;
+                    IsOvertime = true;
                     stateChanged = true;
-                    AnnounceSuddenDeath();
+                    AnnounceOvertime();
                 }
             }
         }
@@ -429,7 +428,7 @@ internal static class HardtatState
 
     internal static void ApplyLiveState(CSteamID hostId, string assignmentsData, int teamCount,
         string scoresData, int objectiveIndex, float objectiveElapsed, float contestTimeRemaining,
-        int controller, bool suddenDeath, int roundId, int revision, string source = "rpc")
+        int controller, bool overtime, int roundId, int revision, string source = "rpc")
     {
         if (teamCount < 2 || teamCount > 3 || objectiveIndex < 0
             || objectiveElapsed < 0f || objectiveElapsed > ObjectiveDurationSeconds
@@ -439,7 +438,7 @@ internal static class HardtatState
             return;
         }
 
-        bool wasSuddenDeath = IsSuddenDeath;
+        bool wasOvertime = IsOvertime;
         TeamAssignment.ApplySnapshot(assignmentsData, teamCount);
         Scores.Clear();
         foreach (KeyValuePair<int, int> score in ScoreCodec.Parse(
@@ -452,11 +451,11 @@ internal static class HardtatState
         ObjectiveElapsedSeconds = objectiveElapsed;
         ContestTimeRemaining = contestTimeRemaining;
         CurrentController = controller;
-        IsSuddenDeath = suddenDeath;
+        IsOvertime = overtime;
         _roundInitialized = true;
-        if (!wasSuddenDeath && IsSuddenDeath)
+        if (!wasOvertime && IsOvertime)
         {
-            AnnounceSuddenDeath();
+            AnnounceOvertime();
         }
     }
 
@@ -472,7 +471,7 @@ internal static class HardtatState
         ObjectiveElapsedSeconds = 0f;
         ContestTimeRemaining = HardtatRules.GetContestTimeLimit(GameModeManager.EffectivePointsToWin);
         CurrentController = -1;
-        IsSuddenDeath = false;
+        IsOvertime = false;
         _scoreAccumulator = 0f;
         _serverTickAccumulator = 0f;
         _roundCompletionRequested = false;
@@ -516,15 +515,15 @@ internal static class HardtatState
         BroadcastLiveState();
     }
 
-    private static void AnnounceSuddenDeath()
+    private static void AnnounceOvertime()
     {
         if (!MyceliumNetwork.IsHost)
         {
             return;
         }
 
-        GameModeHud.BroadcastAnnouncement("<color=#FFCF4A><b>SUDDEN DEATH</b></color>\n"
-            + "<i>NEXT CAP WINS</i>", 4f);
+        GameModeHud.BroadcastAnnouncement("<color=#FFCF4A><b>OVERTIME</b></color>\n"
+            + "<i>TAKE THE LEAD TO WIN</i>", 4f);
     }
 
     private static void BroadcastLiveStateWhenDue()
@@ -550,12 +549,12 @@ internal static class HardtatState
         string payload = string.Join("|", MyceliumNetwork.LobbyHost.m_SteamID,
             GameModeManager.RoundId, revision, assignmentsData, TeamAssignment.TeamCount,
             scoresData, CurrentObjectiveIndex, objectiveElapsed, contestTimeRemaining,
-            CurrentController, IsSuddenDeath ? "1" : "0");
+            CurrentController, IsOvertime ? "1" : "0");
         ModeLobbyDataSync.PublishRaw(LiveLobbyDataKey, payload);
         MyceliumNetwork.RPC(Plugin.HardtatModId, nameof(Plugin.SyncHardtatLiveState),
             ReliableType.Reliable, MyceliumNetwork.LobbyHost, assignmentsData,
             TeamAssignment.TeamCount, scoresData, CurrentObjectiveIndex, ObjectiveElapsedSeconds,
-            ContestTimeRemaining, CurrentController, IsSuddenDeath, GameModeManager.RoundId,
+            ContestTimeRemaining, CurrentController, IsOvertime, GameModeManager.RoundId,
             revision);
     }
 
@@ -565,7 +564,7 @@ internal static class HardtatState
             nameof(Plugin.SyncHardtatLiveState), player, ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, TeamRules.SerializeAssignments(TeamAssignment.Current),
             TeamAssignment.TeamCount, ScoreCodec.Serialize(Scores), CurrentObjectiveIndex,
-            ObjectiveElapsedSeconds, ContestTimeRemaining, CurrentController, IsSuddenDeath,
+            ObjectiveElapsedSeconds, ContestTimeRemaining, CurrentController, IsOvertime,
             GameModeManager.RoundId, Sync.LiveRevision);
     }
 
@@ -595,13 +594,13 @@ internal static class HardtatState
             || !float.TryParse(fields[5], NumberStyles.Float, CultureInfo.InvariantCulture,
                 out float contestTimeRemaining)
             || !int.TryParse(fields[6], out int controller)
-            || !LobbySnapshotCodec.TryParseBool(fields[7], out bool suddenDeath))
+            || !LobbySnapshotCodec.TryParseBool(fields[7], out bool overtime))
         {
             return;
         }
 
         ApplyLiveState(hostId, fields[0], teamCount, fields[2], objectiveIndex,
-            objectiveElapsed, contestTimeRemaining, controller, suddenDeath, roundId, revision,
+            objectiveElapsed, contestTimeRemaining, controller, overtime, roundId, revision,
             ModeLobbyDataSync.Source("hardtat", "live"));
     }
 

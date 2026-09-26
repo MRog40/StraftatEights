@@ -7,6 +7,7 @@ internal static class ModeTimeoutRules
 {
     internal const float DefaultRoundSeconds = 90f;
     internal const float LongRoundSeconds = 250f;
+    internal const float TdmtatSuddenDeathSeconds = 60f;
 
     internal static bool TryGetUniqueLeader(IReadOnlyDictionary<int, int> scores,
         out int leaderId)

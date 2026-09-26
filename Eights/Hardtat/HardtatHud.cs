@@ -18,6 +18,8 @@ internal static class HardtatHud
         return GameModeScoreboard.Build(GameMode.Hardtat, "HP",
             GameModeManager.EffectivePointsToWin, rows,
             "R/Timer: " + Mathf.CeilToInt(rotationRemaining) + "s / "
-            + Mathf.CeilToInt(HardtatState.ContestTimeRemaining) + "s");
+            + (HardtatState.IsOvertime
+                ? "Overtime"
+                : Mathf.CeilToInt(HardtatState.ContestTimeRemaining) + "s"));
     }
 }

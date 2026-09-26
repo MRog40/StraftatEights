@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializeRatatat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         RatatatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Ratatat",
             "One player becomes the Rat and earns 3 points each second while alive, while the other players hunt them. "

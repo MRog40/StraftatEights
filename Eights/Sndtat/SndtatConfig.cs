@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializeSndtat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         SndtatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Sndtat",
             "Two teams alternate between attacking and defending, with attackers planting a bomb at one of two sites and defenders defusing it or eliminating the attackers. "

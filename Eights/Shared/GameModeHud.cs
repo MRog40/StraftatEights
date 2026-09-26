@@ -517,6 +517,7 @@ internal sealed class GameModeHud : MonoBehaviour
         _instance._targetAnnouncementAllowsEndingRound = false;
         _instance._targetAnnouncementUntil = Time.unscaledTime + Mathf.Max(0f, durationSeconds);
         _instance._targetAnnouncement.gameObject.SetActive(true);
+        _roundEndCountdownVisible = false;
     }
 
     internal static void BroadcastAnnouncement(string text, float durationSeconds = AnnouncementDuration)

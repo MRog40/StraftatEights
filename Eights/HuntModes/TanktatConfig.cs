@@ -10,7 +10,7 @@ public partial class Plugin
 
     private void InitializeTanktat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         TanktatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Tanktat",
             "Both teams use HK_Caws. Every player has 400 health, cannot regenerate, jump, or slide, "

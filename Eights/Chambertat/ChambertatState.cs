@@ -403,9 +403,10 @@ internal static class ChambertatState
 
         if (weapon.IsOwner && weapon.inRightHand && PauseManager.Instance != null)
         {
+            int totalRounds = Math.Max(0, weapon.currentAmmo)
+                + WeaponAmmoTuning.GetSpareRounds(weapon);
             PauseManager.Instance.MoveAmmoDisplay(true, true);
-            PauseManager.Instance.ChangeAmmoText(Math.Max(0, weapon.currentAmmo).ToString(),
-                WeaponAmmoTuning.GetSpareRounds(weapon) + " / ", true);
+            PauseManager.Instance.ChangeAmmoText(totalRounds.ToString(), string.Empty, true);
         }
     }
 
@@ -454,13 +455,18 @@ internal static class ChambertatState
 
             Weapon? rightWeapon = GetWeapon(pickup.objInHand);
             Weapon? leftWeapon = GetWeapon(pickup.objInLeftHand);
-            if (rightWeapon != null && IsPistol(rightWeapon))
+            bool pistolInRightHand = rightWeapon != null && IsPistol(rightWeapon);
+            Weapon? pistol = pistolInRightHand
+                ? rightWeapon
+                : leftWeapon != null && IsPistol(leftWeapon) ? leftWeapon : null;
+            if (pistol != null)
             {
                 ReserveBullets.TryGetValue(playerId, out int spareRounds);
-                WeaponAmmoTuning.InitializeSingleShot(rightWeapon, spareRounds);
+                WeaponAmmoTuning.InitializeSingleShot(pistol, spareRounds);
                 PendingRightLoadouts.Remove(playerId);
 
-                if (leftWeapon != null && IsCouperet(leftWeapon))
+                Weapon? oppositeHandWeapon = pistolInRightHand ? leftWeapon : rightWeapon;
+                if (oppositeHandWeapon != null && IsCouperet(oppositeHandWeapon))
                 {
                     PendingLeftLoadouts.Remove(playerId);
                 }
@@ -468,7 +474,15 @@ internal static class ChambertatState
                     || Time.unscaledTime >= leftRetry)
                 {
                     PendingLeftLoadouts[playerId] = Time.unscaledTime + 2f;
-                    WeaponService.GiveWeaponToLeftHand(playerId, CouperetWeaponName);
+                    if (pistolInRightHand)
+                    {
+                        WeaponService.GiveWeaponToLeftHand(playerId, CouperetWeaponName);
+                    }
+                    else
+                    {
+                        WeaponService.GiveWeapon(playerId, CouperetWeaponName,
+                            clearBothHands: false);
+                    }
                 }
             }
             else if (!PendingRightLoadouts.TryGetValue(playerId, out float rightRetry)

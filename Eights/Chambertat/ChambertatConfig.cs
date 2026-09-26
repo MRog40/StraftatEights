@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializeChambertat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         ChambertatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Chambertat",
             "Each player gets one pistol shot and a Couperet, with no respawns during the take. "

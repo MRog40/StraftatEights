@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializeStraftat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         StraftatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Straftat",
             "Use the map's normal weapon spawners, movement, and health. Winning a take awards 50 points, and the first player or team to reach the configured point limit wins.");

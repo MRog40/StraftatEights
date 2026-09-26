@@ -84,11 +84,25 @@ Assert(parsed.SequenceEqual(new[] { "Glock", "SMG" }),
     "Weapon parsing must trim, filter, preserve order, and remove duplicates.");
 Assert(WeaponListParser.Parse(null!, new[] { "Glock" }).Count == 0,
     "A null weapon list must produce an empty result.");
-Assert(DefaultKnifeRules.ShouldProvideKnife(false, false, true)
-    && !DefaultKnifeRules.ShouldProvideKnife(false, true, false)
-    && DefaultKnifeRules.ShouldProvideKnife(true, false, false)
-    && !DefaultKnifeRules.ShouldProvideKnife(true, false, true),
-    "The disabled setting must restore a knife whenever a player has no gun.");
+Assert(DefaultKnifeRules.ShouldProvideKnife(true, false)
+    && !DefaultKnifeRules.ShouldProvideKnife(false, false)
+    && !DefaultKnifeRules.ShouldProvideKnife(true, true),
+    "The enabled setting must restore a knife whenever a player has no gun.");
+Assert(DefaultKnifeRules.DefaultWeaponName == "Couperet"
+    && DefaultKnifeRules.IsDefaultKnife("Couperet(Clone)")
+    && DefaultKnifeRules.IsKnife("Impetus(Clone)")
+    && !DefaultKnifeRules.IsKnife("Glock(Clone)"),
+    "The default knife must be Impetus and recognized as a knife, with legacy Couperet support.");
+Assert(new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 19, 20 }
+        .All(FootstepAudioRules.IsFootstepClip)
+    && new[] { 0, 10, 11, 17, 18, 21, 22, 23 }
+        .All(clip => !FootstepAudioRules.IsFootstepClip(clip)),
+    "Only ground-footstep sound IDs must be classified as footsteps.");
+Assert(!FootstepAudioRules.ShouldPlay(1, true, false)
+    && FootstepAudioRules.ShouldPlay(1, true, true)
+    && FootstepAudioRules.ShouldPlay(1, false, false)
+    && FootstepAudioRules.ShouldPlay(0, true, false),
+    "Silent walking must mute only non-sprinting footsteps when enabled.");
 
 TeamWeaponSequence firstWeaponSequence = new(new[] { "Glock", "SMG", "Shotgun" }, 19);
 TeamWeaponSequence secondWeaponSequence = new(new[] { "Glock", "SMG", "Shotgun" }, 19);
@@ -206,6 +220,8 @@ Assert(ModeTimeoutRules.DefaultRoundSeconds == 90f
     "A timed score mode must select a unique leader and treat ties or empty scores as sudden death.");
 Assert(AssassintatRules.DefaultTakeTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds,
     "Assassintat takes must use the shared ninety-second time limit.");
+Assert(ModeTimeoutRules.TdmtatSuddenDeathSeconds == 60f,
+    "Tdmtat sudden death must have a finite one-minute time limit.");
 Assert(InfectedtatRules.ShouldBecomeInfectedtat(false)
     && !InfectedtatRules.ShouldBecomeInfectedtat(true)
     && InfectedtatRules.ShouldEndRound(0)
@@ -269,6 +285,10 @@ Assert(TeamRules.GetHardtatTeamCount(2) == 2
     && TeamRules.GetHardtatTeamCount(9) == 3
     && TeamRules.GetHardtatTeamCount(10) == 3,
     "Hardtat must use two teams for even rosters through eight players and three teams for odd rosters or nine-plus players.");
+Assert(TeamRules.GetHardtatTeamCount(6, true) == 2
+    && TeamRules.GetHardtatTeamCount(9, true) == 2
+    && TeamRules.GetHardtatTeamCount(9, false) == 3,
+    "The Hardtat team preference must force two teams only when enabled.");
 Dictionary<int, int> hardpointTwoAssignments =
     TeamRules.AssignHardtatBalanced(new[] { 1, 2 });
 Dictionary<int, int> hardpointThreeAssignments =
@@ -543,15 +563,24 @@ Assert(HardtatRules.GetNextObjectiveIndex(0, 3) == 1
         HardtatRules.NextObjectiveWarningSeconds),
     "Hardtat objectives must rotate in order and warn ten seconds before rotation.");
 Dictionary<int, int> hardpointScores = new() { [0] = 99, [1] = 20 };
-Assert(HardtatRules.TryAwardPoint(hardpointScores, 0, 100, false, out int scoreWinner)
+Assert(HardtatRules.TryAwardPoint(hardpointScores, 0, 100, out int scoreWinner)
     && scoreWinner == 0 && hardpointScores[0] == 100,
     "An uncontested point must win when it reaches the score limit.");
-Assert(HardtatRules.TryAwardPoint(hardpointScores, 1, 100, true, out int suddenDeathWinner)
-    && suddenDeathWinner == 1,
-    "The first uncontested point must win sudden death immediately.");
 Dictionary<int, int> tiedScores = new() { [0] = 20, [1] = 20 };
 Assert(!HardtatRules.TryResolveTimerWinner(tiedScores, out _),
-    "A tied contest-clock expiry must enter sudden death.");
+    "A tied contest-clock expiry must continue into overtime.");
+Dictionary<int, int> overtimeScores = new() { [0] = 20, [1] = 20, [2] = 18 };
+Assert(!HardtatRules.TryAwardPoint(overtimeScores, 2, 100, out _)
+    && overtimeScores[2] == 19
+    && !HardtatRules.TryResolveTimerWinner(overtimeScores, out _)
+    && !HardtatRules.TryAwardPoint(overtimeScores, 2, 100, out _)
+    && overtimeScores[2] == 20
+    && !HardtatRules.TryResolveTimerWinner(overtimeScores, out _)
+    && !HardtatRules.TryAwardPoint(overtimeScores, 2, 100, out _)
+    && overtimeScores[2] == 21
+    && HardtatRules.TryResolveTimerWinner(overtimeScores, out int overtimeWinner)
+    && overtimeWinner == 2,
+    "Any team must be able to win Hardtat overtime by scoring until it becomes the unique leader.");
 Dictionary<int, int> leadingScores = new() { [0] = 21, [1] = 20 };
 Assert(HardtatRules.TryResolveTimerWinner(leadingScores, out int timerWinner)
     && timerWinner == 0,
@@ -604,18 +633,40 @@ Assert(alivePlayers.Count == 1 && alivePlayers.Contains(1),
     "The last remaining player must be the round winner.");
 Assert(Math.Abs(ChambertatRules.PlayerHealth - 0.4f) < 0.001f,
     "Chambertat must use ten displayed health for every player.");
-List<string> hotPotatoWeapons = new() { "Shotgun", "Tromblonj", "Gust", "Crisis" };
-Assert(PotatotatRules.IsAllowedWeapon("HandGrenade(Clone)", true, hotPotatoWeapons)
-    && PotatotatRules.IsAllowedWeapon("Shotgun(Clone)", false, hotPotatoWeapons)
-    && PotatotatRules.IsAllowedWeapon("Crisis(Clone)", false, hotPotatoWeapons),
-    "Potatotat must use the HandGrenade and configured weapon prefabs.");
-Assert(!PotatotatRules.IsAllowedWeapon("Glock(Clone)", false, hotPotatoWeapons),
-    "Potatotat must reject unrelated weapons.");
+Assert(PotatotatRules.PointsPerKill == 20 && PotatotatRules.PointsToWin == 100
+    && PotatotatRules.WeaponOrder.SequenceEqual(new[]
+        { "Elephant", "SmithCarbine", "Shotgun", "Gust", "Tromblonj" }),
+    "Potatotat must use its dedicated five-weapon, 100-point progression.");
+Assert(PotatotatRules.GetWeaponForScore(0) == "Elephant"
+    && PotatotatRules.GetWeaponForScore(20) == "SmithCarbine"
+    && PotatotatRules.GetWeaponForScore(40) == "Shotgun"
+    && PotatotatRules.GetWeaponForScore(60) == "Gust"
+    && PotatotatRules.GetWeaponForScore(80) == "Tromblonj"
+    && PotatotatRules.GetWeaponForScore(100) == "Tromblonj",
+    "Potatotat weapon progression must follow the player's score thresholds.");
+Assert(PotatotatRules.AddKillPoints(0) == 20
+    && PotatotatRules.AddKillPoints(20) == 40
+    && PotatotatRules.AddKillPoints(80) == 100,
+    "Potatotat kills must award 20 points and cap the winning score at 100.");
+Assert(PotatotatRules.IsAllowedWeapon("HandGrenade(Clone)", true, 60)
+    && PotatotatRules.IsAllowedWeapon("Gust(Clone)", false, 60)
+    && !PotatotatRules.IsAllowedWeapon("AK-K(Clone)", false, 0)
+    && !PotatotatRules.IsAllowedWeapon("Elephant(Clone)", false, 20),
+    "Potatotat must enforce the potato grenade and each player's current dedicated weapon.");
 Assert(PotatotatRules.ResolvePotato(-1, 5, 2) == 2,
     "The first player to die must become the Hot Potato.");
 Assert(PotatotatRules.ResolvePotato(1, 1, 2) == 2
     && PotatotatRules.ResolvePotato(1, 3, 2) == 1,
     "Only a kill by the current grenade holder may transfer the potato.");
+Dictionary<int, int> potatoKillStreaks = new() { [1] = 80 };
+Assert(PotatotatRules.ResetKillStreakOnGrenadeDeath(potatoKillStreaks, 1) == 80
+    && potatoKillStreaks[1] == 0
+    && PotatotatRules.ResetKillStreakOnGrenadeDeath(potatoKillStreaks, 2) == 0,
+    "A grenade death must reset only the victim's existing kill streak.");
+Assert(PotatotatRules.IsGrenadeDeath(1, 1, false)
+    && PotatotatRules.IsGrenadeDeath(-1, 1, true)
+    && !PotatotatRules.IsGrenadeDeath(2, 1, false),
+    "A death caused by the current potato holder must reset the victim's kill streak even when client-owned grenade effects are not marked on the host.");
 Assert(InfideltatRules.GetKillerAward(true, false) == 30
     && InfideltatRules.GetKillerAward(true, false) == InfideltatRules.PointsForKillingInfideltat,
     "A terrorist must receive thirty points for killing the Infideltat.");

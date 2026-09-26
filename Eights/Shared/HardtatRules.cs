@@ -30,7 +30,7 @@ internal static class HardtatRules
     }
 
     internal static bool TryAwardPoint(Dictionary<int, int> scores, int teamId, int scoreLimit,
-        bool suddenDeath, out int winningTeamId)
+        out int winningTeamId)
     {
         winningTeamId = -1;
         if (teamId < 0 || scoreLimit <= 0)
@@ -38,14 +38,8 @@ internal static class HardtatRules
             return false;
         }
 
-        if (suddenDeath)
-        {
-            winningTeamId = teamId;
-            return true;
-        }
-
         scores.TryGetValue(teamId, out int score);
-    scores[teamId] = ScoreRules.AddPoints(score, 1, scoreLimit);
+        scores[teamId] = ScoreRules.AddPoints(score, 1, scoreLimit);
         if (scores[teamId] >= scoreLimit)
         {
             winningTeamId = teamId;
@@ -73,6 +67,21 @@ internal static class HardtatRules
         }
 
         winningTeamId = leaders[0];
+        return true;
+    }
+
+    internal static bool TryAwardSuddenDeathPoint(Dictionary<int, int> scores, int teamId,
+        int scoreLimit, ISet<int> tiedTeams, out int winningTeamId)
+    {
+        winningTeamId = -1;
+        if (teamId < 0 || scoreLimit <= 0 || !tiedTeams.Contains(teamId))
+        {
+            return false;
+        }
+
+        scores.TryGetValue(teamId, out int score);
+        scores[teamId] = ScoreRules.AddPoints(score, 1, scoreLimit);
+        winningTeamId = teamId;
         return true;
     }
 }

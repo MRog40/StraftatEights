@@ -11,7 +11,8 @@ internal static class TdmtatHud
                 TdmtatState.GetScore(teamId), teamId);
         }
 
+        string timerText = ModeTimeoutState.GetScoreboardText();
         return GameModeScoreboard.Build(GameMode.Tdmtat, null,
-            GameModeManager.EffectivePointsToWin, rows);
+            GameModeManager.EffectivePointsToWin, rows, timerText);
     }
 }

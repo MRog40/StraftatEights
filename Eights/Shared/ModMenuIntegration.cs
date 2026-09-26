@@ -139,7 +139,7 @@ internal static class ModMenuIntegration
                 continue;
             }
 
-            if (child.name.EndsWith("/Game Mode Settings", StringComparison.Ordinal))
+            if (child.name.EndsWith("/Game Modes Enabled", StringComparison.Ordinal))
             {
                 context.InsertButton(activePosition + 1, "Toggle All", "Toggle All",
                     () => ToggleAllModes(context.Root));
@@ -156,7 +156,7 @@ internal static class ModMenuIntegration
         foreach (BoolValueController controller in
             optionListRoot.GetComponentsInChildren<BoolValueController>(true))
         {
-            if (!controller.gameObject.name.Contains("/Game Mode Settings/",
+            if (!controller.gameObject.name.Contains("/Game Modes Enabled/",
                 StringComparison.Ordinal))
             {
                 continue;

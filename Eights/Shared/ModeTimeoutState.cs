@@ -17,7 +17,9 @@ internal static class ModeTimeoutState
         get
         {
             float duration = GetDuration(GameModeManager.ActiveMode);
-            return Mathf.Clamp(duration - TimeRemaining, 0f, duration);
+            return IsSuddenDeath
+                ? duration
+                : Mathf.Clamp(duration - TimeRemaining, 0f, duration);
         }
     }
 
@@ -67,7 +69,9 @@ internal static class ModeTimeoutState
         }
 
         return IsSuddenDeath
-            ? "Sudden Death"
+            ? (GameModeManager.ActiveMode == GameMode.Tdmtat
+                ? "Sudden Death: " + Mathf.CeilToInt(TimeRemaining) + "s"
+                : "Sudden Death")
             : (GameModeManager.ActiveMode == GameMode.Chambertat
                 ? "Take: "
                 : "Round: ") + Mathf.CeilToInt(TimeRemaining) + "s";
@@ -117,6 +121,17 @@ internal static class ModeTimeoutState
 
         if (IsSuddenDeath)
         {
+            if (GameModeManager.ActiveMode == GameMode.Tdmtat)
+            {
+                TimeRemaining = Mathf.Max(0f, TimeRemaining - Mathf.Max(0f, deltaTime));
+                ResolveSuddenDeathScore();
+                if (TimeRemaining <= 0f && GameModeManager.Phase == GameModePhase.ActiveRound)
+                {
+                    ResolveTdmtatSuddenDeathTimeout();
+                }
+                return;
+            }
+
             ResolveSuddenDeathScore();
             return;
         }
@@ -133,7 +148,7 @@ internal static class ModeTimeoutState
         if (MyceliumNetwork.IsHost || !MyceliumNetwork.InLobby
             || !IsTimedMode(GameModeManager.ActiveMode)
             || !GameModeManager.IsRoundGameplayActive
-            || IsSuddenDeath)
+            || (IsSuddenDeath && GameModeManager.ActiveMode != GameMode.Tdmtat))
         {
             return;
         }
@@ -234,9 +249,21 @@ internal static class ModeTimeoutState
         }
 
         IsSuddenDeath = true;
+        if (GameModeManager.ActiveMode == GameMode.Tdmtat)
+        {
+            TimeRemaining = ModeTimeoutRules.TdmtatSuddenDeathSeconds;
+        }
         CaptureSuddenDeathScores();
         GameModeHud.BroadcastTakeResult("<b>Sudden death</b>\n<i>Next score wins</i>");
         BroadcastLiveState();
+    }
+
+    private static void ResolveTdmtatSuddenDeathTimeout()
+    {
+        GameModeHud.BroadcastTakeResult("<b>Sudden death expired</b>\n<i>Round is a draw</i>");
+        BroadcastLiveState();
+        GameModeManager.CompleteCustomRound(GameModeManager.NoWinningTeamId,
+            awardRoundPoint: false);
     }
 
     private static void ResolveSuddenDeathScore()

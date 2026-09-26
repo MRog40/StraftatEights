@@ -15,7 +15,7 @@ public partial class Plugin
 
     private void InitializeJuggertat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
 
         JuggertatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Juggertat",

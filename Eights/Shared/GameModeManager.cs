@@ -134,7 +134,7 @@ internal static class GameModeManager
             () => Plugin.StraftatEnabled.Value, StraftatReset,
             GameModeCapabilities.CustomRound | GameModeCapabilities.IgnoreGlobalWeapons
             | GameModeCapabilities.IgnoreGlobalHealth | GameModeCapabilities.IgnoreGlobalMovement
-            | GameModeCapabilities.SafeRespawn | GameModeCapabilities.DefaultKnifeFallback,
+            | GameModeCapabilities.SafeRespawn,
             StraftatState.PeriodicPushIfHost,
             pollLiveState: StraftatState.PollLiveStateIfClient),
         [GameMode.Ffatat] = new ModeDescriptor("Ffatat", new Color32(85, 204, 255, 255),
@@ -338,12 +338,14 @@ internal static class GameModeManager
     internal static ConfigEntry<int> PointsToWin = null!;
     internal static ConfigEntry<bool> EnableMapOverrides = null!;
     internal static ConfigEntry<bool> KeepTeams = null!;
+    internal static ConfigEntry<bool> PreferTwoTeamHardtat = null!;
     internal static float EffectiveRespawnDelaySeconds { get; set; } = 2.5f;
     private static int _configuredPreRoundSeconds = 5;
     internal static int EffectivePreRoundSeconds { get; private set; } = 5;
     internal static int EffectivePointsToWin { get; private set; } = ScoreRules.PointsToWin;
     internal static bool EffectiveMapOverrides { get; private set; }
     internal static bool EffectiveKeepTeams { get; private set; }
+    internal static bool EffectivePreferTwoTeamHardtat { get; private set; }
     private static readonly ModeSyncState Sync = new();
     private static int _lastRoundEndCountdownSeconds = -1;
     private static readonly Dictionary<GameMode, Queue<string>> RecentMapsByMode = new();
@@ -375,6 +377,9 @@ internal static class GameModeManager
         KeepTeams = Plugin.Instance.Config.Bind("Global Settings", "Keep Teams", false,
             "Host-controlled: keep the same team layout between rounds when possible.");
         KeepTeams.SettingChanged += (_, _) => OnGlobalSettingsChanged();
+        PreferTwoTeamHardtat = Plugin.Instance.Config.Bind("Global Settings", "Prefer 2 team HP", false,
+            "Host-controlled: use two balanced teams in Hardtat instead of its player-count-based team count.");
+        PreferTwoTeamHardtat.SettingChanged += (_, _) => OnGlobalSettingsChanged();
         Plugin.PlayerRadarEnabled = Plugin.Instance.Config.Bind("Global Settings", "Player Radar Enabled", true,
             "Host-controlled: show the player radar in custom game modes.");
 
@@ -421,17 +426,19 @@ internal static class GameModeManager
     private static void ApplyGlobalSettingsFromHostConfig()
     {
         ApplyGlobalSettings(RespawnDelaySeconds.Value, PreRoundTimerSeconds.Value,
-            PointsToWin.Value, EnableMapOverrides.Value, KeepTeams.Value);
+            PointsToWin.Value, EnableMapOverrides.Value, KeepTeams.Value,
+            PreferTwoTeamHardtat.Value);
     }
 
     internal static void ApplyGlobalSettings(float respawnDelaySeconds, int preRoundSeconds,
-        int pointsToWin, bool enableMapOverrides, bool keepTeams)
+        int pointsToWin, bool enableMapOverrides, bool keepTeams, bool preferTwoTeamHardtat)
     {
         EffectiveRespawnDelaySeconds = Mathf.Clamp(respawnDelaySeconds, 0f, 10f);
         _configuredPreRoundSeconds = Mathf.Clamp(preRoundSeconds, 0, 15);
         RecalculateEffectivePreRoundSeconds();
         EffectiveMapOverrides = enableMapOverrides;
         EffectiveKeepTeams = keepTeams;
+        EffectivePreferTwoTeamHardtat = preferTwoTeamHardtat;
         int nextPointsToWin = Mathf.Clamp(pointsToWin, MinimumPointsToWin, MaximumPointsToWin);
         if (EffectivePointsToWin != nextPointsToWin)
         {
@@ -479,7 +486,7 @@ internal static class GameModeManager
         MyceliumNetwork.RPC(ModId, nameof(Plugin.SyncGlobalSettings), ReliableType.Reliable,
             MyceliumNetwork.LobbyHost, RoundId, Sync.NextSettingsRevision(),
             EffectiveRespawnDelaySeconds, _configuredPreRoundSeconds, EffectivePointsToWin,
-            EffectiveMapOverrides, EffectiveKeepTeams);
+            EffectiveMapOverrides, EffectiveKeepTeams, EffectivePreferTwoTeamHardtat);
     }
 
     internal static void ToggleAllModes()
@@ -504,6 +511,7 @@ internal static class GameModeManager
             Plugin.HardtatEnabled,
             Plugin.CapturetatEnabled,
             Plugin.SndtatEnabled,
+            Plugin.CountertatEnabled,
             Plugin.TdmtatEnabled,
             Plugin.NinjatatEnabled,
             Plugin.HunttatEnabled,
@@ -679,6 +687,14 @@ internal static class GameModeManager
         if (Modes.TryGetValue(ActiveMode, out ModeDescriptor? descriptor))
         {
             descriptor.PollLiveState();
+        }
+    }
+
+    internal static void RefreshActiveModeSnapshotIfClient()
+    {
+        if (!MyceliumNetwork.IsHost && MyceliumNetwork.InLobby)
+        {
+            ApplyLobbyActiveModeSnapshot();
         }
     }
 
@@ -1043,6 +1059,7 @@ internal static class GameModeManager
         EffectivePointsToWin = ScoreRules.PointsToWin;
         EffectiveMapOverrides = true;
         EffectiveKeepTeams = false;
+        EffectivePreferTwoTeamHardtat = false;
         GlobalModifiersState.ResetForLobbyLeft();
         HealthSettingsState.ResetForLobbyLeft();
         WeaponSettingsState.ResetForLobbyLeft();
@@ -1058,7 +1075,7 @@ internal static class GameModeManager
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncGlobalSettings), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, RoundId, Sync.SettingsRevision,
                 EffectiveRespawnDelaySeconds, _configuredPreRoundSeconds, EffectivePointsToWin,
-                EffectiveMapOverrides, EffectiveKeepTeams);
+                EffectiveMapOverrides, EffectiveKeepTeams, EffectivePreferTwoTeamHardtat);
             MyceliumNetwork.RPCTarget(ModId, nameof(Plugin.SyncActiveGameMode), player,
                 ReliableType.Reliable, MyceliumNetwork.LobbyHost, (int)ActiveMode, RoundId,
                 (int)Phase, Sync.LiveRevision, SelectedMapName, EffectiveMapOverrides);
@@ -1647,6 +1664,16 @@ internal static class GameModeManager
 
     internal static void UpdateRoundEndCountdown()
     {
+        if (ActiveMode == GameMode.Assassintat || ActiveMode == GameMode.Infideltat)
+        {
+            if (_lastRoundEndCountdownSeconds >= 0)
+            {
+                _lastRoundEndCountdownSeconds = -1;
+                GameModeHud.ClearRoundEndCountdown();
+            }
+            return;
+        }
+
         if (!TryGetRoundEndingCountdown(out string label, out float timeRemaining)
             || timeRemaining > GameModeHud.RoundEndCountdownSeconds)
         {
@@ -1718,6 +1745,10 @@ internal static class GameModeManager
             default:
                 if (ModeTimeoutState.IsTimedMode(ActiveMode))
                 {
+                    if (ActiveMode == GameMode.Tdmtat && ModeTimeoutState.IsSuddenDeath)
+                    {
+                        label = "SUDDEN DEATH ENDS IN";
+                    }
                     timeRemaining = ModeTimeoutState.TimeRemaining;
                     return true;
                 }
@@ -2207,7 +2238,8 @@ public partial class Plugin
 
     [CustomRPC]
     public void SyncGlobalSettings(CSteamID hostId, int roundId, int revision, float respawnDelaySeconds,
-        int preRoundSeconds, int pointsToWin, bool enableMapOverrides, bool keepTeams, RPCInfo info)
+        int preRoundSeconds, int pointsToWin, bool enableMapOverrides, bool keepTeams,
+        bool preferTwoTeamHardtat, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
         {
@@ -2218,7 +2250,7 @@ public partial class Plugin
             return;
         }
         GameModeManager.ApplyGlobalSettings(respawnDelaySeconds, preRoundSeconds, pointsToWin,
-            enableMapOverrides, keepTeams);
+            enableMapOverrides, keepTeams, preferTwoTeamHardtat);
     }
 
     [CustomRPC]

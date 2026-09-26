@@ -292,6 +292,14 @@ internal static class WeaponAmmoTuning
         return MemoryByWeapon.TryGetValue(weapon, out Memory memory) ? memory.SpareRounds : 0;
     }
 
+    internal static bool HasSpareRounds(Weapon weapon)
+    {
+        return weapon.reloadWeapon
+            ? weapon.chargedBullets > 0f
+            : MemoryByWeapon.TryGetValue(weapon, out Memory memory)
+                && memory.SpareRounds > 0;
+    }
+
     internal static bool IsReloading(Weapon weapon)
     {
         return MemoryByWeapon.TryGetValue(weapon, out Memory memory) && memory.Reloading;
@@ -475,6 +483,29 @@ internal static class WeaponAmmoTuning
         if (weapon != null)
         {
             SetFieldValue(weapon, "inHandDespawn", false);
+        }
+    }
+
+    internal static bool SuppressEmptyWeaponAutoDrop(Weapon? weapon)
+    {
+        if (weapon == null || !weapon || !weapon.needsAmmo
+            || weapon.currentAmmo > 0 || weapon.currentAmmo <= -100
+            || weapon.gameObject.layer == 7 || !HasSpareRounds(weapon)
+            || GetFieldValue(weapon, "inHandDespawn") is not bool inHandDespawn
+            || !inHandDespawn)
+        {
+            return false;
+        }
+
+        SetFieldValue(weapon, "inHandDespawn", false);
+        return true;
+    }
+
+    internal static void RestoreEmptyWeaponAutoDrop(Weapon? weapon, bool restore)
+    {
+        if (restore && weapon != null && weapon)
+        {
+            SetFieldValue(weapon, "inHandDespawn", true);
         }
     }
 
@@ -702,7 +733,10 @@ internal static class WeaponAmmoTuning
             memory.SpareRounds -= rounds;
         }
         SetCurrentAmmo(weapon, rounds);
-        RequestServerReload(weapon);
+        if (!memory.UnlimitedAmmo)
+        {
+            RequestServerReload(weapon);
+        }
         weapon.cantTakeSafeBool = false;
         weapon.noAmmoClicks = 0;
         memory.Reloading = false;

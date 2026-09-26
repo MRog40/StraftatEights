@@ -6,13 +6,13 @@ namespace Eights;
 
 public partial class Plugin
 {
-    internal const uint CountertatModId = 1618034000u;
+    internal const uint CountertatModId = 1618034002u;
     internal static ConfigEntry<bool> CountertatEnabled = null!;
 
     private void InitializeCountertat()
     {
         CountertatEnabled = ModeConfigMigration.BindModeEnabled(Config,
-            "Game Mode Settings", "Countertat",
+            "Game Modes Enabled", "Countertat",
             "Two fixed teams fight over the bomb. Aboubi attacks, Shadow Force defends, "
             + "and each take assigns weapons by player slot.");
         CountertatEnabled.SettingChanged += (_, _) =>

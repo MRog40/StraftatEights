@@ -219,6 +219,30 @@ internal static class GuntatState
         GiveWeaponForProgress(playerId, progress);
     }
 
+    internal static bool IsCurrentProgressWeapon(Weapon weapon)
+    {
+        if (!Enabled || !GameModeManager.IsActive(GameMode.Guntat) || weapon == null
+            || !weapon.IsOwner || weapon.gameObject.layer != 8)
+        {
+            return false;
+        }
+
+        int playerId = weapon.playerController?.GetComponent<PlayerHealth>()
+            ?.playerValues?.playerClient?.PlayerId
+            ?? weapon.playerValues?.playerClient?.PlayerId ?? -1;
+        if (playerId < 0)
+        {
+            return false;
+        }
+
+        int progress = Progress.TryGetValue(playerId, out int currentProgress)
+            ? currentProgress
+            : 0;
+        string? expectedWeapon = GetWeaponForProgress(progress);
+        return expectedWeapon != null
+            && weapon.name.StartsWith(expectedWeapon, StringComparison.Ordinal);
+    }
+
     private static void GiveWeaponForProgress(int playerId, int progress)
     {
         string? weaponName = GetWeaponForProgress(progress);

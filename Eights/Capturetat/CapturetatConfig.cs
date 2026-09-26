@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializeCapturetat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         CapturetatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Capturetat",
             "Teams steal the enemy flag and return it to their own base while protecting their flag. "

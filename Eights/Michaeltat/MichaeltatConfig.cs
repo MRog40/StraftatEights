@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializeMichaeltat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         MichaeltatEnabled = ModeConfigMigration.BindModeEnabled(Config, section,
             "Michaeltat",
             "Michael hunts the other players with a Couperet while everyone else tries to stay alive. "

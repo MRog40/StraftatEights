@@ -21,7 +21,7 @@ public partial class Plugin
         AllowedWeapons = Config.Bind(section, "Allowed Weapons", "AK-K, AR15, Dispenser, HK_G11, Yangtse, Kusma, M2000, QCW05, SMG, Warden", "Host-controlled: exact weapon IDs allowed on spawners and team-mode loadouts.");
         SpareMagazines = Config.Bind(section, "Spare Magazines", 6, new ConfigDescription("Host-controlled: spare magazines granted with a weapon pickup.", new AcceptableValueRange<int>(2, 10)));
         DefaultKnife = Config.Bind(section, "Default Knife", false,
-            "Host-controlled: when off, gives players a Couperet while they have no gun in supported gun modes. The knife is removed when they pick up a gun.");
+            "Host-controlled: when on, gives players a Couperet while they have no gun in supported gun modes. The knife is removed when they pick up a gun.");
         const string defaultGuntatWeaponOrder =
             "Glock, Webley, SMG, Bukanee, Shotgun, AR15, QCW05, HK_G11, M2000, Couperet";
         ConfigDefinition legacyGuntatDefinition = new("Game Mode Settings", "Gun Game Weapon Order");
@@ -79,6 +79,17 @@ public partial class Plugin
             return;
         }
         WeaponSettingsState.Apply(enabled, allowedWeapons, spareMagazines, defaultKnife);
+    }
+
+    [CustomRPC]
+    public void RequestDefaultKnifeFallback(int playerId, int requestId, int roundId, RPCInfo info)
+    {
+        if (!MyceliumNetwork.IsHost || !NetworkAuthority.IsPlayerSender(info, playerId))
+        {
+            return;
+        }
+
+        WeaponSettingsState.TryGrantDefaultKnifeFallback(playerId, requestId, roundId);
     }
 
     [CustomRPC]

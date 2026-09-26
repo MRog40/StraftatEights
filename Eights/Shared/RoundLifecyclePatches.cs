@@ -8,6 +8,7 @@ internal static class PauseManager_RoundLifecycle_Patch
 {
     private static void Postfix()
     {
+        GameModeManager.RefreshActiveModeSnapshotIfClient();
         if (GameModeManager.IsVanillaScene)
         {
             GameModeManager.EnsureVanillaScene();

@@ -15,6 +15,7 @@ internal static class GlobalModifiersState
     internal static bool Enabled;
     internal static bool WallJumpEnabled = true;
     internal static bool SlidingEnabled = true;
+    internal static bool SilentWalking = true;
     internal static bool SlideBoostEnabled = true;
     internal static bool WallJumpBoostEnabled = true;
     internal static float SpeedMultiplier = 1f;
@@ -45,10 +46,11 @@ internal static class GlobalModifiersState
     internal static void Apply(bool enabled, bool wallJump, bool sliding, bool slideBoost,
         bool wallJumpBoost, int moveSpeedPercent, int adsSpeedPercent, int gravityPercent,
         int momentumPercent, int airSpeedRatioPercent, int shootingSpeedPercent,
-        bool playerRadarEnabled, int maximumBloodEffects)
+        bool playerRadarEnabled, int maximumBloodEffects, bool silentWalking)
     {
         Enabled = enabled;
         PlayerRadarEnabled = playerRadarEnabled;
+        SilentWalking = silentWalking;
         BloodCleanupState.ApplyMaximumBloodEffects(maximumBloodEffects);
         if (!enabled)
         {
@@ -93,7 +95,7 @@ internal static class GlobalModifiersState
             Plugin.AdsSpeedPercent.Value, Plugin.GravityPercent.Value,
             Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value,
             Plugin.ShootingSpeedPercent.Value, Plugin.PlayerRadarEnabled.Value,
-            Plugin.MaximumBloodEffects.Value);
+            Plugin.MaximumBloodEffects.Value, Plugin.SilentWalking.Value);
     }
 
     internal static void PushIfHost()
@@ -118,7 +120,8 @@ internal static class GlobalModifiersState
             Plugin.AirSpeedRatioPercent.Value.ToString(CultureInfo.InvariantCulture),
             Plugin.ShootingSpeedPercent.Value.ToString(CultureInfo.InvariantCulture),
             Plugin.PlayerRadarEnabled.Value ? "1" : "0",
-            Plugin.MaximumBloodEffects.Value.ToString(CultureInfo.InvariantCulture));
+            Plugin.MaximumBloodEffects.Value.ToString(CultureInfo.InvariantCulture),
+            Plugin.SilentWalking.Value ? "1" : "0");
         MyceliumNetwork.RPC(Plugin.GlobalModifiersModId, nameof(Plugin.SyncMovementSettings), ReliableType.Reliable,
             RpcArgs(revision));
     }
@@ -180,7 +183,7 @@ internal static class GlobalModifiersState
         Sync.ResetForLobby();
         Apply(false, true, true, true, true, 100, 100, 100, 100,
             Mathf.RoundToInt(MovementTuning.StockAirSpeedRatioPercent), 100, true,
-            Plugin.MaximumBloodEffects.Value);
+            Plugin.MaximumBloodEffects.Value, Plugin.SilentWalking.Value);
     }
 
     // Late joiners won't have received earlier broadcasts, so catch them up directly
@@ -202,7 +205,7 @@ internal static class GlobalModifiersState
 
     private static void ApplyLobbySettingsSnapshot()
     {
-        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 13, out CSteamID hostId,
+        if (!ModeLobbyDataSync.TryRead(SettingsLobbyDataKey, 14, out CSteamID hostId,
                 out int roundId, out int revision, out string[] fields)
             || !LobbySnapshotCodec.TryParseBool(fields[0], out bool enabled)
             || !LobbySnapshotCodec.TryParseBool(fields[1], out bool wallJump)
@@ -217,6 +220,7 @@ internal static class GlobalModifiersState
             || !int.TryParse(fields[10], out int shootingSpeedPercent)
             || !LobbySnapshotCodec.TryParseBool(fields[11], out bool playerRadarEnabled)
             || !int.TryParse(fields[12], out int maximumBloodEffects)
+            || !LobbySnapshotCodec.TryParseBool(fields[13], out bool silentWalking)
             || !Sync.TryAcceptSettingsSnapshot(hostId, roundId, revision,
                 ModeLobbyDataSync.Source("global-modifiers", "settings")))
         {
@@ -225,7 +229,7 @@ internal static class GlobalModifiersState
 
         Apply(enabled, wallJump, sliding, slideBoost, wallJumpBoost, moveSpeedPercent,
             adsSpeedPercent, gravityPercent, momentumPercent, airSpeedRatioPercent,
-            shootingSpeedPercent, playerRadarEnabled, maximumBloodEffects);
+            shootingSpeedPercent, playerRadarEnabled, maximumBloodEffects, silentWalking);
     }
 
     // MyceliumNetworking's serializer only supports primitives
@@ -241,7 +245,7 @@ internal static class GlobalModifiersState
             Plugin.MoveSpeedPercent.Value, Plugin.AdsSpeedPercent.Value, Plugin.GravityPercent.Value,
             Plugin.MomentumPercent.Value, Plugin.AirSpeedRatioPercent.Value,
             Plugin.ShootingSpeedPercent.Value, Plugin.PlayerRadarEnabled.Value,
-            Plugin.MaximumBloodEffects.Value
+            Plugin.MaximumBloodEffects.Value, Plugin.SilentWalking.Value
         };
     }
 }

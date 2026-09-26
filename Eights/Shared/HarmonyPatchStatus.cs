@@ -14,6 +14,7 @@ internal static class HarmonyPatchStatus
         typeof(GameManager_CustomTeamState_Patch),
         typeof(GameManager_GameModeReset_Patch),
         typeof(GameManager_PreRoundTimer_Patch),
+        typeof(FirstPersonController_VoidDeath_Patch),
         typeof(PauseManager_RoundLifecycle_Patch),
         typeof(SceneMotor_GameModeCycle_Patch),
         typeof(GameManager_GameModeStart_Patch),
@@ -21,6 +22,7 @@ internal static class HarmonyPatchStatus
         typeof(ItemSpawner_WeaponPolicy_Patch),
         typeof(PlayerPickup_WeaponPolicy_Patch),
         typeof(PlayerPickup_WeaponServerLogicPolicy_Patch),
+        typeof(PlayerPickup_DefaultKnifeFallback_Patch),
         typeof(PlayerPickup_RightHandDropPolicy_Patch),
         typeof(PlayerPickup_LeftHandDropPolicy_Patch),
         typeof(PlayerPickup_LeftHandFixPolicy_Patch),
@@ -43,7 +45,8 @@ internal static class HarmonyPatchStatus
         },
         [GameMode.Guntat] = new[]
         {
-            typeof(PlayerManager_GuntatSpawn_Patch)
+            typeof(PlayerManager_GuntatSpawn_Patch),
+            typeof(PlayerPickup_GuntatSwitchWeapons_Patch)
         },
         [GameMode.Snipertat] = new[]
         {
@@ -51,7 +54,6 @@ internal static class HarmonyPatchStatus
         },
         [GameMode.Ratatat] = new[]
         {
-            typeof(FirstPersonController_RatatatVoid_Patch),
             typeof(PlayerManager_RatatatSpawn_Patch)
         },
         [GameMode.Chambertat] = new[]
@@ -61,7 +63,16 @@ internal static class HarmonyPatchStatus
         },
         [GameMode.Potatotat] = new[]
         {
-            typeof(PlayerManager_PotatotatSpawn_Patch)
+            typeof(PlayerManager_PotatotatSpawn_Patch),
+            typeof(HandGrenade_PotatotatDeath_Patch),
+            typeof(PlayerHealth_PotatotatGrenadeDeath_Patch),
+            typeof(DualLauncher_PotatoGrenadePinGate_Patch),
+            typeof(FirstPersonController_PotatoGrenadeReleaseGate_Patch)
+        },
+        [GameMode.PotatoInftat] = new[]
+        {
+            typeof(DualLauncher_PotatoGrenadePinGate_Patch),
+            typeof(FirstPersonController_PotatoGrenadeReleaseGate_Patch)
         },
         [GameMode.Infideltat] = new[]
         {

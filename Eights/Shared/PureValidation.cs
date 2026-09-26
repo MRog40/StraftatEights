@@ -43,10 +43,36 @@ internal static class WeaponListParser
 
 internal static class DefaultKnifeRules
 {
-    internal static bool ShouldProvideKnife(bool settingEnabled, bool hasGun,
-        bool spawnGrantResolved)
+    internal const string DefaultWeaponName = "Couperet";
+
+    internal static bool ShouldProvideKnife(bool settingEnabled, bool hasGun)
     {
-        return !hasGun && (!settingEnabled || !spawnGrantResolved);
+        return settingEnabled && !hasGun;
+    }
+
+    internal static bool IsDefaultKnife(string weaponName)
+    {
+        return weaponName.StartsWith(DefaultWeaponName, StringComparison.Ordinal);
+    }
+
+    internal static bool IsKnife(string weaponName)
+    {
+        return IsDefaultKnife(weaponName)
+            || weaponName.StartsWith("Impetus", StringComparison.Ordinal);
+    }
+}
+
+internal static class FootstepAudioRules
+{
+    internal static bool ShouldPlay(int clip, bool silentWalking, bool sprinting)
+    {
+        return !IsFootstepClip(clip) || !silentWalking || sprinting;
+    }
+
+    internal static bool IsFootstepClip(int clip)
+    {
+        return clip is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9
+            or 12 or 13 or 14 or 15 or 16 or 19 or 20;
     }
 }
 
@@ -129,24 +155,53 @@ internal static class ChambertatRules
 internal static class PotatotatRules
 {
     internal const string PotatoWeaponName = "HandGrenade";
+    internal const int PointsPerKill = 20;
+    internal const int PointsToWin = 100;
+    internal static readonly string[] WeaponOrder =
+    {
+        "Elephant",
+        "SmithCarbine",
+        "Shotgun",
+        "Gust",
+        "Tromblonj"
+    };
 
-    internal static bool IsAllowedWeapon(string weaponName, bool hasPotato,
-        IReadOnlyList<string> weaponOrder)
+    internal static int AddKillPoints(int currentScore)
+    {
+        return ScoreRules.AddPoints(currentScore, PointsPerKill, PointsToWin);
+    }
+
+    internal static string GetWeaponForScore(int score)
+    {
+        int weaponIndex = Math.Min(Math.Max(0, score) / PointsPerKill,
+            WeaponOrder.Length - 1);
+        return WeaponOrder[weaponIndex];
+    }
+
+    internal static int ResetKillStreakOnGrenadeDeath(IDictionary<int, int> kills, int playerId)
+    {
+        if (playerId < 0 || !kills.TryGetValue(playerId, out int currentKills))
+        {
+            return 0;
+        }
+
+        kills[playerId] = 0;
+        return currentKills;
+    }
+
+    internal static bool IsGrenadeDeath(int killerId, int potatoPlayerId, bool grenadeDeathMarked)
+    {
+        return grenadeDeathMarked || (potatoPlayerId >= 0 && killerId == potatoPlayerId);
+    }
+
+    internal static bool IsAllowedWeapon(string weaponName, bool hasPotato, int score)
     {
         if (hasPotato)
         {
             return weaponName.StartsWith(PotatoWeaponName, StringComparison.Ordinal);
         }
 
-        foreach (string expected in weaponOrder)
-        {
-            if (weaponName.StartsWith(expected, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return weaponName.StartsWith(GetWeaponForScore(score), StringComparison.Ordinal);
     }
 
     internal static int ResolvePotato(int potatoPlayerId, int killerId, int deadPlayerId)

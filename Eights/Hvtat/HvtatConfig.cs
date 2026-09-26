@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializeHvtat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         HvtatEnabled = ModeConfigMigration.BindModeEnabled(Config, section, "Hvtat",
             "The first legitimate killer becomes the High-Value Target and earns 3 points each second while alive. "
             + "Other players hunt the Hvtat, and killing them transfers the role; the first player to reach the configured "

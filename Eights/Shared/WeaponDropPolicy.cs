@@ -19,12 +19,18 @@ internal static class WeaponDropPolicy
         }
 
         PlayerHealth? health = pickup.GetComponent<PlayerHealth>();
+        int playerId = pickup.playerValues?.playerClient?.PlayerId
+            ?? health?.playerValues?.playerClient?.PlayerId ?? -1;
+        if (GameModeManager.ActiveMode == GameMode.Infectedtat)
+        {
+            return playerId >= 0 && InfectedtatState.IsInfectedtat(playerId);
+        }
+
         if (health == null)
         {
             return false;
         }
 
-        int playerId = health.playerValues?.playerClient?.PlayerId ?? -1;
         switch (GameModeManager.ActiveMode)
         {
             case GameMode.Ninjatat:
@@ -44,8 +50,8 @@ internal static class WeaponDropPolicy
                     ? RatatatState.IsRatWeapon(weapon)
                     : RatatatState.IsHumanWeapon(weapon);
             case GameMode.Chambertat:
-                return (rightHand && ChambertatState.IsPistol(weapon))
-                    || (!rightHand && ChambertatState.IsCouperet(weapon));
+                return ChambertatState.IsPistol(weapon)
+                    || ChambertatState.IsCouperet(weapon);
             case GameMode.Potatotat:
                 return playerId >= 0 && PotatotatState.IsAllowedWeapon(weapon, playerId);
             case GameMode.Infideltat:
@@ -53,8 +59,6 @@ internal static class WeaponDropPolicy
                     && weapon.name.StartsWith(InfideltatState.WeaponName, StringComparison.Ordinal);
             case GameMode.Assassintat:
                 return playerId >= 0 && AssassintatState.IsAllowedWeapon(weapon, playerId);
-            case GameMode.Infectedtat:
-                return playerId >= 0 && InfectedtatState.IsInfectedtat(playerId);
             case GameMode.PotatoInftat:
                 return playerId >= 0 && PotatoInftatState.IsInfectedtat(playerId);
             case GameMode.Snipertat:

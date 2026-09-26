@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializeInfectedtat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         InfectedtatEnabled = ModeConfigMigration.BindModeEnabled(Config, section, "Infectedtat",
             "The host selects one infected player. Infectedtat players use Couperets and cannot pick up guns; survivors use 10 health and random allowed weapons. Survivors who die become infected.");
 

@@ -23,6 +23,65 @@ internal static class Weapon_AmmoInitialization_Patch
     }
 }
 
+[HarmonyPatch(typeof(Weapon), "DespawnObject")]
+internal static class Weapon_DespawnWithSpareRounds_Patch
+{
+    private static bool Prefix(Weapon __instance)
+    {
+        return __instance == null || !__instance
+            || __instance.gameObject.layer != 7 || __instance.currentAmmo > -100
+            || !WeaponAmmoTuning.HasSpareRounds(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(PlayerPickup), "HandleInteraction")]
+internal static class PlayerPickup_EmptyWeaponWithReserve_Patch
+{
+    private sealed class State
+    {
+        internal Weapon Weapon = null!;
+        internal int CurrentAmmo;
+        internal bool CantTakeSafe;
+    }
+
+    private static void Prefix(PlayerPickup __instance, out State? __state)
+    {
+        __state = null;
+        if (__instance == null || !__instance || !__instance.IsOwner
+            || __instance.currentInteractable == null || !__instance.currentInteractable)
+        {
+            return;
+        }
+
+        Weapon? weapon = __instance.currentInteractable.GetComponent<Weapon>();
+        if (weapon == null || !weapon || weapon.gameObject.layer != 7
+            || weapon.currentAmmo > 0 || !WeaponAmmoTuning.HasSpareRounds(weapon))
+        {
+            return;
+        }
+
+        __state = new State
+        {
+            Weapon = weapon,
+            CurrentAmmo = weapon.currentAmmo,
+            CantTakeSafe = weapon.cantTakeSafeBool
+        };
+        weapon.currentAmmo = 1;
+        weapon.cantTakeSafeBool = false;
+    }
+
+    private static void Postfix(State? __state)
+    {
+        if (__state == null || __state.Weapon == null || !__state.Weapon)
+        {
+            return;
+        }
+
+        __state.Weapon.currentAmmo = __state.CurrentAmmo;
+        __state.Weapon.cantTakeSafeBool = __state.CantTakeSafe;
+    }
+}
+
 [HarmonyPatch(typeof(PauseManager), "MoveAmmoDisplay")]
 internal static class PauseManager_RemotePlayerHudCleanup_Patch
 {

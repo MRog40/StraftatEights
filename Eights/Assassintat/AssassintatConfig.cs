@@ -11,7 +11,7 @@ public partial class Plugin
 
     private void InitializeAssassintat()
     {
-        const string section = "Game Mode Settings";
+        const string section = "Game Modes Enabled";
         AssassintatEnabled = ModeConfigMigration.BindModeEnabled(Config, section, "Assassintat",
             "A hidden Assassintat hunts the public King while bodyguards protect the King, with role weapons unlocking after a delay. "
             + "Killing the King awards the Assassintat 50 points; eliminating the Assassintat awards the King 30 points, each surviving "
@@ -61,7 +61,7 @@ public partial class Plugin
     }
 
     [CustomRPC]
-    public void SyncAssassintatRole(CSteamID hostId, int takeId, bool isAssassintat,
+    public void SyncAssassintatRole(CSteamID hostId, int playerId, int takeId, bool isAssassintat,
         bool isKing, bool announce, int weaponDelaySeconds, RPCInfo info)
     {
         if (!NetworkAuthority.IsHostSender(info))
@@ -69,8 +69,8 @@ public partial class Plugin
             return;
         }
 
-        AssassintatState.ApplyLocalRole(hostId, takeId, isAssassintat, isKing, announce,
-            weaponDelaySeconds);
+        AssassintatState.ApplyLocalRole(hostId, playerId, takeId, isAssassintat, isKing,
+            announce, weaponDelaySeconds);
     }
 
     [CustomRPC]

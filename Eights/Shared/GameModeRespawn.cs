@@ -292,7 +292,7 @@ internal static class GameModeRespawn
             || (PauseManager.Instance != null && PauseManager.Instance.startRound);
     }
 
-    private static void SetPlayerMovable(PlayerManager manager)
+    internal static void SetPlayerMovable(PlayerManager manager)
     {
         if (manager == null || !manager || manager.player == null || !manager.player)
         {
@@ -304,21 +304,12 @@ internal static class GameModeRespawn
             return;
         }
 
-        SetPlayerMovable(manager.player);
-    }
-
-    internal static void SetPlayerMovable(FirstPersonController player)
-    {
-        if (player == null || !player)
-        {
-            return;
-        }
-
         if (GameModeManager.IsNativeRoundStartActive)
         {
             return;
         }
 
+        FirstPersonController player = manager.player;
         if (!player.startOfRound
             && (PauseManager.Instance == null || !PauseManager.Instance.startRound))
         {
@@ -329,7 +320,7 @@ internal static class GameModeRespawn
         player.canMove = true;
         if (wasMovementLocked)
         {
-            player.sync___set_value_canMove(true, true);
+            manager.SetPlayerMove(true);
         }
         player.startOfRound = false;
         if (PauseManager.Instance != null)
@@ -747,10 +738,13 @@ internal static class PlayerSetup_CustomRespawnMovement_Patch
     private static void Postfix(PlayerSetup __instance)
     {
         FirstPersonController? player = __instance.GetComponent<FirstPersonController>();
+        ClientInstance? localClient = ClientInstance.Instance;
+        PlayerManager? manager = localClient != null ? localClient.PlayerSpawner : null;
         if (player != null && player.IsOwner && GameModeManager.Phase == GameModePhase.ActiveRound
-            && GameModeManager.UsesSafeRespawn)
+            && GameModeManager.UsesSafeRespawn && manager != null && manager
+            && manager.player == player)
         {
-            GameModeRespawn.SetPlayerMovable(player);
+            GameModeRespawn.SetPlayerMovable(manager);
         }
     }
 }
@@ -793,12 +787,13 @@ internal static class PlayerManager_CustomRoundStartScreen_Patch
     private static bool Prefix(PlayerManager __instance)
     {
         if (!GameModeManager.IsCustomMode
-            || GameModeManager.Phase != GameModePhase.ActiveRound)
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || GameModeManager.IsNativeRoundStartActive)
         {
             return true;
         }
 
-        GameModeRespawn.SetPlayerMovable(__instance.player);
+        GameModeRespawn.SetPlayerMovable(__instance);
         return false;
     }
 }

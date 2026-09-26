@@ -6,7 +6,7 @@ namespace Eights;
 [HarmonyPatch(typeof(Weapon), "WeaponUpdate")]
 internal static class Weapon_UpdatePolicy_Patch
 {
-    private static void Prefix(Weapon __instance)
+    private static void Prefix(Weapon __instance, out bool __state)
     {
         if (GameModeManager.UsesTeamWeaponLoadouts
             || !GameModeManager.ShouldIgnoreGlobalWeaponSettingsFor(__instance))
@@ -17,7 +17,7 @@ internal static class Weapon_UpdatePolicy_Patch
                 WeaponSettingsState.SpareMagazines);
         }
 
-        if (GameModeManager.IsActive(GameMode.Guntat))
+        if (GuntatState.IsCurrentProgressWeapon(__instance))
         {
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
@@ -63,11 +63,13 @@ internal static class Weapon_UpdatePolicy_Patch
             __instance.cantTakeSafeBool = false;
             __instance.noAmmoClicks = 0;
         }
+
+        __state = WeaponAmmoTuning.SuppressEmptyWeaponAutoDrop(__instance);
     }
 
-    private static void Postfix(Weapon __instance)
+    private static void Postfix(Weapon __instance, bool __state)
     {
-        if (GameModeManager.IsActive(GameMode.Guntat))
+        if (GuntatState.IsCurrentProgressWeapon(__instance))
         {
             WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
         }
@@ -131,5 +133,7 @@ internal static class Weapon_UpdatePolicy_Patch
         {
             MovementPolicy.Apply(__instance.playerController);
         }
+
+        WeaponAmmoTuning.RestoreEmptyWeaponAutoDrop(__instance, __state);
     }
 }

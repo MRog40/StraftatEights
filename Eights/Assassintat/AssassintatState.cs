@@ -32,7 +32,7 @@ internal static class AssassintatState
     internal static bool WeaponsUnlocked { get; private set; }
     internal static int WeaponDelaySeconds { get; private set; } = DefaultWeaponDelaySeconds;
     internal static float TakeTimeRemaining => Mathf.Max(0f, _takeTimeRemaining);
-    internal static float RoleAnnouncementDuration => WeaponDelaySeconds + 10f;
+    internal static float RoleAnnouncementDuration => DefaultTakeTimeLimitSeconds;
     internal static bool LocalIsAssassintat { get; private set; }
     internal static bool LocalIsKing { get; private set; }
     internal static readonly Dictionary<int, int> Scores = new();
@@ -404,23 +404,7 @@ internal static class AssassintatState
                 + " and the bodyguards won the take</b>\n<i>The assassin was eliminated</i>");
             AnnounceResult("The Assassintat was "
                 + PlayerLookup.GetPlayerNameTag(AssassintatPlayerId) + " and was stopped.");
-            _takeEnding = true;
-            BroadcastLiveState();
-            List<int> winningTeamIds = winningPlayerIds
-                .Select(TeamAssignment.ResolveTeamId)
-                .Where(teamId => teamId >= 0)
-                .Distinct()
-                .ToList();
-            if (winningTeamIds.Count > 0)
-            {
-                GameModeManager.CompleteCustomRound(winningTeamIds);
-            }
-            else
-            {
-                Plugin.Logger.LogWarning("[Assassintat] Assassintat death had no valid winning players; "
-                    + "ending the round without a team point.");
-                GameModeManager.CompleteCustomRound(GameModeManager.NoWinningTeamId, false);
-            }
+            FinishTake();
             return;
         }
 
@@ -467,10 +451,11 @@ internal static class AssassintatState
 
     internal static bool IsKingPlayer(int playerId) => playerId >= 0 && playerId == KingPlayerId;
 
-    internal static void ApplyLocalRole(CSteamID hostId, int takeId, bool isAssassintat,
-        bool isKing, bool announce, int weaponDelaySeconds)
+    internal static void ApplyLocalRole(CSteamID hostId, int playerId, int takeId,
+        bool isAssassintat, bool isKing, bool announce, int weaponDelaySeconds)
     {
-        if (hostId != MyceliumNetwork.LobbyHost || takeId < _localRoleTakeId
+        if (hostId != MyceliumNetwork.LobbyHost || ClientInstance.Instance == null
+            || ClientInstance.Instance.PlayerId != playerId || takeId < _localRoleTakeId
             || weaponDelaySeconds < MinWeaponDelaySeconds
             || weaponDelaySeconds > MaxWeaponDelaySeconds)
         {
@@ -555,21 +540,13 @@ internal static class AssassintatState
 
     private static void StartTake()
     {
-        if (WinnerId >= 0 || !MyceliumNetwork.IsHost)
+        if (WinnerId >= 0 || !MyceliumNetwork.IsHost || TakeIsActive())
         {
             return;
         }
 
         List<int> players = new();
-        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
-        {
-            if (client != null && client)
-            {
-                players.Add(client.PlayerId);
-            }
-        }
-
-        if (players.Count < 2)
+        if (!TryGetReadyPlayers(players))
         {
             AssassintatPlayerId = -1;
             KingPlayerId = -1;
@@ -619,6 +596,29 @@ internal static class AssassintatState
         }
     }
 
+    private static bool TryGetReadyPlayers(List<int> players)
+    {
+        players.Clear();
+        foreach (int playerId in PlayerLookup.GetConnectedPlayerIds())
+        {
+            if (!ClientInstance.playerInstances.TryGetValue(playerId, out ClientInstance client)
+                || client == null || !client || client.PlayerId != playerId
+                || client.PlayerSpawner == null || !client.PlayerSpawner
+                || client.PlayerSpawner.player == null || !client.PlayerSpawner.player
+                || !client.PlayerSpawner.player.gameObject.activeInHierarchy
+                || client.PlayerSpawner.player.playerPickupScript == null
+                || !client.PlayerSpawner.player.playerPickupScript)
+            {
+                players.Clear();
+                return false;
+            }
+
+            players.Add(playerId);
+        }
+
+        return players.Count >= 2;
+    }
+
     private static void ScheduleStartTakeRetry()
     {
         if (_startRetryPending || Plugin.Instance == null)
@@ -634,11 +634,12 @@ internal static class AssassintatState
     private static IEnumerator RetryStartTake(int sessionGeneration, int roundId,
         int previousTakeId)
     {
-        for (int attempt = 0; attempt < 20; attempt++)
+        while (true)
         {
-            yield return new WaitForSeconds(0.25f);
+            yield return new WaitForSeconds(0.5f);
             if (!SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId
-                || WinnerId >= 0 || _takeEnding || !GameModeManager.IsActive(GameMode.Assassintat))
+                || WinnerId >= 0 || TakeIsActive()
+                || !GameModeManager.IsActive(GameMode.Assassintat))
             {
                 break;
             }
@@ -855,7 +856,7 @@ internal static class AssassintatState
 
         if (ClientInstance.Instance != null)
         {
-            ApplyLocalRole(MyceliumNetwork.LobbyHost, _takeId,
+            ApplyLocalRole(MyceliumNetwork.LobbyHost, ClientInstance.Instance.PlayerId, _takeId,
                 ClientInstance.Instance.PlayerId == AssassintatPlayerId,
                 ClientInstance.Instance.PlayerId == KingPlayerId, announce, WeaponDelaySeconds);
         }
@@ -869,7 +870,7 @@ internal static class AssassintatState
         }
 
         MyceliumNetwork.RPCTarget(Plugin.AssassintatModId, nameof(Plugin.SyncAssassintatRole), target,
-            ReliableType.Reliable, MyceliumNetwork.LobbyHost, _takeId,
+            ReliableType.Reliable, MyceliumNetwork.LobbyHost, playerId, _takeId,
             playerId == AssassintatPlayerId, playerId == KingPlayerId, announce, WeaponDelaySeconds);
     }
 
