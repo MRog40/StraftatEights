@@ -195,6 +195,9 @@ This is how host-authoritative settings get synced to all lobby members. Namespa
   capability so global weapon rules do not block normal drops or pickups.
 - **Keep weapon grants host-authoritative.** `WeaponService` exits unless the FishNet server is
   active. Clients must not spawn or equip network objects locally.
+- **Potato modes use the Hand Grenade.** In Potatotat and PotatoInftat, `HandGrenade` is the held
+  mode weapon. Treat each throw and replacement as part of this Hand Grenade lifecycle. `DualLauncher`
+  is only the game's internal component name for this item; it is not a separate weapon in these modes.
 - **Handle default-knife fallback as a transition, not a host polling loop.** The owning client can
   detect when its hands change from gun to no gun and send one request. The host must validate the
   setting, mode, and current hands, then grant or remove the Couperet through `WeaponService`.

@@ -11,7 +11,7 @@ internal static class InfectedtatState
 {
     internal const string SettingsLobbyDataKey = "Eights_Infectedtat_Settings";
     internal const string LiveLobbyDataKey = "Eights_Infectedtat_Live";
-    internal const string KnifeWeaponName = "Couperet";
+    internal const string KnifeWeaponName = InfectedtatRules.KnifeWeaponName;
     internal const float InfectedtatSpeedMultiplier = 1.2f;
     internal const float SurvivorHealth = 10f / 25f;
     internal static bool Enabled;

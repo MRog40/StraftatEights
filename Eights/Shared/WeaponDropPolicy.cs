@@ -23,7 +23,8 @@ internal static class WeaponDropPolicy
             ?? health?.playerValues?.playerClient?.PlayerId ?? -1;
         if (GameModeManager.ActiveMode == GameMode.Infectedtat)
         {
-            return playerId >= 0 && InfectedtatState.IsInfectedtat(playerId);
+            playerId = PlayerLookup.FindPlayerId(pickup);
+            return playerId < 0 || InfectedtatState.IsInfectedtat(playerId);
         }
 
         if (health == null)

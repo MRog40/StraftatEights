@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using MyceliumNetworking;
 using Steamworks;
@@ -11,6 +12,8 @@ internal static class PotatotatState
     internal const string SettingsLobbyDataKey = "Eights_Potatotat_Settings";
     internal const string LiveLobbyDataKey = "Eights_Potatotat_Live";
     internal const string PotatoWeaponName = "HandGrenade";
+    private const float LoadoutCheckIntervalSeconds = 0.2f;
+    private const float GrenadeReplacementDelaySeconds = 0.2f;
     internal static bool Enabled;
     internal static IReadOnlyList<string> WeaponOrder => PotatotatRules.WeaponOrder;
     internal static int PotatoPlayerId { get; private set; } = -1;
@@ -21,8 +24,10 @@ internal static class PotatotatState
     private static float _nextLoadoutCheckTime;
     private static readonly ModeSyncState Sync = new();
     private static readonly Dictionary<int, float> PendingLoadouts = new();
+    private static readonly Dictionary<int, int> PendingGrenadeGrantVersions = new();
     private static readonly HashSet<int> PendingGrenadeDeaths = new();
     private static int _grenadeExplosionDepth;
+    private static int _nextGrenadeGrantVersion;
 
     internal static void ApplySettings(bool enabled)
     {
@@ -136,6 +141,7 @@ internal static class PotatotatState
         int playerId = PlayerLookup.FindPlayerId(player);
         bool changed = playerId >= 0 && Kills.Remove(playerId);
         PendingLoadouts.Remove(playerId);
+        PendingGrenadeGrantVersions.Remove(playerId);
         if (playerId >= 0 && PotatoPlayerId == playerId)
         {
             PotatoPlayerId = -1;
@@ -165,6 +171,7 @@ internal static class PotatotatState
         WinnerId = -1;
         Kills.Clear();
         PendingLoadouts.Clear();
+        PendingGrenadeGrantVersions.Clear();
         PendingGrenadeDeaths.Clear();
         _grenadeExplosionDepth = 0;
     }
@@ -320,7 +327,6 @@ internal static class PotatotatState
             return;
         }
 
-        PendingLoadouts[playerId] = Time.unscaledTime + 2f;
         GiveExpectedWeapon(playerId);
     }
 
@@ -373,7 +379,7 @@ internal static class PotatotatState
             return;
         }
 
-        _nextLoadoutCheckTime = Time.unscaledTime + 0.5f;
+        _nextLoadoutCheckTime = Time.unscaledTime + LoadoutCheckIntervalSeconds;
         foreach (ClientInstance client in ClientInstance.playerInstances.Values)
         {
             if (client == null || !client || client.PlayerSpawner == null || !client.PlayerSpawner
@@ -390,6 +396,7 @@ internal static class PotatotatState
                 || IsExpectedWeapon(leftHandWeapon, client.PlayerId))
             {
                 PendingLoadouts.Remove(client.PlayerId);
+                PendingGrenadeGrantVersions.Remove(client.PlayerId);
                 continue;
             }
 
@@ -409,9 +416,90 @@ internal static class PotatotatState
             return;
         }
 
+        if (HasExpectedWeaponHeld(playerId))
+        {
+            PendingLoadouts.Remove(playerId);
+            PendingGrenadeGrantVersions.Remove(playerId);
+            return;
+        }
+
+        if (expectedWeapon == PotatoWeaponName)
+        {
+            if (PendingGrenadeGrantVersions.ContainsKey(playerId)
+                && PendingLoadouts.TryGetValue(playerId, out float retryTime)
+                && Time.unscaledTime < retryTime)
+            {
+                return;
+            }
+
+            int grantVersion = unchecked(++_nextGrenadeGrantVersion);
+            PendingGrenadeGrantVersions[playerId] = grantVersion;
+            PendingLoadouts[playerId] = Time.unscaledTime + 2f;
+            if (Plugin.Instance == null)
+            {
+                PendingGrenadeGrantVersions.Remove(playerId);
+                PendingLoadouts.Remove(playerId);
+                return;
+            }
+
+            Plugin.Instance.StartCoroutine(GiveGrenadeAfterDelay(playerId, grantVersion,
+                SessionState.Generation, GameModeManager.RoundId));
+            return;
+        }
+
+        PendingGrenadeGrantVersions.Remove(playerId);
         PendingLoadouts[playerId] = Time.unscaledTime + 2f;
         WeaponService.GiveWeapon(playerId, expectedWeapon,
             unlimitedAmmo: playerId != PotatoPlayerId);
+    }
+
+    private static IEnumerator GiveGrenadeAfterDelay(int playerId, int grantVersion,
+        int sessionGeneration, int roundId)
+    {
+        yield return new WaitForSecondsRealtime(GrenadeReplacementDelaySeconds);
+        if (!PendingGrenadeGrantVersions.TryGetValue(playerId, out int currentVersion)
+            || currentVersion != grantVersion)
+        {
+            yield break;
+        }
+
+        if (!Enabled || !GameModeManager.IsActive(GameMode.Potatotat) || !MyceliumNetwork.IsHost
+            || !SessionState.IsCurrent(sessionGeneration) || GameModeManager.RoundId != roundId)
+        {
+            PendingGrenadeGrantVersions.Remove(playerId);
+            PendingLoadouts.Remove(playerId);
+            yield break;
+        }
+
+        if (GetExpectedWeapon(playerId) != PotatoWeaponName)
+        {
+            PendingGrenadeGrantVersions.Remove(playerId);
+            PendingLoadouts.Remove(playerId);
+            GiveExpectedWeapon(playerId);
+            yield break;
+        }
+
+        if (HasExpectedWeaponHeld(playerId))
+        {
+            PendingGrenadeGrantVersions.Remove(playerId);
+            PendingLoadouts.Remove(playerId);
+            yield break;
+        }
+
+        WeaponService.GiveWeapon(playerId, PotatoWeaponName,
+            unlimitedAmmo: playerId != PotatoPlayerId);
+    }
+
+    private static bool HasExpectedWeaponHeld(int playerId)
+    {
+        PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(playerId);
+        FirstPersonController? player = health != null && health
+            ? health.GetComponent<FirstPersonController>()
+            : null;
+        PlayerPickup? pickup = player != null && player ? player.playerPickupScript : null;
+        return PotatotatRules.HasExpectedWeapon(
+            IsExpectedWeapon(GetWeapon(pickup?.objInHand), playerId),
+            IsExpectedWeapon(GetWeapon(pickup?.objInLeftHand), playerId));
     }
 
     private static bool IsExpectedWeapon(Weapon? weapon, int playerId)

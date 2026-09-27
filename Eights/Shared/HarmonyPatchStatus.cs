@@ -72,11 +72,17 @@ internal static class HarmonyPatchStatus
         [GameMode.PotatoInftat] = new[]
         {
             typeof(DualLauncher_PotatoGrenadePinGate_Patch),
-            typeof(FirstPersonController_PotatoGrenadeReleaseGate_Patch)
+            typeof(FirstPersonController_PotatoGrenadeReleaseGate_Patch),
+            typeof(DualLauncher_PotatoInftatGrenadeThrow_Patch)
         },
         [GameMode.Infideltat] = new[]
         {
             typeof(PlayerManager_InfideltatSpawn_Patch),
+        },
+        [GameMode.Infectedtat] = new[]
+        {
+            typeof(PlayerPickup_InfectedtatRightHandPickup_Patch),
+            typeof(PlayerPickup_InfectedtatLeftHandPickup_Patch)
         },
         [GameMode.Assassintat] = new[]
         {

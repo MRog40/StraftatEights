@@ -103,11 +103,9 @@ internal static class WeaponPolicy
                 return huntersPlayerId >= 0
                     && HuntModesState.IsExpectedWeapon(weapon, huntersPlayerId);
             case GameMode.Infectedtat:
-                int infectedPlayerId = pickup.playerValues?.playerClient?.PlayerId
-                    ?? health?.playerValues?.playerClient?.PlayerId ?? -1;
-                return infectedPlayerId < 0 || !InfectedtatState.IsInfectedtat(infectedPlayerId)
-                    || weapon.name.StartsWith(InfectedtatState.KnifeWeaponName,
-                        System.StringComparison.Ordinal);
+                int infectedPlayerId = PlayerLookup.FindPlayerId(pickup);
+                return InfectedtatRules.CanEquipWeapon(infectedPlayerId >= 0,
+                    InfectedtatState.IsInfectedtat(infectedPlayerId), weapon.name);
             case GameMode.PotatoInftat:
                 return health == null || !PotatoInftatState.IsInfectedtat(health)
                     || weapon.name.StartsWith(PotatoInftatState.GrenadeWeaponName,
@@ -273,6 +271,41 @@ internal static class PlayerPickup_WeaponServerLogicPolicy_Patch
             WeaponPolicy.CancelDefaultKnifeGrantForGunPickup(__instance, obj);
         }
         return canEquip;
+    }
+}
+
+[HarmonyPatch(typeof(PlayerPickup), "RightHandPickup")]
+internal static class PlayerPickup_InfectedtatRightHandPickup_Patch
+{
+    private static bool Prefix(PlayerPickup __instance)
+    {
+        return !IsInfectedOrUnresolved(__instance);
+    }
+
+    private static bool IsInfectedOrUnresolved(PlayerPickup pickup)
+    {
+        if (!GameModeManager.IsActive(GameMode.Infectedtat))
+        {
+            return false;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(pickup);
+        return playerId < 0 || InfectedtatState.IsInfectedtat(playerId);
+    }
+}
+
+[HarmonyPatch(typeof(PlayerPickup), "LeftHandPickup")]
+internal static class PlayerPickup_InfectedtatLeftHandPickup_Patch
+{
+    private static bool Prefix(PlayerPickup __instance)
+    {
+        if (!GameModeManager.IsActive(GameMode.Infectedtat))
+        {
+            return true;
+        }
+
+        int playerId = PlayerLookup.FindPlayerId(__instance);
+        return playerId >= 0 && !InfectedtatState.IsInfectedtat(playerId);
     }
 }
 

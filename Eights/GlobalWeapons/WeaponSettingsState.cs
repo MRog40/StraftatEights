@@ -163,7 +163,17 @@ internal static class WeaponSettingsState
 
     internal static void TrackLocalDefaultKnifeFallback(PlayerPickup pickup)
     {
-        if (pickup == null || !pickup || !pickup.IsOwner)
+        if (pickup == null || !pickup)
+        {
+            return;
+        }
+
+        if (pickup.IsServer && !pickup.IsOwner)
+        {
+            TrackServerDefaultKnifeFallback(pickup);
+            return;
+        }
+        if (!pickup.IsOwner)
         {
             return;
         }
@@ -277,6 +287,30 @@ internal static class WeaponSettingsState
                 nameof(Plugin.RequestDefaultKnifeFallback), ReliableType.Reliable,
                 playerId, _localDefaultKnifeRequestId, roundId);
         }
+    }
+
+    private static void TrackServerDefaultKnifeFallback(PlayerPickup pickup)
+    {
+        if (!MyceliumNetwork.InLobby || !DefaultKnife
+            || !GameModeManager.CanUseDefaultKnifeFallback
+            || GameModeManager.Phase != GameModePhase.ActiveRound
+            || WeaponService.IsFinalGameScreen)
+        {
+            return;
+        }
+
+        int playerId = pickup.playerValues?.playerClient?.PlayerId
+            ?? pickup.GetComponent<PlayerHealth>()?.playerValues?.playerClient?.PlayerId ?? -1;
+        if (playerId < 0)
+        {
+            return;
+        }
+
+        // Clients request the knife for quick response. Reconcile server-owned hand state too,
+        // so a lost or rejected client RPC cannot leave a dropped gun without its fallback knife.
+        int requestId = LastDefaultKnifeRequestIds.TryGetValue(playerId, out int lastRequestId)
+            ? lastRequestId : 1;
+        TryGrantDefaultKnifeFallback(playerId, requestId, GameModeManager.RoundId);
     }
 
     internal static void TryGrantDefaultKnifeFallback(int playerId, int requestId, int roundId)

@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
 using UnityEngine;
@@ -13,6 +15,16 @@ internal static class PotatoGrenadeInputGate
     }
 
     private static readonly ConditionalWeakTable<FirstPersonController, GateState> States = new();
+
+    internal static void RequireReleaseBeforePinPull(FirstPersonController? player)
+    {
+        if (player == null || !player || !player.IsOwner || !IsPotatoMode())
+        {
+            return;
+        }
+
+        States.GetValue(player, _ => new GateState()).AwaitingRelease = true;
+    }
 
     internal static bool AllowPinPull(DualLauncher launcher, bool value)
     {
@@ -72,5 +84,40 @@ internal static class FirstPersonController_PotatoGrenadeReleaseGate_Patch
     private static void Prefix(FirstPersonController __instance)
     {
         PotatoGrenadeInputGate.ObserveRelease(__instance);
+    }
+}
+
+[HarmonyPatch]
+internal static class DualLauncher_PotatoInftatGrenadeThrow_Patch
+{
+    private static MethodBase? TargetMethod()
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public
+            | BindingFlags.NonPublic;
+        foreach (MethodInfo method in typeof(DualLauncher).GetMethods(flags))
+        {
+            if (!method.Name.StartsWith("RpcLogic___ServerFire_", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            ParameterInfo[] parameters = method.GetParameters();
+            if (parameters.Length == 5
+                && parameters[0].ParameterType == typeof(Vector3)
+                && parameters[1].ParameterType == typeof(Vector3)
+                && parameters[2].ParameterType == typeof(uint)
+                && parameters[3].ParameterType == typeof(trickShotData)
+                && parameters[4].ParameterType == typeof(int))
+            {
+                return method;
+            }
+        }
+
+        return null;
+    }
+
+    private static void Postfix(DualLauncher __instance)
+    {
+        PotatoInftatState.OnServerGrenadeThrown(__instance);
     }
 }

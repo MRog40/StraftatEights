@@ -231,10 +231,19 @@ Assert(InfectedtatRules.ShouldBecomeInfectedtat(false)
     && !InfectedtatRules.ShouldAwardInitialInfectedtat(-1, 0)
     && !InfectedtatRules.ShouldAwardInitialInfectedtat(7, 1),
     "Infectedtat survivors must convert on death, and only the original infected wins a wipe.");
+Assert(PotatotatRules.HasExpectedWeapon(true, false)
+    && PotatotatRules.HasExpectedWeapon(false, true)
+    && !PotatotatRules.HasExpectedWeapon(false, false),
+    "Potatotat must keep an expected weapon that is still held and grant it only after it is gone.");
 List<int> infectedSurvivors = InfectedtatRules.GetSurvivors(
     new[] { 7, 2, 4, 2 }, new HashSet<int> { 4 });
 Assert(infectedSurvivors.SequenceEqual(new[] { 2, 7 }),
     "The Infectedtat timeout winner list must contain every non-infected round player in sorted order.");
+Assert(InfectedtatRules.CanEquipWeapon(true, false, "AK-K(Clone)")
+    && InfectedtatRules.CanEquipWeapon(true, true, "Couperet(Clone)")
+    && !InfectedtatRules.CanEquipWeapon(true, true, "AK-K(Clone)")
+    && !InfectedtatRules.CanEquipWeapon(false, false, "AK-K(Clone)"),
+    "Only survivors may equip guns in Infectedtat, infected players may equip the Couperet only, and unresolved identities must fail closed.");
 Assert(MichaeltatRules.RoundTimeLimitSeconds == ModeTimeoutRules.DefaultRoundSeconds
     && MichaeltatRules.MovementMultiplier == 1.05f
     && MichaeltatRules.GetHealth(false) == 10f

@@ -617,6 +617,13 @@ internal static class WeaponService
             pickup.UpdateIKPoistion();
             item.InstantComeBackOnFire();
             item.dispenserStart = false;
+            if (weapon.GetComponent<DualLauncher>() != null
+                && (weapon.name.StartsWith(PotatotatState.PotatoWeaponName, StringComparison.Ordinal)
+                    || weapon.name.StartsWith(PotatoInftatState.GrenadeWeaponName,
+                        StringComparison.Ordinal)))
+            {
+                PotatoGrenadeInputGate.RequireReleaseBeforePinPull(weaponComponent.playerController);
+            }
             return weapon.layer == 8;
         }
         catch (Exception exception)

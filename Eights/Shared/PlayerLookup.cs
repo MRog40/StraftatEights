@@ -41,6 +41,45 @@ internal static class PlayerLookup
         return CachedConnectedPlayerIds;
     }
 
+    internal static int FindPlayerId(PlayerPickup pickup)
+    {
+        if (pickup == null || !pickup)
+        {
+            return -1;
+        }
+
+        PlayerHealth? health = pickup.GetComponent<PlayerHealth>();
+        int playerId = pickup.playerValues?.playerClient?.PlayerId
+            ?? health?.playerValues?.playerClient?.PlayerId ?? -1;
+        if (playerId >= 0)
+        {
+            return playerId;
+        }
+
+        ClientInstance? localClient = ClientInstance.Instance;
+        if (localClient != null && localClient && IsPickupForPlayer(localClient, pickup))
+        {
+            return localClient.PlayerId;
+        }
+
+        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        {
+            if (client != null && client && IsPickupForPlayer(client, pickup))
+            {
+                return client.PlayerId;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool IsPickupForPlayer(ClientInstance client, PlayerPickup pickup)
+    {
+        PlayerManager? manager = client.PlayerSpawner;
+        FirstPersonController? player = manager != null && manager ? manager.player : null;
+        return player != null && player && player.playerPickupScript == pickup;
+    }
+
     private static void RefreshConnectedPlayerCache()
     {
         try

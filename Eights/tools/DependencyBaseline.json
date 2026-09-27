@@ -9,6 +9,6 @@
     "BepInEx.Analyzers/1.0.8",
     "BepInEx.Core/5.4.21",
     "BepInEx.PluginInfoProps/2.1.0",
-    "UnityEngine.Modules/2021.3.33"
+    "UnityEngine.Modules/2021.3.45"
   ]
 }

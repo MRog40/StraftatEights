@@ -166,6 +166,12 @@ internal static class PotatotatRules
         "Tromblonj"
     };
 
+    internal static bool HasExpectedWeapon(bool hasExpectedRightHandWeapon,
+        bool hasExpectedLeftHandWeapon)
+    {
+        return hasExpectedRightHandWeapon || hasExpectedLeftHandWeapon;
+    }
+
     internal static int AddKillPoints(int currentScore)
     {
         return ScoreRules.AddPoints(currentScore, PointsPerKill, PointsToWin);
@@ -235,6 +241,16 @@ internal static class InfideltatRules
 
 internal static class InfectedtatRules
 {
+    internal const string KnifeWeaponName = "Couperet";
+
+    internal static bool CanEquipWeapon(bool playerIdentityKnown, bool infected,
+        string weaponName)
+    {
+        // Unknown identity is not permission to equip during Infectedtat.
+        return playerIdentityKnown && (!infected
+            || weaponName.StartsWith(KnifeWeaponName, StringComparison.Ordinal));
+    }
+
     internal static List<int> GetSurvivors(IEnumerable<int> roundPlayers,
         ISet<int> infectedPlayers)
     {

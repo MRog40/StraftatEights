@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>Eights</AssemblyName>
     <Product>Straftat Eights</Product>
-    <Version>0.4.56</Version>
+    <Version>0.4.58</Version>
     <Name>Eights</Name>
     <Guid>88888888-cf51-4976-ac97-8a909ec0daa3</Guid>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -20,7 +20,7 @@
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Core" Version="5.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" PrivateAssets="all" />
-    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" IncludeAssets="compile" />
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.45" PrivateAssets="all" IncludeAssets="compile" />
   </ItemGroup>
 
   <ItemGroup>
