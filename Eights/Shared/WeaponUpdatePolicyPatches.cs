@@ -8,6 +8,7 @@ internal static class Weapon_UpdatePolicy_Patch
 {
     private static void Prefix(Weapon __instance, out bool __state)
     {
+        WeaponAmmoTuning.TraceOwnerWeaponUpdate(__instance, "prefix");
         RestoreFreshPotatoGrenadeAmmo(__instance);
         bool droppedAmmoProtectionEnabled = false;
         if (GameModeManager.UsesTeamWeaponLoadouts
@@ -85,6 +86,7 @@ internal static class Weapon_UpdatePolicy_Patch
 
     private static void Postfix(Weapon __instance, bool __state)
     {
+        WeaponAmmoTuning.TraceOwnerWeaponUpdate(__instance, "post-original");
         if (GuntatState.IsCurrentProgressWeapon(__instance))
         {
             WeaponAmmoTuning.UpdateUnlimitedAmmoHud(__instance);
@@ -152,5 +154,6 @@ internal static class Weapon_UpdatePolicy_Patch
 
         WeaponAmmoTuning.RestoreEmptyWeaponAutoDrop(__instance, __state);
         WeaponAmmoTuning.RestoreVisibilityAfterDrop(__instance);
+        WeaponAmmoTuning.TraceOwnerWeaponUpdate(__instance, "postfix");
     }
 }

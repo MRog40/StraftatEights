@@ -13,7 +13,7 @@ internal static class PotatoInftatState
     internal const string SettingsLobbyDataKey = "Eights_PotatoInftat_Settings";
     internal const string LiveLobbyDataKey = "Eights_PotatoInftat_Live";
     internal const string GrenadeWeaponName = "HandGrenade";
-    private const float GrenadeReplacementDelaySeconds = 1f;
+    private const float GrenadeReplacementDelaySeconds = 0.1f;
     internal const float InfectedtatSpeedMultiplier = 1.2f; 
     internal static readonly float SurvivorHealth = HealthUnits.ToInternal(10f);
     internal static bool Enabled;

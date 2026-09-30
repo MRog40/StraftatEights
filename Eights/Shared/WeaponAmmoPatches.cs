@@ -33,6 +33,8 @@ internal static class Weapon_DespawnWithSpareRounds_Patch
             return true;
         }
 
+        WeaponAmmoTuning.TraceOwnerWeaponDespawn(__instance, "plain-despawn");
+
         bool ammoTuningEnabled = GameModeManager.UsesTeamWeaponLoadouts
             || WeaponSettingsState.Enabled;
         if (WeaponAmmoTuning.RestoreDroppedWeaponAmmo(__instance, ammoTuningEnabled,
@@ -62,6 +64,7 @@ internal static class Weapon_DroppedDespawnServer_Patch
 
     private static bool Prefix(Weapon __instance)
     {
+        WeaponAmmoTuning.TraceOwnerWeaponDespawn(__instance, "server-despawn");
         bool restored = WeaponAmmoTuning.RestoreDroppedWeaponAmmo(
             __instance, GameModeManager.UsesTeamWeaponLoadouts || WeaponSettingsState.Enabled,
             WeaponSettingsState.SpareMagazines);

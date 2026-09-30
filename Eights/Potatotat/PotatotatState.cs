@@ -13,7 +13,7 @@ internal static class PotatotatState
     internal const string LiveLobbyDataKey = "Eights_Potatotat_Live";
     internal const string PotatoWeaponName = "HandGrenade";
     private const float LoadoutCheckIntervalSeconds = 0.2f;
-    private const float GrenadeReplacementDelaySeconds = 1f;
+    private const float GrenadeReplacementDelaySeconds = 0.1f;
     private const float GrenadeMultikillWindowSeconds = 1f;
     internal static bool Enabled;
     internal static IReadOnlyList<string> WeaponOrder => PotatotatRules.WeaponOrder;

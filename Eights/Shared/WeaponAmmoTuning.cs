@@ -27,6 +27,7 @@ internal static class WeaponAmmoTuning
         public bool FreshPotatoGrenade;
         public bool PotatoGrenadeSpent;
         public int PendingReloadRequestId;
+        public string? LastWeaponTrace;
     }
 
     private static readonly ConditionalWeakTable<Weapon, Memory> MemoryByWeapon = new();
@@ -692,15 +693,90 @@ internal static class WeaponAmmoTuning
     {
         if (weapon == null || !weapon || !weapon.needsAmmo
             || weapon.currentAmmo > 0 || weapon.currentAmmo <= -100
-            || weapon.gameObject.layer == 7 || !HasSpareRounds(weapon)
+            || weapon.gameObject.layer == 7
             || GetFieldValue(weapon, "inHandDespawn") is not bool inHandDespawn
             || !inHandDespawn)
         {
             return false;
         }
 
+        if (!weapon.IsOwner)
+        {
+            SetFieldValue(weapon, "inHandDespawn", false);
+            return true;
+        }
+
+        if (!HasSpareRounds(weapon))
+        {
+            return false;
+        }
+
         SetFieldValue(weapon, "inHandDespawn", false);
         return true;
+    }
+
+    internal static void TraceOwnerWeaponUpdate(Weapon? weapon, string phase)
+    {
+        TraceOwnerWeaponState(weapon, phase, true);
+    }
+
+    internal static void TraceOwnerWeaponDespawn(Weapon? weapon, string phase)
+    {
+        TraceOwnerWeaponState(weapon, phase, false);
+    }
+
+    internal static void TraceWeaponDrop(Weapon? weapon, string phase)
+    {
+        if (weapon == null || !weapon || Plugin.Logger == null)
+        {
+            return;
+        }
+
+        Plugin.Logger.LogWarning($"[WeaponDropTrace] {weapon.name} phase={phase} "
+            + $"layer={weapon.gameObject.layer} active={weapon.gameObject.activeSelf} "
+            + $"ammo={weapon.currentAmmo} cantTake={weapon.cantTakeSafeBool} "
+            + $"right={weapon.inRightHand} left={weapon.inLeftHand} "
+            + $"owner={weapon.IsOwner} server={weapon.IsServer} "
+            + $"position={weapon.transform.position}");
+    }
+
+    private static void TraceOwnerWeaponState(Weapon? weapon, string phase,
+        bool onlySuspicious)
+    {
+        if (weapon == null || !weapon || !weapon.IsOwner || !weapon.needsAmmo
+            || Plugin.Logger == null)
+        {
+            return;
+        }
+
+        bool inHandDespawn = GetFieldValue(weapon, "inHandDespawn") is bool value && value;
+        bool suspicious = !weapon.gameObject.activeSelf
+            || (weapon.currentAmmo <= 0
+                && (weapon.gameObject.layer == 7 || inHandDespawn));
+        if (onlySuspicious && !suspicious)
+        {
+            return;
+        }
+
+        Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
+        string trace = string.Concat(
+            phase, "|", weapon.gameObject.layer, "|", weapon.gameObject.activeSelf,
+            "|", weapon.currentAmmo, "|", inHandDespawn, "|", memory.SpareRounds,
+            "|", memory.Reloading, "|", weapon.cantTakeSafeBool, "|", weapon.heldOnce,
+            "|", weapon.lastPlayerHolder != null, "|", weapon.inRightHand, "|", weapon.inLeftHand);
+        if (memory.LastWeaponTrace == trace)
+        {
+            return;
+        }
+
+        memory.LastWeaponTrace = trace;
+        Plugin.Logger.LogWarning($"[WeaponTrace] {weapon.name} phase={phase} "
+            + $"layer={weapon.gameObject.layer} active={weapon.gameObject.activeSelf} "
+            + $"ammo={weapon.currentAmmo} spare={memory.SpareRounds} "
+            + $"reloading={memory.Reloading} cantTake={weapon.cantTakeSafeBool} "
+            + $"heldOnce={weapon.heldOnce} holder={weapon.lastPlayerHolder != null} "
+            + $"inHandDespawn={inHandDespawn} server={weapon.IsServer} "
+            + $"right={weapon.inRightHand} left={weapon.inLeftHand}");
     }
 
     internal static void RestoreEmptyWeaponAutoDrop(Weapon? weapon, bool restore)
