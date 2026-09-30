@@ -15,6 +15,29 @@ internal static class PotatoGrenadeInputGate
     }
 
     private static readonly ConditionalWeakTable<FirstPersonController, GateState> States = new();
+    private static readonly ConditionalWeakTable<DualLauncher, object> SeenLaunchers = new();
+
+    internal static void ObserveLauncherBeforeUpdate(DualLauncher launcher)
+    {
+        if (launcher == null || !launcher || !launcher.IsOwner || !IsPotatoMode())
+        {
+            return;
+        }
+
+        FirstPersonController? player = launcher.playerController;
+        if (player == null || !player)
+        {
+            player = launcher.behaviour?.playerController;
+        }
+
+        if (player == null || !player || SeenLaunchers.TryGetValue(launcher, out _))
+        {
+            return;
+        }
+
+        SeenLaunchers.Add(launcher, new object());
+        RequireReleaseBeforePinPull(player);
+    }
 
     internal static void RequireReleaseBeforePinPull(FirstPersonController? player)
     {
@@ -78,6 +101,38 @@ internal static class DualLauncher_PotatoGrenadePinGate_Patch
     }
 }
 
+[HarmonyPatch]
+internal static class DualLauncher_PotatoGrenadeFire_Patch
+{
+    private static MethodBase? TargetMethod()
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public
+            | BindingFlags.NonPublic;
+        return typeof(DualLauncher).GetMethod("Fire", flags, null, Type.EmptyTypes, null);
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
+    private static void Prefix(DualLauncher __instance)
+    {
+        if (__instance == null || !__instance || !__instance.IsOwner)
+        {
+            return;
+        }
+
+        WeaponAmmoTuning.MarkPotatoGrenadeSpent(__instance.GetComponent<Weapon>());
+    }
+}
+
+[HarmonyPatch(typeof(DualLauncher), "Update")]
+internal static class DualLauncher_PotatoGrenadeAttachGate_Patch
+{
+    private static void Prefix(DualLauncher __instance)
+    {
+        PotatoGrenadeInputGate.ObserveLauncherBeforeUpdate(__instance);
+    }
+}
+
 [HarmonyPatch(typeof(FirstPersonController), "Update")]
 internal static class FirstPersonController_PotatoGrenadeReleaseGate_Patch
 {
@@ -118,6 +173,7 @@ internal static class DualLauncher_PotatoInftatGrenadeThrow_Patch
 
     private static void Postfix(DualLauncher __instance)
     {
+        PotatotatState.OnServerGrenadeThrown(__instance);
         PotatoInftatState.OnServerGrenadeThrown(__instance);
     }
 }

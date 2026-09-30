@@ -12,7 +12,9 @@ internal static class ScoreManager_CustomTeam_Patch
             return true;
         }
 
-        __result = TeamAssignment.ResolveTeamId(playerId);
+        __result = GameModeManager.IsTeamBased
+            ? TeamAssignment.ResolveTeamId(playerId)
+            : playerId;
         return false;
     }
 }
@@ -22,11 +24,18 @@ internal static class GameManager_CustomTeamState_Patch
 {
     private static void Postfix(GameManager __instance)
     {
-        if (!GameModeManager.IsCustomMode || !__instance.IsServer || !__instance.playingTeams)
+        if (!GameModeManager.IsCustomMode || !__instance.playingTeams)
         {
             return;
         }
 
-        __instance.sync___set_value_playingTeams(false, true);
+        if (__instance.IsServer)
+        {
+            __instance.sync___set_value_playingTeams(false, true);
+        }
+        else
+        {
+            __instance.playingTeams = false;
+        }
     }
 }

@@ -195,9 +195,13 @@ internal static class PotatotatRules
         return currentKills;
     }
 
-    internal static bool IsGrenadeDeath(int killerId, int potatoPlayerId, bool grenadeDeathMarked)
+    internal static bool IsGrenadeDeath(int killerId, int potatoPlayerId,
+        int recentGrenadeSourcePlayerId, bool grenadeDeathMarked)
     {
-        return grenadeDeathMarked || (potatoPlayerId >= 0 && killerId == potatoPlayerId);
+        return grenadeDeathMarked
+            || (potatoPlayerId >= 0 && killerId == potatoPlayerId)
+            || (recentGrenadeSourcePlayerId >= 0
+                && killerId == recentGrenadeSourcePlayerId);
     }
 
     internal static bool IsAllowedWeapon(string weaponName, bool hasPotato, int score)

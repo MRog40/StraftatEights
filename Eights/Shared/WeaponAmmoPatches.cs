@@ -28,9 +28,44 @@ internal static class Weapon_DespawnWithSpareRounds_Patch
 {
     private static bool Prefix(Weapon __instance)
     {
-        return __instance == null || !__instance
-            || __instance.gameObject.layer != 7 || __instance.currentAmmo > -100
-            || !WeaponAmmoTuning.HasSpareRounds(__instance);
+        if (__instance == null || !__instance)
+        {
+            return true;
+        }
+
+        bool ammoTuningEnabled = GameModeManager.UsesTeamWeaponLoadouts
+            || WeaponSettingsState.Enabled;
+        if (WeaponAmmoTuning.RestoreDroppedWeaponAmmo(__instance, ammoTuningEnabled,
+                WeaponSettingsState.SpareMagazines))
+        {
+            return false;
+        }
+
+        return !WeaponDespawnRules.ShouldPreserveDroppedWeapon(
+            __instance.gameObject.layer == 7, __instance.needsAmmo,
+            __instance.currentAmmo, WeaponAmmoTuning.HasSpareRounds(__instance));
+    }
+}
+
+[HarmonyPatch]
+internal static class Weapon_DroppedDespawnServer_Patch
+{
+    private static MethodBase? TargetMethod()
+    {
+        return FishNetCompatibility.FindGeneratedMethod(typeof(Weapon),
+            "RpcLogic___DespawnObjectServer_",
+            method => method.ReturnType == typeof(void)
+                && method.GetParameters().Length == 0);
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
+    private static bool Prefix(Weapon __instance)
+    {
+        bool restored = WeaponAmmoTuning.RestoreDroppedWeaponAmmo(
+            __instance, GameModeManager.UsesTeamWeaponLoadouts || WeaponSettingsState.Enabled,
+            WeaponSettingsState.SpareMagazines);
+        return !restored;
     }
 }
 

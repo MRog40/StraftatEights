@@ -21,6 +21,7 @@
     <Compile Include="..\..\Shared\SndtatRules.cs" Link="SndtatRules.cs" />
     <Compile Include="..\..\Shared\CountertatRules.cs" Link="CountertatRules.cs" />
     <Compile Include="..\..\Shared\TeamWeaponSequence.cs" Link="TeamWeaponSequence.cs" />
+    <Compile Include="..\..\Shared\WeaponDespawnRules.cs" Link="WeaponDespawnRules.cs" />
     <Compile Include="..\..\Shared\PlayerNameMarkup.cs" Link="PlayerNameMarkup.cs" />
     <Compile Include="..\..\Shared\PlayerNameSnapshotCodec.cs" Link="PlayerNameSnapshotCodec.cs" />
   </ItemGroup>

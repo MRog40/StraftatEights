@@ -84,6 +84,13 @@ Assert(parsed.SequenceEqual(new[] { "Glock", "SMG" }),
     "Weapon parsing must trim, filter, preserve order, and remove duplicates.");
 Assert(WeaponListParser.Parse(null!, new[] { "Glock" }).Count == 0,
     "A null weapon list must produce an empty result.");
+Assert(WeaponDespawnRules.ShouldPreserveDroppedWeapon(true, true, 0, true)
+    && WeaponDespawnRules.ShouldPreserveDroppedWeapon(true, true, -103, true)
+    && !WeaponDespawnRules.ShouldPreserveDroppedWeapon(true, true, 0, false)
+    && !WeaponDespawnRules.ShouldPreserveDroppedWeapon(false, true, 0, true)
+    && !WeaponDespawnRules.ShouldPreserveDroppedWeapon(true, true, 1, true)
+    && !WeaponDespawnRules.ShouldPreserveDroppedWeapon(true, false, 0, true),
+    "Only empty dropped ammo weapons with spare rounds must bypass despawn.");
 Assert(DefaultKnifeRules.ShouldProvideKnife(true, false)
     && !DefaultKnifeRules.ShouldProvideKnife(false, false)
     && !DefaultKnifeRules.ShouldProvideKnife(true, true),
@@ -672,10 +679,11 @@ Assert(PotatotatRules.ResetKillStreakOnGrenadeDeath(potatoKillStreaks, 1) == 80
     && potatoKillStreaks[1] == 0
     && PotatotatRules.ResetKillStreakOnGrenadeDeath(potatoKillStreaks, 2) == 0,
     "A grenade death must reset only the victim's existing kill streak.");
-Assert(PotatotatRules.IsGrenadeDeath(1, 1, false)
-    && PotatotatRules.IsGrenadeDeath(-1, 1, true)
-    && !PotatotatRules.IsGrenadeDeath(2, 1, false),
-    "A death caused by the current potato holder must reset the victim's kill streak even when client-owned grenade effects are not marked on the host.");
+Assert(PotatotatRules.IsGrenadeDeath(1, 1, -1, false)
+    && PotatotatRules.IsGrenadeDeath(1, 2, 1, false)
+    && PotatotatRules.IsGrenadeDeath(-1, 1, -1, true)
+    && !PotatotatRules.IsGrenadeDeath(2, 1, 1, false),
+    "A grenade multikill must keep resetting victims after the first victim becomes the new potato.");
 Assert(InfideltatRules.GetKillerAward(true, false) == 30
     && InfideltatRules.GetKillerAward(true, false) == InfideltatRules.PointsForKillingInfideltat,
     "A terrorist must receive thirty points for killing the Infideltat.");

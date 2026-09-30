@@ -362,7 +362,12 @@ internal static class WeaponSettingsState
             {
                 NextDefaultKnifeGrantTimes[playerId] = Time.unscaledTime
                     + DefaultKnifeGrantRetrySeconds;
-                WeaponService.NotifyOwnerWeaponAttached(playerId, IsDefaultKnife(rightWeapon));
+                bool rightHand = IsDefaultKnife(rightWeapon);
+                Weapon? knife = rightHand ? rightWeapon : leftWeapon;
+                if (knife != null && knife)
+                {
+                    WeaponService.NotifyOwnerWeaponAttached(playerId, rightHand, knife.gameObject);
+                }
             }
             return;
         }

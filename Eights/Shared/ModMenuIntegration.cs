@@ -110,12 +110,16 @@ internal static class ModMenuIntegration
                     GameModeManager.MixupTeams);
                 context.InsertButton(insertionPosition, "Skip Round", "Skip Round",
                     GameModeManager.SkipCurrentRound);
+                context.InsertButton(insertionPosition + 1, "Skip Map", "Skip Map",
+                    GameModeManager.SkipCurrentMap);
             }
             else
             {
                 context.InsertButton(insertionPosition, "Skip Round", "Skip Round",
                     GameModeManager.SkipCurrentRound);
-                context.InsertButton(insertionPosition + 1, "Mixup Teams", "Mixup Teams",
+                context.InsertButton(insertionPosition + 1, "Skip Map", "Skip Map",
+                    GameModeManager.SkipCurrentMap);
+                context.InsertButton(insertionPosition + 2, "Mixup Teams", "Mixup Teams",
                     GameModeManager.MixupTeams);
             }
         }
@@ -123,6 +127,7 @@ internal static class ModMenuIntegration
         {
             context.AppendButton("Mixup Teams", "Mixup Teams", GameModeManager.MixupTeams);
             context.AppendButton("Skip Round", "Skip Round", GameModeManager.SkipCurrentRound);
+            context.AppendButton("Skip Map", "Skip Map", GameModeManager.SkipCurrentMap);
         }
 
         InsertToggleAllButton(context);

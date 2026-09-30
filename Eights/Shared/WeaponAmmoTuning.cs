@@ -23,6 +23,9 @@ internal static class WeaponAmmoTuning
         public bool OriginalInHandDespawn;
         public bool UnlimitedAmmo;
         public bool SingleShot;
+        public bool RestoredDuringDrop;
+        public bool FreshPotatoGrenade;
+        public bool PotatoGrenadeSpent;
         public int PendingReloadRequestId;
     }
 
@@ -33,10 +36,10 @@ internal static class WeaponAmmoTuning
     private static Coroutine? hudRefreshCoroutine;
     private static int nextReloadRequestId;
 
-    private static void SetCurrentAmmo(Weapon weapon, int ammo)
+    private static void SetCurrentAmmo(Weapon weapon, int ammo, bool forceServerSync = false)
     {
         weapon.currentAmmo = ammo;
-        if (weapon.IsServer || weapon.IsOwner)
+        if (forceServerSync || weapon.IsServer || weapon.IsOwner)
         {
             weapon.sync___set_value_currentAmmo(ammo, true);
         }
@@ -121,7 +124,8 @@ internal static class WeaponAmmoTuning
         }
     }
 
-    internal static void InitializeUnlimited(Weapon weapon, int magazineSizeOverride = 0)
+    internal static void InitializeUnlimited(Weapon weapon, int magazineSizeOverride = 0,
+        bool forceServerSync = false)
     {
         if (weapon == null || !weapon.needsAmmo)
         {
@@ -147,7 +151,7 @@ internal static class WeaponAmmoTuning
         if (shouldRestoreAmmo)
         {
             weapon.CancelInvoke("DespawnObject");
-            SetCurrentAmmo(weapon, memory.MagazineSize);
+            SetCurrentAmmo(weapon, memory.MagazineSize, forceServerSync);
             weapon.cantTakeSafeBool = false;
             weapon.noAmmoClicks = 0;
         }
@@ -223,7 +227,8 @@ internal static class WeaponAmmoTuning
         return MemoryByWeapon.TryGetValue(weapon, out Memory memory) && memory.SingleShot;
     }
 
-    internal static void InitializeFromSpawnerPickup(Weapon weapon, int spareMagazines)
+    internal static void InitializeFromSpawnerPickup(Weapon weapon, int spareMagazines,
+        bool forceServerSync = false)
     {
         if (weapon == null || !weapon.needsAmmo)
         {
@@ -244,7 +249,7 @@ internal static class WeaponAmmoTuning
                 memory.MagazineSize = Mathf.Max(1, weapon.ammoCharge > 0 ? weapon.ammoCharge : Mathf.RoundToInt(weapon.chargedBullets));
             }
             int rounds = memory.MagazineSize * Mathf.Max(0, spareMagazines);
-            SetCurrentAmmo(weapon, rounds);
+            SetCurrentAmmo(weapon, rounds, forceServerSync);
             memory.SpareRounds = rounds;
         }
         else
@@ -254,7 +259,7 @@ internal static class WeaponAmmoTuning
                 memory.MagazineSize = Mathf.Max(1, weapon.currentAmmo);
             }
             memory.SpareRounds = memory.MagazineSize * Mathf.Max(0, spareMagazines);
-            SetCurrentAmmo(weapon, memory.MagazineSize);
+            SetCurrentAmmo(weapon, memory.MagazineSize, forceServerSync);
         }
 
         memory.Initialized = true;
@@ -297,12 +302,206 @@ internal static class WeaponAmmoTuning
         return weapon.reloadWeapon
             ? weapon.chargedBullets > 0f
             : MemoryByWeapon.TryGetValue(weapon, out Memory memory)
-                && memory.SpareRounds > 0;
+                && (memory.UnlimitedAmmo || memory.SpareRounds > 0);
     }
 
     internal static bool IsReloading(Weapon weapon)
     {
         return MemoryByWeapon.TryGetValue(weapon, out Memory memory) && memory.Reloading;
+    }
+
+    internal static void MarkFreshPotatoGrenade(Weapon weapon)
+    {
+        if (!IsPotatoGrenade(weapon))
+        {
+            return;
+        }
+
+        Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
+        if (!memory.PotatoGrenadeSpent)
+        {
+            memory.FreshPotatoGrenade = true;
+        }
+    }
+
+    internal static void MarkPotatoGrenadeSpent(Weapon weapon)
+    {
+        if (!IsPotatoGrenade(weapon))
+        {
+            return;
+        }
+
+        Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
+        memory.PotatoGrenadeSpent = true;
+        memory.FreshPotatoGrenade = false;
+    }
+
+    internal static bool TryRestoreFreshPotatoGrenadeAmmo(Weapon weapon)
+    {
+        if (!IsPotatoGrenade(weapon) || !weapon.IsOwner
+            || weapon.gameObject.layer == 7)
+        {
+            return false;
+        }
+
+        if (!MemoryByWeapon.TryGetValue(weapon, out Memory? memory)
+            || !memory.FreshPotatoGrenade || memory.PotatoGrenadeSpent)
+        {
+            return false;
+        }
+
+        if (weapon.currentAmmo > 0)
+        {
+            memory.FreshPotatoGrenade = false;
+            return false;
+        }
+
+        DualLauncher? launcher = weapon.GetComponent<DualLauncher>();
+        if (launcher == null || !launcher || launcher.grenadeOpen)
+        {
+            return false;
+        }
+
+        weapon.CancelInvoke("DespawnObject");
+        SetCurrentAmmo(weapon, 1);
+        weapon.cantTakeSafeBool = false;
+        weapon.noAmmoClicks = 0;
+        memory.FreshPotatoGrenade = false;
+        return true;
+    }
+
+    private static bool IsPotatoGrenade(Weapon weapon)
+    {
+        return weapon != null && weapon && weapon.needsAmmo
+            && (GameModeManager.IsActive(GameMode.Potatotat)
+                || GameModeManager.IsActive(GameMode.PotatoInftat))
+            && (weapon.name.StartsWith(PotatotatState.PotatoWeaponName, StringComparison.Ordinal)
+                || weapon.name.StartsWith(PotatoInftatState.GrenadeWeaponName, StringComparison.Ordinal));
+    }
+
+    internal static void CompleteReloadBeforeDrop(Weapon? weapon)
+    {
+        if (weapon == null || !weapon || !weapon.IsServer || !weapon.needsAmmo || weapon.reloadWeapon
+            || weapon.currentAmmo > 0)
+        {
+            return;
+        }
+
+        bool canInitialize = GameModeManager.UsesTeamWeaponLoadouts
+            || WeaponSettingsState.Enabled;
+        if (!TryLoadMagazine(weapon, canInitialize, WeaponSettingsState.SpareMagazines))
+        {
+            return;
+        }
+
+        if (MemoryByWeapon.TryGetValue(weapon, out Memory? memory))
+        {
+            memory.RestoredDuringDrop = true;
+        }
+        RequestServerReload(weapon);
+    }
+
+    internal static void RestoreVisibilityAfterDrop(Weapon? weapon)
+    {
+        if (weapon == null || !weapon
+            || !MemoryByWeapon.TryGetValue(weapon, out Memory? memory)
+            || !memory.RestoredDuringDrop)
+        {
+            return;
+        }
+
+        if (weapon.gameObject.layer != 7)
+        {
+            memory.RestoredDuringDrop = false;
+            return;
+        }
+
+        weapon.CancelInvoke("DespawnObject");
+        if (!weapon.gameObject.activeSelf)
+        {
+            weapon.gameObject.SetActive(true);
+        }
+        memory.RestoredDuringDrop = false;
+    }
+
+    internal static bool RestoreDroppedWeaponAmmo(Weapon? weapon, bool enabled,
+        int spareMagazines)
+    {
+        if (!enabled || weapon == null || !weapon || weapon.gameObject.layer != 7)
+        {
+            return false;
+        }
+
+        if (TryLoadMagazine(weapon, true, spareMagazines))
+        {
+            return true;
+        }
+
+        if (weapon.currentAmmo > 0
+            && MemoryByWeapon.TryGetValue(weapon, out Memory? memory)
+            && memory.Initialized)
+        {
+            weapon.CancelInvoke("DespawnObject");
+            if (!weapon.gameObject.activeSelf)
+            {
+                weapon.gameObject.SetActive(true);
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryLoadMagazine(Weapon weapon, bool initialize, int spareMagazines)
+    {
+        if (!weapon.needsAmmo || weapon.reloadWeapon || weapon.currentAmmo > 0)
+        {
+            return false;
+        }
+
+        if (!MemoryByWeapon.TryGetValue(weapon, out Memory? memory))
+        {
+            if (!initialize)
+            {
+                return false;
+            }
+
+            Initialize(weapon, spareMagazines);
+            if (!MemoryByWeapon.TryGetValue(weapon, out memory))
+            {
+                return false;
+            }
+        }
+
+        if ((!memory.SpareRoundsInitialized && !memory.UnlimitedAmmo)
+            || (!memory.UnlimitedAmmo && memory.SpareRounds <= 0)
+            || memory.MagazineSize <= 0)
+        {
+            return false;
+        }
+
+        int rounds = memory.UnlimitedAmmo
+            ? memory.MagazineSize
+            : Mathf.Min(memory.MagazineSize, memory.SpareRounds);
+        if (!memory.UnlimitedAmmo)
+        {
+            memory.SpareRounds -= rounds;
+        }
+
+        bool restoreInHandDespawn = memory.Reloading;
+        memory.Reloading = false;
+        memory.PendingReloadRequestId = 0;
+        weapon.CancelInvoke("DespawnObject");
+        SetCurrentAmmo(weapon, rounds);
+        weapon.cantTakeSafeBool = false;
+        weapon.noAmmoClicks = 0;
+        weapon.isReloading = false;
+        if (restoreInHandDespawn)
+        {
+            SetFieldValue(weapon, "inHandDespawn", memory.OriginalInHandDespawn);
+        }
+        memory.OriginalInHandDespawn = false;
+        return true;
     }
 
     internal static bool TryAcceptReloadRequest(CSteamID sender, int requestId)
@@ -470,7 +669,10 @@ internal static class WeaponAmmoTuning
         Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
         memory.Reloading = false;
         memory.ManualReloadPressed = false;
+        memory.RestoredDuringDrop = false;
         memory.OriginalInHandDespawn = false;
+        memory.FreshPotatoGrenade = false;
+        memory.PotatoGrenadeSpent = false;
         memory.PendingReloadRequestId = 0;
         weapon.isReloading = false;
         weapon.cantTakeSafeBool = false;
@@ -694,6 +896,7 @@ internal static class WeaponAmmoTuning
     {
         memory.Reloading = true;
         memory.OriginalInHandDespawn = GetFieldValue(weapon, "inHandDespawn") is bool inHandDespawn && inHandDespawn;
+        weapon.CancelInvoke("DespawnObject");
         weapon.cantTakeSafeBool = true;
         SetFieldValue(weapon, "inHandDespawn", false);
         weapon.isReloading = true;
@@ -733,10 +936,7 @@ internal static class WeaponAmmoTuning
             memory.SpareRounds -= rounds;
         }
         SetCurrentAmmo(weapon, rounds);
-        if (!memory.UnlimitedAmmo)
-        {
-            RequestServerReload(weapon);
-        }
+        RequestServerReload(weapon);
         weapon.cantTakeSafeBool = false;
         weapon.noAmmoClicks = 0;
         memory.Reloading = false;

@@ -310,8 +310,8 @@ internal static class GameModeRespawn
         }
 
         FirstPersonController player = manager.player;
-        if (!player.startOfRound
-            && (PauseManager.Instance == null || !PauseManager.Instance.startRound))
+        bool roundStartActive = PauseManager.Instance != null && PauseManager.Instance.startRound;
+        if (player.canMove && !player.startOfRound && !roundStartActive)
         {
             return;
         }

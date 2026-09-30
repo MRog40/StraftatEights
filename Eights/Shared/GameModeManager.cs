@@ -356,6 +356,7 @@ internal static class GameModeManager
     private static bool _mapPlaylistPrepared;
     private static float _nextClientLobbyPollTime;
     private static string _pendingNormalMapName = string.Empty;
+    private static string _pendingSkipMapName = string.Empty;
 
     internal static void Initialize()
     {
@@ -726,6 +727,30 @@ internal static class GameModeManager
         return TryLoadSelectedMap();
     }
 
+    private static bool CycleForSkippedMap()
+    {
+        if (IsVanillaScene || !MyceliumNetwork.IsHost)
+        {
+            return false;
+        }
+
+        string mapName = _pendingSkipMapName;
+        _pendingSkipMapName = string.Empty;
+        if (ActiveMode == GameMode.None
+            || string.IsNullOrEmpty(mapName)
+            || !ModeMapCatalog.IsSupported(ActiveMode, mapName, EffectiveMapOverrides))
+        {
+            Plugin.Logger.LogWarning($"[GameMode] Skip map could not use the pending map: mode={ActiveMode} "
+                + $"map={mapName}");
+            return CycleForNextMap();
+        }
+
+        SelectedMapName = mapName;
+        RecordRecentMap(ActiveMode, mapName);
+        ActivateMode(ActiveMode, true);
+        return TryLoadSelectedMap();
+    }
+
     internal static bool HandleSceneChange()
     {
         if (IsVanillaScene)
@@ -748,6 +773,12 @@ internal static class GameModeManager
             PrepareTeamsForCurrentMode();
             BroadcastActiveMode();
             return TryLoadSelectedMap();
+        }
+
+        if (_skipMapTransitionPending)
+        {
+            _skipMapTransitionPending = false;
+            return CycleForSkippedMap();
         }
 
         if (_skipRoundTransitionPending)
@@ -1233,6 +1264,32 @@ internal static class GameModeManager
         return true;
     }
 
+    private static bool TrySelectDifferentMapForActiveMode(out string mapName)
+    {
+        mapName = string.Empty;
+        if (ActiveMode == GameMode.None || string.IsNullOrEmpty(SelectedMapName))
+        {
+            return false;
+        }
+
+        IReadOnlyList<string> mapNames = ModeMapCatalog.GetMapNames(ActiveMode, EffectiveMapOverrides);
+        if (mapNames.Count == 0)
+        {
+            return false;
+        }
+
+        _mapPlaylistRandom ??= new System.Random(UnityEngine.Random.Range(0, int.MaxValue));
+        RecentMapsByMode.TryGetValue(ActiveMode, out Queue<string>? recentMaps);
+        HashSet<string> excludedMaps = recentMaps == null
+            ? new HashSet<string>(StringComparer.Ordinal)
+            : new HashSet<string>(recentMaps, StringComparer.Ordinal);
+        excludedMaps.Add(SelectedMapName);
+        mapName = MapPlaylist.SelectNextMap(mapNames, SelectedMapName, _mapPlaylistRandom,
+            excludedMaps);
+        return !string.IsNullOrEmpty(mapName) && mapName != SelectedMapName
+            && ModeMapCatalog.IsSupported(ActiveMode, mapName, EffectiveMapOverrides);
+    }
+
     private static void RecordRecentMap(GameMode mode, string mapName)
     {
         if (!RecentMapsByMode.TryGetValue(mode, out Queue<string>? recentMaps))
@@ -1332,6 +1389,7 @@ internal static class GameModeManager
         RecentMapsByMode.Clear();
         SelectedMapName = string.Empty;
         _pendingNormalMapName = string.Empty;
+        _pendingSkipMapName = string.Empty;
     }
 
     private static List<GameMode> GetConfiguredModes()
@@ -1538,6 +1596,7 @@ internal static class GameModeManager
         _roundLifecycleStarted = false;
         _customRoundTransitionPending = false;
         _skipRoundTransitionPending = false;
+        _skipMapTransitionPending = false;
         _lastRoundEndCountdownSeconds = -1;
         PendingDeaths.Clear();
         GameModeHud.ClearRoundEndCountdown();
@@ -1824,6 +1883,7 @@ internal static class GameModeManager
     private static readonly HashSet<int> PendingDeaths = new();
     private static bool _customRoundTransitionPending;
     private static bool _skipRoundTransitionPending;
+    private static bool _skipMapTransitionPending;
     private static bool _mixupTransitionPending;
     internal const int NoWinningTeamId = int.MinValue;
 
@@ -1837,16 +1897,23 @@ internal static class GameModeManager
 
         _customRoundTransitionPending = true;
         Phase = GameModePhase.EndingRound;
-        BroadcastActiveMode();
         int roundId = RoundId;
 
-        ScoreManager.Instance.ResetRound();
-        if (awardRoundPoint)
+        try
         {
-            ScoreManager.Instance.AddPoints(winningTeamId);
+            ScoreManager.Instance.ResetRound();
+            if (awardRoundPoint)
+            {
+                ScoreManager.Instance.AddPoints(winningTeamId);
+            }
+
+            BroadcastActiveMode();
+            RoundManager.Instance.CmdEndRound(winningTeamId);
         }
-        RoundManager.Instance.CmdEndRound(winningTeamId);
-        Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
+        finally
+        {
+            Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
+        }
     }
 
     internal static void CompleteCustomRound(IReadOnlyList<int> winningTeamIds)
@@ -1860,21 +1927,27 @@ internal static class GameModeManager
 
         _customRoundTransitionPending = true;
         Phase = GameModePhase.EndingRound;
-        BroadcastActiveMode();
         int roundId = RoundId;
 
-        ScoreManager.Instance.ResetRound();
-        HashSet<int> distinctTeams = new();
-        foreach (int winningTeamId in winningTeamIds)
+        try
         {
-            if (winningTeamId >= 0 && distinctTeams.Add(winningTeamId))
+            ScoreManager.Instance.ResetRound();
+            HashSet<int> distinctTeams = new();
+            foreach (int winningTeamId in winningTeamIds)
             {
-                ScoreManager.Instance.AddPoints(winningTeamId);
+                if (winningTeamId >= 0 && distinctTeams.Add(winningTeamId))
+                {
+                    ScoreManager.Instance.AddPoints(winningTeamId);
+                }
             }
-        }
 
-        RoundManager.Instance.CmdEndRound(winningTeamIds[0]);
-        Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
+            BroadcastActiveMode();
+            RoundManager.Instance.CmdEndRound(winningTeamIds[0]);
+        }
+        finally
+        {
+            Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
+        }
     }
 
     internal static void SkipCurrentRound()
@@ -1900,14 +1973,61 @@ internal static class GameModeManager
         _customRoundTransitionPending = true;
         _skipRoundTransitionPending = true;
         Phase = GameModePhase.EndingRound;
-        BroadcastActiveMode();
         int roundId = RoundId;
 
-        ScoreManager.Instance.ResetRound();
-        RoundManager.Instance.CmdEndRound(NoWinningTeamId);
-        Plugin.Logger.LogInfo($"[GameMode] Skipping round without points: mode={ActiveMode} "
-            + $"map={SelectedMapName} round={roundId}");
-        Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
+        try
+        {
+            ScoreManager.Instance.ResetRound();
+            BroadcastActiveMode();
+            Plugin.Logger.LogInfo($"[GameMode] Skipping round without points: mode={ActiveMode} "
+                + $"map={SelectedMapName} round={roundId}");
+            RoundManager.Instance.CmdEndRound(NoWinningTeamId);
+        }
+        finally
+        {
+            Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
+        }
+    }
+
+    internal static void SkipCurrentMap()
+    {
+        if (!MyceliumNetwork.IsHost)
+        {
+            RequestSkipCurrentMap();
+            return;
+        }
+
+        bool validPhase = Phase == GameModePhase.Lobby || Phase == GameModePhase.ActiveRound;
+        if (!MyceliumNetwork.InLobby || !IsCustomMode || !validPhase
+            || _customRoundTransitionPending || RoundManager.Instance == null
+            || ScoreManager.Instance == null || SceneMotor.Instance == null || Plugin.Instance == null
+            || !TrySelectDifferentMapForActiveMode(out string nextMapName))
+        {
+            Plugin.Logger.LogWarning($"[GameMode] Skip map ignored: host={MyceliumNetwork.IsHost} "
+                + $"lobby={MyceliumNetwork.InLobby} mode={ActiveMode} phase={Phase} "
+                + $"custom={IsCustomMode} pending={_customRoundTransitionPending} "
+                + $"roundManager={RoundManager.Instance != null} sceneMotor={SceneMotor.Instance != null}");
+            return;
+        }
+
+        _customRoundTransitionPending = true;
+        _skipMapTransitionPending = true;
+        _pendingSkipMapName = nextMapName;
+        Phase = GameModePhase.EndingRound;
+        int roundId = RoundId;
+
+        try
+        {
+            ScoreManager.Instance.ResetRound();
+            BroadcastActiveMode();
+            Plugin.Logger.LogInfo($"[GameMode] Skipping map without points: mode={ActiveMode} "
+                + $"map={SelectedMapName} nextMap={nextMapName} round={roundId}");
+            RoundManager.Instance.CmdEndRound(NoWinningTeamId);
+        }
+        finally
+        {
+            Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
+        }
     }
 
     internal static void MixupTeams()
@@ -1933,14 +2053,20 @@ internal static class GameModeManager
         _customRoundTransitionPending = true;
         _mixupTransitionPending = true;
         Phase = GameModePhase.EndingRound;
-        BroadcastActiveMode();
         int roundId = RoundId;
 
-        ScoreManager.Instance.ResetRound();
-        RoundManager.Instance.CmdEndRound(NoWinningTeamId);
-        Plugin.Logger.LogInfo($"[GameMode] Mixing up teams: mode={ActiveMode} "
-            + $"map={SelectedMapName} round={roundId}");
-        Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
+        try
+        {
+            ScoreManager.Instance.ResetRound();
+            BroadcastActiveMode();
+            Plugin.Logger.LogInfo($"[GameMode] Mixing up teams: mode={ActiveMode} "
+                + $"map={SelectedMapName} round={roundId}");
+            RoundManager.Instance.CmdEndRound(NoWinningTeamId);
+        }
+        finally
+        {
+            Plugin.Instance.StartCoroutine(AdvanceAfterCustomRound(roundId));
+        }
     }
 
     private static void RequestSkipCurrentRound()
@@ -1951,6 +2077,17 @@ internal static class GameModeManager
         }
 
         MyceliumNetwork.RPC(ModId, nameof(Plugin.RequestSkipRound), ReliableType.Reliable,
+            ClientInstance.Instance.PlayerId);
+    }
+
+    private static void RequestSkipCurrentMap()
+    {
+        if (!MyceliumNetwork.InLobby || ClientInstance.Instance == null)
+        {
+            return;
+        }
+
+        MyceliumNetwork.RPC(ModId, nameof(Plugin.RequestSkipMap), ReliableType.Reliable,
             ClientInstance.Instance.PlayerId);
     }
 
@@ -2184,6 +2321,17 @@ public partial class Plugin
         }
 
         GameModeManager.SkipCurrentRound();
+    }
+
+    [CustomRPC]
+    public void RequestSkipMap(int playerId, RPCInfo info)
+    {
+        if (!MyceliumNetwork.IsHost || !NetworkAuthority.IsPlayerSender(info, playerId))
+        {
+            return;
+        }
+
+        GameModeManager.SkipCurrentMap();
     }
 
     [CustomRPC]

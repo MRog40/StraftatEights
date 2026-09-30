@@ -144,8 +144,9 @@ internal static class StraftatState
 
     internal static void ServerTick(float deltaTime)
     {
-        if (!GameModeManager.IsModeEnabledForCurrentRound(GameMode.Straftat,
-            Plugin.StraftatEnabled.Value) || !MyceliumNetwork.IsHost
+        if (!MyceliumNetwork.IsHost || Plugin.StraftatEnabled == null
+            || !GameModeManager.IsModeEnabledForCurrentRound(GameMode.Straftat,
+            Plugin.StraftatEnabled.Value)
             || !GameModeManager.IsActive(GameMode.Straftat)
             || !GameModeManager.IsRoundGameplayActive
             || WinnerId >= 0 || TakeId <= 0)
@@ -162,7 +163,7 @@ internal static class StraftatState
 
     internal static void ClientTick(float deltaTime)
     {
-        if (MyceliumNetwork.IsHost
+        if (MyceliumNetwork.IsHost || Plugin.StraftatEnabled == null
             || !GameModeManager.IsModeEnabledForCurrentRound(GameMode.Straftat,
                 Plugin.StraftatEnabled.Value)
             || !GameModeManager.IsActive(GameMode.Straftat)

@@ -8,46 +8,55 @@ internal static class Weapon_UpdatePolicy_Patch
 {
     private static void Prefix(Weapon __instance, out bool __state)
     {
+        RestoreFreshPotatoGrenadeAmmo(__instance);
+        bool droppedAmmoProtectionEnabled = false;
         if (GameModeManager.UsesTeamWeaponLoadouts
             || !GameModeManager.ShouldIgnoreGlobalWeaponSettingsFor(__instance))
         {
             bool ammoTuningEnabled = GameModeManager.UsesTeamWeaponLoadouts
                 || WeaponSettingsState.Enabled;
+            droppedAmmoProtectionEnabled = ammoTuningEnabled;
             WeaponAmmoTuning.ApplyToWeapon(__instance, ammoTuningEnabled,
                 WeaponSettingsState.SpareMagazines);
         }
 
         if (GuntatState.IsCurrentProgressWeapon(__instance))
         {
+            droppedAmmoProtectionEnabled = true;
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
         else if (GameModeManager.IsActive(GameMode.Ratatat)
             && RatatatState.IsHumanWeapon(__instance))
         {
+            droppedAmmoProtectionEnabled = true;
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
         else if (GameModeManager.IsActive(GameMode.Infideltat) && InfideltatState.WeaponsUnlocked)
         {
+            droppedAmmoProtectionEnabled = true;
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
         else if (GameModeManager.IsActive(GameMode.Assassintat)
             && AssassintatState.IsUnlimitedWeapon(__instance))
         {
+            droppedAmmoProtectionEnabled = true;
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
         else if (GameModeManager.IsActive(GameMode.Potatotat)
             && PotatotatState.IsPotatotatWeapon(__instance))
         {
+            droppedAmmoProtectionEnabled = true;
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
         else if (GameModeManager.IsHuntersActive
             && HuntModesState.IsExpectedWeapon(__instance))
         {
+            droppedAmmoProtectionEnabled = true;
             WeaponAmmoTuning.ApplyUnlimitedToWeapon(__instance);
             WeaponAmmoTuning.TryStartManualReload(__instance, true, 0);
         }
@@ -64,7 +73,14 @@ internal static class Weapon_UpdatePolicy_Patch
             __instance.noAmmoClicks = 0;
         }
 
+        WeaponAmmoTuning.RestoreDroppedWeaponAmmo(__instance, droppedAmmoProtectionEnabled,
+            WeaponSettingsState.SpareMagazines);
         __state = WeaponAmmoTuning.SuppressEmptyWeaponAutoDrop(__instance);
+    }
+
+    private static void RestoreFreshPotatoGrenadeAmmo(Weapon weapon)
+    {
+        WeaponAmmoTuning.TryRestoreFreshPotatoGrenadeAmmo(weapon);
     }
 
     private static void Postfix(Weapon __instance, bool __state)
@@ -135,5 +151,6 @@ internal static class Weapon_UpdatePolicy_Patch
         }
 
         WeaponAmmoTuning.RestoreEmptyWeaponAutoDrop(__instance, __state);
+        WeaponAmmoTuning.RestoreVisibilityAfterDrop(__instance);
     }
 }

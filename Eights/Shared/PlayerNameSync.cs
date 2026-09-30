@@ -11,15 +11,22 @@ internal static class PlayerNameSync
     private static readonly ModeSyncState Sync = new(livePushInterval: 1.5f);
     private static readonly Dictionary<int, string> Names = new();
     private static string _hostPayload = string.Empty;
+    private static bool _initialized;
 
     internal static void Initialize()
     {
+        if (_initialized)
+        {
+            return;
+        }
+
         ModeLobbyDataSync.RegisterKeys(LobbyDataKey);
         MyceliumNetwork.LobbyCreated += OnLobbyEntered;
         MyceliumNetwork.LobbyEntered += OnLobbyEntered;
         MyceliumNetwork.LobbyLeft += OnLobbyLeft;
         MyceliumNetwork.LobbyDataUpdated += OnLobbyDataUpdated;
         MyceliumNetwork.PlayerEntered += OnPlayerEntered;
+        _initialized = true;
     }
 
     internal static string GetDisplayName(int playerId)
@@ -39,7 +46,7 @@ internal static class PlayerNameSync
 
     internal static void PollIfClient()
     {
-        if (MyceliumNetwork.InLobby && !MyceliumNetwork.IsHost)
+        if (_initialized && MyceliumNetwork.InLobby && !MyceliumNetwork.IsHost)
         {
             ApplyLobbySnapshot();
         }

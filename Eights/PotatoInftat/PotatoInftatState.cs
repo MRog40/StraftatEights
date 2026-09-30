@@ -13,7 +13,7 @@ internal static class PotatoInftatState
     internal const string SettingsLobbyDataKey = "Eights_PotatoInftat_Settings";
     internal const string LiveLobbyDataKey = "Eights_PotatoInftat_Live";
     internal const string GrenadeWeaponName = "HandGrenade";
-    private const float GrenadeReplacementDelaySeconds = 0.2f;
+    private const float GrenadeReplacementDelaySeconds = 1f;
     internal const float InfectedtatSpeedMultiplier = 1.2f; 
     internal static readonly float SurvivorHealth = HealthUnits.ToInternal(10f);
     internal static bool Enabled;
@@ -363,8 +363,14 @@ internal static class PotatoInftatState
         FirstPersonController? player = launcher.playerController;
         PlayerPickup? pickup = player != null && player ? player.playerPickupScript : null;
         int playerId = pickup != null && pickup ? PlayerLookup.FindPlayerId(pickup) : -1;
-        if (IsInfectedtat(playerId))
+        if (pickup != null && pickup && IsInfectedtat(playerId))
         {
+            Weapon? weapon = launcher.GetComponent<Weapon>();
+            if (weapon != null && weapon && pickup.objInHand == weapon.gameObject)
+            {
+                WeaponService.RemoveHeldWeapon(pickup, true, weapon);
+            }
+
             ScheduleGrenadeGrant(playerId, forceNewDelay: true);
         }
     }
@@ -466,7 +472,8 @@ internal static class PotatoInftatState
         {
             Weapon? rightWeapon = GetHeldWeapon(pickup.objInHand);
             Weapon? leftWeapon = GetHeldWeapon(pickup.objInLeftHand);
-            if (rightWeapon != null && IsHandGrenade(rightWeapon) && leftWeapon == null)
+            if (pickup.hasObjectInHand && rightWeapon != null && IsHandGrenade(rightWeapon)
+                && !pickup.hasObjectInLeftHand && leftWeapon == null)
             {
                 ResolvedLoadouts.Add(playerId);
                 if (!PendingGrenadeGrantVersions.ContainsKey(playerId))
@@ -508,7 +515,7 @@ internal static class PotatoInftatState
         {
             PendingLoadouts[playerId] = Time.unscaledTime + 1f;
             WeaponService.GiveWeapon(playerId, weaponName,
-                WeaponSettingsState.SpareMagazines);
+                WeaponSettingsState.SpareMagazines, requiredMode: GameMode.PotatoInftat);
         }
     }
 
@@ -566,7 +573,8 @@ internal static class PotatoInftatState
             yield break;
         }
 
-        WeaponService.GiveWeapon(playerId, GrenadeWeaponName);
+        WeaponService.GiveWeapon(playerId, GrenadeWeaponName, spareMagazines: 0,
+            requiredMode: GameMode.PotatoInftat);
     }
 
     private static bool HasHandGrenadeHeld(int playerId)
@@ -576,8 +584,10 @@ internal static class PotatoInftatState
             ? health.GetComponent<FirstPersonController>()
             : null;
         PlayerPickup? pickup = player != null && player ? player.playerPickupScript : null;
-        return IsHandGrenade(GetHeldWeapon(pickup?.objInHand))
-            || IsHandGrenade(GetHeldWeapon(pickup?.objInLeftHand));
+        Weapon? rightHandWeapon = GetHeldWeapon(pickup?.objInHand);
+        GameObject? leftHandObject = pickup?.objInLeftHand;
+        return pickup != null && pickup.hasObjectInHand && IsHandGrenade(rightHandWeapon)
+            && !pickup.hasObjectInLeftHand && (leftHandObject == null || !leftHandObject);
     }
 
     private static string GetRandomAllowedWeapon()

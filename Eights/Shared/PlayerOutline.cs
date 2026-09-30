@@ -75,30 +75,25 @@ internal static class PlayerOutline
             MultiTargets.Clear();
         }
 
-        if (GameModeManager.IsTeamBased)
-        {
-            if (Time.unscaledTime >= _nextVisualRefreshTime)
-            {
-                _nextVisualRefreshTime = Time.unscaledTime + VisualRefreshIntervalSeconds;
-                ClearTeamOutlines();
-            }
-            return;
-        }
-
-        if (GameModeManager.ShouldClearPlayerOutlines
-            || !IsOutlineMode(activeMode) || _roleMode != activeMode)
-        {
-            ClearApplied();
-            _singleTarget = null;
-            MultiTargets.Clear();
-            return;
-        }
-
         if (Time.unscaledTime < _nextVisualRefreshTime)
         {
             return;
         }
         _nextVisualRefreshTime = Time.unscaledTime + VisualRefreshIntervalSeconds;
+        if (!GameModeManager.IsCustomMode)
+        {
+            return;
+        }
+        ClearAll();
+
+        if (GameModeManager.IsTeamBased
+            || GameModeManager.ShouldClearPlayerOutlines
+            || !IsOutlineMode(activeMode) || _roleMode != activeMode)
+        {
+            _singleTarget = null;
+            MultiTargets.Clear();
+            return;
+        }
 
         if (activeMode == GameMode.Michaeltat)
         {
@@ -108,40 +103,6 @@ internal static class PlayerOutline
 
         PlayerHealth? target = PlayerLookup.FindActivePlayerHealthById(_rolePlayerId);
         ApplySingleTarget(ref _singleTarget, target, GetColor(activeMode));
-    }
-
-    private static void ClearTeamOutlines()
-    {
-        foreach (int playerId in PlayerLookup.GetConnectedPlayerIdsReadOnly())
-        {
-            PlayerHealth? player = PlayerLookup.FindActivePlayerHealthById(playerId);
-            if (player != null && player.gameObject.activeInHierarchy && !player.IsOwner)
-            {
-                ClearTeamOutline(player);
-            }
-        }
-    }
-
-    private static void ClearTeamOutline(PlayerHealth player)
-    {
-        foreach (SkinnedMeshRenderer renderer in GetRenderers(player))
-        {
-            if (renderer == null)
-            {
-                continue;
-            }
-
-            Material[] materials = renderer.materials;
-            if (materials.Length == 0 || materials[0] == null
-                || !materials[0].HasProperty("_ASEOutlineWidth"))
-            {
-                continue;
-            }
-
-            materials[0].SetFloat("_ASEOutlineWidth", 0f);
-            renderer.materials = materials;
-            AppliedRenderers.Remove(renderer);
-        }
     }
 
     internal static bool UpdateMode(GameMode activeMode)
@@ -437,14 +398,25 @@ internal static class PlayerOutline
 
     internal static void Clear(PlayerHealth player)
     {
-        if (player == null)
+        if (player == null || !player)
         {
             return;
         }
 
         foreach (SkinnedMeshRenderer renderer in GetRenderers(player))
         {
-            ClearRenderer(renderer.gameObject);
+            if (renderer == null || !renderer)
+            {
+                continue;
+            }
+
+            GameObject meshObject = renderer.gameObject;
+            if (meshObject == null || !meshObject)
+            {
+                continue;
+            }
+
+            ClearRenderer(meshObject);
         }
     }
 
@@ -509,20 +481,9 @@ internal static class PlayerOutline
 
     internal static void ClearAll()
     {
-        foreach (ClientInstance client in ClientInstance.playerInstances.Values)
+        foreach (int playerId in PlayerLookup.GetConnectedPlayerIdsReadOnly())
         {
-            if (client == null || !client)
-            {
-                continue;
-            }
-
-            PlayerManager? playerManager = client.PlayerSpawner;
-            if (playerManager == null || !playerManager || playerManager.player == null || !playerManager.player)
-            {
-                continue;
-            }
-
-            PlayerHealth? player = playerManager.player.GetComponent<PlayerHealth>();
+            PlayerHealth? player = PlayerLookup.FindActivePlayerHealthById(playerId);
             if (player != null && player)
             {
                 Clear(player);
@@ -565,13 +526,13 @@ internal static class PlayerOutline
 
     private static void ClearRenderer(GameObject meshObject)
     {
-        if (meshObject == null)
+        if (meshObject == null || !meshObject)
         {
             return;
         }
 
         SkinnedMeshRenderer? renderer = meshObject.GetComponent<SkinnedMeshRenderer>();
-        if (renderer == null)
+        if (renderer == null || !renderer)
         {
             return;
         }

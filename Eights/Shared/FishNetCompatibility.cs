@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using FishNet.Managing;
 using MyceliumNetworking;
+using UnityEngine;
 
 namespace Eights;
 
@@ -15,6 +16,9 @@ internal static class FishNetCompatibility
     private static MethodInfo? removeHealthLogic;
     private static bool removeHealthResolved;
     private static bool removeHealthUnavailableLogged;
+    private static MethodInfo? voidDespawnLogic;
+    private static bool voidDespawnResolved;
+    private static bool voidDespawnUnavailableLogged;
 
     internal static MethodInfo? FindGeneratedMethod(Type type, string namePrefix, Func<MethodInfo, bool> signature)
     {
@@ -36,6 +40,7 @@ internal static class FishNetCompatibility
 
         MethodInfo? respawn = ResolveCmdRespawnLogic();
         MethodInfo? removeHealth = ResolveRemoveHealthLogic();
+        MethodInfo? voidDespawn = ResolveVoidDespawnLogic();
     }
 
     private static void LogAssembly(string label, Assembly assembly)
@@ -82,6 +87,26 @@ internal static class FishNetCompatibility
         }
     }
 
+    internal static bool TryInvokeVoidDespawn(FirstPersonController controller)
+    {
+        MethodInfo? method = ResolveVoidDespawnLogic();
+        if (method == null || controller == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            method.Invoke(controller, new object[] { controller.gameObject });
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Plugin.Logger.LogWarning($"[Compatibility] Void death invocation failed: {exception.GetBaseException().Message}");
+            return false;
+        }
+    }
+
     private static MethodInfo? ResolveCmdRespawnLogic()
     {
         if (cmdRespawnResolved)
@@ -122,5 +147,27 @@ internal static class FishNetCompatibility
         }
 
         return removeHealthLogic;
+    }
+
+    private static MethodInfo? ResolveVoidDespawnLogic()
+    {
+        if (voidDespawnResolved)
+        {
+            return voidDespawnLogic;
+        }
+
+        voidDespawnResolved = true;
+        voidDespawnLogic = FindGeneratedMethod(typeof(FirstPersonController), "RpcLogic___DespawnObject_",
+            method => method.ReturnType == typeof(void)
+                && method.GetParameters() is { Length: 1 } parameters
+                && parameters[0].ParameterType == typeof(GameObject));
+
+        if (voidDespawnLogic == null && !voidDespawnUnavailableLogged)
+        {
+            voidDespawnUnavailableLogged = true;
+            Plugin.Logger.LogError("[Compatibility] FishNet player void-death method was not found.");
+        }
+
+        return voidDespawnLogic;
     }
 }

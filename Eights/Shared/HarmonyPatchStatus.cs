@@ -15,6 +15,7 @@ internal static class HarmonyPatchStatus
         typeof(GameManager_GameModeReset_Patch),
         typeof(GameManager_PreRoundTimer_Patch),
         typeof(FirstPersonController_VoidDeath_Patch),
+        typeof(FirstPersonController_KillzDeath_Patch),
         typeof(PauseManager_RoundLifecycle_Patch),
         typeof(SceneMotor_GameModeCycle_Patch),
         typeof(GameManager_GameModeStart_Patch),
@@ -27,6 +28,8 @@ internal static class HarmonyPatchStatus
         typeof(PlayerPickup_LeftHandDropPolicy_Patch),
         typeof(PlayerPickup_LeftHandFixPolicy_Patch),
         typeof(PlayerPickup_WeaponHandPolicy_Patch),
+        typeof(PlayerPickup_SetObjectInHandServerState_Patch),
+        typeof(PlayerPickup_DropObjectServerState_Patch),
         typeof(PlayerManager_RespawnProtection_Patch),
         typeof(PlayerSetup_RespawnProtection_Patch),
         typeof(PlayerSetup_LocalHudRestore_Patch),
@@ -66,12 +69,21 @@ internal static class HarmonyPatchStatus
             typeof(PlayerManager_PotatotatSpawn_Patch),
             typeof(HandGrenade_PotatotatDeath_Patch),
             typeof(PlayerHealth_PotatotatGrenadeDeath_Patch),
+            typeof(PlayerPickup_PotatoGrenadeSwitch_Patch),
+            typeof(PlayerPickup_PotatoGrenadeRightHandPickup_Patch),
+            typeof(PlayerPickup_PotatoGrenadeLeftHandPickup_Patch),
             typeof(DualLauncher_PotatoGrenadePinGate_Patch),
+            typeof(DualLauncher_PotatoGrenadeFire_Patch),
+            typeof(DualLauncher_PotatoInftatGrenadeThrow_Patch),
             typeof(FirstPersonController_PotatoGrenadeReleaseGate_Patch)
         },
         [GameMode.PotatoInftat] = new[]
         {
+            typeof(PlayerPickup_PotatoGrenadeSwitch_Patch),
+            typeof(PlayerPickup_PotatoGrenadeRightHandPickup_Patch),
+            typeof(PlayerPickup_PotatoGrenadeLeftHandPickup_Patch),
             typeof(DualLauncher_PotatoGrenadePinGate_Patch),
+            typeof(DualLauncher_PotatoGrenadeFire_Patch),
             typeof(FirstPersonController_PotatoGrenadeReleaseGate_Patch),
             typeof(DualLauncher_PotatoInftatGrenadeThrow_Patch)
         },

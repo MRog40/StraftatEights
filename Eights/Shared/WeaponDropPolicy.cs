@@ -18,6 +18,11 @@ internal static class WeaponDropPolicy
             return false;
         }
 
+        if (WeaponPolicy.IsFixedHandGrenade(weapon))
+        {
+            return true;
+        }
+
         PlayerHealth? health = pickup.GetComponent<PlayerHealth>();
         int playerId = pickup.playerValues?.playerClient?.PlayerId
             ?? health?.playerValues?.playerClient?.PlayerId ?? -1;

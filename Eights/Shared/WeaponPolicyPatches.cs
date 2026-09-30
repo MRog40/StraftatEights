@@ -6,6 +6,62 @@ namespace Eights;
 
 internal static class WeaponPolicy
 {
+    internal static bool IsFixedHandGrenadeMode =>
+        GameModeManager.IsActive(GameMode.Potatotat)
+        || GameModeManager.IsActive(GameMode.PotatoInftat);
+
+    internal static bool IsFixedHandGrenade(Weapon? weapon)
+    {
+        if (!IsFixedHandGrenadeMode || weapon == null || !weapon)
+        {
+            return false;
+        }
+
+        return weapon.name.StartsWith(PotatotatState.PotatoWeaponName,
+                   System.StringComparison.Ordinal)
+            || weapon.name.StartsWith(PotatoInftatState.GrenadeWeaponName,
+                System.StringComparison.Ordinal);
+    }
+
+    internal static bool HasFixedHandGrenade(PlayerPickup pickup)
+    {
+        if (pickup == null || !pickup)
+        {
+            return false;
+        }
+
+        return IsFixedHandGrenade(GetHeldWeapon(pickup.objInHand))
+            || IsFixedHandGrenade(GetHeldWeapon(pickup.objInLeftHand));
+    }
+
+    internal static void RepairRejectedLocalWeapon(PlayerPickup pickup, bool rightHand)
+    {
+        if (pickup == null || !pickup)
+        {
+            return;
+        }
+
+        GameObject? heldObject = rightHand ? pickup.objInHand : pickup.objInLeftHand;
+        Weapon? weapon = GetHeldWeapon(heldObject);
+        if (heldObject == null || !heldObject || weapon == null || !weapon
+            || WeaponPolicy.CanEquip(pickup, heldObject, rightHand))
+        {
+            return;
+        }
+
+        if (rightHand)
+        {
+            pickup.objInHand = null;
+            pickup.hasObjectInHand = false;
+        }
+        else
+        {
+            pickup.objInLeftHand = null;
+            pickup.hasObjectInLeftHand = false;
+        }
+        pickup.HandsReconstruct();
+    }
+
     internal static bool PrepareItemSpawn(ItemSpawner spawner)
     {
         if (GameModeManager.IsBombModeActive
@@ -92,6 +148,18 @@ internal static class WeaponPolicy
             return true;
         }
 
+        if (IsFixedHandGrenade(weapon) && !rightHand)
+        {
+            if (pickup.IsOwner && pickup.objInLeftHand == obj)
+            {
+                pickup.objInLeftHand = null;
+                pickup.hasObjectInLeftHand = false;
+                pickup.HandsReconstruct();
+            }
+
+            return false;
+        }
+
         PlayerHealth? health = pickup.GetComponent<PlayerHealth>();
         switch (GameModeManager.ActiveMode)
         {
@@ -145,7 +213,7 @@ internal static class WeaponPolicy
             case GameMode.Snipertat:
                 return SnipertatState.IsSniperWeapon(weapon);
             case GameMode.Guntat:
-                return false;
+                return WeaponService.IsAuthorizingServerGrant(pickup, obj);
             case GameMode.Nifetat:
                 return NifetatState.IsSelectedWeapon(weapon);
             default:
@@ -207,6 +275,11 @@ internal static class WeaponPolicy
         }
 
         WeaponAmmoTuning.InitializeFromSpawnerPickup(weapon, WeaponSettingsState.SpareMagazines);
+    }
+
+    private static Weapon? GetHeldWeapon(GameObject? heldObject)
+    {
+        return heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
     }
 }
 
@@ -314,7 +387,13 @@ internal static class PlayerPickup_RightHandDropPolicy_Patch
 {
     private static bool Prefix(PlayerPickup __instance)
     {
-        return !WeaponDropPolicy.IsDropBlocked(__instance, true);
+        bool dropBlocked = WeaponDropPolicy.IsDropBlocked(__instance, true);
+        if (!dropBlocked)
+        {
+            WeaponAmmoTuning.CompleteReloadBeforeDrop(__instance.objInHand?.GetComponent<Weapon>());
+        }
+
+        return !dropBlocked;
     }
 }
 
@@ -323,7 +402,89 @@ internal static class PlayerPickup_LeftHandDropPolicy_Patch
 {
     private static bool Prefix(PlayerPickup __instance)
     {
-        return !WeaponDropPolicy.IsDropBlocked(__instance, false);
+        bool dropBlocked = WeaponDropPolicy.IsDropBlocked(__instance, false);
+        if (!dropBlocked)
+        {
+            WeaponAmmoTuning.CompleteReloadBeforeDrop(__instance.objInLeftHand?.GetComponent<Weapon>());
+        }
+
+        return !dropBlocked;
+    }
+}
+
+[HarmonyPatch]
+internal static class PlayerPickup_DropReload_Patch
+{
+    private static MethodBase? TargetMethod()
+    {
+        return FishNetCompatibility.FindGeneratedMethod(typeof(PlayerPickup),
+            "RpcLogic___DropObjectServer_",
+            method => method.ReturnType == typeof(void)
+                && method.GetParameters() is { Length: 2 } parameters
+                && parameters[0].ParameterType == typeof(GameObject)
+                && parameters[1].ParameterType == typeof(bool));
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
+    private static void Prefix(GameObject obj)
+    {
+        if (obj != null && obj)
+        {
+            WeaponAmmoTuning.CompleteReloadBeforeDrop(obj.GetComponent<Weapon>());
+        }
+    }
+}
+
+[HarmonyPatch]
+internal static class PlayerPickup_DropReloadObserver_Patch
+{
+    private static MethodBase? TargetMethod()
+    {
+        return FishNetCompatibility.FindGeneratedMethod(typeof(PlayerPickup),
+            "RpcLogic___DropObjectObserver_",
+            method => method.ReturnType == typeof(void)
+                && method.GetParameters() is { Length: 2 } parameters
+                && parameters[0].ParameterType == typeof(GameObject)
+                && parameters[1].ParameterType == typeof(bool));
+    }
+
+    private static bool Prepare() => TargetMethod() != null;
+
+    private static void Prefix(PlayerPickup __instance, GameObject obj)
+    {
+        if (obj != null && obj)
+        {
+            ItemBehaviour? item = obj.GetComponent<ItemBehaviour>();
+            if (item != null && item)
+            {
+                item.rootObject = __instance.gameObject;
+                if (__instance.IsOwner)
+                {
+                    item.StickOnGroundObservers();
+                }
+            }
+
+            WeaponAmmoTuning.CompleteReloadBeforeDrop(obj.GetComponent<Weapon>());
+        }
+    }
+
+    private static void Postfix(PlayerPickup __instance, GameObject obj)
+    {
+        if (!__instance.IsOwner || obj == null || !obj)
+        {
+            return;
+        }
+
+        ItemBehaviour? item = obj.GetComponent<ItemBehaviour>();
+        if (item == null || !item)
+        {
+            return;
+        }
+
+        obj.SetActive(true);
+        item.UnsetLayer();
+        obj.layer = 7;
     }
 }
 
@@ -333,6 +494,52 @@ internal static class PlayerPickup_GuntatSwitchWeapons_Patch
     private static bool Prefix()
     {
         return !GameModeManager.IsActive(GameMode.Guntat);
+    }
+}
+
+[HarmonyPatch(typeof(PlayerPickup), "SwitchWeapons")]
+[HarmonyPriority(Priority.First)]
+internal static class PlayerPickup_PotatoGrenadeSwitch_Patch
+{
+    private static bool Prefix(PlayerPickup __instance)
+    {
+        return !WeaponPolicy.HasFixedHandGrenade(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(PlayerPickup), "RightHandPickup")]
+internal static class PlayerPickup_PotatoGrenadeRightHandPickup_Patch
+{
+    private static bool Prefix(PlayerPickup __instance, out bool __state)
+    {
+        __state = WeaponPolicy.HasFixedHandGrenade(__instance);
+        return !__state;
+    }
+
+    private static void Postfix(PlayerPickup __instance, bool __state)
+    {
+        if (!__state)
+        {
+            WeaponPolicy.RepairRejectedLocalWeapon(__instance, true);
+        }
+    }
+}
+
+[HarmonyPatch(typeof(PlayerPickup), "LeftHandPickup")]
+internal static class PlayerPickup_PotatoGrenadeLeftHandPickup_Patch
+{
+    private static bool Prefix(PlayerPickup __instance, out bool __state)
+    {
+        __state = WeaponPolicy.HasFixedHandGrenade(__instance);
+        return !__state;
+    }
+
+    private static void Postfix(PlayerPickup __instance, bool __state)
+    {
+        if (!__state)
+        {
+            WeaponPolicy.RepairRejectedLocalWeapon(__instance, false);
+        }
     }
 }
 
@@ -380,6 +587,12 @@ internal static class PlayerPickup_CouperetDropServerLogic_Patch
     private static void Postfix(PlayerPickup __instance, GameObject obj, bool rightHand)
     {
         if (obj == null || !obj)
+        {
+            return;
+        }
+
+        GameObject? currentObject = rightHand ? __instance.objInHand : __instance.objInLeftHand;
+        if (currentObject == null || !currentObject || !ReferenceEquals(currentObject, obj))
         {
             return;
         }

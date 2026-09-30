@@ -170,8 +170,7 @@ internal static class GuntatState
         _nextLoadoutCheckTime = Time.unscaledTime + 1f;
         foreach (ClientInstance client in ClientInstance.playerInstances.Values)
         {
-            if (client == null || !client || client.PlayerSpawner == null || !client.PlayerSpawner
-                || client.PlayerSpawner.player == null || !client.PlayerSpawner.player)
+            if (client == null || !client)
             {
                 continue;
             }
@@ -183,21 +182,17 @@ internal static class GuntatState
                 continue;
             }
 
-            PlayerPickup? pickup = client.PlayerSpawner.player.playerPickupScript;
+            PlayerHealth? health = PlayerLookup.FindActivePlayerHealthById(client.PlayerId);
+            FirstPersonController? player = health != null && health
+                ? health.GetComponent<FirstPersonController>()
+                : null;
+            PlayerPickup? pickup = player != null && player ? player.playerPickupScript : null;
             GameObject? heldObject = pickup?.objInHand;
             Weapon? heldWeapon = heldObject == null || !heldObject ? null : heldObject.GetComponent<Weapon>();
             if (heldWeapon != null && heldWeapon.name.StartsWith(expectedWeapon, StringComparison.Ordinal))
             {
-                WeaponAmmoTuning.ApplyUnlimitedToWeapon(heldWeapon);
-                bool ammoReady = !heldWeapon.needsAmmo
-                    || heldWeapon.currentAmmo > 0
-                    || WeaponAmmoTuning.IsReloading(heldWeapon)
-                    || (heldWeapon.reloadWeapon && heldWeapon.chargedBullets > 0);
-                if (ammoReady)
-                {
-                    PendingLoadouts.Remove(client.PlayerId);
-                    continue;
-                }
+                PendingLoadouts.Remove(client.PlayerId);
+                continue;
             }
 
             if (!PendingLoadouts.TryGetValue(client.PlayerId, out float retryTime)

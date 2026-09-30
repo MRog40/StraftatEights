@@ -69,7 +69,15 @@ public partial class Plugin : BaseUnityPlugin
         InitializeSafely("Ninjatat", InitializeNinjatat);
         InitializeSafely("Hunttat", InitializeHunttat);
         InitializeSafely("Tanktat", InitializeTanktat);
-        Config.Save();
+        try
+        {
+            Config.Save();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning("[Startup] Could not save config: "
+                + exception.GetBaseException().Message);
+        }
 
         try
         {
