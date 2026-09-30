@@ -7,6 +7,9 @@ namespace Eights;
 [HarmonyPatch]
 internal static class PlayerPickup_SetObjectInHandServerState_Patch
 {
+    private const int CanEquipState = 1;
+    private const int ServerBeforeOwnershipTransferState = 2;
+
     private static MethodBase? TargetMethod()
     {
         return FishNetCompatibility.FindGeneratedMethod(typeof(PlayerPickup),
@@ -23,15 +26,21 @@ internal static class PlayerPickup_SetObjectInHandServerState_Patch
     private static bool Prepare() => TargetMethod() != null;
 
     private static void Prefix(PlayerPickup __instance, GameObject obj, bool rightHand,
-        out bool __state)
+        out int __state)
     {
-        __state = WeaponPolicy.CanEquip(__instance, obj, rightHand);
+        bool canEquip = WeaponPolicy.CanEquip(__instance, obj, rightHand);
+        __state = (canEquip ? CanEquipState : 0)
+            | (__instance.IsServer && !__instance.IsOwner
+                ? ServerBeforeOwnershipTransferState
+                : 0);
     }
 
     private static void Postfix(PlayerPickup __instance, GameObject obj, bool rightHand,
-        bool __state)
+        int __state)
     {
-        if (!__state || !__instance.IsServer || __instance.IsOwner || obj == null || !obj)
+        bool canEquip = (__state & CanEquipState) != 0;
+        if (!canEquip || (__state & ServerBeforeOwnershipTransferState) == 0
+            || !__instance.IsServer || obj == null || !obj)
         {
             return;
         }

@@ -26,8 +26,8 @@ internal static class WeaponAmmoTuning
         public bool RestoredDuringDrop;
         public bool FreshPotatoGrenade;
         public bool PotatoGrenadeSpent;
+        public Coroutine? ReloadCoroutine;
         public int PendingReloadRequestId;
-        public string? LastWeaponTrace;
     }
 
     private static readonly ConditionalWeakTable<Weapon, Memory> MemoryByWeapon = new();
@@ -382,8 +382,22 @@ internal static class WeaponAmmoTuning
 
     internal static void CompleteReloadBeforeDrop(Weapon? weapon)
     {
-        if (weapon == null || !weapon || !weapon.IsServer || !weapon.needsAmmo || weapon.reloadWeapon
-            || weapon.currentAmmo > 0)
+        if (weapon == null || !weapon || !weapon.needsAmmo || weapon.reloadWeapon)
+        {
+            return;
+        }
+
+        if (MemoryByWeapon.TryGetValue(weapon, out Memory? memory))
+        {
+            bool wasReloading = CancelReloadAnimation(weapon, memory);
+            if (wasReloading)
+            {
+                SetFieldValue(weapon, "inHandDespawn", memory.OriginalInHandDespawn);
+                memory.OriginalInHandDespawn = false;
+            }
+        }
+
+        if (!weapon.IsServer || weapon.currentAmmo > 0)
         {
             return;
         }
@@ -395,9 +409,9 @@ internal static class WeaponAmmoTuning
             return;
         }
 
-        if (MemoryByWeapon.TryGetValue(weapon, out Memory? memory))
+        if (MemoryByWeapon.TryGetValue(weapon, out Memory? restoredMemory))
         {
-            memory.RestoredDuringDrop = true;
+            restoredMemory.RestoredDuringDrop = true;
         }
         RequestServerReload(weapon);
     }
@@ -435,6 +449,10 @@ internal static class WeaponAmmoTuning
 
         if (TryLoadMagazine(weapon, true, spareMagazines))
         {
+            if (!weapon.gameObject.activeSelf)
+            {
+                weapon.gameObject.SetActive(true);
+            }
             return true;
         }
 
@@ -474,6 +492,8 @@ internal static class WeaponAmmoTuning
             }
         }
 
+        bool restoreInHandDespawn = CancelReloadAnimation(weapon, memory);
+
         if ((!memory.SpareRoundsInitialized && !memory.UnlimitedAmmo)
             || (!memory.UnlimitedAmmo && memory.SpareRounds <= 0)
             || memory.MagazineSize <= 0)
@@ -489,8 +509,6 @@ internal static class WeaponAmmoTuning
             memory.SpareRounds -= rounds;
         }
 
-        bool restoreInHandDespawn = memory.Reloading;
-        memory.Reloading = false;
         memory.PendingReloadRequestId = 0;
         weapon.CancelInvoke("DespawnObject");
         SetCurrentAmmo(weapon, rounds);
@@ -715,73 +733,9 @@ internal static class WeaponAmmoTuning
         return true;
     }
 
-    internal static void TraceOwnerWeaponUpdate(Weapon? weapon, string phase)
-    {
-        TraceOwnerWeaponState(weapon, phase, true);
-    }
-
-    internal static void TraceOwnerWeaponDespawn(Weapon? weapon, string phase)
-    {
-        TraceOwnerWeaponState(weapon, phase, false);
-    }
-
-    internal static void TraceWeaponDrop(Weapon? weapon, string phase)
-    {
-        if (weapon == null || !weapon || Plugin.Logger == null)
-        {
-            return;
-        }
-
-        Plugin.Logger.LogWarning($"[WeaponDropTrace] {weapon.name} phase={phase} "
-            + $"layer={weapon.gameObject.layer} active={weapon.gameObject.activeSelf} "
-            + $"ammo={weapon.currentAmmo} cantTake={weapon.cantTakeSafeBool} "
-            + $"right={weapon.inRightHand} left={weapon.inLeftHand} "
-            + $"owner={weapon.IsOwner} server={weapon.IsServer} "
-            + $"position={weapon.transform.position}");
-    }
-
-    private static void TraceOwnerWeaponState(Weapon? weapon, string phase,
-        bool onlySuspicious)
-    {
-        if (weapon == null || !weapon || !weapon.IsOwner || !weapon.needsAmmo
-            || Plugin.Logger == null)
-        {
-            return;
-        }
-
-        bool inHandDespawn = GetFieldValue(weapon, "inHandDespawn") is bool value && value;
-        bool suspicious = !weapon.gameObject.activeSelf
-            || (weapon.currentAmmo <= 0
-                && (weapon.gameObject.layer == 7 || inHandDespawn));
-        if (onlySuspicious && !suspicious)
-        {
-            return;
-        }
-
-        Memory memory = MemoryByWeapon.GetOrCreateValue(weapon);
-        string trace = string.Concat(
-            phase, "|", weapon.gameObject.layer, "|", weapon.gameObject.activeSelf,
-            "|", weapon.currentAmmo, "|", inHandDespawn, "|", memory.SpareRounds,
-            "|", memory.Reloading, "|", weapon.cantTakeSafeBool, "|", weapon.heldOnce,
-            "|", weapon.lastPlayerHolder != null, "|", weapon.inRightHand, "|", weapon.inLeftHand);
-        if (memory.LastWeaponTrace == trace)
-        {
-            return;
-        }
-
-        memory.LastWeaponTrace = trace;
-        Plugin.Logger.LogWarning($"[WeaponTrace] {weapon.name} phase={phase} "
-            + $"layer={weapon.gameObject.layer} active={weapon.gameObject.activeSelf} "
-            + $"ammo={weapon.currentAmmo} spare={memory.SpareRounds} "
-            + $"reloading={memory.Reloading} cantTake={weapon.cantTakeSafeBool} "
-            + $"heldOnce={weapon.heldOnce} holder={weapon.lastPlayerHolder != null} "
-            + $"inHandDespawn={inHandDespawn} server={weapon.IsServer} "
-            + $"right={weapon.inRightHand} left={weapon.inLeftHand}");
-    }
-
     internal static void RestoreEmptyWeaponAutoDrop(Weapon? weapon, bool restore)
     {
-        if (restore && weapon != null && weapon)
+        if (restore && weapon != null && weapon && weapon.IsOwner)
         {
             SetFieldValue(weapon, "inHandDespawn", true);
         }
@@ -976,7 +930,7 @@ internal static class WeaponAmmoTuning
         weapon.cantTakeSafeBool = true;
         SetFieldValue(weapon, "inHandDespawn", false);
         weapon.isReloading = true;
-        weapon.StartCoroutine(Reload(weapon, memory));
+        memory.ReloadCoroutine = weapon.StartCoroutine(Reload(weapon, memory));
     }
 
     private static IEnumerator Reload(Weapon weapon, Memory memory)
@@ -1001,6 +955,7 @@ internal static class WeaponAmmoTuning
 
         if (!memory.Reloading)
         {
+            memory.ReloadCoroutine = null;
             yield break;
         }
 
@@ -1018,6 +973,26 @@ internal static class WeaponAmmoTuning
         memory.Reloading = false;
         weapon.isReloading = false;
         SetFieldValue(weapon, "inHandDespawn", memory.OriginalInHandDespawn);
+        memory.OriginalInHandDespawn = false;
+        memory.ReloadCoroutine = null;
+    }
+
+    private static bool CancelReloadAnimation(Weapon weapon, Memory memory)
+    {
+        bool wasReloading = memory.Reloading || memory.ReloadCoroutine != null;
+        if (memory.ReloadCoroutine != null)
+        {
+            weapon.StopCoroutine(memory.ReloadCoroutine);
+            memory.ReloadCoroutine = null;
+        }
+
+        if (memory.Reloading)
+        {
+            memory.Reloading = false;
+            weapon.isReloading = false;
+        }
+
+        return wasReloading;
     }
 
     private static bool TriggerReloadAnimation(Weapon weapon)
@@ -1048,12 +1023,24 @@ internal static class WeaponAmmoTuning
 
         while (elapsed < reloadTime)
         {
+            if (weapon == null || !weapon || weapon.gameObject.layer != 8
+                || transform.parent == null)
+            {
+                yield break;
+            }
+
             float progress = Mathf.Clamp01(elapsed / reloadTime);
             float envelope = Mathf.Sin(progress * Mathf.PI);
             transform.localPosition = initialPosition + Vector3.down * (0.08f * envelope);
             transform.localRotation = initialRotation * Quaternion.Euler(25f * envelope, 0f, 0f);
             elapsed += Time.deltaTime;
             yield return null;
+        }
+
+        if (weapon == null || !weapon || weapon.gameObject.layer != 8
+            || transform.parent == null)
+        {
+            yield break;
         }
 
         transform.localPosition = initialPosition;

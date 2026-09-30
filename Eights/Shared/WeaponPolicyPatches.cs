@@ -455,7 +455,6 @@ internal static class PlayerPickup_DropReloadObserver_Patch
     {
         if (obj != null && obj)
         {
-            WeaponAmmoTuning.TraceWeaponDrop(obj.GetComponent<Weapon>(), "observer-prefix");
             ItemBehaviour? item = obj.GetComponent<ItemBehaviour>();
             if (item != null && item)
             {
@@ -485,11 +484,8 @@ internal static class PlayerPickup_DropReloadObserver_Patch
 
         if (!__instance.IsOwner)
         {
-            WeaponAmmoTuning.TraceWeaponDrop(weapon, "observer-postfix-remote-repair");
             return;
         }
-
-        WeaponAmmoTuning.TraceWeaponDrop(weapon, "observer-postfix-before-repair");
 
         ItemBehaviour? item = obj.GetComponent<ItemBehaviour>();
         if (item == null || !item)
@@ -500,7 +496,6 @@ internal static class PlayerPickup_DropReloadObserver_Patch
         obj.SetActive(true);
         item.UnsetLayer();
         obj.layer = 7;
-        WeaponAmmoTuning.TraceWeaponDrop(obj.GetComponent<Weapon>(), "observer-postfix-after-repair");
     }
 }
 
